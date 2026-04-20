@@ -49,61 +49,36 @@ void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& 
                                                    const Vector3& m_x_bar,
                                                    const Matrix3x3& m_x_bar_x_bar) const
 {
-    auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
-    if(!cuid)
-        cuid = sc.meta().create<U64>(builtin::constitution_uid, 0);
-    geometry::view(*cuid).front() = uid();
+    // Always overwrite: constitution identity
+    {
+        auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
+        if(!cuid)
+            cuid = sc.meta().create<U64>(builtin::constitution_uid, 0);
+        geometry::view(*cuid).front() = uid();
+    }
 
     sc.transforms().is_evolving(true);
 
-    auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
-    if(!dof_offset)
-        dof_offset = sc.meta().create<IndexT>(builtin::dof_offset, -1);
+    // Create-only defaults: user-configurable, never overwrite existing values
+    {
+        if(!sc.meta().find<IndexT>(builtin::dof_offset))
+            sc.meta().create<IndexT>(builtin::dof_offset, -1);
+        if(!sc.meta().find<IndexT>(builtin::dof_count))
+            sc.meta().create<IndexT>(builtin::dof_count, 0);
+        if(!sc.meta().find<IndexT>(builtin::self_collision))
+            sc.meta().create<IndexT>(builtin::self_collision, 0);
 
-    auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
-    if(!dof_count)
-        dof_count = sc.meta().create<IndexT>(builtin::dof_count, 0);
+        if(!sc.instances().find<IndexT>(builtin::is_fixed))
+            sc.instances().create<IndexT>(builtin::is_fixed, 0);
+        if(!sc.instances().find<IndexT>(builtin::is_dynamic))
+            sc.instances().create<IndexT>(builtin::is_dynamic, 1);
+        if(!sc.instances().find<IndexT>(builtin::external_kinetic))
+            sc.instances().create<IndexT>(builtin::external_kinetic, 0);
+        if(!sc.instances().find<Matrix4x4>(builtin::velocity))
+            sc.instances().create<Matrix4x4>(builtin::velocity, Matrix4x4::Zero());
+    }
 
-    auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
-    if(!is_fixed)
-        is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
-
-    auto is_dynamic = sc.instances().find<IndexT>(builtin::is_dynamic);
-    if(!is_dynamic)
-        is_dynamic = sc.instances().create<IndexT>(builtin::is_dynamic, 1);
-
-    auto external_kinetic = sc.instances().find<IndexT>(builtin::external_kinetic);
-    if(!external_kinetic)
-        external_kinetic = sc.instances().create<IndexT>(builtin::external_kinetic, 0);
-
-    auto velocity = sc.instances().find<Matrix4x4>(builtin::velocity);
-    if(!velocity)
-        velocity = sc.instances().create<Matrix4x4>(builtin::velocity, Matrix4x4::Zero());
-
-    auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
-    if(!self_collision)
-        self_collision = sc.meta().create<IndexT>(builtin::self_collision, 0);
-
-    auto kappa_attr = sc.instances().find<Float>("kappa");
-    if(!kappa_attr)
-        kappa_attr = sc.instances().create<Float>("kappa", kappa);
-    auto kappa_view = geometry::view(*kappa_attr);
-    std::ranges::fill(kappa_view, kappa);
-
-    UIPC_ASSERT_THROW(volume > 0,
-                "Volume of the mesh is non-positive ({}), which is not allowed.",
-                volume);
-
-    if(auto meta_volume = sc.meta().find<Float>(builtin::volume); !meta_volume)
-        sc.meta().create<Float>(builtin::volume, volume);
-    else
-        geometry::view(*meta_volume).front() = volume;
-
-    if(auto meta_mass = sc.meta().find<Float>(builtin::mass_density); !meta_mass)
-        sc.meta().create<Float>(builtin::mass_density, mass_density);
-    else
-        geometry::view(*meta_mass).front() = mass_density;
-
+    // Create-or-update: constitution-owned, always reflect current call's values
     auto create_or_update = [&](auto name, const auto& value)
     {
         using T   = std::decay_t<decltype(value)>;
@@ -114,12 +89,26 @@ void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& 
             geometry::view(*attr).front() = value;
     };
 
+    // kappa is per-instance so needs fill rather than scalar write
+    {
+        auto kappa_attr = sc.instances().find<Float>("kappa");
+        if(!kappa_attr)
+            kappa_attr = sc.instances().create<Float>("kappa", kappa);
+        std::ranges::fill(geometry::view(*kappa_attr), kappa);
+    }
+
+    UIPC_ASSERT_THROW(volume > 0,
+                "Volume of the mesh is non-positive ({}), which is not allowed.",
+                volume);
+
+    create_or_update(builtin::volume, volume);
+    create_or_update(builtin::mass_density, mass_density);
     create_or_update(builtin::abd_mass, m);
     create_or_update(builtin::abd_mass_x_bar, m_x_bar);
     create_or_update(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
 
-    Float total_mass;
-    Vector3 center_of_mass;
+    Float     total_mass;
+    Vector3   center_of_mass;
     Matrix3x3 inertia_cm;
     geometry::affine_body::to_rigid_body(m, m_x_bar, m_x_bar_x_bar,
                                          total_mass, center_of_mass, inertia_cm);
