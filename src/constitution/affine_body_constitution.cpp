@@ -94,15 +94,15 @@ void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& 
                 "Volume of the mesh is non-positive ({}), which is not allowed.",
                 volume);
 
-    auto meta_volume = sc.meta().find<Float>(builtin::volume);
-    if(!meta_volume)
-        meta_volume = sc.meta().create<Float>(builtin::volume, 0.0);
-    geometry::view(*meta_volume).front() = volume;
+    if(auto meta_volume = sc.meta().find<Float>(builtin::volume); !meta_volume)
+        sc.meta().create<Float>(builtin::volume, volume);
+    else
+        geometry::view(*meta_volume).front() = volume;
 
-    auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
-    if(!meta_mass)
-        meta_mass = sc.meta().create<Float>(builtin::mass_density, 0.0);
-    geometry::view(*meta_mass).front() = mass_density;
+    if(auto meta_mass = sc.meta().find<Float>(builtin::mass_density); !meta_mass)
+        sc.meta().create<Float>(builtin::mass_density, mass_density);
+    else
+        geometry::view(*meta_mass).front() = mass_density;
 
     auto create_or_update = [&](auto name, const auto& value)
     {
