@@ -45,7 +45,7 @@ library (C++20 + optional Python/pybind11).
 
 ```bash
 gh pr checkout <PR_NUMBER>
-gh pr view <PR_NUMBER> --json title,body,author,baseRefName,headRefName,url,additions,deletions,changedFiles
+gh pr view <PR_NUMBER> --json title,body,author,baseRefName,headRefName,headRefOid,repository,url,additions,deletions,changedFiles
 gh pr diff <PR_NUMBER> --name-only
 ```
 
@@ -191,13 +191,13 @@ gh pr review <PR_NUMBER> --approve   --body "LGTM"
 
 **Inline comment on a specific line:**
 ```bash
-gh api repos/{owner}/{repo}/pulls/<PR_NUMBER>/comments \
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments \
   --method POST \
-  -f path="src/backends/cuda/affine_body/affine_body_dynamics.cu" \
+  -f path="<FILE_PATH>" \
   -f body="Your comment" \
-  -F line=<N> \
+  -F line=<LINE_NUMBER> \
   -f side="RIGHT" \
-  -F commit_id="$(gh pr view <PR_NUMBER> --json headRefOid -q .headRefOid)"
+  -f commit_id="<HEAD_REF_OID>"
 ```
 
 Run `gh auth status` first if commands fail.
