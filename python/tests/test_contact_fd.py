@@ -98,9 +98,9 @@ def _apply_perturbation(geom_list, originals, dx_flat):
     """
     offset = 0
     for sc, orig in zip(geom_list, originals):
-        n_v  = orig.shape[0]          # orig has shape (n_v, 3, 1)
-        pos  = view(sc.positions())   # mutable view into geometry data
-        pos[:, :, 0] = orig[:, :, 0] + dx_flat[offset:offset + 3 * n_v].reshape(n_v, 3)
+        n_v  = orig.shape[0]
+        pos  = view(sc.positions())
+        pos[:] = orig + dx_flat[offset:offset + 3 * n_v].reshape(orig.shape)
         offset += 3 * n_v
 
 
@@ -287,7 +287,8 @@ def _check_dist2_barrier(compute, geom_list, R, n, test_hess, label):
 
     # ── barrier gradient (only when barrier is active) ───────────────────────
     b_val = _scalar(R, "barrier")
-    if b_val is not None and b_val > 0.0:
+    assert b_val is not None, f"[{label}] barrier attribute missing"
+    if b_val > 0.0:
 
         err = schroeder_grad_test(
             compute, geom_list,
@@ -630,7 +631,9 @@ def test_ee_fd(ddf_session, eb0, eb1, label, test_hess, test_mollifier):
     #   C∞ at t=0 (exact parallel)  → Hessian test always runs here
     #   C¹ only at t=1 (x = eps_x transition boundary)  → none of our cases land there
     # Therefore e_k Hessian is independent of test_hess (dist2 discontinuity).
-    if test_mollifier and ek_val is not None and ek_val < 1.0:
+    if test_mollifier:
+        assert ek_val is not None, f"[EE/{label}] e_k attribute missing"
+    if test_mollifier and ek_val < 1.0:
 
         err = schroeder_grad_test(
             compute, gl,
