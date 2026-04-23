@@ -118,10 +118,17 @@ class MASPreconditionerEngine
      */
     void set_coarse_damping(Float /*omega*/) {}
 
-    /** Dump cluster matrices in Matrix Market (.mtx) format and metadata as JSON for debug. */
-    void dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
-                                     SizeT                        frame,
-                                     SizeT                        newton_iter);
+    /** Dump cluster matrices in Matrix Market (.mtx) format and metadata as JSON for debug.
+     *
+     * `output_dir` is interpreted as a filesystem path; the caller may pass any
+     * `std::filesystem::path::string()`-like result. Files written:
+     *   - `mas_cluster_hess.f<frame>.n<newton>.mtx`
+     *   - `mas_cluster_inv.f<frame>.n<newton>.mtx`
+     *   - `mas_cluster_meta.f<frame>.n<newton>.json`
+     */
+    void dump_cluster_matrices_debug(std::string_view output_dir,
+                                     SizeT            frame,
+                                     SizeT            newton_iter);
 
     // ===========================================================================
     // All methods below are public because NVCC on Windows requires

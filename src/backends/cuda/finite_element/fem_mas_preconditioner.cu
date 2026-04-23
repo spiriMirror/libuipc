@@ -416,7 +416,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
             backend::BackendPathTool path_tool{std::string{workspace()}};
             auto out_dir = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
             this->engine.dump_cluster_matrices_debug(
-                out_dir, cuda_engine.frame(), cuda_engine.newton_iter());
+                out_dir.string(), cuda_engine.frame(), cuda_engine.newton_iter());
         }
 
         // Diagonal fallback assembly for unpartitioned vertices

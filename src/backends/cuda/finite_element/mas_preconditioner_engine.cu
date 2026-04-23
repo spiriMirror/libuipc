@@ -1403,14 +1403,17 @@ void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
     collect_final_Z(z, converged);
 }
 
-void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
-                                                          SizeT frame,
-                                                          SizeT newton_iter)
+void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view output_dir,
+                                                          SizeT            frame,
+                                                          SizeT            newton_iter)
 {
     if(!m_initialized || cluster_hessians.size() == 0)
         return;
 
     muda::wait_device();
+
+    // Materialize the path once for the lambdas / std::ofstream consumers below.
+    const std::filesystem::path output_dir_path{output_dir};
 
     const size_t nb = cluster_hessians.size();
     std::vector<ClusterMatrixSym>  h_hess(nb);
@@ -1431,7 +1434,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
                                           std::string_view                              kind)
     {
         auto path =
-            output_dir
+            output_dir_path
             / fmt::format("mas_cluster_{}.f{}.n{}.mtx", kind, frame, newton_iter);
         auto path_str = path.string();
 
@@ -1487,7 +1490,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
     // Partition metadata as JSON
     {
         auto path =
-            output_dir
+            output_dir_path
             / fmt::format("mas_cluster_meta.f{}.n{}.json", frame, newton_iter);
         std::ofstream out(path);
         if(!out)
