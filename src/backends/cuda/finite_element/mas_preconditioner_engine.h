@@ -17,7 +17,11 @@ namespace uipc::backend::cuda
  *
  * Key parameters:
  * - BANKSIZE = 16: each cluster has at most 16 nodes (48 DOFs).
- * - Mixed precision: Hessian assembled in double, inverse stored in float.
+ * - Mixed precision (matches StiffGIPC):
+ *     - Hessian assembly and Gauss-Jordan inversion run in double.
+ *     - The inverted per-cluster preconditioner, multi-level residual and
+ *       solution buffers are stored in float for memory / atomic bandwidth.
+ *     - Only the final apply output is cast back to double.
  */
 class MASPreconditionerEngine
 {
@@ -92,6 +96,28 @@ class MASPreconditionerEngine
 
     bool is_initialized() const { return m_initialized; }
 
+    /**
+     * @brief Override the number of active levels used during apply().
+     *
+     * By default all m_level_num levels are used (full hierarchy, injection prolongation).
+     * Set to 1 to use only the fine level (block Jacobi with BANKSIZE-node clusters).
+     *
+     * @param n  1 = fine-only (block Jacobi), 0 = use full hierarchy (default).
+     */
+    void set_active_level_num(int n)
+    {
+        if(n <= 0 || n > m_level_num)
+            m_active_level_num = m_level_num;  // clamp: 0 or out-of-range -> full hierarchy
+        else
+            m_active_level_num = n;
+    }
+
+    /**
+     * @brief No-op kept for API compatibility; coarse damping is unused since
+     *        collect_final_Z now uses pure injection prolongation (StiffGIPC default).
+     */
+    void set_coarse_damping(Float /*omega*/) {}
+
     /** Dump cluster matrices in Matrix Market (.mtx) format and metadata as JSON for debug. */
     void dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
                                      SizeT                        frame,
@@ -129,11 +155,12 @@ class MASPreconditionerEngine
 
   private:
     // ---- State ----
-    bool m_initialized        = false;
-    int  m_total_nodes        = 0;
-    int  m_total_map_nodes    = 0;
-    int  m_level_num          = 0;
-    int  m_total_num_clusters = 0;
+    bool  m_initialized        = false;
+    int   m_total_nodes        = 0;
+    int   m_total_map_nodes    = 0;
+    int   m_level_num          = 0;
+    int   m_active_level_num   = 0;   // levels used during apply(); 0 = use m_level_num
+    int   m_total_num_clusters = 0;
     Int2 m_h_level_size;
 
     // ---- GPU buffers: hierarchy ----
@@ -162,10 +189,10 @@ class MASPreconditionerEngine
     muda::DeviceBuffer<int> real_to_part;  // real vertex index -> partition-ordered index
 
     // ---- GPU buffers: cluster matrices ----
-    muda::DeviceBuffer<ClusterMatrixSym> cluster_hessians;  // assembled Hessian blocks (double)
-    muda::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;  // inverted preconditioner (float)
+    muda::DeviceBuffer<ClusterMatrixSym>  cluster_hessians;   // assembled Hessian blocks (double)
+    muda::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;   // inverted preconditioner (float, matches GIPC)
 
-    // ---- GPU buffers: multi-level residual / solution ----
+    // ---- GPU buffers: multi-level residual / solution (float, matches GIPC) ----
     muda::DeviceBuffer<Eigen::Vector3f> multi_level_R;
     muda::DeviceBuffer<float3>          multi_level_Z;
 };

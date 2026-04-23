@@ -61,7 +61,8 @@ void MASPreconditionerEngine::compute_num_levels(int vert_num)
         level_sz = bank_align(level_sz);
     }
     n_level++;
-    m_level_num = std::min(n_level, MAX_LEVELS);
+    m_level_num        = std::min(n_level, MAX_LEVELS);
+    m_active_level_num = 0;  // 0 = use full hierarchy (reset on each init_matrix)
 }
 
 void MASPreconditionerEngine::init_neighbor(int                     vert_num,
@@ -808,7 +809,10 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                 }
                 else
                 {
-                    // Walk up levels until both nodes land in the same cluster
+                    // Walk up ALL levels and add at every level where both endpoints
+                    // land in the same bank. This implements Galerkin H_L = R_L H R_L^T
+                    // independently per level (an entry can contribute to L1, L2, L3, ...
+                    // wherever its ancestors' banks merge).
                     int level = 0;
                     while(level < level_num - 1)
                     {
@@ -859,7 +863,9 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                                         atomicAdd(&(cluster_hess(cluster_id).M[si](i, j)),
                                                   H(j, i));
                             }
-                            break;
+                            // NO break: keep walking up to coarser levels where
+                            // banks may also merge. Each level's Galerkin restriction
+                            // is independent (R_L H R_L^T).
                         }
                     }
                 }
@@ -916,11 +922,17 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                        mat3   = cluster_hess(cluster_id).M[si].transpose();
                    }
 
-                   if(rdx < 0 || cdx < 0)
-                       return;
+                   // Do NOT early-return for invalid lanes — downstream code has warp-
+                   // scope collectives (cub::WarpReduce, atomicAdd chain) that require
+                   // every lane in the hw warp to be active. Instead, zero out mat3 so
+                   // invalid lanes contribute nothing to the reduction.
+                   bool invalid = (rdx < 0) || (cdx < 0);
+                   if(invalid)
+                       mat3.setZero();
 
                    if(prefix == 1)
                    {
+                       // Full 32-lane reduction per hw warp; mat3 for invalid lanes = 0.
                        using WarpReduceD = cub::WarpReduce<double>;
                        __shared__
                            typename WarpReduceD::TempStorage temp_reduce_d[BANKSIZE * BANKSIZE / 32];
@@ -931,14 +943,13 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                                mat3(i, j) =
                                    WarpReduceD(temp_reduce_d[hw_warp]).Sum(mat3(i, j));
 
-                       if((threadIdx.x & 0x1f) == 0)
+                       // Lane 0 of each hw warp writes the warp's sum to coarser levels,
+                       // but only if its own lane was valid (rdx >= 0).
+                       if((threadIdx.x & 0x1f) == 0 && !invalid)
                        {
                            int level   = 0;
                            int next_id = going_next(rdx);
-                           if(next_id < 0)
-                               return;
-
-                           while(level < level_num - 1)
+                           while(next_id >= 0 && level < level_num - 1)
                            {
                                level++;
 
@@ -955,13 +966,15 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                                        atomicAdd(&(cluster_hess(cid).M[si](i, j)),
                                                  mat3(i, j));
                                next_id = going_next(next_id);
-                               if(next_id < 0)
-                                   return;
                            }
                        }
                    }
                    else
                    {
+                       // prefix > 1: each lane walks up independently, no warp collective.
+                       if(invalid)
+                           return;
+
                        int level = 1;
                        while(level <= level_num - 1)
                        {
@@ -1310,7 +1323,7 @@ void MASPreconditionerEngine::collect_final_Z(muda::DenseVectorView<Float> Z,
     if(N < 1)
         return;
 
-    int level_num = m_level_num;
+    int level_num = (m_active_level_num > 0) ? m_active_level_num : m_level_num;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
@@ -1332,7 +1345,10 @@ void MASPreconditionerEngine::collect_final_Z(muda::DenseVectorView<Float> Z,
                    // Start with the fine-level solution
                    float3 cz = multi_lz(rdx);
 
-                   // Add contributions from all coarser levels
+                   // Pure injection prolongation: sum coarse Z contributions directly,
+                   // matching StiffGIPC's __collectFinalZ_new (no scaling).
+                   // The Galerkin coarsening (H_coarse = R H R^T) is consistent with
+                   // the summation restriction, so no additional scaling is needed.
                    LevelTable table = coarse_table(idx);
                    for(int l = 1; l < level_num; l++)
                    {
@@ -1495,6 +1511,39 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
             std::vector<int> h_part_to_real(static_cast<size_t>(m_total_map_nodes));
             part_to_real.view(0, m_total_map_nodes).copy_to(h_part_to_real.data());
             j["part_to_real"] = h_part_to_real;
+        }
+
+        // Hierarchy: level_sizes (start position .y, count .x per level)
+        {
+            std::vector<Int2> h_lvl(static_cast<size_t>(m_level_num + 1));
+            level_sizes.view(0, m_level_num + 1).copy_to(h_lvl.data());
+            Json jl = Json::array();
+            for(int l = 0; l <= m_level_num; l++)
+            {
+                Json e;
+                e["level"]  = l;
+                e["count"]  = h_lvl[l].x;
+                e["offset"] = h_lvl[l].y;
+                jl.push_back(e);
+            }
+            j["levels"]    = jl;
+            j["level_num"] = m_level_num;
+        }
+
+        // going_next: maps each "padded position in level X" -> "padded position in level X+1"
+        if(m_total_num_clusters > 0)
+        {
+            std::vector<int> h_gn(static_cast<size_t>(m_total_num_clusters));
+            going_next.view(0, m_total_num_clusters).copy_to(h_gn.data());
+            j["going_next"] = h_gn;
+        }
+
+        // real_to_part: fine real index -> padded fine position (for restriction)
+        if(m_total_nodes > 0)
+        {
+            std::vector<int> h_r2p(static_cast<size_t>(m_total_nodes));
+            real_to_part.view(0, m_total_nodes).copy_to(h_r2p.data());
+            j["real_to_part"] = h_r2p;
         }
 
         out << j.dump(4) << '\n';
