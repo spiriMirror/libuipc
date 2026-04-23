@@ -56,6 +56,17 @@ void InterAffineBodyConstitution::compute_gradient_hessian(ComputeGradientHessia
 {
     do_compute_gradient_hessian(info);
 }
+
+void InterAffineBodyConstitution::report_topo_extent(TopoReportExtentInfo& info)
+{
+    do_report_topo_extent(info);
+}
+
+void InterAffineBodyConstitution::report_topo(TopoReportInfo& info)
+{
+    do_report_topo(info);
+}
+
 U64 InterAffineBodyConstitution::uid() const noexcept
 {
     return get_uid();

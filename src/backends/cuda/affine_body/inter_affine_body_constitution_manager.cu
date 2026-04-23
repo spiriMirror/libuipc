@@ -141,6 +141,8 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
     constitution_energy_offsets_counts.resize(constitution_view.size());
     constitution_gradient_offsets_counts.resize(constitution_view.size());
     constitution_hessian_offsets_counts.resize(constitution_view.size());
+
+    init_topo();
 }
 
 void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearchReporter::ReportExtentInfo& info)
@@ -334,6 +336,57 @@ muda::CBufferView<IndexT> InterAffineBodyConstitutionManager::BaseInfo::is_fixed
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
 }
+
+// ---- TopoReportExtentInfo ----
+
+void InterAffineBodyConstitutionManager::TopoReportExtentInfo::edge_count(SizeT count) noexcept
+{
+    m_edge_count = count;
+}
+
+// ---- TopoReportInfo ----
+
+muda::BufferView<Vector2i> InterAffineBodyConstitutionManager::TopoReportInfo::edges() const noexcept
+{
+    return m_edges;
+}
+
+// ---- Impl::init_topo ----
+
+void InterAffineBodyConstitutionManager::Impl::init_topo()
+{
+    auto constitution_view = constitutions.view();
+
+    topo_edge_offsets_counts.resize(constitution_view.size());
+    auto counts = topo_edge_offsets_counts.counts();
+
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        TopoReportExtentInfo ext;
+        c->report_topo_extent(ext);
+        counts[i] = ext.m_edge_count;
+    }
+
+    topo_edge_offsets_counts.scan();
+    SizeT total = topo_edge_offsets_counts.total_count();
+    inter_body_edges.resize(total);
+
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        auto [offset, count] = topo_edge_offsets_counts[i];
+        TopoReportInfo info;
+        info.m_edges = inter_body_edges.view().subview(offset, count);
+        c->report_topo(info);
+    }
+}
+
+// ---- Manager public accessors ----
+
+muda::CBufferView<Vector2i> InterAffineBodyConstitutionManager::inter_body_edges() const noexcept
+{
+    return m_impl.inter_body_edges.view();
+}
+
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda

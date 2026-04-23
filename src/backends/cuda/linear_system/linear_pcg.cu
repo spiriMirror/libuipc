@@ -84,6 +84,17 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     info.iter_count(iter);
 }
 
+void LinearPCG::dump_b(muda::CDenseVectorView<Float> b)
+{
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto output_path_b = fmt::format(
+        "{}b.{}.{}.mtx", output_path.string(), engine().frame(), engine().newton_iter());
+
+    export_vector_market(output_path_b, b);
+    logger::info("Dumped PCG b to {}", output_path_b);
+}
+
 void LinearPCG::dump_r_z(SizeT k)
 {
 
@@ -226,7 +237,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         //spmv(-1.0, x.as_const(), 1.0, r.view());
     }
 
-    Float alpha, beta, rz, abs_rz0;
+    Float alpha, beta, rz;
 
     // z = P * r (apply preconditioner)
     {
@@ -235,20 +246,29 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     }
 
     if(need_debug_dump) [[unlikely]]
+    {
+        // Dump b (= r at k=0, since x=0) and z (first preconditioner response)
+        dump_b(b);
         dump_r_z(k);
+    }
 
     // p = z
     p = z;
 
-    // init rz
-    // rz = r^T * z
+    // rz = r^T * z  (preconditioned residual, used for beta recurrence only)
     rz = ctx().dot(r.cview(), z.cview());
     check_init_rz_nan_inf(rz);
 
-    abs_rz0 = std::abs(rz);
+    // rr = r^T * r  (preconditioner-independent stopping criterion)
+    Float rr0 = ctx().dot(r.cview(), r.cview());
 
-    // check convergence
-    if(accuracy_statisfied(r) && abs_rz0 == Float{0.0})
+    logger::info("LinearPCG: rz0={:.4e}  rr0={:.4e}  (ratio rz0/rr0={:.4e})",
+                 rz,
+                 rr0,
+                 rr0 > Float{0} ? rz / rr0 : Float{0});
+
+    // check convergence (rr0==0 means b==0, trivially solved)
+    if(accuracy_statisfied(r) && rr0 == Float{0.0})
         return 0;
 
     for(k = 1; k < max_iter; ++k)
@@ -258,7 +278,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
             spmv(p.cview(), Ap.view());
         }
 
-        if(need_debug_dump) [[unlikely]]
+        if(need_debug_dump && k == 1) [[unlikely]]
             dump_p_Ap(k);
 
         // alpha = rz / p^T * Ap
@@ -274,15 +294,18 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
             apply_preconditioner(z, r, d_converged_false.view());
         }
 
-        if(need_debug_dump) [[unlikely]]
+        if(need_debug_dump && k == 1) [[unlikely]]
             dump_r_z(k);
 
-        // rz_new = r^T * z
+        // rz_new = r^T * z  (needed for beta)
         Float rz_new = ctx().dot(r.cview(), z.cview());
         check_iter_rz_nan_inf(rz_new, k);
 
-        // check convergence
-        if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * abs_rz0)
+        // rr_new = r^T * r  (preconditioner-independent stopping criterion)
+        Float rr_new = ctx().dot(r.cview(), r.cview());
+
+        // check convergence: stop when ||r||^2 drops below tol_rate * ||r0||^2
+        if(accuracy_statisfied(r) && rr_new <= global_tol_rate * rr0)
             break;
 
         // beta = rz_new / rz

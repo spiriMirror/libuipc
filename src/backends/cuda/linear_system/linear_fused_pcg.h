@@ -33,6 +33,7 @@ class LinearFusedPCG : public IterativeSolver
     muda::DeviceVar<Float>  d_rz;
     muda::DeviceVar<Float>  d_pAp;
     muda::DeviceVar<Float>  d_rz_new;
+    muda::DeviceVar<Float>  d_rr_new;   // ||r_k||^2 for actual-residual criterion
     muda::DeviceVar<IndexT> d_converged;
 
     Float max_iter_ratio  = 2.0;

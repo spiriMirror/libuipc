@@ -521,6 +521,16 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }
+
+    void do_report_topo_extent(TopoReportExtentInfo& info) override
+    {
+        info.edge_count(h_body_ids.size());
+    }
+
+    void do_report_topo(TopoReportInfo& info) override
+    {
+        info.edges().copy_from(body_ids.view());
+    }
 };
 REGISTER_SIM_SYSTEM(AffineBodyPrismaticJoint);
 

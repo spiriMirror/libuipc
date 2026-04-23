@@ -19,6 +19,8 @@ class InterAffineBodyConstitution : public SimSystem
     using GradientHessianExtentInfo =
         InterAffineBodyConstitutionManager::GradientHessianExtentInfo;
     using ComputeGradientHessianInfo = InterAffineBodyConstitutionManager::GradientHessianInfo;
+    using TopoReportExtentInfo = InterAffineBodyConstitutionManager::TopoReportExtentInfo;
+    using TopoReportInfo       = InterAffineBodyConstitutionManager::TopoReportInfo;
 
     U64 uid() const noexcept;
 
@@ -31,6 +33,10 @@ class InterAffineBodyConstitution : public SimSystem
 
     virtual void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
+
+    // Topo reporting — default no-op; joint constitutions override to supply body-pair edges.
+    virtual void do_report_topo_extent(TopoReportExtentInfo& info) {}
+    virtual void do_report_topo(TopoReportInfo& info)              {}
 
     virtual U64 get_uid() const noexcept = 0;  // unique identifier for this constitution
 
@@ -53,6 +59,9 @@ class InterAffineBodyConstitution : public SimSystem
 
     void report_gradient_hessian_extent(GradientHessianExtentInfo& info);
     void compute_gradient_hessian(ComputeGradientHessianInfo& info);
+
+    void report_topo_extent(TopoReportExtentInfo& info);
+    void report_topo(TopoReportInfo& info);
 
     IndexT m_index = -1;  // index in the InterAffineBodyConstitutionManager
     SimSystemSlot<InterAffineBodyConstitutionManager> m_manager;

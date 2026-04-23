@@ -80,6 +80,10 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("extras/debug/dump_mas_matrices", IndexT{0});
     config.create("extras/strict_mode/enable", IndexT{0});
 
+    config.create("extras/precond/force_abd_diag", IndexT{0});
+    config.create("extras/precond/abd_mas_active_levels", IndexT{0});
+    config.create("extras/precond/abd_mas_coarse_damping", Float{1.0});
+
     return config;
 }
 

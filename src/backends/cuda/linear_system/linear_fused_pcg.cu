@@ -67,6 +67,12 @@ void LinearFusedPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
 
     auto iter = fused_pcg(x, b, max_iter_ratio * b.size());
 
+    logger::info("FusedPCG: frame={} newton_iter={} dof={} -> iters={}",
+                 engine().frame(),
+                 engine().newton_iter(),
+                 N,
+                 iter);
+
     info.iter_count(iter);
 }
 
@@ -229,9 +235,14 @@ void fused_swap_rz(muda::CVarView<Float>  d_rz_new,
             });
 }
 
+// d_converged = 1 when the rr (raw-residual-squared) criterion is satisfied.
+// rr = r^T r is preconditioner-independent, giving the same absolute stopping
+// threshold for both Diag and MAS regardless of preconditioner strength.
 void fused_update_converged(muda::CVarView<Float> d_rz_new,
+                            muda::CVarView<Float> d_rr_new,
                             muda::VarView<IndexT> d_converged,
-                            Float                 rz_tol)
+                            Float                 rz_tol,
+                            Float                 rr_tol)
 {
     using namespace muda;
 
@@ -239,11 +250,13 @@ void fused_update_converged(muda::CVarView<Float> d_rz_new,
         .file_line(__FILE__, __LINE__)
         .apply(1,
                [d_rz_new    = d_rz_new.cviewer().name("d_rz_new"),
+                d_rr_new    = d_rr_new.cviewer().name("d_rr_new"),
                 d_converged = d_converged.viewer().name("d_converged"),
-                rz_tol] __device__(int) mutable
+                rz_tol,
+                rr_tol] __device__(int) mutable
                {
-                   Float rz_new = *d_rz_new;
-                   *d_converged = abs(rz_new) <= rz_tol ? 1 : 0;
+                   Float rr_new = *d_rr_new;
+                   *d_converged = (abs(rr_new) <= rr_tol) ? 1 : 0;
                });
 }
 
@@ -268,7 +281,7 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
     // p = z
     p = z;
 
-    // rz = r^T * z
+    // rz = r^T * z  (preconditioned residual)
     fused_dot(r.cview(), z.cview(), d_rz.view());
     Float rz_host = d_rz;
     check_init_rz_nan_inf(rz_host);
@@ -277,7 +290,25 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
     if(abs_rz0 == Float{0.0})
         return 0;
 
-    Float rz_tol = global_tol_rate * abs_rz0;
+    // rr = r^T * r  (actual residual norm squared, preconditioner-independent)
+    fused_dot(r.cview(), r.cview(), d_rr_new.view());
+    Float abs_rr0 = std::abs(Float{d_rr_new});
+    if(abs_rr0 == Float{0.0})
+        return 0;
+
+    logger::info("FusedPCG: frame={} newton={} rz0={:.4e} rr0={:.4e} (rz0/rr0={:.4e})",
+                 engine().frame(),
+                 engine().newton_iter(),
+                 rz_host,
+                 abs_rr0,
+                 abs_rr0 > Float{0} ? rz_host / abs_rr0 : Float{0});
+
+    // Convergence threshold: rr (raw residual squared) is the stopping criterion.
+    // rr = r^T r is preconditioner-independent: both Diag and MAS stop at the
+    // same absolute residual tolerance for a given tol_rate.  rz is still used
+    // for beta (the PCG recurrence) but NOT for stopping.
+    Float rz_tol = global_tol_rate * abs_rz0;  // unused for stopping; kept for NaN checks
+    Float rr_tol = global_tol_rate * abs_rr0;  // primary stopping threshold
     SizeT effective_check_interval = check_interval > 0 ? check_interval : SizeT{1};
 
     for(k = 1; k < max_iter; ++k)
@@ -298,9 +329,12 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
             apply_preconditioner(z, r, d_converged.view());
         }
 
-        // rz_new = r^T * z, keep convergence flag on device for preconditioner skip.
+        // rz_new = r^T * z, rr_new = r^T * r
         fused_dot(r.cview(), z.cview(), d_rz_new.view());
-        fused_update_converged(d_rz_new.view(), d_converged.view(), rz_tol);
+        fused_dot(r.cview(), r.cview(), d_rr_new.view());
+
+        // Update device convergence flag: requires BOTH rz and rr criteria.
+        fused_update_converged(d_rz_new.view(), d_rr_new.view(), d_converged.view(), rz_tol, rr_tol);
 
         // Check error ratio periodically to avoid per-iteration D2H synchronization.
         bool do_check = (k % effective_check_interval == 0) || (k + 1 == max_iter);
@@ -308,11 +342,13 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
         {
             Float rz_new_host = d_rz_new;
             check_iter_rz_nan_inf(rz_new_host, k);
-            if((std::abs(rz_new_host) / abs_rz0) <= global_tol_rate)
+            Float rr_new_host = d_rr_new;
+            bool  rr_ok       = (rr_new_host / std::max(abs_rr0, Float{1e-300})) <= global_tol_rate;
+            if(rr_ok)
                 break;
         }
 
-        // p = z + beta * p (skip when abs(rz_new) <= rz_tol), then rz = rz_new.
+        // p = z + beta * p (skip when converged), then rz = rz_new.
         fused_update_p(d_rz_new.view(), d_rz.view(), d_converged.view(), p.view(), z.cview());
         fused_swap_rz(d_rz_new.view(), d_rz.view(), d_converged.view());
     }

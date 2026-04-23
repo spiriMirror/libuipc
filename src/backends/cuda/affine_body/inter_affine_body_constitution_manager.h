@@ -3,6 +3,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <muda/ext/linear_system/triplet_matrix_view.h>
 #include <muda/ext/linear_system/doublet_vector_view.h>
+#include <muda/buffer/device_buffer.h>
 #include <utils/offset_count_collection.h>
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/abd_linear_subsystem.h>
@@ -152,6 +153,26 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         SizeT m_energy_count = 0;
     };
 
+    class TopoReportExtentInfo
+    {
+      public:
+        void edge_count(SizeT count) noexcept;
+
+      private:
+        friend class InterAffineBodyConstitutionManager;
+        SizeT m_edge_count = 0;
+    };
+
+    class TopoReportInfo
+    {
+      public:
+        muda::BufferView<Vector2i> edges() const noexcept;
+
+      private:
+        friend class InterAffineBodyConstitutionManager;
+        muda::BufferView<Vector2i> m_edges;
+    };
+
     class Impl
     {
       public:
@@ -160,6 +181,7 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);
         void report_gradient_hessian_extent(ABDLinearSubsystem::ReportExtentInfo& info);
         void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);
+        void init_topo();
 
         Float dt = 0.0;
 
@@ -176,7 +198,13 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         OffsetCountCollection<IndexT> constitution_energy_offsets_counts;
         OffsetCountCollection<IndexT> constitution_gradient_offsets_counts;
         OffsetCountCollection<IndexT> constitution_hessian_offsets_counts;
+
+        // inter-body topology (body-pair edges assembled from joint constitutions)
+        OffsetCountCollection<IndexT> topo_edge_offsets_counts;
+        muda::DeviceBuffer<Vector2i>  inter_body_edges;
     };
+
+    muda::CBufferView<Vector2i> inter_body_edges() const noexcept;
 
   private:
     friend class SimEngine;

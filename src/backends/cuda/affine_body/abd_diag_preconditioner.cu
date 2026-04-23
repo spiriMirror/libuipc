@@ -4,6 +4,9 @@
 #include <linear_system/global_linear_system.h>
 #include <muda/ext/eigen/inverse.h>
 #include <kernel_cout.h>
+#include <sim_engine.h>
+#include <uipc/builtin/attribute_name.h>
+#include <uipc/common/set.h>
 
 namespace uipc::backend::cuda
 {
@@ -64,3 +67,25 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
 
 REGISTER_SIM_SYSTEM(ABDDiagPreconditioner);
 }  // namespace uipc::backend::cuda
+
+namespace uipc::backend
+{
+template <>
+class SimSystemCreator<cuda::ABDDiagPreconditioner>
+{
+  public:
+    static U<cuda::ABDDiagPreconditioner> create(SimEngine& engine)
+    {
+        auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto& types = scene.constitution_tabular().types();
+        if(types.contains(string{builtin::InterAffineBody}))
+        {
+            auto force_diag =
+                scene.config().find<IndexT>("extras/precond/force_abd_diag");
+            if(!force_diag || force_diag->view()[0] == 0)
+                return nullptr;  // ABDMASPreconditioner handles this case
+        }
+        return uipc::make_unique<cuda::ABDDiagPreconditioner>(engine);
+    }
+};
+}  // namespace uipc::backend

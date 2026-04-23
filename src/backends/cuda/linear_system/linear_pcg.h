@@ -21,6 +21,7 @@ class LinearPCG : public IterativeSolver
 
     SizeT pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter);
     void dump_r_z(SizeT k);
+    void dump_b(muda::CDenseVectorView<Float> b);
     void dump_p_Ap(SizeT k);
     void check_init_rz_nan_inf(Float rz);
     void check_iter_rz_nan_inf(Float rz, SizeT k);
