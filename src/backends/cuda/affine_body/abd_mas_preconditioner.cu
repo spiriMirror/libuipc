@@ -337,7 +337,7 @@ class ABDMASPreconditioner final : public LocalPreconditioner
             if(cuda_engine.frame() == 1 && cuda_engine.newton_iter() == 0)
             {
                 m_engine.dump_cluster_matrices_debug(
-                    out_dir, cuda_engine.frame(), cuda_engine.newton_iter());
+                    out_dir.string(), cuda_engine.frame(), cuda_engine.newton_iter());
 
                 std::filesystem::create_directories(out_dir);
                 std::vector<Eigen::Matrix3d> h_vals(trip_count);
