@@ -17,14 +17,16 @@ Args:
     config: Configuration dictionary (optional, uses default if not provided).)")
         .def(
             "apply_to",
-            [](SoftTransformConstraint& self, geometry::SimplicialComplex& sc, py::array_t<Float> strength_rate)
-            { self.apply_to(sc, to_matrix<Vector2>(strength_rate)); },
+            [](SoftTransformConstraint& self, geometry::SimplicialComplex& sc, py::array_t<Float> strength_ratio)
+            { self.apply_to(sc, to_matrix<Vector2>(strength_ratio)); },
             py::arg("sc"),
-            py::arg("strength_rate") = as_numpy(Vector2{100.0, 100}),
+            py::arg("strength_ratio") = as_numpy(Vector2{100.0, 100}),
             R"(Apply soft transform constraint to a simplicial complex.
 Args:
     sc: SimplicialComplex to apply to.
-    strength_rate: 2D vector [translation_strength, rotation_strength] (default: [100.0, 100]).)")
+    strength_ratio: 2D vector (eta_p, eta_a), where eta_p controls center-of-mass
+        translation strength and eta_a controls rotation/deformation-about-CM strength
+        (default: [100.0, 100]).)")
         .def_static("default_config",
                     &SoftTransformConstraint::default_config,
                     R"(Get the default SoftTransformConstraint configuration.

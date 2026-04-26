@@ -35,35 +35,29 @@ $\mathbf{p}$ is the position of the affine body and the $\mathbf{a}_i$ are the r
 
 ## #16 SoftTransformConstraint
 
-The soft transform constraint energy has the form of "Kinetic" defined as
+The constraint energy is
 
 $$
-\Psi = \frac{1}{2} \left( \mathbf{q} - \hat{\mathbf{q}} \right)^T \tilde{\mathbf{M}} \left( \mathbf{q} - \hat{\mathbf{q}} \right),
+\Psi = \frac{1}{2} \delta\mathbf{q}^T \tilde{\mathbf{M}}\, \delta\mathbf{q}, \quad \delta\mathbf{q} = \mathbf{q} - \hat{\mathbf{q}},
 $$
 
-where $\hat{\mathbf{q}}$ is the target state, and $\tilde{\mathbf{M}}$ is the modified mass matrix obtained by scaling the blocks of the original mass matrix $\mathbf{M}$ according to the strength ratios:
+where $\hat{\mathbf{q}}$ is the target state. The constraint mass matrix $\tilde{\mathbf{M}}$ is constructed from the **parallel-axis decomposition** of the physical mass matrix $\mathbf{M}$:
 
 $$
-\tilde{\mathbf{M}} = \begin{bmatrix}
-\eta_p \mathbf{M}^{pp} & \sqrt{\eta_p \eta_a} \mathbf{M}^{pa} \\
-\sqrt{\eta_p \eta_a} \mathbf{M}^{ap} & \eta_a \mathbf{M}^{aa}
-\end{bmatrix},
+\tilde{\mathbf{M}} = \eta_p\,\mathbf{M}_{cm} + \eta_a\,\mathbf{M}_{rot}, \quad \mathbf{M} = \mathbf{M}_{cm} + \mathbf{M}_{rot},
 $$
 
 where:
 
-- $\mathbf{M}^{pp}_{3 \times 3}$ is the position block of $\mathbf{M}$
-- $\mathbf{M}^{pa}_{3 \times 9}$ is the cross-term block of $\mathbf{M}$
-- $\mathbf{M}^{ap}_{9 \times 3}$ is the cross-term block of $\mathbf{M}$
-- $\mathbf{M}^{aa}_{9 \times 9}$ is the affine block of $\mathbf{M}$
-- $\eta_p \in (0,+\infty)$ is the position constraint strength ratio
-- $\eta_a \in (0,+\infty)$ is the affine (or rotation if not so rigorous) constraint strength ratio
+- $\mathbf{c}$ is the center of mass in the reference frame ($m\mathbf{c} = m\bar{\mathbf{x}}$)
+- $\mathbf{M}_{cm} = m\,\mathbf{J}(\mathbf{c})^T\mathbf{J}(\mathbf{c})$ is the ABD mass matrix of a point mass $m$ at $\mathbf{c}$, capturing the kinetic energy of center-of-mass translation
+- $\mathbf{M}_{rot} = \mathbf{M} - \mathbf{M}_{cm}$ captures rotation/deformation *about* the center of mass, with $\mathbf{S}_{cm} = \mathbf{S} - m\mathbf{c}\mathbf{c}^T$ in its affine block, where $\mathbf{S} = \int\rho\,\bar{\mathbf{x}}\bar{\mathbf{x}}^T\,dV$
+- $\eta_p \in [0,+\infty)$: translation (center-of-mass) constraint strength
+- $\eta_a \in [0,+\infty)$: rotation/deformation constraint strength
 
-The cross-terms use the geometric mean $\sqrt{\eta_p \eta_a}$ to maintain consistency between the position and affine constraints.
+Equivalently: $\tilde{\mathbf{M}} = \eta_a\,\mathbf{M} + (\eta_p - \eta_a)\,\mathbf{M}_{cm}$.
 
-The reason we use strength ratio is that the mass matrix $\mathbf{M}$ already contains the mass and inertia information, so that users only need to care about how strong the constraint is compared to the mass and inertia of the body, which is more intuitive.
-
-Because the constraint is "SOFT", we don't allow a too-strong strength which will lead to numerical instability. Normally, $\eta_p$ and $\eta_a$ are better in the range of $[0, 100]$.
+Because the constraint is "SOFT", overly large values will cause numerical instability. Normally $\eta_p$ and $\eta_a$ are better kept in the range $[0, 100]$.
 
 ## Attributes
 

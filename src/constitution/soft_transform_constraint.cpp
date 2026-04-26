@@ -25,7 +25,7 @@ SoftTransformConstraint::SoftTransformConstraint(const Json& config) noexcept
 }
 
 void SoftTransformConstraint::apply_to(geometry::SimplicialComplex& sc,
-                                       const Vector2& strength_rate) const
+                                       const Vector2& strength_ratio) const
 {
     Base::apply_to(sc);
 
@@ -35,7 +35,7 @@ void SoftTransformConstraint::apply_to(geometry::SimplicialComplex& sc,
     auto constraint_strength = sc.instances().find<Vector2>("strength_ratio");
     if(!constraint_strength)
         constraint_strength =
-            sc.instances().create<Vector2>("strength_ratio", strength_rate);
+            sc.instances().create<Vector2>("strength_ratio", strength_ratio);
     else
         UIPC_WARN_WITH_LOCATION("Attribute `strength_ratio` on instances already exists, which may cause ambiguity.");
 

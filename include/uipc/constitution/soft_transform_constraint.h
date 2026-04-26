@@ -15,11 +15,12 @@ class UIPC_CONSTITUTION_API SoftTransformConstraint final : public Constraint
 
     /**
      * @brief Apply the constraint to the simplicial complex instances.
-     * 
+     *
      * @param sc The simplicial complex to apply the constraint to.
-     * @param strength_ratio The strength ratio of the constraint, strength_ratio[0] is the strength of the translation,
-     * strength_ratio[1] is the strength of the rotation.
-     * @param is_kinematic If the instances' kinetic energy is not considered.
+     * @param strength_ratio Constraint strength ratio (eta_p, eta_a), where:
+     *   strength_ratio[0] = eta_p: center-of-mass translation constraint strength.
+     *   strength_ratio[1] = eta_a: rotation/deformation-about-CM constraint strength.
+     *   Both values must be non-negative. Typical range: [0, 100].
      */
     void apply_to(geometry::SimplicialComplex& sc, const Vector2& strength_ratio) const;
 

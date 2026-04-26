@@ -10,13 +10,27 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
                                                         Float translation_strength,
                                                         Float rotation_strength)
 {
+    Float s_t = translation_strength;
+    Float s_r = rotation_strength;
+    Float m   = mass.mass();
+
     Matrix12x12 M = mass.to_mat();
-    Float cross_term_strength = std::sqrt(translation_strength * rotation_strength);
-    M.block<3, 3>(0, 0) *= translation_strength;
-    M.block<3, 9>(0, 3) *= cross_term_strength;
-    M.block<9, 3>(3, 0) *= cross_term_strength;
-    M.block<9, 9>(3, 3) *= rotation_strength;
-    return M;
+    if(m <= Float(0))
+        return s_t * M;
+
+    // Build M_cm = m*J(c)^T*J(c): the ABD mass matrix of a point mass m
+    // concentrated at the center of mass c (where mc = m*c is the first moment).
+    // M = M_cm + M_rot  (parallel-axis decomposition)
+    // M_cm captures CM translation kinetics; M_rot captures rotation/deformation about CM.
+    Vector3   mc   = mass.mass_times_x_bar();  // m*c
+    Matrix3x3 mccT = mc * mc.transpose() / m;  // m*c*c^T
+
+    ABDJacobiDyadicMass cm_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, mc, mccT);
+    Matrix12x12 M_cm = cm_mass.to_mat();
+
+    // M_constraint = s_t*M_cm + s_r*(M - M_cm)
+    //              = s_r*M + (s_t - s_r)*M_cm
+    return s_r * M + (s_t - s_r) * M_cm;
 }
 
 class SoftTransformConstraint final : public AffineBodyConstraint
@@ -173,7 +187,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                    {
                        auto i = indices(I);
 
-                       Vector12 G;
+                       Vector12    G;
                        Matrix12x12 M;
 
                        if(is_fixed(i))
