@@ -14,9 +14,9 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     Float s_r = rotation_strength;
     Float m   = mass.mass();
 
+    MUDA_ASSERT(m > 0.0, "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.", m);
+
     Matrix12x12 M = mass.to_mat();
-    if(m <= Float(0))
-        return s_t * M;
 
     // Build M_cm = m*J(c)^T*J(c): the ABD mass matrix of a point mass m
     // concentrated at the center of mass c (where mc = m*c is the first moment).
