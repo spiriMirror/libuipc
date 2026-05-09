@@ -4,16 +4,15 @@ namespace uipc::backend::cuda
 {
 void FiniteElementDiffDofReporter::do_build(DiffDofReporter::BuildInfo& info)
 {
-    m_impl.fem   = &require<FiniteElementMethod>();
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.fem     = &require<FiniteElementMethod>();
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
     BuildInfo this_info;
     do_build(this_info);
 }
 
 void FiniteElementDiffDofReporter::do_assemble(GlobalDiffSimManager::DiffDofInfo& info)
 {
-    DiffDofInfo this_info{&m_impl, info, m_impl.dt};
+    DiffDofInfo this_info{&m_impl, info, m_impl.dt_attr->view()[0]};
     do_assemble(this_info);
 }
 

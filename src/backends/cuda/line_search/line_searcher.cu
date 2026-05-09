@@ -20,8 +20,7 @@ void LineSearcher::init()
     auto max_iter_attr = scene.config().find<IndexT>("line_search/max_iter");
     m_max_iter         = max_iter_attr->view()[0];
 
-    auto dt_attr = scene.config().find<Float>("dt");
-    m_dt         = dt_attr->view()[0];
+    m_dt_attr = scene.config().find<Float>("dt");
 
     m_energy_values.resize(m_reporters.view().size(), 0);
 
@@ -111,7 +110,7 @@ LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept
 
 Float LineSearcher::ComputeEnergyInfo::dt() noexcept
 {
-    return m_impl->m_dt;
+    return m_impl->m_dt_attr->view()[0];
 }
 
 void LineSearcher::ComputeEnergyInfo::energy(Float e) noexcept

@@ -134,11 +134,11 @@ class InterAffineBodyAnimator final : public Animator
       private:
         friend class InterAffineBodyAnimator;
         friend class InterAffineBodyConstraint;
-        SizeT m_hessian_block_count    = 0;
-        SizeT m_gradient_segment_count = 0;
-        SizeT m_energy_count           = 0;
-        bool  m_gradient_only          = false;
-        mutable bool m_gradient_only_checked = false;
+        SizeT        m_hessian_block_count    = 0;
+        SizeT        m_gradient_segment_count = 0;
+        SizeT        m_energy_count           = 0;
+        bool         m_gradient_only          = false;
+        mutable bool m_gradient_only_checked  = false;
     };
 
     class Impl
@@ -147,7 +147,7 @@ class InterAffineBodyAnimator final : public Animator
         void init(backend::WorldVisitor& world);
         void step();
 
-        Float dt = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         AffineBodyDynamics*                 affine_body_dynamics = nullptr;
         InterAffineBodyConstitutionManager* manager              = nullptr;

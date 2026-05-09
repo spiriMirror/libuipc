@@ -17,8 +17,7 @@ void SimplexFrictionalContact::do_build(ContactReporter::BuildInfo& info)
     m_impl.global_contact_manager   = &require<GlobalContactManager>();
     m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
 
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 
     BuildInfo this_info;
     do_build(this_info);
@@ -79,7 +78,7 @@ void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInf
 
 void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
 {
-    auto& filter = m_impl.simplex_trajectory_filter;
+    auto& filter        = m_impl.simplex_trajectory_filter;
     bool  gradient_only = info.gradient_only();
 
     m_impl.PT_count = filter->friction_PTs().size();
@@ -93,10 +92,9 @@ void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactMa
 
     // expand to hessian3x3 and graident3
     SizeT contact_gradient_count = 4 * count_4 + 3 * count_3 + 2 * count_2;
-    SizeT contact_hessian_count = PTHalfHessianSize * m_impl.PT_count
-                                  + EEHalfHessianSize * m_impl.EE_count
-                                  + PEHalfHessianSize * m_impl.PE_count
-                                  + PPHalfHessianSize * m_impl.PP_count;
+    SizeT contact_hessian_count =
+        PTHalfHessianSize * m_impl.PT_count + EEHalfHessianSize * m_impl.EE_count
+        + PEHalfHessianSize * m_impl.PE_count + PPHalfHessianSize * m_impl.PP_count;
 
     info.gradient_count(contact_gradient_count);
     info.hessian_count(gradient_only ? 0 : contact_hessian_count);
@@ -316,7 +314,7 @@ muda::CBufferView<Float> SimplexFrictionalContact::BaseInfo::d_hats() const
 
 Float SimplexFrictionalContact::BaseInfo::dt() const
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 Float SimplexFrictionalContact::BaseInfo::eps_velocity() const

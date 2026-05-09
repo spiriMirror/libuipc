@@ -106,11 +106,12 @@ class GlobalActiveSetManager final : public SimSystem
 
         muda::DeviceBuffer<Vector3> non_penetrate_positions;
 
-        Float decay_factor, dt;
-        Float toi_threshold;
-        Float alpha_lower_bound;
-        bool  energy_enabled;
-        bool  should_discard_friction_candidates = false;
+        Float                                   decay_factor;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
+        Float                                   toi_threshold;
+        Float                                   alpha_lower_bound;
+        bool                                    energy_enabled;
+        bool should_discard_friction_candidates = false;
 
         Float m_reserve_ratio = 1.5;
 

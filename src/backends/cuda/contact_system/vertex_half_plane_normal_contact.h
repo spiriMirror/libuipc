@@ -95,8 +95,8 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> veretx_half_plane_trajectory_filter;
         SimSystemSlot<HalfPlaneVertexReporter> vertex_reporter;
 
-        SizeT PH_count = 0;
-        Float dt       = 0.0;
+        SizeT                                   PH_count = 0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         muda::CBufferView<Float>           energies;
         muda::CDoubletVectorView<Float, 3> gradients;

@@ -9,8 +9,6 @@ void VertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info
 {
     auto& config      = world().scene().config();
     auto  enable_attr = config.find<IndexT>("contact/friction/enable");
-    auto  dt_attr     = config.find<Float>("dt");
-
     if(!enable_attr->view()[0])
     {
         throw SimSystemException("Frictional contact is disabled");
@@ -20,7 +18,7 @@ void VertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.vertex_reporter          = require<HalfPlaneVertexReporter>();
-    m_impl.dt                       = dt_attr->view()[0];
+    m_impl.dt_attr                  = config.find<Float>("dt");
 
     BuildInfo this_info;
     do_build(this_info);
@@ -135,7 +133,7 @@ muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::d_hats() co
 
 Float VertexHalfPlaneFrictionalContact::BaseInfo::dt() const
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 Float VertexHalfPlaneFrictionalContact::BaseInfo::eps_velocity() const

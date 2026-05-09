@@ -11,8 +11,7 @@ void VertexHalfPlaneNormalContact::do_build(ContactReporter::BuildInfo& info)
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.vertex_reporter          = require<HalfPlaneVertexReporter>();
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 
     BuildInfo this_info;
     do_build(this_info);
@@ -129,7 +128,7 @@ muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::d_hats() const
 
 Float VertexHalfPlaneNormalContact::BaseInfo::dt() const
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 Float VertexHalfPlaneNormalContact::BaseInfo::eps_velocity() const

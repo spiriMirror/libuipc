@@ -61,9 +61,9 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
       private:
         friend class ABDLinearSubsystem;
         friend class ABDLinearSubsystemReporter;
-        SizeT m_gradient_count = 0;
-        SizeT m_hessian_count  = 0;
-        bool  m_gradient_only  = false;
+        SizeT        m_gradient_count        = 0;
+        SizeT        m_hessian_count         = 0;
+        bool         m_gradient_only         = false;
         mutable bool m_gradient_only_checked = false;
     };
 
@@ -99,8 +99,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         void _assemble_reporters(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
         void _assemble_dytopo_effect(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
 
-        void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
-        void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+        void  accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
+        void  retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
         Float diag_norm();
         Float mass_norm();
 
@@ -129,7 +129,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         muda::DeviceBuffer<Float>       block_norm;
         muda::DeviceVar<Float>          reduced_norm;
 
-        Float dt = 0.0f;  // time step, used in assemble
+        S<const geometry::AttributeSlot<Float>> dt_attr;
     };
 
   private:

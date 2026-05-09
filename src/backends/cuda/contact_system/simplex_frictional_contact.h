@@ -126,11 +126,11 @@ class SimplexFrictionalContact : public ContactReporter
 
         SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
 
-        SizeT PT_count = 0;
-        SizeT EE_count = 0;
-        SizeT PE_count = 0;
-        SizeT PP_count = 0;
-        Float dt       = 0;
+        SizeT                                   PT_count = 0;
+        SizeT                                   EE_count = 0;
+        SizeT                                   PE_count = 0;
+        SizeT                                   PP_count = 0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         muda::CBufferView<Float>           PT_energies;
         muda::CDoubletVectorView<Float, 3> PT_gradients;

@@ -70,6 +70,11 @@ const geometry::AttributeCollection& SceneVisitor::config() const noexcept
     return m_scene.config();
 }
 
+Float SceneVisitor::dt() const noexcept
+{
+    return m_scene.dt();
+}
+
 const core::ConstitutionTabular& SceneVisitor::constitution_tabular() const noexcept
 {
     return m_scene.constitution_tabular();

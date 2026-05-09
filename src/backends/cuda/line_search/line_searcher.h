@@ -54,10 +54,10 @@ class LineSearcher : public SimSystem
 
     SimSystemSlotCollection<LineSearchReporter> m_reporters;
 
-    vector<Float>     m_energy_values;
-    bool              m_report_energy = false;
-    std::stringstream m_report_stream;
-    Float             m_dt       = 0.0;
-    IndexT            m_max_iter = 64;
+    vector<Float>                           m_energy_values;
+    bool                                    m_report_energy = false;
+    std::stringstream                       m_report_stream;
+    S<const geometry::AttributeSlot<Float>> m_dt_attr;
+    IndexT                                  m_max_iter = 64;
 };
 }  // namespace uipc::backend::cuda

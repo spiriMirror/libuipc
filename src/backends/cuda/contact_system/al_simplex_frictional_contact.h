@@ -20,7 +20,7 @@ class ALSimplexFrictionalContact : public ContactReporter
         SimSystemSlot<GlobalSimplicialSurfaceManager> global_surf_manager;
         SimSystemSlot<GlobalActiveSetManager>         global_active_set_manager;
 
-        Float dt;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         void do_compute_energy(GlobalContactManager::EnergyInfo& info);
         void do_assemble(GlobalContactManager::GradientHessianInfo& info);

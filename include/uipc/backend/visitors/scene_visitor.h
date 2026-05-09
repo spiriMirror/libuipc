@@ -46,6 +46,7 @@ class UIPC_CORE_API SceneVisitor
 
     span<IndexT>                         pending_destroy_ids() const noexcept;
     const geometry::AttributeCollection& config() const noexcept;
+    Float                                dt() const noexcept;
 
     const core::ConstitutionTabular& constitution_tabular() const noexcept;
     core::ConstitutionTabular&       constitution_tabular() noexcept;

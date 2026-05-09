@@ -34,7 +34,7 @@ class TimeIntegratorManager final : public SimSystem
     {
       public:
         SimSystemSlotCollection<TimeIntegrator> time_integrators;
-        Float                                   dt = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
     };
 
   private:

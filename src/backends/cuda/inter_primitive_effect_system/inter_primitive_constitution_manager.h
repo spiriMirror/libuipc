@@ -153,7 +153,7 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
         void compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info);
         void compute_gradient_hessian(GlobalDyTopoEffectManager::GradientHessianInfo& info);
 
-        Float dt = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         SimSystemSlotCollection<InterPrimitiveConstitution> constitutions;
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;

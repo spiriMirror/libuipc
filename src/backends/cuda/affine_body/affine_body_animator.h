@@ -90,11 +90,11 @@ class AffineBodyAnimator final : public Animator
     {
       public:
         ComputeGradientHessianInfo(Impl*                              impl,
-                            SizeT                              index,
-                            Float                              dt,
-                            muda::DoubletVectorView<Float, 12> gradients,
-                            muda::TripletMatrixView<Float, 12> hessians,
-                            bool                               gradient_only)
+                                   SizeT                              index,
+                                   Float                              dt,
+                                   muda::DoubletVectorView<Float, 12> gradients,
+                                   muda::TripletMatrixView<Float, 12> hessians,
+                                   bool gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -128,11 +128,11 @@ class AffineBodyAnimator final : public Animator
       private:
         friend class AffineBodyAnimator;
         friend class AffineBodyConstraint;
-        SizeT m_hessian_block_count    = 0;
-        SizeT m_gradient_segment_count = 0;
-        SizeT m_energy_count           = 0;
-        bool  m_gradient_only          = false;
-        mutable bool m_gradient_only_checked = false;
+        SizeT        m_hessian_block_count    = 0;
+        SizeT        m_gradient_segment_count = 0;
+        SizeT        m_energy_count           = 0;
+        bool         m_gradient_only          = false;
+        mutable bool m_gradient_only_checked  = false;
     };
 
     class Impl
@@ -141,7 +141,7 @@ class AffineBodyAnimator final : public Animator
         void init(backend::WorldVisitor& world);
         void step();
 
-        Float dt = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         AffineBodyDynamics* affine_body_dynamics = nullptr;
         GlobalAnimator*     global_animator      = nullptr;

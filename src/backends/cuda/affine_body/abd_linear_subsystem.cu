@@ -38,8 +38,7 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
-    auto attr = world().scene().config().find<Float>("dt");
-    m_impl.dt = attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 
     m_impl.dytopo_effect_receiver = find<ABDDyTopoEffectReceiver>();
 }
@@ -200,6 +199,8 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
                                                        GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
+
+    Float dt = dt_attr->view()[0];
 
     // Collect Kinetic
     ABDLinearSubsystem::ComputeGradientHessianInfo this_info{

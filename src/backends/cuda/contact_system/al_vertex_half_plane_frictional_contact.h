@@ -22,7 +22,7 @@ class ALVertexHalfPlaneFrictionalContact : public ContactReporter
         SimSystemSlot<HalfPlaneVertexReporter> half_plane_vertex_reporter;
         SimSystemSlot<HalfPlane>               half_plane;
 
-        Float dt;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         void do_compute_energy(GlobalContactManager::EnergyInfo& info);
         void do_assemble(GlobalContactManager::GradientHessianInfo& info);

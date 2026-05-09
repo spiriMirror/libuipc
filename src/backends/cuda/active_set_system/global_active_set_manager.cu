@@ -557,7 +557,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                {
                    auto  PT = PTs(idx);
                    auto  mu = min(min(mu_vertices(PT(0)), mu_vertices(PT(1))),
-                                 min(mu_vertices(PT(2)), mu_vertices(PT(3))));
+                                  min(mu_vertices(PT(2)), mu_vertices(PT(3))));
                    auto  d_grad = PT_d_grad(idx);
                    auto  d = d0(idx), &lambda = PT_lambda(idx), d_shift = 0.0;
                    auto& cnt = PT_cnt(idx);
@@ -598,7 +598,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                {
                    auto  EE = EEs(idx);
                    auto  mu = min(min(mu_vertices(EE(0)), mu_vertices(EE(1))),
-                                 min(mu_vertices(EE(2)), mu_vertices(EE(3))));
+                                  min(mu_vertices(EE(2)), mu_vertices(EE(3))));
                    auto  d_grad = EE_d_grad(idx);
                    auto  d = d0(idx), &lambda = EE_lambda(idx), d_shift = 0.0;
                    auto& cnt = EE_cnt(idx);
@@ -851,16 +851,17 @@ muda::BufferView<Float> GlobalActiveSetManager::StiffnessEstimateInfo::mu_vertic
 
 Float GlobalActiveSetManager::StiffnessEstimateInfo::dt() const noexcept
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
     auto config  = world.scene().config();
-    dt           = config.find<Float>("dt")->view()[0];
+    dt_attr      = config.find<Float>("dt");
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
-    alpha_lower_bound = config.find<Float>("contact/al-ipc/alpha_lower_bound")->view()[0];
+    alpha_lower_bound =
+        config.find<Float>("contact/al-ipc/alpha_lower_bound")->view()[0];
     energy_enabled = true;
 }
 

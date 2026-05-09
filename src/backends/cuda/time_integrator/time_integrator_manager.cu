@@ -7,8 +7,7 @@ REGISTER_SIM_SYSTEM(TimeIntegratorManager);
 
 void TimeIntegratorManager::do_build()
 {
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 }
 
 void TimeIntegratorManager::init()
@@ -22,10 +21,11 @@ void TimeIntegratorManager::init()
 void TimeIntegratorManager::predict_dof()
 {
     // Predict the degrees of freedom for each time integrator
+    Float dt = m_impl.dt_attr->view()[0];
     for(auto& integrator : m_impl.time_integrators.view())
     {
         PredictDofInfo info;
-        info.m_dt = m_impl.dt;
+        info.m_dt = dt;
         integrator->predict_dof(info);
     }
 }
@@ -33,10 +33,11 @@ void TimeIntegratorManager::predict_dof()
 void TimeIntegratorManager::update_state()
 {
     // Update the state for each time integrator
+    Float dt = m_impl.dt_attr->view()[0];
     for(auto& integrator : m_impl.time_integrators.view())
     {
         UpdateVelocityInfo info;
-        info.m_dt = m_impl.dt;
+        info.m_dt = dt;
         integrator->update_state(info);
     }
 }

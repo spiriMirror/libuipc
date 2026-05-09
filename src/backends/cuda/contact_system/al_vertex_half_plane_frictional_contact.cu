@@ -17,8 +17,7 @@ void ALVertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& in
     m_impl.half_plane_vertex_reporter = require<HalfPlaneVertexReporter>();
     m_impl.half_plane                 = require<HalfPlane>();
 
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 }
 
 void ALVertexHalfPlaneFrictionalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
@@ -75,7 +74,7 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactMa
                     global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
                 half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
                 eps_v  = global_contact_manager->eps_velocity(),
-                dt     = dt,
+                dt     = dt_attr->view()[0],
                 PHs    = PHs.cviewer().name("PHs"),
                 lambda = PH_lambda.cviewer().name("lambda"),
                 x      = x.cviewer().name("x"),
@@ -124,7 +123,7 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
                     global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
                 half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
                 eps_v  = global_contact_manager->eps_velocity(),
-                dt     = dt,
+                dt     = dt_attr->view()[0],
                 PHs    = PHs.cviewer().name("PHs"),
                 lambda = PH_lambda.cviewer().name("lambda"),
                 x      = x.cviewer().name("x"),

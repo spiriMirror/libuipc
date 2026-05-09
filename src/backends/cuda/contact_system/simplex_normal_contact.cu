@@ -11,8 +11,7 @@ void SimplexNormalContact::do_build(ContactReporter::BuildInfo& info)
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
 
     BuildInfo this_info;
     do_build(this_info);
@@ -72,7 +71,7 @@ void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& i
 
 void SimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
 {
-    auto& filter = m_impl.simplex_trajectory_filter;
+    auto& filter        = m_impl.simplex_trajectory_filter;
     bool  gradient_only = info.gradient_only();
 
     m_impl.PT_count = filter->PTs().size();
@@ -310,7 +309,7 @@ muda::CBufferView<Float> SimplexNormalContact::BaseInfo::d_hats() const
 
 Float SimplexNormalContact::BaseInfo::dt() const
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 Float SimplexNormalContact::BaseInfo::eps_velocity() const

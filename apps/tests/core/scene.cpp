@@ -293,9 +293,7 @@ TEST_CASE("scene_commit", "[scene]")
     std::ranges::transform(pos_view.begin(),
                            pos_view.end(),
                            pos_view.begin(),
-                           [](const auto& p) {
-                               return p + Vector3{1, 1, 1};
-                           });
+                           [](const auto& p) { return p + Vector3{1, 1, 1}; });
 
     SceneSnapshotCommit commit = scene - snapshot;
     REQUIRE(commit.contact_models().attribute_collection().find("topo") == nullptr);
@@ -357,4 +355,50 @@ TEST_CASE("scene_commit_empty", "[scene]")
                 ->second->attribute_collection()
                 .find("myattribute")
             != nullptr);
+}
+
+
+TEST_CASE("dynamic_dt_config", "[scene]")
+{
+    using namespace uipc;
+    using namespace uipc::core;
+    using namespace uipc::geometry;
+
+    Scene scene;
+
+    // Default dt should be 0.01
+    {
+        auto dt_slot = scene.config().find<Float>("dt");
+        REQUIRE(dt_slot != nullptr);
+        REQUIRE(dt_slot->view()[0] == Catch::Approx(0.01));
+    }
+
+    // Change dt via config
+    {
+        auto dt_slot      = scene.config().find<Float>("dt");
+        view(*dt_slot)[0] = 0.005;
+    }
+
+    // Read back via config
+    {
+        auto dt_slot = scene.config().find<Float>("dt");
+        REQUIRE(dt_slot->view()[0] == Catch::Approx(0.005));
+    }
+
+    // Read back via SceneVisitor
+    {
+        backend::SceneVisitor visitor{scene};
+        REQUIRE(visitor.dt() == Catch::Approx(0.005));
+    }
+
+    // Change again and verify
+    {
+        auto dt_slot      = scene.config().find<Float>("dt");
+        view(*dt_slot)[0] = 0.02;
+    }
+
+    {
+        backend::SceneVisitor visitor{scene};
+        REQUIRE(visitor.dt() == Catch::Approx(0.02));
+    }
 }

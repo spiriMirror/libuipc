@@ -133,8 +133,8 @@ class SimplexNormalContact : public ContactReporter
         SizeT PE_count = 0;
         SizeT PP_count = 0;
 
-        Float                   dt = 0;
-        muda::DeviceVar<IndexT> selected_count;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
+        muda::DeviceVar<IndexT>                 selected_count;
 
         Float reserve_ratio = 1.1;
 

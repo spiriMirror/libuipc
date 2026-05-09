@@ -5,16 +5,15 @@ namespace uipc::backend::cuda
 {
 void FiniteElementDiffParmReporter::do_build(DiffParmReporter::BuildInfo& info)
 {
-    m_impl.fem   = &require<FiniteElementMethod>();
-    auto dt_attr = world().scene().config().find<Float>("dt");
-    m_impl.dt    = dt_attr->view()[0];
+    m_impl.fem     = &require<FiniteElementMethod>();
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
     BuildInfo this_info;
     do_build(this_info);
 }
 
 void FiniteElementDiffParmReporter::do_assemble(GlobalDiffSimManager::DiffParmInfo& info)
 {
-    DiffParmInfo this_info{&m_impl, info, m_impl.dt};
+    DiffParmInfo this_info{&m_impl, info, m_impl.dt_attr->view()[0]};
     do_assemble(this_info);
 }
 
@@ -52,6 +51,6 @@ muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::p
 
 Float FiniteElementDiffParmReporter::DiffParmInfo::dt() const
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 }  // namespace uipc::backend::cuda

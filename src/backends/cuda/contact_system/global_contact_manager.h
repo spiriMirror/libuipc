@@ -72,10 +72,10 @@ class GlobalContactManager final : public SimSystem
         muda::DeviceBuffer2D<IndexT> subscene_mask_tabular;
         Float                        reserve_ratio = 1.1;
 
-        Float d_hat        = 0.0;
-        Float kappa        = 0.0;
-        Float dt           = 0.0;
-        Float eps_velocity = 0.0;
+        Float                                   d_hat = 0.0;
+        Float                                   kappa = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
+        Float                                   eps_velocity = 0.0;
 
 
         /***********************************************************************
@@ -98,7 +98,6 @@ class GlobalContactManager final : public SimSystem
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
-
 
 
   protected:

@@ -13,8 +13,7 @@ void AffineBodyAnimator::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
     m_impl.global_animator      = &require<GlobalAnimator>();
-    auto dt_attr                = world().scene().config().find<Float>("dt");
-    m_impl.dt                   = dt_attr->view()[0];
+    m_impl.dt_attr              = world().scene().config().find<Float>("dt");
 }
 
 void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)
@@ -144,7 +143,8 @@ void AffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, m_impl.dt_attr->view()[0], info.energies()};
         constraint->compute_energy(this_info);
     }
 }
@@ -155,7 +155,7 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
     {
         ComputeGradientHessianInfo this_info{&m_impl,
                                              constraint->m_index,
-                                             m_impl.dt,
+                                             m_impl.dt_attr->view()[0],
                                              info.gradients(),
                                              info.hessians(),
                                              info.gradient_only()};

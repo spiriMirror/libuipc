@@ -47,8 +47,8 @@ class FiniteElementDiffDofReporter : public DiffDofReporter
     class Impl
     {
       public:
-        FiniteElementMethod* fem = nullptr;
-        Float                dt  = 0.0;
+        FiniteElementMethod*                    fem = nullptr;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
     };
 
   protected:

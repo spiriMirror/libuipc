@@ -30,8 +30,7 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     m_impl.finite_element_method = require<FiniteElementMethod>();
     m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
     m_impl.sim_engine = &engine();
-    auto dt_attr      = world().scene().config().find<Float>("dt");
-    m_impl.dt         = dt_attr->view()[0];
+    m_impl.dt_attr    = world().scene().config().find<Float>("dt");
 
     m_impl.dytopo_effect_receiver = find<FEMDyTopoEffectReceiver>();
 }
@@ -244,7 +243,7 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
     auto hessian_view  = info.hessians().subview(hess_offset, hess_count);
 
     FEMLinearSubsystem::ComputeGradientHessianInfo kinetic_info{
-        info.gradient_only(), gradient_view, hessian_view, dt};
+        info.gradient_only(), gradient_view, hessian_view, dt_attr->view()[0]};
     kinetic->compute_gradient_hessian(kinetic_info);
 
     ParallelFor()
@@ -497,7 +496,7 @@ muda::TripletMatrixView<Float, 3, 3> FEMLinearSubsystem::AssembleInfo::hessians(
 
 Float FEMLinearSubsystem::AssembleInfo::dt() const noexcept
 {
-    return m_impl->dt;
+    return m_impl->dt_attr->view()[0];
 }
 
 bool FEMLinearSubsystem::AssembleInfo::gradient_only() const noexcept

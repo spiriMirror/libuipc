@@ -161,14 +161,14 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         void report_gradient_hessian_extent(ABDLinearSubsystem::ReportExtentInfo& info);
         void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);
 
-        Float dt = 0.0;
+        S<const geometry::AttributeSlot<Float>> dt_attr;
 
         AffineBodyDynamics* affine_body_dynamics = nullptr;
         SimSystemSlotCollection<InterAffineBodyConstitution> constitutions;
         unordered_map<U64, IndexT>                           uid_to_index;
 
         // Base-constitution geometry infos used by animator/constraint pipeline.
-        vector<InterGeoInfo>          inter_geo_infos;
+        vector<InterGeoInfo> inter_geo_infos;
         // Base + extra constitution geometry infos used by constitution filtering.
         vector<InterGeoInfo>          constitution_inter_geo_infos;
         OffsetCountCollection<IndexT> constitution_geo_info_offsets_counts;
