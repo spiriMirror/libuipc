@@ -21,6 +21,7 @@ void LineSearcher::init()
     m_max_iter         = max_iter_attr->view()[0];
 
     m_dt_attr = scene.config().find<Float>("dt");
+    UIPC_ASSERT(m_dt_attr, "Scene config must have a 'dt' attribute.");
 
     m_energy_values.resize(m_reporters.view().size(), 0);
 

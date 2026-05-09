@@ -14,6 +14,7 @@ void ALSimplexFrictionalContact::do_build(ContactReporter::BuildInfo& info)
     m_impl.global_active_set_manager = require<GlobalActiveSetManager>();
 
     m_impl.dt_attr = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 }
 
 void ALSimplexFrictionalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)

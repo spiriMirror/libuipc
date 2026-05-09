@@ -7,6 +7,7 @@ void FiniteElementDiffParmReporter::do_build(DiffParmReporter::BuildInfo& info)
 {
     m_impl.fem     = &require<FiniteElementMethod>();
     m_impl.dt_attr = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
     BuildInfo this_info;
     do_build(this_info);
 }

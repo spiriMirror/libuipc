@@ -30,7 +30,8 @@ REGISTER_SIM_SYSTEM(InterPrimitiveConstitutionManager);
 
 void InterPrimitiveConstitutionManager::do_build(DyTopoEffectReporter::BuildInfo&)
 {
-    m_impl.dt_attr               = world().scene().config().find<Float>("dt");
+    m_impl.dt_attr = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
 }
 
@@ -107,10 +108,11 @@ void InterPrimitiveConstitutionManager::Impl::init(SceneVisitor& scene)
 
 void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info)
 {
-    auto constitution_view = constitutions.view();
+    Float dt                = dt_attr->view()[0];
+    auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        EnergyInfo this_info{this, c->m_index, dt_attr->view()[0], info.energies()};
+        EnergyInfo this_info{this, c->m_index, dt, info.energies()};
         c->compute_energy(this_info);
     }
 }
@@ -118,15 +120,12 @@ void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalDyTopoEffectM
 void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(
     GlobalDyTopoEffectManager::GradientHessianInfo& info)
 {
-    auto constitution_view = constitutions.view();
+    Float dt                = dt_attr->view()[0];
+    auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        GradientHessianInfo this_info{this,
-                                      c->m_index,
-                                      info.gradient_only(),
-                                      dt_attr->view()[0],
-                                      info.gradients(),
-                                      info.hessians()};
+        GradientHessianInfo this_info{
+            this, c->m_index, info.gradient_only(), dt, info.gradients(), info.hessians()};
         c->compute_gradient_hessian(this_info);
     }
 }

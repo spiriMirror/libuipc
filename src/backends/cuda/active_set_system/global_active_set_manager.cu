@@ -856,8 +856,9 @@ Float GlobalActiveSetManager::StiffnessEstimateInfo::dt() const noexcept
 
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
-    auto config  = world.scene().config();
-    dt_attr      = config.find<Float>("dt");
+    auto config = world.scene().config();
+    dt_attr     = config.find<Float>("dt");
+    UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
     alpha_lower_bound =

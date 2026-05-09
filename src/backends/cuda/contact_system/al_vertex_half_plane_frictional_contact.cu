@@ -18,6 +18,7 @@ void ALVertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& in
     m_impl.half_plane                 = require<HalfPlane>();
 
     m_impl.dt_attr = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 }
 
 void ALVertexHalfPlaneFrictionalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)

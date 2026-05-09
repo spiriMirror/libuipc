@@ -19,6 +19,7 @@ void VertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.vertex_reporter          = require<HalfPlaneVertexReporter>();
     m_impl.dt_attr                  = config.find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 
     BuildInfo this_info;
     do_build(this_info);

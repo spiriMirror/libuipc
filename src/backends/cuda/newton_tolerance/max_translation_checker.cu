@@ -23,6 +23,7 @@ class MaxTranslationChecker : public NewtonToleranceChecker
         vertex_manager = require<GlobalVertexManager>();
         auto& config   = world().scene().config();
         dt_attr        = config.find<Float>("dt");
+        UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
         auto newton_velocity_tol_attr = config.find<Float>("newton/velocity_tol");
         newton_velocity_tol = newton_velocity_tol_attr->view()[0];
     }

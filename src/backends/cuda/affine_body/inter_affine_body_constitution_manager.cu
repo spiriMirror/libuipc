@@ -37,6 +37,7 @@ void InterAffineBodyConstitutionManager::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
     m_impl.dt_attr              = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 }
 
 void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
@@ -161,10 +162,11 @@ void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearc
 
 void InterAffineBodyConstitutionManager::Impl::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
-    auto constitution_view = constitutions.view();
+    Float dt                = dt_attr->view()[0];
+    auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        EnergyInfo this_info{this, c->m_index, dt_attr->view()[0], info.energies()};
+        EnergyInfo this_info{this, c->m_index, dt, info.energies()};
         c->compute_energy(this_info);
     }
 }
@@ -195,15 +197,12 @@ void InterAffineBodyConstitutionManager::Impl::report_gradient_hessian_extent(
 
 void InterAffineBodyConstitutionManager::Impl::compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info)
 {
-    auto constitution_view = constitutions.view();
+    Float dt                = dt_attr->view()[0];
+    auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        GradientHessianInfo this_info{this,
-                                      c->m_index,
-                                      dt_attr->view()[0],
-                                      info.gradients(),
-                                      info.hessians(),
-                                      info.gradient_only()};
+        GradientHessianInfo this_info{
+            this, c->m_index, dt, info.gradients(), info.hessians(), info.gradient_only()};
         c->compute_gradient_hessian(this_info);
     }
 }

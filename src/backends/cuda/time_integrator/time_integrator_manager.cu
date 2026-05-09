@@ -8,6 +8,7 @@ REGISTER_SIM_SYSTEM(TimeIntegratorManager);
 void TimeIntegratorManager::do_build()
 {
     m_impl.dt_attr = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 }
 
 void TimeIntegratorManager::init()

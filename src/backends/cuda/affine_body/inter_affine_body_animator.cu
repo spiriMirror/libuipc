@@ -15,6 +15,7 @@ void InterAffineBodyAnimator::do_build(BuildInfo& info)
     m_impl.manager         = &require<InterAffineBodyConstitutionManager>();
     m_impl.global_animator = &require<GlobalAnimator>();
     m_impl.dt_attr         = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 }
 
 void InterAffineBodyAnimator::add_constraint(InterAffineBodyConstraint* constraint)
@@ -142,24 +143,21 @@ void InterAffineBodyAnimator::Impl::step()
 
 void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
+    Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt_attr->view()[0], info.energies()};
+        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, dt, info.energies()};
         constraint->compute_energy(this_info);
     }
 }
 
 void InterAffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info)
 {
+    Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        GradientHessianInfo this_info{&m_impl,
-                                      constraint->m_index,
-                                      m_impl.dt_attr->view()[0],
-                                      info.gradients(),
-                                      info.hessians(),
-                                      info.gradient_only()};
+        GradientHessianInfo this_info{
+            &m_impl, constraint->m_index, dt, info.gradients(), info.hessians(), info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }

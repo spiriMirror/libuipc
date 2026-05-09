@@ -19,9 +19,10 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     // Inherited via NewtonToleranceChecker
     void do_build(BuildInfo& info) override
     {
-        affine_body_dynamics    = require<AffineBodyDynamics>();
-        auto& config            = world().scene().config();
-        dt_attr                 = config.find<Float>("dt");
+        affine_body_dynamics = require<AffineBodyDynamics>();
+        auto& config         = world().scene().config();
+        dt_attr              = config.find<Float>("dt");
+        UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
         auto transrate_tol_attr = config.find<Float>("newton/transrate_tol");
         transrate_tol           = transrate_tol_attr->view()[0];
     }

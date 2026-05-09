@@ -42,6 +42,7 @@ void GlobalContactManager::do_build()
     m_impl.d_hat    = d_hat_attr->view()[0];
 
     m_impl.dt_attr = config.find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 
     auto eps_velocity_attr = config.find<Float>("contact/eps_velocity");
     m_impl.eps_velocity    = eps_velocity_attr->view()[0];

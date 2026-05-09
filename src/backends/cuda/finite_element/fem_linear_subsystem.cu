@@ -31,6 +31,7 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
     m_impl.sim_engine = &engine();
     m_impl.dt_attr    = world().scene().config().find<Float>("dt");
+    UIPC_ASSERT(m_impl.dt_attr, "Scene config must have a 'dt' attribute.");
 
     m_impl.dytopo_effect_receiver = find<FEMDyTopoEffectReceiver>();
 }
