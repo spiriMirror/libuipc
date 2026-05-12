@@ -136,8 +136,9 @@ jobs:
           CIBW_BUILD: "${{ matrix.python-version }}-manylinux*"
           CIBW_SKIP: "${{ matrix.python-version }}-musllinux*"
           # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
-          # Available images: sameli/manylinux_2_34_x86_64_cuda_12.8
-          CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}"
+          # Pinned to known-good digest (2026-05-10) to avoid upstream breakage.
+          # See: https://github.com/ameli/manylinux-cuda/issues/17
+          CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}@sha256:0b99ea5d0e32f5ad49b02de2663520f17a8dafc8739365cd7463a82ed3f0590a"
           # Set up vcpkg inside the container before any builds
           # Clone vcpkg, bootstrap it, and install dependencies from vcpkg.json
           CIBW_BEFORE_ALL: >
