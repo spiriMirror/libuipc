@@ -1348,13 +1348,6 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                        const Vector6& C_bar = rest_cs(I);
                        const Vector6& t_bar = rest_ts(I);
 
-                       Vector6 lb;
-                       lb.segment<3>(0) = C_bar.segment<3>(0);
-                       lb.segment<3>(3) = t_bar.segment<3>(0);
-                       Vector6 rb;
-                       rb.segment<3>(0) = C_bar.segment<3>(3);
-                       rb.segment<3>(3) = t_bar.segment<3>(3);
-
                        Vector12 qk = qs(bid[0]);
                        Vector12 ql = qs(bid[1]);
                        Float    x;
