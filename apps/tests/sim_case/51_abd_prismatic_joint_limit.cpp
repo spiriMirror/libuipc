@@ -14,6 +14,7 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
 
     auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
+    logger::set_level(Logger::Level::warn);
     Engine engine{"cuda", output_path};
     World  world{engine};
 
@@ -33,7 +34,8 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     auto right_link = scene.objects().create("right");
 
     AffineBodyConstitution abd;
-    SimplicialComplex abd_mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+    SimplicialComplex      abd_mesh =
+        io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
     abd.apply_to(abd_mesh, 100.0_MPa);
     label_surface(abd_mesh);
 
@@ -60,7 +62,7 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     auto [right_geo_slot, right_rest_geo_slot] = right_link->geometries().create(right_mesh);
 
     vector<Vector2i> Es = {{0, 1}, {2, 3}};
-    vector<Vector3> Vs = {
+    vector<Vector3>  Vs = {
         Vector3{0.0, 0.0, 0.0},
         Vector3{0.0, 0.0, 0.6},
         Vector3{0.2, 0.0, 0.0},
@@ -72,10 +74,10 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     AffineBodyPrismaticJoint prismatic_joint;
     {
         vector<S<SimplicialComplexSlot>> l_geo_slots = {left_geo_slot, left_geo_slot};
-        vector<IndexT> l_instance_id                 = {0, 0};
+        vector<IndexT> l_instance_id = {0, 0};
         vector<S<SimplicialComplexSlot>> r_geo_slots = {right_geo_slot, right_geo_slot};
-        vector<IndexT> r_instance_id                 = {0, 0};
-        vector<Float>  strength_ratios               = {100.0, 100.0};
+        vector<IndexT> r_instance_id   = {0, 0};
+        vector<Float>  strength_ratios = {100.0, 100.0};
 
         prismatic_joint.apply_to(joint_mesh,
                                  span{l_geo_slots},
@@ -92,19 +94,37 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     prismatic_limit.apply_to(joint_mesh, span{lowers}, span{uppers}, span{strengths});
 
     auto joints = scene.objects().create("prismatic_joint");
-    joints->geometries().create(joint_mesh);
+    auto [joint_geo_slot, joint_rest_geo_slot] = joints->geometries().create(joint_mesh);
+
+    auto print_distances = [&]()
+    {
+        auto* sc = joint_geo_slot->geometry().as<SimplicialComplex>();
+        REQUIRE(sc);
+        auto distance = sc->edges().find<Float>("distance");
+        REQUIRE(distance);
+        auto distance_view = distance->view();
+        for(SizeT i = 0; i < distance_view.size(); ++i)
+        {
+            printf("frame=%llu joint=%zu distance=%.6f\n",
+                   (unsigned long long)world.frame(),
+                   i,
+                   distance_view[i]);
+        }
+    };
 
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
-    
+
     world.init(scene);
     REQUIRE(world.is_valid());
+
 
     while(world.frame() < 60)
     {
         world.advance();
         REQUIRE(world.is_valid());
         world.retrieve();
+        print_distances();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }

@@ -266,7 +266,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                        const Vector6& t_bar = rest_ts(I);
 
                        Float distance;
-                       compute_relative_distance(distance, C_bar, t_bar, q_i, q_j);
+                       compute_absolute_distance(distance, C_bar, t_bar, q_i, q_j);
 
                        current_distances(I) = distance + init_distances(I);
                    });
@@ -456,40 +456,39 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                        Vector2i               indices = {bids(0), bids(1)};
                        DVA.segment<2>(2 * I).write(indices, G);
 
-                       if(!gradient_only)
-                       {
-                           // Get Hessian based on Frame F01
-                           Matrix9x9 H01;
-                           PJ::ddE01ddF01(H01, kappa, F01);
+                       if(gradient_only)
+                           return;
 
-                           // Ensure H01 is SPD
-                           make_spd(H01);
+                       // Get Hessian based on Frame F01
+                       Matrix9x9 H01;
+                       PJ::ddE01ddF01(H01, kappa, F01);
 
-                           Matrix24x24 J01T_H01_J01;
-                           PJ::J01T_H01_J01<Float>(J01T_H01_J01,
-                                                   H01,
-                                                   rest_c.segment<3>(0),  // ci_bar
-                                                   rest_t.segment<3>(0),  // ti_bar
-                                                   rest_c.segment<3>(3),  // cj_bar
-                                                   rest_t.segment<3>(3));  // tj_bar
+                       // Ensure H01 is SPD
+                       make_spd(H01);
 
-                           // Get Hessian based on [qi,qj] directly
-                           Matrix24x24 ddE23ddQ;
-                           PJ::ddE23ddQ<Float>(ddE23ddQ,
-                                               kappa,
-                                               rest_n.segment<3>(0),  // ni_bar
-                                               rest_b.segment<3>(0),  // bi_bar
-                                               qi,                    // qi
-                                               rest_n.segment<3>(3),  // nj_bar
-                                               rest_b.segment<3>(3),  // bj_bar
-                                               qj                     // qj
-                           );
+                       Matrix24x24 J01T_H01_J01;
+                       PJ::J01T_H01_J01<Float>(J01T_H01_J01,
+                                               H01,
+                                               rest_c.segment<3>(0),   // ci_bar
+                                               rest_t.segment<3>(0),   // ti_bar
+                                               rest_c.segment<3>(3),   // cj_bar
+                                               rest_t.segment<3>(3));  // tj_bar
 
-                           Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
+                       // Get Hessian based on [qi,qj] directly
+                       Matrix24x24 ddE23ddQ;
+                       PJ::ddE23ddQ<Float>(ddE23ddQ,
+                                           kappa,
+                                           rest_n.segment<3>(0),  // ni_bar
+                                           rest_b.segment<3>(0),  // bi_bar
+                                           qi,                    // qi
+                                           rest_n.segment<3>(3),  // nj_bar
+                                           rest_b.segment<3>(3),  // bj_bar
+                                           qj                     // qj
+                       );
+                       Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
 
-                           TripletMatrixAssembler TMA{H12x12s};
-                           TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
-                       }
+                       TripletMatrixAssembler TMA{H12x12s};
+                       TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
                    });
     };
 
@@ -1278,7 +1277,6 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace EPJ = sym::external_prismatic_joint_constraint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(ref_qs.size(),
@@ -1294,32 +1292,15 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
                     Es = info.energies().viewer().name("Es")] __device__(int I)
                    {
-                       Vector2i bid    = body_ids(I);
-                       Vector6  rest_c = rest_cs(I);
-                       Vector6  rest_t = rest_ts(I);
+                       Vector2i bid = body_ids(I);
 
-                       Vector6 lb;
-                       lb.segment<3>(0) = rest_c.segment<3>(0);
-                       lb.segment<3>(3) = rest_t.segment<3>(0);
-                       Vector6 rb;
-                       rb.segment<3>(0) = rest_c.segment<3>(3);
-                       rb.segment<3>(3) = rest_t.segment<3>(3);
+                       const Vector6& C_bar = rest_cs(I);
+                       const Vector6& t_bar = rest_ts(I);
+                       Vector12       qk    = qs(bid[0]);
+                       Vector12       ql    = qs(bid[1]);
+                       Float          x;
+                       compute_absolute_distance(x, C_bar, t_bar, qk, ql);
 
-                       Vector24 ref_q   = ref_qs(I);
-                       Vector12 qk      = qs(bid[0]);
-                       Vector12 ql      = qs(bid[1]);
-                       Vector12 q_prevk = q_prevs(bid[0]);
-                       Vector12 q_prevl = q_prevs(bid[1]);
-                       Vector12 q_refk  = ref_q.segment<12>(0);
-                       Vector12 q_refl  = ref_q.segment<12>(12);
-
-                       Float theta_prev = 0.0f;
-                       EPJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
-
-                       Float delta = 0.0f;
-                       EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
-
-                       Float x        = theta_prev + delta;
                        Float init_d   = init_distances(I);
                        Float lower    = lowers(I) - init_d;
                        Float upper    = uppers(I) - init_d;
@@ -1343,7 +1324,6 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace EPJ      = sym::external_prismatic_joint_constraint;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()
@@ -1363,32 +1343,16 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     H12x12s   = info.hessians().viewer().name("H12x12s"),
                     gradient_only] __device__(int I) mutable
                    {
-                       Vector2i bid    = body_ids(I);
-                       Vector6  rest_c = rest_cs(I);
-                       Vector6  rest_t = rest_ts(I);
+                       Vector2i bid = body_ids(I);
 
-                       Vector6 lb;
-                       lb.segment<3>(0) = rest_c.segment<3>(0);
-                       lb.segment<3>(3) = rest_t.segment<3>(0);
-                       Vector6 rb;
-                       rb.segment<3>(0) = rest_c.segment<3>(3);
-                       rb.segment<3>(3) = rest_t.segment<3>(3);
+                       const Vector6& C_bar = rest_cs(I);
+                       const Vector6& t_bar = rest_ts(I);
 
-                       Vector24 ref_q   = ref_qs(I);
-                       Vector12 qk      = qs(bid[0]);
-                       Vector12 ql      = qs(bid[1]);
-                       Vector12 q_prevk = q_prevs(bid[0]);
-                       Vector12 q_prevl = q_prevs(bid[1]);
-                       Vector12 q_refk  = ref_q.segment<12>(0);
-                       Vector12 q_refl  = ref_q.segment<12>(12);
+                       Vector12 qk = qs(bid[0]);
+                       Vector12 ql = qs(bid[1]);
+                       Float    x;
+                       compute_absolute_distance(x, C_bar, t_bar, qk, ql);
 
-                       Float theta_prev = 0.0f;
-                       EPJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
-
-                       Float delta = 0.0f;
-                       EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
-
-                       Float x        = theta_prev + delta;
                        Float init_d   = init_distances(I);
                        Float lower    = lowers(I) - init_d;
                        Float upper    = uppers(I) - init_d;
@@ -1400,7 +1364,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                            x, lower, upper, strength, dE_dx, d2E_dx2);
 
                        Vector24 dx_dq;
-                       EPJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
+                       compute_absolute_distance_derivative(dx_dq, C_bar, t_bar, qk, ql);
 
                        Vector24               G = dE_dx * dx_dq;
                        DoubletVectorAssembler DVA{G12s};
@@ -1413,20 +1377,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
                        if(dE_dx != 0.0f)
                        {
-                           Vector12 F;
-                           Vector12 F_prev;
-                           EPJ::F<Float>(F, lb, qk, rb, ql);
-                           EPJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
-
-                           Matrix12x12 ddx_ddF;
-                           EPJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
-
-                           Matrix12x12 H_F = dE_dx * ddx_ddF;
-                           make_spd(H_F);
-
-                           Matrix24x24 JT_H_J;
-                           EPJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
-                           H += JT_H_J;
+                           compute_absolute_distance_hessian(H, dE_dx, C_bar, t_bar, qk, ql);
                        }
 
                        TripletMatrixAssembler TMA{H12x12s};
