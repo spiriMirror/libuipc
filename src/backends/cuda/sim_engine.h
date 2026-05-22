@@ -80,6 +80,10 @@ class SimEngine final : public backend::SimEngine
     void                        event_rebuild_scene();
     SimActionCollection<void()> m_on_write_scene;
     void                        event_write_scene();
+    SimActionCollection<void()> m_on_before_collision_detection;
+    void                        event_before_collision_detection();
+    SimActionCollection<void()> m_on_after_contact_assembly;
+    void                        event_after_contact_assembly();
 
 
   private:

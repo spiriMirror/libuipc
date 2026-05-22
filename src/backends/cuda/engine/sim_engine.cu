@@ -98,6 +98,18 @@ void SimEngine::event_write_scene()
         action();
 }
 
+void SimEngine::event_before_collision_detection()
+{
+    for(auto& action : m_on_before_collision_detection.view())
+        action();
+}
+
+void SimEngine::event_after_contact_assembly()
+{
+    for(auto& action : m_on_after_contact_assembly.view())
+        action();
+}
+
 void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};

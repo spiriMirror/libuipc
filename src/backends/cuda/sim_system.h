@@ -43,6 +43,10 @@ class SimSystem : public backend::SimSystem
      */
     void on_write_scene(std::function<void()>&& action) noexcept;
 
+    void on_before_collision_detection(std::function<void()>&& action) noexcept;
+
+    void on_after_contact_assembly(std::function<void()>&& action) noexcept;
+
     WorldVisitor& world() noexcept;
 
     void check_state(SimEngineState state, std::string_view function_name) noexcept;
