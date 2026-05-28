@@ -48,7 +48,7 @@ We are **actively** developing Libuipc and will continue to add more features an
 
 ## News
 
-**2026-3-29**: We thank [Genesis AI](https://genesis-embodied-ai.github.io/) for their contributions to supporting [AL-IPC](https://arxiv.org/abs/2512.12151) (Augmented Lagrangian IPC, from Juntian) integration in libuipc, developing a comprehensive Minimal **Coordinate Articulated Joint System**(ExternalArticulationConstraint) for affine bodies, and restructuring the CI packaging pipeline using CIBuildWheel for cross-platform PyPI wheel distribution.
+**2026-3-29**: We thank [Genesis AI](https://genesis-embodied-ai.github.io/) for their contributions to supporting [AL-IPC](https://simulation-intelligence.github.io/barrier-free/) (Augmented Lagrangian IPC, from Juntian) integration in libuipc, developing a comprehensive Minimal **Coordinate Articulated Joint System**(ExternalArticulationConstraint) for affine bodies, and restructuring the CI packaging pipeline using CIBuildWheel for cross-platform PyPI wheel distribution.
 
 **2026-2-13**: Libuipc now supports [Cursor](https://www.cursor.com/) AI-assisted development! Check out `.cursor/` for built-in commands (build, test, commit, PR workflows) and rules (C++ style, project structure, commit conventions).
 
