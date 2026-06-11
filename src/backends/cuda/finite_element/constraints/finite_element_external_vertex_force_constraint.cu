@@ -72,6 +72,11 @@ void FiniteElementExternalVertexForceConstraint::Impl::step(
             }
         });
 
+    // Always sync device buffers — even when empty.
+    // Without this, stale forces from a previous frame persist in the device
+    // buffer and get scatter-added every advance() call forever.
+    forces.resize(h_forces.size());
+    vertex_ids.resize(h_vertex_ids.size());
     if(!h_forces.empty())
     {
         forces.copy_from(h_forces);
