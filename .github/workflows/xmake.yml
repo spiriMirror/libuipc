@@ -21,7 +21,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2025, ubuntu-24.04]
+        os: [windows-2022, ubuntu-24.04]
 
     runs-on: ${{ matrix.os }}
 
@@ -63,7 +63,7 @@ jobs:
           xmake config --yes --github_actions=y
 
       - name: Xmake configure
-        if: matrix.os == 'windows-2025'
+        if: matrix.os == 'windows-2022'
         run: |
           xrepo env -y -v -b cuda "xmake config --yes --github_actions=y"
 
