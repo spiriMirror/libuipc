@@ -1,5 +1,6 @@
 #include <affine_body/utils.h>
 #include <Eigen/Geometry>
+#include <muda/tools/debug_log.h>
 
 namespace uipc::backend::cuda
 {
@@ -186,5 +187,30 @@ UIPC_GENERIC Matrix3x3 skew(const Vector3& v)
     Matrix3x3 S;
     S << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
     return S;
+}
+
+UIPC_GENERIC Vector12 torque_to_F(Float tau, const Vector3& e, const Vector12& q)
+{
+    Matrix3x3 A = q_to_A(q);
+
+    // ABD only softly constrains A toward a rotation, so a collapsed body can make it singular and inverting it poisons the solve; guard with the scale-invariant measure |det|/(|a0||a1||a2|) in [0,1] (also NaN-catching) and drop the torque when it collapses.
+    Float row_norm_prod = A.row(0).norm() * A.row(1).norm() * A.row(2).norm();
+    Float det           = A.determinant();
+    if(!(row_norm_prod > 0 && ::fabs(det) >= 1e-6 * row_norm_prod))
+    {
+        MUDA_KERNEL_WARN(
+            "torque_to_F: affine matrix is near-singular "
+            "(det=%f, row_norm_prod=%f); dropping joint torque",
+            det,
+            row_norm_prod);
+        return Vector12::Zero();
+    }
+
+    Matrix3x3 A_inv_T = A.inverse().transpose();
+    Matrix3x3 FA      = (0.5 * tau) * skew(e) * A_inv_T;
+
+    Vector12 F      = Vector12::Zero();
+    F.segment<9>(3) = A_to_q(FA);
+    return F;
 }
 }  // namespace uipc::backend::cuda

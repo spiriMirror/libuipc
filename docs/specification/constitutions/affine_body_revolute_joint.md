@@ -40,7 +40,7 @@ where $K$ is the stiffness constant of the joint, we choose $K=\gamma (m_i + m_j
 
 ## Angle State
 
-The revolute joint tracks a scalar joint angle $\theta$ that extra-per-joint constitutions (driving joint, angle limit, external torque) share. The backend constructs per body $k \in \{i,j\}$ an orthonormal basis $(\hat{\mathbf{t}}_k, \hat{\mathbf{n}}_k, \hat{\mathbf{b}}_k)$ from the hinge geometry embedded in symbolic generation and Jacobian layout for this constitution (see `sym/affine_body_revolute_joint` alongside deployed kernels): $\hat{\mathbf{t}}_k$ is the **unit tangent** along body $k$’s hinge segment; $\hat{\mathbf{b}}_k = \hat{\mathbf{t}}_k \times \hat{\mathbf{n}}_k$. Pair $[\hat{\mathbf{n}}_k, \hat{\mathbf{b}}_k]$ is the rotating perpendicular frame used downstream. Current relative angle is
+The revolute joint tracks a scalar joint angle $\theta$ shared by the extra-per-joint constitutions (driving, limit, external torque). For each body $k \in \{i,j\}$ the backend builds an orthonormal basis $(\hat{\mathbf{t}}_k, \hat{\mathbf{n}}_k, \hat{\mathbf{b}}_k)$ from the hinge geometry (see `sym/affine_body_revolute_joint`): $\hat{\mathbf{t}}_k$ is the **unit tangent** along body $k$’s hinge segment and $\hat{\mathbf{b}}_k = \hat{\mathbf{t}}_k \times \hat{\mathbf{n}}_k$, so $[\hat{\mathbf{n}}_k, \hat{\mathbf{b}}_k]$ is the rotating perpendicular frame used downstream. Current relative angle is
 
 $$
 \cos\theta = \frac{\hat{\mathbf{n}}_i \cdot \hat{\mathbf{n}}_j + \hat{\mathbf{b}}_i \cdot \hat{\mathbf{b}}_j}{2}, \quad
@@ -69,13 +69,18 @@ Angular state $\theta$, `angle`, limits, and driving use **both** bodies’ base
 
 ### State Update
 
-At the end of each time step, the backend writes back the current relative angle, wrapped to $(-\pi, \pi]$, to the `angle` edge attribute:
+At the end of each time step, the backend advances a continuously accumulated (unwrapped) reference angle and writes it back to the `angle` edge attribute:
 
 $$
-\theta_{\text{current}} = \operatorname{map}_{(-\pi,\pi]}\left(\theta(\mathbf{q}) + \alpha_0\right),
+r^{(n)} = r^{(n-1)} + \operatorname{rem}\!\left(\theta(\mathbf{q}^{(n)}) - r^{(n-1)}\right), \qquad
+\theta_{\text{current}}^{(n)} = r^{(n)} + \alpha_0,
 $$
 
-where $\theta(\mathbf{q})$ is extracted from the formulas above and $\alpha_0$ is `init_angle`, a **user-facing offset** that shifts the "zero" of the reported value (default `0.0`). The `angle` attribute is therefore available to any frontend and to all extra-per-joint constitutions built on top of this joint (driving joint, limit, external torque). When an external state write replaces the body DOF $\mathbf{q}$ (e.g. via `AffineBodyStateAccessorFeature`), the backend re-syncs `current_angles` synchronously through the `GlobalJointDofManager`.
+where $\theta(\mathbf{q}^{(n)})$ is the wrapped angle from the formulas above at step $n$, $\operatorname{rem}(x)$ is the representative of $x$ modulo $2\pi$ closest to $0$, and $\alpha_0$ is `init_angle`, a **user-facing offset** shifting the reported "zero" (default `0.0`). Seeded at $r^{(0)} = 0$, so $\theta_{\text{current}}^{(0)} = \alpha_0$.
+
+Thus $\theta_{\text{current}}$ is a **continuous, multi-turn absolute angle** that accumulates across turns instead of wrapping at $\pm\pi$. The unwrap is exact while the per-step rotation stays below $\pi$ — this is an aliasing limit of sampling the wrapped angle at step endpoints, not an implementation choice: from two wrapped samples a $+\Delta$ and a $\Delta-2\pi$ rotation are indistinguishable. Fast *continuous* rotation that would exceed $\pi$ per step is handled by shrinking the time step so each sub-step stays below $\pi$. A genuine *discontinuous* jump (e.g. a reset/teleport) carries no winding information to recover; for it, write the authoritative angle (with winding) into `angle` **before** pushing the new body state through the accessor — the backend adopts the modified entries on re-sync and republishes; untouched joints are unaffected.
+
+The `angle` attribute is thus available to any frontend and to all extra-per-joint constitutions (driving, limit, external torque). On an external DOF write (e.g. `AffineBodyStateAccessorFeature`), the backend re-syncs `current_angles` synchronously via `GlobalJointDofManager`.
 
 #### Convention for all user-facing bounds
 
@@ -90,7 +95,7 @@ On the joint geometry (1D simplicial complex), on **edges** (one edge per joint)
 - `l_inst_id` (`IndexT`): instance index within the left geometry
 - `r_inst_id` (`IndexT`): instance index within the right geometry
 - `strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$ above
-- `angle` (`Float`): $\theta_{\text{current}}$, current relative joint angle in radians, wrapped to $(-\pi, \pi]$. Written by the backend every time step (read-only for the user).
+- `angle` (`Float`): $\theta_{\text{current}}$, current relative joint angle in radians. A continuous, unbounded, multi-turn absolute angle (not wrapped to $(-\pi, \pi]$) — see [State Update](#state-update). Written by the backend every time step (read-only for the user).
 - `init_angle` (`Float`): $\alpha_0$, initial angle offset added to the extracted relative angle. Default `0.0`.
 
 When the joint is created via Local `create_geometry`, optional **edge** attributes (each `Vector3`) supply local joint geometry: `l_position0`, `l_position1` (left body local frame), `r_position0`, `r_position1` (right body local frame).

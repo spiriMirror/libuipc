@@ -45,3 +45,6 @@ vsxmake*/
 # venv
 .venv/
 .omc/
+
+# local dev notes
+docs/development/backend_cuda/
