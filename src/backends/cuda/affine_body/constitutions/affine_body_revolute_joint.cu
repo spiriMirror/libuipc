@@ -40,6 +40,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
     vector<Vector6>               h_r_basis;  // [n_R, b_R] per joint
     vector<Float>                 h_init_angles;
     vector<Float>                 h_current_angles;
+    vector<Float>                 h_adopted_angles;
 
     muda::DeviceBuffer<Vector2i> body_ids;
     muda::DeviceBuffer<Vector12> rest_positions;
@@ -236,7 +237,8 @@ Edge             = ({}, {}))",
         h_init_angles.resize(init_angles_list.size());
         std::ranges::copy(init_angles_list, h_init_angles.begin());
 
-        h_current_angles.resize(h_init_angles.size());
+        // Seed the persistent unwrapped angle with init_angles (zero relative rotation).
+        h_current_angles = h_init_angles;
 
         body_ids.copy_from(h_body_ids);
         rest_positions.copy_from(h_rest_positions);
@@ -275,11 +277,25 @@ Edge             = ({}, {}))",
                        Float theta;
                        compute_relative_angle(theta, lb, q_i, rb, q_j);
 
-                       Float total_angle = theta + init_angles(I);
-                       current_angles(I) = ::remainder(total_angle, 2.0 * PI);
-                       MUDA_ASSERT(current_angles(I) >= -PI && current_angles(I) <= PI,
-                                   "current_angle out of (-pi, pi]: %f",
-                                   current_angles(I));
+                       // Unwrap the (-pi, pi] atan2 angle against the stored multi-turn angle; exact while per-frame rotation < pi.
+                       Float prev_rel = current_angles(I) - init_angles(I);
+                       Float rel      = unwrap_angle(theta, prev_rel);
+                       // Wrong winding is silent and never self-corrects; warn near the pi aliasing limit.
+                       if(::fabs(rel - prev_rel) > 0.9 * PI)
+                       {
+                           MUDA_KERNEL_WARN_WITH_LOCATION(
+                               "revolute joint %d: per-frame rotation %f rad is "
+                               "close to the pi unwrap limit; current_angle may "
+                               "alias onto a wrong turn",
+                               I,
+                               rel - prev_rel);
+                       }
+                       current_angles(I) = rel + init_angles(I);
+                       MUDA_ASSERT(::isfinite(current_angles(I)),
+                                   "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
+                                   current_angles(I),
+                                   theta,
+                                   prev_rel);
                    });
     }
 
@@ -444,6 +460,53 @@ Edge             = ({}, {}))",
                        });
     }
 
+    void adopt_scene_angles()
+    {
+        auto geo_slots = world().scene().geometries();
+
+        // A mismatch vs h_current_angles (last published) means a user-authored angle (reset/teleport); overlay it, the following resync snaps it to the pose.
+        current_angles.copy_to(h_adopted_angles);
+
+        IndexT geo_joint_index = 0;
+        bool   adopted         = false;
+
+        this->for_each(geo_slots,
+                       [&](geometry::Geometry& geo)
+                       {
+                           auto sc = geo.as<geometry::SimplicialComplex>();
+                           UIPC_ASSERT(sc, "AffineBodyRevoluteJoint: Geometry must be a simplicial complex");
+
+                           auto angle = sc->edges().find<Float>("angle");
+                           if(angle)
+                           {
+                               auto angle_view = angle->view();
+                               auto [offset, count] =
+                                   h_geo_joint_offsets_counts[geo_joint_index];
+                               UIPC_ASSERT(angle_view.size() == count,
+                                           "AffineBodyRevoluteJoint: angle attribute size {} mismatch with joint count {}",
+                                           angle_view.size(),
+                                           count);
+
+                               for(IndexT i = 0; i < count; ++i)
+                               {
+                                   Float user_angle = angle_view[i];
+                                   if(user_angle != h_current_angles[offset + i])
+                                   {
+                                       h_adopted_angles[offset + i] = user_angle;
+                                       adopted = true;
+                                   }
+                               }
+                           }
+
+                           ++geo_joint_index;
+                       });
+
+        if(adopted)
+        {
+            current_angles.copy_from(h_adopted_angles);
+        }
+    }
+
     bool do_dump(DumpInfo& info) override
     {
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
@@ -490,9 +553,10 @@ class AffineBodyRevoluteJointDofReporter final : public JointDofReporter
 
     void do_update_dof_attributes(UpdateDofAttributesInfo& info) override
     {
-        // Re-sync persistent per-joint angles (current_angles) with the new
-        // vertex/body attribute layout before the next frame uses them.
+        // Adopt user-authored angles (reset/teleport winding a > pi jump can't unwrap), resync current_angles to the new pose, then republish.
+        revolute_joint->adopt_scene_angles();
         revolute_joint->compute_current_angles();
+        revolute_joint->write_scene();
     }
 };
 REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointDofReporter);
@@ -756,19 +820,16 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                            return;
                        }
 
-                       auto  passive   = is_passive(I);
-                       Float kappa     = strength_ratios(I)
-                                         * (body_masses(bids(0)).mass()
-                                            + body_masses(bids(1)).mass());
-                       auto  aim_angle = aim_angles(I);
+                       auto  passive = is_passive(I);
+                       Float kappa   = strength_ratios(I)
+                                     * (body_masses(bids(0)).mass()
+                                        + body_masses(bids(1)).mass());
+                       auto aim_angle = aim_angles(I);
                        if(passive == 1)
                        {
                            // resist external forces passively
                            aim_angle = current_angles(I);
                        }
-
-                       // mapping [min_angle, max_angle] to [min-init_angle, max-init_angle]
-                       Float theta_tilde = aim_angle - init_angles(I);
 
                        Vector12 q_i = qs(bids(0));
                        Vector12 q_j = qs(bids(1));
@@ -783,6 +844,10 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                                          rb.segment<3>(0),
                                          rb.segment<3>(3),
                                          q_j);
+
+                       // Fold the frame-start unwrap shift into theta_tilde (gradient unaffected; see driving_theta_tilde).
+                       Float theta_tilde = driving_theta_tilde(
+                           F01_q, aim_angle, init_angles(I), current_angles(I));
 
                        Float E;
                        DRJ::E(E, kappa, F01_q, theta_tilde);
@@ -841,8 +906,6 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                         aim_angle = current_angles(I);
                     }
 
-                    auto theta_tilde = aim_angle - init_angles(I);
-
                     Vector12 q_i = qs(bids(0));
                     Vector12 q_j = qs(bids(1));
 
@@ -857,6 +920,10 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                                       rb.segment<3>(0),
                                       rb.segment<3>(3),
                                       q_j);
+
+                    // Same unwrap as do_compute_energy (must be bit-identical).
+                    Float theta_tilde = driving_theta_tilde(
+                        F01_q, aim_angle, init_angles(I), current_angles(I));
 
                     // G12s
                     Vector12 G01;
@@ -1079,18 +1146,8 @@ class AffineBodyRevoluteJointExternalForce final : public AffineBodyExternalForc
                        e_j = 0.5 * (e_j + e_i);
                        e_i = -e_j;
 
-                       // affine-body rotational DOF (virtual-work form)
-                       //  F^A_b  = (tau/2) * [e_world_b]_x * A_b^{-T}    (3x3)
-                       auto torque_to_F = [](Float tau, const Vector3& e, const Vector12& q)
-                       {
-                           Matrix3x3 A_inv_T = q_to_A(q).inverse().transpose();
-                           Matrix3x3 FA      = (0.5 * tau) * skew(e) * A_inv_T;
-
-                           Vector12 F      = Vector12::Zero();
-                           F.segment<9>(3) = A_to_q(FA);
-                           return F;
-                       };
-
+                       // affine-body rotational DOF (virtual-work form),
+                       // see torque_to_F in affine_body/utils.h
                        Vector12 F_i = torque_to_F(tau, e_i, q_i);
                        Vector12 F_j = torque_to_F(tau, e_j, q_j);
 
@@ -1104,8 +1161,11 @@ REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointExternalForce);
 // ============================================================================
 // AffineBodyRevoluteJointLimit
 // Penalty energy enforcing `limit/lower <= delta_angle <= limit/upper`.
-// Reuses body_ids / l_basis / r_basis / init_angles from AffineBodyRevoluteJoint
-// (index-aligned). Only ref_qs, lowers, uppers, strengths are owned locally.
+// Reuses body_ids / l_basis / r_basis / init_angles / current_angles from
+// AffineBodyRevoluteJoint (index-aligned). Only lowers, uppers, strengths
+// are owned locally.
+//
+// Temporal contract: kernels read current_angles as the frame-start angle, so it must stay in sync with the qs snapshot copied into q_prevs; any new path that mutates qs between frames must re-sync it or the limit window shifts by a whole-frame delta.
 // ============================================================================
 
 class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
@@ -1122,15 +1182,13 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     SimSystemSlot<AffineBodyRevoluteJoint> revolute_joint;
 
-    vector<Vector24> h_ref_qs;
-    vector<Float>    h_lowers;
-    vector<Float>    h_uppers;
-    vector<Float>    h_strengths;
+    vector<Float> h_lowers;
+    vector<Float> h_uppers;
+    vector<Float> h_strengths;
 
-    muda::DeviceBuffer<Vector24> ref_qs;
-    muda::DeviceBuffer<Float>    lowers;
-    muda::DeviceBuffer<Float>    uppers;
-    muda::DeviceBuffer<Float>    strengths;
+    muda::DeviceBuffer<Float> lowers;
+    muda::DeviceBuffer<Float> uppers;
+    muda::DeviceBuffer<Float> strengths;
 
     void do_build(BuildInfo& info) override
     {
@@ -1141,7 +1199,6 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     {
         auto geo_slots = world().scene().geometries();
 
-        h_ref_qs.clear();
         h_lowers.clear();
         h_uppers.clear();
         h_strengths.clear();
@@ -1158,19 +1215,6 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                 auto sc = geo.as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(sc, "AffineBodyRevoluteJointLimit geometry must be SimplicialComplex");
 
-                auto l_geo_id = sc->edges().find<IndexT>("l_geo_id");
-                UIPC_ASSERT(l_geo_id, "AffineBodyRevoluteJointLimit requires `l_geo_id` attribute on edges");
-                auto l_geo_id_view = l_geo_id->view();
-                auto r_geo_id      = sc->edges().find<IndexT>("r_geo_id");
-                UIPC_ASSERT(r_geo_id, "AffineBodyRevoluteJointLimit requires `r_geo_id` attribute on edges");
-                auto r_geo_id_view = r_geo_id->view();
-                auto l_inst_id     = sc->edges().find<IndexT>("l_inst_id");
-                UIPC_ASSERT(l_inst_id, "AffineBodyRevoluteJointLimit requires `l_inst_id` attribute on edges");
-                auto l_inst_id_view = l_inst_id->view();
-                auto r_inst_id      = sc->edges().find<IndexT>("r_inst_id");
-                UIPC_ASSERT(r_inst_id, "AffineBodyRevoluteJointLimit requires `r_inst_id` attribute on edges");
-                auto r_inst_id_view = r_inst_id->view();
-
                 auto lower_attr = sc->edges().find<Float>("limit/lower");
                 UIPC_ASSERT(lower_attr, "AffineBodyRevoluteJointLimit requires `limit/lower` attribute on edges");
                 auto lower_view = lower_attr->view();
@@ -1183,38 +1227,8 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                 UIPC_ASSERT(strength_attr, "AffineBodyRevoluteJointLimit requires `limit/strength` attribute on edges");
                 auto strength_view = strength_attr->view();
 
-                auto edges = sc->edges().topo().view();
-
-                for(auto&& [i, e] : enumerate(edges))
+                for(SizeT i = 0; i < sc->edges().size(); ++i)
                 {
-                    IndexT l_gid = l_geo_id_view[i];
-                    IndexT r_gid = r_geo_id_view[i];
-                    IndexT l_iid = l_inst_id_view[i];
-                    IndexT r_iid = r_inst_id_view[i];
-
-                    auto* left_sc  = info.body_geo(geo_slots, l_gid);
-                    auto* right_sc = info.body_geo(geo_slots, r_gid);
-
-                    UIPC_ASSERT(l_iid >= 0
-                                    && l_iid < static_cast<IndexT>(
-                                           left_sc->instances().size()),
-                                "AffineBodyRevoluteJointLimit: left instance ID {} out of range [0, {})",
-                                l_iid,
-                                left_sc->instances().size());
-                    UIPC_ASSERT(r_iid >= 0
-                                    && r_iid < static_cast<IndexT>(
-                                           right_sc->instances().size()),
-                                "AffineBodyRevoluteJointLimit: right instance ID {} out of range [0, {})",
-                                r_iid,
-                                right_sc->instances().size());
-
-                    Vector24 ref;
-                    ref.segment<12>(0) =
-                        transform_to_q(left_sc->transforms().view()[l_iid]);
-                    ref.segment<12>(12) =
-                        transform_to_q(right_sc->transforms().view()[r_iid]);
-                    h_ref_qs.push_back(ref);
-
                     UIPC_ASSERT(lower_view[i] <= upper_view[i],
                                 "AffineBodyRevoluteJointLimit: requires `limit/lower <= limit/upper` on edge {}, but got lower={} upper={}",
                                 i,
@@ -1226,16 +1240,16 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                 }
             });
 
-        // Sanity check: limit constitution reuses body_ids/l_basis/r_basis/init_angles
-        // from AffineBodyRevoluteJoint via the shared index `I`. Both must
-        // therefore enumerate exactly the same (geo, edge) sequence.
-        UIPC_ASSERT(h_ref_qs.size() == revolute_joint->h_body_ids.size(),
+        // Sanity check: limit constitution reuses body_ids/l_basis/r_basis/
+        // init_angles/current_angles from AffineBodyRevoluteJoint via the
+        // shared index `I`. Both must therefore enumerate exactly the same
+        // (geo, edge) sequence.
+        UIPC_ASSERT(h_lowers.size() == revolute_joint->h_body_ids.size(),
                     "AffineBodyRevoluteJointLimit: joint count {} must equal "
                     "AffineBodyRevoluteJoint joint count {} (index alignment required)",
-                    h_ref_qs.size(),
+                    h_lowers.size(),
                     revolute_joint->h_body_ids.size());
 
-        ref_qs.copy_from(h_ref_qs);
         lowers.copy_from(h_lowers);
         uppers.copy_from(h_uppers);
         strengths.copy_from(h_strengths);
@@ -1243,7 +1257,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
     {
-        info.energy_count(ref_qs.size());
+        info.energy_count(lowers.size());
     }
 
     void do_compute_energy(ComputeEnergyInfo& info) override
@@ -1252,12 +1266,12 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         namespace ERJ = sym::affine_body_revolute_joint_limit;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(ref_qs.size(),
+            .apply(lowers.size(),
                    [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
                     l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
                     r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
                     init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
+                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
                     lowers    = lowers.cviewer().name("lowers"),
                     uppers    = uppers.cviewer().name("uppers"),
                     strengths = strengths.cviewer().name("strengths"),
@@ -1267,25 +1281,23 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                    {
                        Vector2i bid = body_ids(I);
 
-                       Vector6  lb    = l_basis(I);
-                       Vector6  rb    = r_basis(I);
-                       Vector24 ref_q = ref_qs(I);
+                       Vector6 lb = l_basis(I);
+                       Vector6 rb = r_basis(I);
 
                        Vector12 qk      = qs(bid[0]);
                        Vector12 ql      = qs(bid[1]);
                        Vector12 q_prevk = q_prevs(bid[0]);
                        Vector12 q_prevl = q_prevs(bid[1]);
-                       Vector12 q_refk  = ref_q.segment<12>(0);
-                       Vector12 q_refl  = ref_q.segment<12>(12);
 
-                       Float theta_prev = 0.0f;
-                       ERJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                       Float init_a = init_angles(I);
+
+                       // Unwrapped relative angle at the last committed state; valid past +-pi and across turns.
+                       Float theta_prev = current_angles(I) - init_a;
 
                        Float delta = 0.0f;
                        ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
                        Float x        = theta_prev + delta;
-                       Float init_a   = init_angles(I);
                        Float lower    = lowers(I) - init_a;
                        Float upper    = uppers(I) - init_a;
                        Float strength = strengths(I);
@@ -1298,11 +1310,11 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_count(2 * ref_qs.size());
+        info.gradient_count(2 * lowers.size());
         if(info.gradient_only())
             return;
 
-        info.hessian_count(HalfHessianSize * ref_qs.size());
+        info.hessian_count(HalfHessianSize * lowers.size());
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -1313,12 +1325,12 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(ref_qs.size(),
+            .apply(lowers.size(),
                    [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
                     l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
                     r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
                     init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
+                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
                     lowers    = lowers.cviewer().name("lowers"),
                     uppers    = uppers.cviewer().name("uppers"),
                     strengths = strengths.cviewer().name("strengths"),
@@ -1330,25 +1342,23 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                    {
                        Vector2i bid = body_ids(I);
 
-                       Vector6  lb    = l_basis(I);
-                       Vector6  rb    = r_basis(I);
-                       Vector24 ref_q = ref_qs(I);
+                       Vector6 lb = l_basis(I);
+                       Vector6 rb = r_basis(I);
 
                        Vector12 qk      = qs(bid[0]);
                        Vector12 ql      = qs(bid[1]);
                        Vector12 q_prevk = q_prevs(bid[0]);
                        Vector12 q_prevl = q_prevs(bid[1]);
-                       Vector12 q_refk  = ref_q.segment<12>(0);
-                       Vector12 q_refl  = ref_q.segment<12>(12);
 
-                       Float theta_prev = 0.0f;
-                       ERJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                       Float init_a = init_angles(I);
+
+                       // Same unwrapped frame-start angle as do_compute_energy.
+                       Float theta_prev = current_angles(I) - init_a;
 
                        Float delta = 0.0f;
                        ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
                        Float x        = theta_prev + delta;
-                       Float init_a   = init_angles(I);
                        Float lower    = lowers(I) - init_a;
                        Float upper    = uppers(I) - init_a;
                        Float strength = strengths(I);

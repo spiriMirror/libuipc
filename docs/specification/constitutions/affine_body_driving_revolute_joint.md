@@ -32,6 +32,8 @@ $$
 
 where $\hat{\mathbf{n}}_k$, $\hat{\mathbf{b}}_k$ are the normal and binormal directions in body $k$'s current frame, obtained from the stored rest-space basis via the affine map. The sign follows the right-hand rule around $+\hat{\mathbf{t}}$.
 
+For the energy below, this measurement is used through its continuously-unwrapped counterpart, anchored to the base joint's `current_angles` committed at the step start (see [State Update](./affine_body_revolute_joint.md#state-update)), so it does not jump by $2\pi$ when a Newton trial crosses the $\operatorname{atan2}$ branch cut. It agrees with $\theta$ modulo $2\pi$, exactly so while the rotation since the last commit is below $\pi$.
+
 `aim_angle` is a **user-facing target** expressed in the same frame as the reported `angle` (i.e. $\theta_{\text{current}}$). To translate it into the raw $\theta$-space actually used by the energy, the solver subtracts $\theta_{\text{init}}$ (the base joint's `init_angle`):
 
 $$
@@ -52,7 +54,7 @@ $$
 
 where $K = \gamma (m_i + m_j)$, $\gamma$ is the **user defined** `driving/strength_ratio` parameter, and $m_i$, $m_j$ are the masses of the two affine bodies. Substituting the definitions, the penalty is equivalent to $\tfrac{K}{2}(\theta_{\text{current}} - \theta_{\text{aim}})^2$ in the user-facing frame — the driving joint simply pulls the reported `angle` toward `aim_angle`.
 
-Note that $\theta - \tilde\theta$ is a raw difference of two values each returned by $\operatorname{atan2}$ in $(-\pi, \pi]$; it is **not** wrapped. As a consequence the penalty is only meaningful while $|\theta - \tilde\theta| < \pi$, which is the intended operating range of the driving joint (the controller is expected to deliver a target close to the current angle). Crossing the $\pm\pi$ branch cut makes the energy discontinuous; if larger travel is needed the driving target should be advanced incrementally.
+Because $\theta$ is continuously unwrapped, $\theta - \tilde\theta$ stays smooth across the $\pm\pi$ branch cut, so `aim_angle` is an **unbounded absolute target**: values beyond $\pm\pi$ are reached over multiple steps, not advanced incrementally by the caller. The precondition (per-step rotation below $\pi$; resets need an explicit `angle` write) is that of the base joint's [State Update](./affine_body_revolute_joint.md#state-update).
 
 When `driving/is_constrained = 0`, the energy is zero and the driving effect is disabled.
 

@@ -4,11 +4,13 @@ add_requires(
     "spdlog[shared,header_only=n,fmt_external=y]"
 )
 
+-- Pin fmt to 12.1.0: 12.2.0's long double hexfloat path fails under nvcc (fallback uint128 lacks operator~)
 if is_plat("windows") then
     -- https://forums.developer.nvidia.com/t/utf-8-option-for-the-host-function-in-cuda-msvc/312739
-    add_requireconfs("spdlog.fmt", {override = true, configs = {unicode = false}})
+    add_requireconfs("spdlog.fmt", {override = true, version = "12.1.0", configs = {unicode = false}})
 else
-    add_requireconfs("spdlog", "spdlog.fmt", {override = true, system = false})
+    add_requireconfs("spdlog", {override = true, system = false})
+    add_requireconfs("spdlog.fmt", {override = true, system = false, version = "12.1.0"})
 end
 
 target("uipc_core")

@@ -16,7 +16,7 @@ $$
 
 where $l_{\text{user}}, u_{\text{user}}$ are `limit/lower`, `limit/upper` and $\alpha_0$ is `init_angle` from the base joint. Algebraically this is equivalent to enforcing $l_{\text{user}} \le \theta_{\text{current}} \le u_{\text{user}}$. Let $s$ be `limit/strength`.
 
-Because $x$ is a raw accumulator that is not wrapped to $(-\pi,\pi]$, the limit is well-defined only while $|x| < \pi$; this is the intended operating range (the penalty itself prevents the joint from drifting that far).
+$x$ builds on the base joint's continuously-unwrapped `current_angles` (see [State Update](./affine_body_revolute_joint.md#state-update)), not a fixed build-time reference, so it is not restricted to $(-\pi,\pi]$: `limit/lower` and `limit/upper` may lie beyond $\pm\pi$ and multi-turn limits are supported. The precondition (per-step rotation below $\pi$; resets need an explicit `angle` write) is that of the base joint's [State Update](./affine_body_revolute_joint.md#state-update).
 
 For normal range width ($u>l$):
 
@@ -54,7 +54,7 @@ x=\theta^t+\delta,
 $$
 
 $$
-\theta^t=\Delta\Theta(\mathbf{q}^{t},\mathbf{q}_{ref}), \quad
+\theta^t = c^{(n-1)} - \alpha_0, \quad
 \delta=\Delta\Theta(\mathbf{q},\mathbf{q}^{t}).
 $$
 
@@ -62,8 +62,8 @@ Here:
 
 - $\mathbf{q}$ is the current affine-body DOF.
 - $\mathbf{q}^{t}$ is the previous-time-step DOF.
-- $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
-- $\theta^t$ is the accumulated revolute angle from the previous step.
+- $c^{(n-1)}$ is the base joint's `current_angles`, the continuously-unwrapped angle committed at the previous step (see [State Update](./affine_body_revolute_joint.md#state-update)), and $\alpha_0$ is `init_angle`.
+- $\theta^t$ is the accumulated revolute angle from the previous step, in the same unbounded frame as $c^{(n-1)}$, so it stays valid across $\pm\pi$ and multiple turns.
 
 Note that $\mathbf{q}$ is the concatenation of the DOF of the two affine bodies connected by the revolute joint.
 
@@ -101,7 +101,7 @@ $$
 $$
 
 The sign of $x$ follows the sign of $\sin\theta$ under this convention.
-The angle branch is $(-\pi,\pi]$.
+$\Delta\Theta$'s own atan2 branch is $(-\pi,\pi]$ — this bounds the per-step increment $\delta$, but not $x$ itself, since $\theta^t$ is the unwrapped multi-turn angle described above.
 
 ## Requirement
 
