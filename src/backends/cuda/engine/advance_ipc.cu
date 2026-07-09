@@ -309,6 +309,9 @@ void SimEngine::advance()
             step_animation();
             m_time_integrator_manager->predict_dof();
 
+            // Forward pass: update passive surface positions from tet DOFs
+            event_before_collision_detection();
+
             // 3. Adaptive Parameter Calculation
             detect_dcd_candidates();
             compute_adaptive_kappa();
@@ -340,6 +343,8 @@ void SimEngine::advance()
                 m_state = SimEngineState::ComputeDyTopoEffect;
                 compute_dytopo_effect();
 
+                // Backward pass: scatter surface contact forces to tet DOFs
+                event_after_contact_assembly();
 
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
