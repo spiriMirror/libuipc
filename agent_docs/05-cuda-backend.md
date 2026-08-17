@@ -85,6 +85,26 @@ parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
 - 流程：先 `run` 拿分阶段 wall-clock（`report/report.md` + `timer_frames.json`），再 `profile` 拿 per-kernel 指标（ncu），交叉定位"热点阶段 + 低效 kernel"；只占帧时间 <5% 的阶段不优化。
 - 细节见 `.cursor/skills/gpu-optimization/SKILL.md`。
 
+## cuda_tool（自研 raw-CUDA 工具库，muda 替代进行中）
+
+`src/backends/cuda/cuda_tool/`，命名空间 `uipc::backend::cuda_tool`。为移除 muda 依赖而建的**最小 raw-CUDA 工具库**，已独立编译+运行验证（smoke test 保留为 `test_compile.cu.txt`）。
+
+| 文件 | 替代 muda |
+|---|---|
+| `stream.h` / `view.h` / `view_nd.h` | 错误检查、`CBufferView/BufferView/VarView`、2D/3D view |
+| `launch.h` | `ParallelFor`/`parallel_for`（raw `<<<>>>`） |
+| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D/3D` |
+| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装 |
+| `linear_system.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOO/BSR` + `dot/norm` |
+| `eigen.h` | 设备端 3x3 对称 `svd/evd/polar/logm` |
+| `debug.h` | `debug_sync_all/check_finite/debug_log` |
+
+**迁移状态（重要，供后续接手）**：
+- 项目对 muda 的真实依赖**无 CUDA Graph**（`src/backends/cuda` 中 0 处 `cudaGraph`/`BeginCapture`），`LinearSystemContext::spmv/convert` 与 `DeviceSpmv` 项目均未调用（CUDA 13 已删 `cub::DeviceSpmv`）。
+- 基础层已完成，但**业务代码尚未迁移**（180 个文件仍 `muda::`）。
+- **待补**：`Logger`（kernel printf 收集，`kernel_cout` 依赖）、`Debug`（sync 回调/断言钩子）、`LinearSystemContext`（cublas dot/norm host 封装）三块运行时机制，决定后即可批量 `muda::`→`cuda_tool::` 迁移，最后删 `external/muda` 并更新 CMake/xmake。
+- 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `stream.h`）。
+
 ## none 后端
 
 `src/backends/none/`：空实现（`none::SimEngine` 各 `do_*` 基本 no-op），用作新后端模板与 core 基础功能自检。**注意：无 GPU 环境没有可用的计算后端**。
