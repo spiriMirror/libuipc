@@ -133,4 +133,26 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
+
+    // Numerical regression: the two free links swing down symmetrically
+    // around their revolute joints; angles must be finite and bounded.
+    {
+        auto* sc = joint_geo_slot->geometry().as<SimplicialComplex>();
+        REQUIRE(sc);
+        auto angle = sc->edges().find<Float>("angle");
+        REQUIRE(angle);
+        auto angle_view = angle->view();
+        REQUIRE(angle_view.size() == 2);
+
+        for(Float a : angle_view)
+        {
+            REQUIRE(std::isfinite(a));
+            // the pendulums must have swung away from the rest pose
+            REQUIRE(std::abs(a) > 0.05);
+            // starting horizontally at rest, they cannot pass the vertical
+            REQUIRE(std::abs(a) < 1.7);
+        }
+        // the setup is symmetric in z, so both joints swing together
+        REQUIRE(std::abs(angle_view[0] - angle_view[1]) < 0.1);
+    }
 }

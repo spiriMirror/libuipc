@@ -42,7 +42,9 @@ TEST_CASE("0_abd_gravity", "[abd]")
     test::Scene::dump_config(config, this_output_path);
 
 
-    Scene scene{config};
+    Scene                    scene{config};
+    S<SimplicialComplexSlot> geo_slot1;
+    S<SimplicialComplexSlot> geo_slot2;
     {
         AffineBodyConstitution abd;
 
@@ -81,7 +83,8 @@ TEST_CASE("0_abd_gravity", "[abd]")
                 is_fixed_view[0] = 0;
             }
 
-            object->geometries().create(mesh1);
+            auto [slot1, rest_slot1] = object->geometries().create(mesh1);
+            geo_slot1                = slot1;
         }
 
         {
@@ -116,7 +119,8 @@ TEST_CASE("0_abd_gravity", "[abd]")
                 is_fixed_view[0] = 0;
             }
 
-            object->geometries().create(mesh2);
+            auto [slot2, rest_slot2] = object->geometries().create(mesh2);
+            geo_slot2                = slot2;
         }
     }
 
@@ -133,5 +137,36 @@ TEST_CASE("0_abd_gravity", "[abd]")
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+    }
+
+    // Numerical regression: pure-gravity free fall under BDF1 has a closed
+    // form. Starting from rest, after n frames the fall distance is
+    // g * dt^2 * n*(n+1)/2.
+    {
+        constexpr Float g    = 9.8;
+        constexpr Float dt   = 0.01;
+        constexpr Float n    = 50;
+        const Float     fall = g * dt * dt * (n * (n + 1) / 2);  // = 1.2495
+
+        auto centroid_y = [](S<SimplicialComplexSlot>& slot)
+        {
+            auto* sc = slot->geometry().as<SimplicialComplex>();
+            REQUIRE(sc);
+            auto  pos = sc->positions().view();
+            Float y   = 0;
+            for(auto& p : pos)
+            {
+                REQUIRE(std::isfinite(p.x()));
+                REQUIRE(std::isfinite(p.y()));
+                REQUIRE(std::isfinite(p.z()));
+                y += p.y();
+            }
+            return y / pos.size();
+        };
+
+        // mesh1 initial centroid y = 1.0 - 0.075 = 0.925 (geometry offset)
+        REQUIRE(std::abs(centroid_y(geo_slot1) - (0.925 - fall)) < 0.05);
+        // mesh2 initial centroid y = 0.075
+        REQUIRE(std::abs(centroid_y(geo_slot2) - (0.075 - fall)) < 0.05);
     }
 }
