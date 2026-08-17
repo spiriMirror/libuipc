@@ -1,0 +1,56 @@
+// Standalone compile/behavior smoke test for cuda_tool. Not part of the build.
+#include <cuda_tool/stream.h>
+#include <cuda_tool/view.h>
+#include <cuda_tool/view_nd.h>
+#include <cuda_tool/launch.h>
+#include <cuda_tool/buffer.h>
+#include <cuda_tool/cub.h>
+#include <cuda_tool/linear_system.h>
+#include <cuda_tool/debug.h>
+#include <cstdio>
+
+using namespace uipc::backend::cuda_tool;
+
+__global__ void touch(BufferView<float> v)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i < (int)v.size())
+        v[i] = i * 2.0f;
+}
+
+int main()
+{
+    // buffer + view
+    DeviceVector<float> a(100, 1.0f);
+    DeviceVector<float> b(100, 2.0f);
+    auto              av = a.viewer();
+    auto              bv = b.cviewer();
+
+    // parallel_for
+    parallel_for(
+        100,
+        [av] __device__(int i) mutable { av[i] = av[i] * 3.0f; });
+
+    // cub reduce
+    DeviceVar<float> sum;
+    DeviceReduce().Sum(a.cview().data(), sum.data(), 100);
+    float h = 0;
+    sum.copy_to(h);
+    cudaDeviceSynchronize();
+    printf("sum=%f (expect 300)\n", h);
+
+    // dot / norm
+    float d = dot(a.cview(), b.cview());
+    printf("dot=%f (expect 600)\n", d);
+    printf("norm=%f (expect ~54.77)\n", norm(a.cview()));
+
+    // linear system triplet
+    DeviceTripletMatrix<double> A;
+    A.reshape(3, 3);
+    A.resize_triplets(5);
+    printf("triplet_count=%zu\n", A.triplet_count());
+
+    debug_sync_all();
+    printf("OK\n");
+    return 0;
+}
