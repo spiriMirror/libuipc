@@ -117,27 +117,6 @@ def gen_vcpkg_json(args):
     deps = base_vcpkg_json['dependencies']
     overrides = base_vcpkg_json['overrides']
     
-    if is_enabled(args.build_gui):
-        deps.append({
-            'name': 'imgui',
-            'version>=': '1.90.7'
-        })
-        deps.append({
-            'name': 'glfw3',
-            'version>=': '3.3.8#2'
-        })
-        deps.append({
-            'name': 'opengl',
-            'version>=': '2022-12-04#3'
-        })
-        deps.append({
-            'name': 'freeglut',
-            'version>=': '3.4.0'
-        })
-        deps.append({
-            'name': 'bgfx',
-            'version>=': '1.127.8725-469'
-        })
     if is_enabled(args.with_usd_support):
         # deps.append({
         #     'name': 'usd',
@@ -242,7 +221,6 @@ def write_vcpkg_json(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate vcpkg.json for libuipc.')
     parser.add_argument('output_dir', type=str, help='Output file path.')
-    parser.add_argument('--build_gui', type=str, default=False, help='Build GUI dependencies.')
     parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
     parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
     parser.add_argument('--with_vdb_support', type=str, default=False, help='Enable VDB support.')

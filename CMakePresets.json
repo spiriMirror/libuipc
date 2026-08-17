@@ -14,7 +14,6 @@
             "generator": "Ninja",
             "cacheVariables": {
                 "UIPC_USING_LOCAL_VCPKG": "ON",
-                "UIPC_BUILD_GUI": "OFF",
                 "UIPC_BUILD_PYBIND": "OFF",
                 "UIPC_BUILD_EXAMPLES": "ON",
                 "UIPC_BUILD_TESTS": "ON",
