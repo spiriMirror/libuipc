@@ -109,8 +109,8 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
             min_y = std::min(min_y, p.y());
         }
 
-        // no penetration: barrier offset stays well below this margin
-        REQUIRE(min_y > -1.25);
+        // no penetration: barrier offset (d_hat=0.01) stays well below this margin
+        REQUIRE(min_y > -1.22);
         // it must have landed: the tet started with min_y = -1.0
         REQUIRE(min_y < -1.05);
     }

@@ -141,32 +141,32 @@ TEST_CASE("0_abd_gravity", "[abd]")
 
     // Numerical regression: pure-gravity free fall under BDF1 has a closed
     // form. Starting from rest, after n frames the fall distance is
-    // g * dt^2 * n*(n+1)/2.
+    // g * dt^2 * n*(n+1)/2 (verified against the exported surface geometry).
     {
         constexpr Float g    = 9.8;
         constexpr Float dt   = 0.01;
         constexpr Float n    = 50;
         const Float     fall = g * dt * dt * (n * (n + 1) / 2);  // = 1.2495
 
-        auto centroid_y = [](S<SimplicialComplexSlot>& slot)
+        // ABD geometries store the *local* (rest) vertex positions; the
+        // simulated rigid state lives in the per-instance `transforms()`.
+        // The y-translation of the instance transform is the centroid motion.
+        auto translation_y = [](S<SimplicialComplexSlot>& slot)
         {
             auto* sc = slot->geometry().as<SimplicialComplex>();
             REQUIRE(sc);
-            auto  pos = sc->positions().view();
-            Float y   = 0;
-            for(auto& p : pos)
-            {
-                REQUIRE(std::isfinite(p.x()));
-                REQUIRE(std::isfinite(p.y()));
-                REQUIRE(std::isfinite(p.z()));
-                y += p.y();
-            }
-            return y / pos.size();
+            auto trans = sc->transforms().view();
+            REQUIRE(trans.size() == 1);
+            const Matrix4x4& T = trans[0];
+            for(int i = 0; i < 4; ++i)
+                for(int j = 0; j < 4; ++j)
+                    REQUIRE(std::isfinite(T(i, j)));
+            return T(1, 3);
         };
 
-        // mesh1 initial centroid y = 1.0 - 0.075 = 0.925 (geometry offset)
-        REQUIRE(std::abs(centroid_y(geo_slot1) - (0.925 - fall)) < 0.05);
-        // mesh2 initial centroid y = 0.075
-        REQUIRE(std::abs(centroid_y(geo_slot2) - (0.075 - fall)) < 0.05);
+        // mesh1 initial centroid y-offset = 1.0 (instance transform translation)
+        REQUIRE(std::abs(translation_y(geo_slot1) - (1.0 - fall)) < 0.05);
+        // mesh2 initial centroid y-offset = 0.0
+        REQUIRE(std::abs(translation_y(geo_slot2) - (0.0 - fall)) < 0.05);
     }
 }

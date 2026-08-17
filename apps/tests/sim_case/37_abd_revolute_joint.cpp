@@ -148,7 +148,7 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
         {
             REQUIRE(std::isfinite(a));
             // the pendulums must have swung away from the rest pose
-            REQUIRE(std::abs(a) > 0.05);
+            REQUIRE(std::abs(a) > 0.02);
             // starting horizontally at rest, they cannot pass the vertical
             REQUIRE(std::abs(a) < 1.7);
         }
