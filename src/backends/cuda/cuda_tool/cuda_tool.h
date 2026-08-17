@@ -11,3 +11,4 @@
 #include <cuda_tool/eigen.h>
 #include <cuda_tool/linear_system.h>
 #include <cuda_tool/debug.h>
+#include <cuda_tool/logger.h>

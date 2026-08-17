@@ -1,35 +1,24 @@
-// Standalone compile/behavior smoke test for cuda_tool. Not part of the build.
-#include <cuda_tool/stream.h>
-#include <cuda_tool/view.h>
-#include <cuda_tool/view_nd.h>
-#include <cuda_tool/launch.h>
-#include <cuda_tool/buffer.h>
-#include <cuda_tool/cub.h>
-#include <cuda_tool/linear_system.h>
-#include <cuda_tool/debug.h>
+// Standalone compile/behavior smoke test for cuda_tool. Not part of the build
+// (kept as .cu.txt so CMake's *.cu glob does not pick it up). Compile manually:
+//   nvcc -std=c++20 -x cu --extended-lambda --expt-relaxed-constexpr \
+//     src/backends/cuda/cuda_tool/test_compile.cu.txt -o cuda_tool_test.exe \
+//     -Isrc/backends/cuda -Iinclude -Ibuild/vcpkg_installed/x64-windows/include \
+//     -Xcompiler "/Zc:preprocessor" -lcublas
+#include <cuda_tool/cuda_tool.h>
 #include <cstdio>
 
 using namespace uipc::backend::cuda_tool;
-
-__global__ void touch(BufferView<float> v)
-{
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if(i < (int)v.size())
-        v[i] = i * 2.0f;
-}
 
 int main()
 {
     // buffer + view
     DeviceVector<float> a(100, 1.0f);
     DeviceVector<float> b(100, 2.0f);
-    auto              av = a.viewer();
-    auto              bv = b.cviewer();
 
     // parallel_for
     parallel_for(
         100,
-        [av] __device__(int i) mutable { av[i] = av[i] * 3.0f; });
+        [av = a.viewer()] __device__(int i) mutable { av[i] = av[i] * 3.0f; });
 
     // cub reduce
     DeviceVar<float> sum;
@@ -39,16 +28,64 @@ int main()
     cudaDeviceSynchronize();
     printf("sum=%f (expect 300)\n", h);
 
-    // dot / norm
+    // dot / norm (free functions, cub-based)
     float d = dot(a.cview(), b.cview());
     printf("dot=%f (expect 600)\n", d);
-    printf("norm=%f (expect ~54.77)\n", norm(a.cview()));
+    printf("norm=%f (expect 30)\n", norm(a.cview()));
+
+    // LinearSystemContext (cublas-based)
+    {
+        DeviceDenseVector<float> x, y;
+        x.resize(100);
+        y.resize(100);
+        parallel_for(
+            100,
+            [xv = x.viewer()] __device__(int i) mutable { xv[i] = 1.0f; });
+        parallel_for(
+            100,
+            [yv = y.viewer()] __device__(int i) mutable { yv[i] = 2.0f; });
+        cudaDeviceSynchronize();
+        LinearSystemContext ctx;
+        printf("ctx.dot=%f (expect 200)\n", ctx.dot(x, y));
+        printf("ctx.norm=%f (expect 10)\n", ctx.norm(x));
+    }
+
+    // eigen svd of identity
+    Matrix3d I = Matrix3d::Identity();
+    Matrix3d U, V;
+    Vector3d s;
+    eigen::svd(I, U, s, V);
+    printf("svd singular values of I: %f %f %f (expect 1 1 1)\n", s(0), s(1), s(2));
+
+    // eigen symmetric evd of a diagonal matrix
+    Matrix3d D;
+    D << 3.0, 0, 0, 0, 1.0, 0, 0, 0, 2.0;
+    Vector3d w;
+    Matrix3d Q;
+    eigen::evd(D, w, Q);
+    printf("evd eigenvalues: %f %f %f (expect 1 2 3)\n", w(0), w(1), w(2));
+
+    // Logger / KernelCout
+    {
+        Logger logger;
+        auto   lv = logger.viewer();
+        parallel_for(
+            4,
+            [lv] __device__(int i) mutable { lv("val=%d", i * 10); });
+        cudaDeviceSynchronize();
+        auto logs = logger.fetch();
+        printf("logger fetched %zu records (expect 4)\n", logs.size());
+    }
+
+    // Debug
+    Debug::debug_sync_all(true);
+    printf("debug_sync_all flag=%d (expect 1)\n", (int)Debug::is_debug_sync_all());
 
     // linear system triplet
     DeviceTripletMatrix<double> A;
     A.reshape(3, 3);
     A.resize_triplets(5);
-    printf("triplet_count=%zu\n", A.triplet_count());
+    printf("triplet_count=%zu (expect 5)\n", A.triplet_count());
 
     debug_sync_all();
     printf("OK\n");

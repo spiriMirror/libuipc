@@ -2,22 +2,14 @@
 // Device-side small-matrix math used by constitutive models.
 // Raw implementations; no muda dependency.
 #include <cuda_tool/stream.h>
-// Match muda's device-side Eigen setup. nvcc's device pass cannot find ::arg for
-// std::complex (Eigen MathFunctions.h does `using ::arg`), so provide one, exactly
-// as muda does in ext/eigen/eigen_cxx20.h.
-#if defined(__CUDACC__)
-#include <complex>
-// global-scope overload so Eigen's `using ::arg` resolves in both passes
-template <typename T>
-__host__ __device__ inline T arg(const std::complex<T>& z)
-{
-    return std::atan2(std::imag(z), std::real(z));
-}
-#endif
+// The ::arg(std::complex) shim for nvcc lives in stream.h (included first). Do not
+// redefine it here.
 #ifndef EIGEN_DONT_VECTORIZE
 #define EIGEN_DONT_VECTORIZE
 #endif
 #include <Eigen/Core>
+#include <Eigen/Geometry>  // cross()
+#include <Eigen/LU>       // determinant()
 #include <cmath>
 #include <limits>
 

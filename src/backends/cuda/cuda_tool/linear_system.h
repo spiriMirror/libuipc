@@ -3,6 +3,7 @@
 // Raw CUDA containers + views; dot/norm reductions replace muda's cublas context.
 #include <cuda_tool/buffer.h>
 #include <cuda_tool/cub.h>
+#include <cublas_v2.h>
 #include <Eigen/Core>
 
 namespace uipc::backend::cuda_tool
@@ -185,5 +186,89 @@ template <typename T>
 T norm(CBufferView<T> x, cudaStream_t s = default_stream())
 {
     return std::sqrt(dot(x, x, s));
+}
+
+// ---------------------------------------------------------------------------
+// LinearSystemContext: holds a cublas handle and provides dot/norm reductions
+// on dense vectors, matching muda::LinearSystemContext's used surface.
+// ---------------------------------------------------------------------------
+class LinearSystemContext
+{
+  public:
+    LinearSystemContext(cudaStream_t s = default_stream())
+        : m_stream(s)
+    {
+        cublasCreate(&m_handle);
+        cublasSetStream(m_handle, m_stream);
+    }
+    ~LinearSystemContext()
+    {
+        if(m_handle)
+            cublasDestroy(m_handle);
+    }
+    LinearSystemContext(const LinearSystemContext&)            = delete;
+    LinearSystemContext& operator=(const LinearSystemContext&) = delete;
+
+    // dense dot: result = sum(x[i] * y[i])
+    template <typename T>
+    T dot(const DeviceDenseVector<T>& x, const DeviceDenseVector<T>& y)
+    {
+        return dot_view(x.cview(), y.cview());
+    }
+    template <typename T>
+    T dot(CBufferView<T> x, CBufferView<T> y)
+    {
+        return dot_view(x, y);
+    }
+
+    // dense 2-norm
+    template <typename T>
+    T norm(const DeviceDenseVector<T>& x)
+    {
+        return norm_view(x.cview());
+    }
+    template <typename T>
+    T norm(CBufferView<T> x)
+    {
+        return norm_view(x.cview());
+    }
+
+  private:
+    template <typename T>
+    T dot_view(CBufferView<T> x, CBufferView<T> y);
+    template <typename T>
+    T norm_view(CBufferView<T> x);
+
+    cudaStream_t   m_stream;
+    cublasHandle_t m_handle = nullptr;
+};
+
+template <>
+inline float LinearSystemContext::dot_view<float>(CBufferView<float> x, CBufferView<float> y)
+{
+    float r;
+    cublasSdot(m_handle, (int)x.size(), x.data(), 1, y.data(), 1, &r);
+    return r;
+}
+template <>
+inline double LinearSystemContext::dot_view<double>(CBufferView<double> x, CBufferView<double> y)
+{
+    double r;
+    cublasDdot(m_handle, (int)x.size(), x.data(), 1, y.data(), 1, &r);
+    return r;
+}
+template <>
+inline float LinearSystemContext::norm_view<float>(CBufferView<float> x)
+{
+    float r;
+    cublasSnrm2(m_handle, (int)x.size(), x.data(), 1, &r);
+    return r;
+}
+template <>
+inline double LinearSystemContext::norm_view<double>(CBufferView<double> x)
+{
+    double r;
+    cublasDnrm2(m_handle, (int)x.size(), x.data(), 1, &r);
+    return r;
 }
 }  // namespace uipc::backend::cuda_tool
