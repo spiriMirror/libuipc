@@ -38,6 +38,8 @@
 ## 已知文档漂移提示（截至 2026-08）
 
 - `docs/` 面向用户（mkdocs 站），`agent_docs/` 面向 agent，两者互补。
-- `include/uipc_gui/` 与 `src/gui/` 已废弃（标注 "now not supported"）。
+- C++ GUI 已移除（原 `include/uipc_gui/`、`src/gui/`、`apps/tests/gui/` 及 `UIPC_BUILD_GUI` 选项已删除）；可视化用 Python 侧 `uipc.gui`（polyscope）。
 - `none` 后端是空实现（模板/调试用），**无 GPU 环境无法跑仿真**。
 - Diff-Sim 标记 "Coming Soon"，相关 API 可能变动。
+- `docs/specification/constitution_uid.md` 与 `implicit_geometry_uid.md` 的 UID 表由 `scripts/gen_uid_doc.py` 自动生成（`--check` 可入 CI）。
+- 确定性执行模式目前只有设计文档（`docs/development/deterministic_mode.md`），尚未实现。

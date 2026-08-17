@@ -17,7 +17,7 @@
 
 | 目录 | 内容 |
 |---|---|
-| `src/` | 核心实现：`core/`（引擎，编译为 `libuipc_core`）、`geometry/`（几何算法）、`constitution/`（本构）、`backends/`（`common/`+`cuda/`+`none/`）、`io/`、`pybind/`、`sanity_check/`、`usd/`、`vdb/`、~~`gui/`~~（废弃） |
+| `src/` | 核心实现：`core/`（引擎，编译为 `libuipc_core`）、`geometry/`（几何算法）、`constitution/`（本构）、`backends/`（`common/`+`cuda/`+`none/`）、`io/`、`pybind/`、`sanity_check/`、`usd/`、`vdb/` |
 | `include/uipc/` | 公开头文件，按模块分：`core/ geometry/ constitution/ io/ backend/ builtin/ common/ diff_sim/ usd/ vdb/`；聚合头 `uipc.h / core.h / geometry.h / io.h` |
 | `apps/` | `tests/`（Catch2 测试）、`examples/`（3 个 C++ 示例）、`benchmarks/`、`app/`（测试工具库） |
 | `python/` | Python 包源码 `src/uipc/`、`tests/`、示例；另有独立 `pyproject.toml`（开发用） |
