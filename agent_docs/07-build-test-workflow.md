@@ -54,7 +54,8 @@ xmake run sim_case         # 跑测试目标
 
 ## CI / 发布
 
-- cibuildwheel 跨平台 PyPI wheel（Win/Linux，Python 3.10–3.13，CUDA 12.8）。
+- `.github/workflows/`：`cmake.yml`（PR 构建 Win/Ubuntu + CUDA 12.8）、`xmake.yml`、`clang-format.yml`（PR 变更 C++ 文件的格式检查，clang-format 18）、`python-wheels.yml`（cibuildwheel 跨平台 PyPI wheel，Win/Linux，Python 3.10–3.13，CUDA 12.8）、`docs.yml`、`hotfix_publish.yml`。
+- `.github/PULL_REQUEST_TEMPLATE.md`：PR 审查清单（fast-fail、C++ 风格、GPU、本构、构建/绑定、测试），源自 review-pr skill。
 - docker：`artifacts/` 提供 dev-cmake-cu128/cu130、dev-xmake 等 compose 服务。
 - 版本 tag 与 release 流程见 `.cursor/skills/push-tag/SKILL.md`。
 

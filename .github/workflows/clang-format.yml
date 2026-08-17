@@ -1,0 +1,48 @@
+name: clang-format
+
+on:
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - "**/*.h"
+      - "**/*.hpp"
+      - "**/*.cpp"
+      - "**/*.inl"
+      - "**/*.cu"
+      - "**/*.cuh"
+      - ".clang-format"
+      - ".github/workflows/clang-format.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+
+    concurrency:
+      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-clang-format
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup clang-format 18
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+
+      - name: Check changed C++ files
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          FILES=$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh')
+          if [ -z "$FILES" ]; then
+            echo "No C++ files changed."
+            exit 0
+          fi
+          echo "Checking files:"
+          echo "$FILES"
+          echo "$FILES" | xargs clang-format-18 --dry-run --Werror
