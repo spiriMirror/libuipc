@@ -16,9 +16,9 @@ LibUIPC is a cross-platform C++20 library implementing Unified Incremental Poten
 
 ### Configure and Build
 ```bash
-# Using presets (recommended)
-cmake --preset release
-cmake --build --preset release -j8
+# Using presets (available presets: ci-release, ci-build-wheel)
+cmake --preset ci-release
+cmake --build --preset ci-release -j8
 
 # Or manually
 mkdir build && cd build

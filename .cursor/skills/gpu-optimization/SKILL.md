@@ -7,7 +7,7 @@ description: GPU optimization workflow using uipc.profile, uipc.profile.nsight, 
 
 Workflow for profiling and optimizing CUDA kernels in libuipc using `uipc.profile` + `uipc.profile.nsight` + Nsight Compute CLI (`ncu`).
 
-For building and installing, see [build command](mdc:.cursor/commands/build.md).
+For building and installing, see [cmake-workflow](mdc:.cursor/skills/cmake-workflow/SKILL.md).
 
 **Build type**: Always use `Release` for benchmarking and profiling. `Debug` is too slow; `RelWithDebInfo` adds debug info overhead that skews results.
 
@@ -84,7 +84,7 @@ Run both `run` (for `SimulationStats` timer data) and `profile` (for Nsight Comp
 1. Follow `source_hint` in the JSON report to find the CUDA source.
 2. Search for the kernel's class/method name in that directory.
 3. Read the `.cu` file and optimize the kernel.
-4. Rebuild with `Release` (see [build command](mdc:.cursor/commands/build.md)), re-benchmark, and compare.
+4. Rebuild with `Release` (see [cmake-workflow](mdc:.cursor/skills/cmake-workflow/SKILL.md)), re-benchmark, and compare.
 
 ### Adding Finer-Grained Timers in C++
 
