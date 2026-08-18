@@ -5,7 +5,7 @@
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <global_geometry/global_body_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <muda/buffer/device_buffer.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda

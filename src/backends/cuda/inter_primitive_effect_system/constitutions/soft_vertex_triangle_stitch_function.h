@@ -1,5 +1,5 @@
 #pragma once
-#include <muda/ext/eigen/eigen_core_cxx20.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

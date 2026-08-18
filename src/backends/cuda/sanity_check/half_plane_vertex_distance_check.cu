@@ -12,8 +12,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/geometry_type.h>
 #include <uipc/common/map.h>
-#include <muda/buffer.h>
-#include <muda/launch.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace std
 {

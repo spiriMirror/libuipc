@@ -1,6 +1,6 @@
 #pragma once
 #include <external_force/external_force_reporter.h>
-#include <muda/buffer/buffer_view.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

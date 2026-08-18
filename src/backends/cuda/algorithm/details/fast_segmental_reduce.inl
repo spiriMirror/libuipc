@@ -1,5 +1,5 @@
 #include <cub/warp/warp_reduce.cuh>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace muda
 {

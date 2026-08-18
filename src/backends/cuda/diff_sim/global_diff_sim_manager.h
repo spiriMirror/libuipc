@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <uipc/diff_sim/sparse_coo_view.h>

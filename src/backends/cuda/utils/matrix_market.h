@@ -14,9 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <fmt/printf.h>
-#include <muda/buffer/buffer_view.h>
-#include <muda/ext/linear_system/triplet_matrix_view.h>
-#include <muda/ext/linear_system/dense_vector_view.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

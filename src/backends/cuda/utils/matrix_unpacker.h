@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

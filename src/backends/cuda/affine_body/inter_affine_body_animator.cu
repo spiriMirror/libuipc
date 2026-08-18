@@ -1,7 +1,7 @@
 #include <affine_body/inter_affine_body_animator.h>
 #include <affine_body/inter_affine_body_constraint.h>
 #include <uipc/builtin/attribute_name.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/muda_compat.h>
 #include <affine_body/abd_line_search_reporter.h>
 #include <utils/report_extent_check.h>
 

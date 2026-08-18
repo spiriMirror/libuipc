@@ -1,8 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/buffer/device_var.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/span.h>
 #include <filesystem>
 #include <string_view>

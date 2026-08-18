@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/core/affine_body_state_accessor_feature.h>
-#include <muda/buffer/device_buffer.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

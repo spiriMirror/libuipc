@@ -2,7 +2,7 @@
 #include <finite_element/constitutions/arap_function.h>
 #include <finite_element/fem_utils.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <Eigen/Dense>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>

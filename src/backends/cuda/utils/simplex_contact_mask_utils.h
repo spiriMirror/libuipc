@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/viewer/dense/dense_2d.h>
+#include <cuda_tool/muda_compat.h>
 namespace uipc::backend::cuda
 {
 inline __device__ bool allow_PT_contact(const muda::CDense2D<IndexT>& table,

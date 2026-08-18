@@ -1,6 +1,6 @@
 #include <affine_body/affine_body_kinetic.h>
 #include <time_integrator/bdf1_flag.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend::cuda

@@ -1,6 +1,6 @@
 #include <affine_body/utils.h>
 #include <Eigen/Geometry>
-#include <muda/tools/debug_log.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

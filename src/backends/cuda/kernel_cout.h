@@ -1,6 +1,5 @@
 #pragma once
-#include <muda/logger.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 
 /*****************************************************************/ /**
  * \file   kernel_cout.h

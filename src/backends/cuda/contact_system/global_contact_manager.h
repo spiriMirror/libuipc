@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <contact_system/contact_coeff.h>
 #include <algorithm/matrix_converter.h>
 #include <utils/offset_count_collection.h>

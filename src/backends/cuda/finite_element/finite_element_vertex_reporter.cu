@@ -1,7 +1,7 @@
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <finite_element/finite_element_body_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 

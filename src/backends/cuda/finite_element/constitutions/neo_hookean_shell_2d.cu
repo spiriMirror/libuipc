@@ -1,9 +1,9 @@
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/constitutions/neo_hookean_shell_2d_function.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <Eigen/Dense>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/codim_thickness.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>

@@ -9,6 +9,11 @@ if(MSVC AND CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
                         $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>)
 endif()
 
+# extended device lambdas + relaxed constexpr are required by the cuda_tool
+# launch/dense math used throughout the backend.
+add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
+                    $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr>)
+
 # ------------------------------------------------------------------------------
 # CUDA Backend
 # ------------------------------------------------------------------------------
@@ -16,7 +21,6 @@ uipc_add_backend(cuda)
 
 # basic setup
 target_link_libraries(cuda PUBLIC
-    muda::muda
     cublas
     cusparse
     cusolver
@@ -31,6 +35,11 @@ endif()
 
 target_compile_features(cuda PUBLIC cxx_std_20)
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+# cuda_tool hosts the vendored (formerly muda) device utilities under cuda_tool/muda/,
+# so add cuda_tool to the include path for <muda/...> and <cuda_tool/...> to resolve.
+target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/cuda_tool")
+# the vendored muda headers reference the CUDA driver API header <cuda.h>
+target_include_directories(cuda PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -42,6 +51,15 @@ set_target_properties(cuda PROPERTIES
 target_compile_options(cuda PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028>
     $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr>
+    $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>
+)
+
+# Definitions previously provided by the muda interface target (now vendored under
+# cuda_tool/muda). CHECK and COMPUTE_GRAPH are off to match the prior configuration.
+target_compile_definitions(cuda PRIVATE
+    MUDA_CHECK_ON=0
+    MUDA_COMPUTE_GRAPH_ON=0
+    MUDA_NVTX3_ON=0
 )
 
 # all files in this directory

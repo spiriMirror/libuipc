@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/muda_compat.h>
 #include <functional>
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>

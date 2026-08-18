@@ -1,6 +1,5 @@
 #pragma once
-#include <muda/launch.h>
-#include <muda/buffer/buffer_view.h>
+#include <cuda_tool/muda_compat.h>
 #include <Eigen/Core>
 #include <cub/util_type.cuh>
 namespace muda

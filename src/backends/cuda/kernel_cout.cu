@@ -1,6 +1,5 @@
 #include <kernel_cout.h>
-#include <muda/muda.h>
-#include <muda/debug.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/log.h>
 
 namespace uipc::backend::cuda

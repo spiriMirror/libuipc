@@ -3,9 +3,9 @@
 #include <finite_element/finite_element_kinetic.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

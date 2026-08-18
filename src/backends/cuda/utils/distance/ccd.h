@@ -1,5 +1,5 @@
 #pragma once
-#include <muda/muda_def.h>
+#include <cuda_tool/muda_compat.h>
 #include <cmath>
 
 //ref: https://github.com/ipc-sim/Codim-IPC/tree/main/Library/Math/Distance

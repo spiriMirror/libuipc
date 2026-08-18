@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda

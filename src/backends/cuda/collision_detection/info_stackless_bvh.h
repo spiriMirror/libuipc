@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <collision_detection/aabb.h>
-#include <muda/buffer.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/log.h>
 #include <concepts>
 #include <thrust/device_vector.h>

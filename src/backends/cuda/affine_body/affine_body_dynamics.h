@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/muda_compat.h>
 #include <affine_body/abd_jacobi_matrix.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <sim_engine.h>

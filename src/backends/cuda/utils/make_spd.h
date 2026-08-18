@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

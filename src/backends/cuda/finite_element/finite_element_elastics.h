@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/muda_compat.h>
 #include <finite_element/finite_element_method.h>
 #include <utils/offset_count_collection.h>
 #include <finite_element/fem_linear_subsystem.h>

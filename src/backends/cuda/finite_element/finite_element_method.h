@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <backends/cuda/utils/dump_utils.h>

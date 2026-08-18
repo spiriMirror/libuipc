@@ -1,5 +1,5 @@
 #include <collision_detection/filters/al_vertex_half_plane_trajectory_filter.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
 #include <pipeline/al_ipc_pipeline_flag.h>

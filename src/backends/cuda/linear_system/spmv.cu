@@ -1,5 +1,5 @@
 #include <linear_system/spmv.h>
-#include <muda/launch/launch.h>
+#include <cuda_tool/muda_compat.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cub/warp/warp_scan.cuh>
 #include <cub/util_math.cuh>

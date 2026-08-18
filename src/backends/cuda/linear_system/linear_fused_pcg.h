@@ -1,6 +1,6 @@
 #pragma once
 #include <linear_system/iterative_solver.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

@@ -1,0 +1,6 @@
+#ifndef MUDA_CUDA_ARCH
+#define MUDA_CUDA_ARCH 600
+#endif
+
+#define __CUDA_ARCH__ MUDA_CUDA_ARCH
+#define __CUDACC__

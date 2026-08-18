@@ -11,7 +11,7 @@
 #include <affine_body/utils.h>
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <joint_dof_system/joint_dof_reporter.h>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 
 
 namespace uipc::backend::cuda

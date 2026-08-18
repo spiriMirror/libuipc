@@ -1,6 +1,5 @@
 #include <collision_detection/filters/stackless_bvh_simplex_trajectory_filter.h>
-#include <muda/cub/device/device_select.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>
 #include <utils/distance/distance_flagged.h>

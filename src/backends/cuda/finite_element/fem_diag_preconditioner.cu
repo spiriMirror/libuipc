@@ -6,7 +6,7 @@
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::backend::cuda

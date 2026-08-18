@@ -1,6 +1,5 @@
 #include <finite_element/matrix_utils.h>
-#include <muda/ext/eigen/svd.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 #include <algorithm/qr_svd.hpp>
 namespace uipc::backend::cuda
 {

@@ -4,8 +4,7 @@
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 #include <utils/codim_thickness.h>
 #include <utils/primitive_d_hat.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/launch/parallel_for.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/enumerate.h>
 #include <string_view>
 

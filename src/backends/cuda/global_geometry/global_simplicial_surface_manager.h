@@ -1,7 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <muda/buffer/buffer_view.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

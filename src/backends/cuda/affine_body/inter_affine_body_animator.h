@@ -2,8 +2,7 @@
 #include <animator/animator.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <line_search/line_searcher.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/muda_compat.h>
 #include <affine_body/abd_linear_subsystem_reporter.h>
 #include <affine_body/abd_line_search_subreporter.h>
 #include <affine_body/inter_affine_body_constitution_manager.h>

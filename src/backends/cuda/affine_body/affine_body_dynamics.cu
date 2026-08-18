@@ -12,12 +12,12 @@
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/zip.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 #include <sim_engine.h>
 #include <uipc/builtin/constitution_type.h>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/builtin/attribute_name.h>
 
 #include <utils/offset_count_collection.h>

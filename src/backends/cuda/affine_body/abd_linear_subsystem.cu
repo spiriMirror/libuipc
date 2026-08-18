@@ -1,7 +1,7 @@
 #include <affine_body/abd_linear_subsystem.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
 #include <uipc/builtin/attribute_name.h>

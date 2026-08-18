@@ -1,13 +1,9 @@
-#include <muda/cub/device/device_merge_sort.h>
-#include <muda/cub/device/device_scan.h>
-#include <muda/cub/device/device_radix_sort.h>
-#include <muda/cub/device/device_select.h>
+#include <cuda_tool/muda_compat.h>
 #include <cub/warp/warp_reduce.cuh>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/timer.h>
 #include <algorithm/fast_segmental_reduce.h>
-#include <muda/cub/device/device_partition.h>
-#include <muda/cub/device/device_run_length_encode.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

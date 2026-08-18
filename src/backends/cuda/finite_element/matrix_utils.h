@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/muda_def.h>
+#include <cuda_tool/muda_compat.h>
 
 // ref: https://github.com/theodorekim/HOBAKv1/blob/main/src/util/MATRIX_UTIL.h
 

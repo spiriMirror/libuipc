@@ -3,7 +3,7 @@
 #include <functional>
 #include <uipc/common/list.h>
 #include <uipc/common/vector.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <algorithm/matrix_converter.h>
 #include <linear_system/spmv.h>
 #include <utils/offset_count_collection.h>

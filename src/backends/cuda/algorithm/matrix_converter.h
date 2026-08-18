@@ -1,12 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_var.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_bcoo_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
-#include <muda/ext/linear_system/device_bcoo_matrix.h>
-#include <muda/ext/linear_system/device_bsr_matrix.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

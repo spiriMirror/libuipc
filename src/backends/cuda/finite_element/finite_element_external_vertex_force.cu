@@ -1,7 +1,7 @@
 #include <finite_element/finite_element_external_force_reporter.h>
 #include <finite_element/constraints/finite_element_external_vertex_force_constraint.h>
 #include <finite_element/finite_element_method.h>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

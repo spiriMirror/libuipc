@@ -1,12 +1,8 @@
-#include <muda/atomic.h>
-#include <muda/cub/device/device_scan.h>
-#include <muda/cub/device/device_reduce.h>
-#include <muda/cub/device/device_radix_sort.h>
+#include <cuda_tool/muda_compat.h>
 
 #include <cub/util_ptx.cuh>
 #include <cuda/atomic>
-#include <muda/atomic.h>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 
 #include <uipc/common/log.h>
 

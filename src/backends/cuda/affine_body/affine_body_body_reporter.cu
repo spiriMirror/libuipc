@@ -1,5 +1,5 @@
 #include <affine_body/affine_body_body_reporter.h>
-#include <muda/launch/parallel_for.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

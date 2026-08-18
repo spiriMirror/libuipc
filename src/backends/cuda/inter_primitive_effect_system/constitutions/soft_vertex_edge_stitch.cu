@@ -4,7 +4,7 @@
 #include <utils/matrix_assembler.h>
 #include <utils/make_spd.h>
 #include <Eigen/Dense>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

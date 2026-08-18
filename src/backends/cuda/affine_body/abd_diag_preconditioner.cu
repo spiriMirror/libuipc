@@ -2,7 +2,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/abd_linear_subsystem.h>
 #include <linear_system/global_linear_system.h>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend::cuda

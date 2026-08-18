@@ -1,7 +1,5 @@
 #include <finite_element/mas_preconditioner_engine.h>
-#include <muda/ext/eigen/atomic.h>
-#include <muda/launch/launch.h>
-#include <muda/launch/parallel_for.h>
+#include <cuda_tool/muda_compat.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 #include <uipc/common/log.h>

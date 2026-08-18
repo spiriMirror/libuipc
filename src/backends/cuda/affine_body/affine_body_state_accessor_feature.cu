@@ -4,7 +4,7 @@
 #include <joint_dof_system/global_joint_dof_manager.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/utils.h>
-#include <muda/launch/parallel_for.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

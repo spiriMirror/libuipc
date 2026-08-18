@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/common/config.h>
-#include <muda/tools/debug_log.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda::joint_limit
 {

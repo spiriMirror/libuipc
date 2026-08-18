@@ -1,7 +1,7 @@
 #pragma once
 #include <affine_body/type_define.h>
 #include <cuda_runtime_api.h>
-#include <muda/muda_def.h>
+#include <cuda_tool/muda_compat.h>
 namespace uipc::backend::cuda
 {
 //tex: $$ \mathbf{J}_{3 \times 12} $$ or $$ (\mathbf{J}^T)_{12 \times 3} $$

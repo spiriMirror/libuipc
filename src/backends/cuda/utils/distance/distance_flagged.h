@@ -4,8 +4,7 @@
 #include <utils/distance/point_edge.h>
 #include <utils/distance/point_triangle.h>
 #include <utils/distance/edge_edge.h>
-#include <muda/ext/eigen/inverse.h>
-#include <muda/tools/debug_log.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda::distance
 {

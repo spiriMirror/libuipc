@@ -1,5 +1,5 @@
 #include <collision_detection/simplex_trajectory_filter.h>
-#include <muda/atomic.h>
+#include <cuda_tool/muda_compat.h>
 namespace uipc::backend::cuda
 {
 void SimplexTrajectoryFilter::do_build()

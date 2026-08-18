@@ -4,8 +4,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
-#include <muda/cub/device/device_reduce.h>
-#include <muda/ext/eigen/svd.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/make_spd.h>
 
 namespace uipc::backend::cuda

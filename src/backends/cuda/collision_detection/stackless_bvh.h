@@ -16,7 +16,7 @@
 #include <uipc/common/logger.h>
 #include <type_define.h>
 #include <collision_detection/aabb.h>
-#include <muda/buffer.h>
+#include <cuda_tool/muda_compat.h>
 
 #include <thrust/device_vector.h>
 #include <thrust/swap.h>

@@ -1,5 +1,5 @@
 #include <contact_system/simplex_frictional_contact.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

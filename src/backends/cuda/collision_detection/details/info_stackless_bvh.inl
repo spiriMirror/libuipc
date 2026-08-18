@@ -1,5 +1,5 @@
 #include <cuda_device/builtin.h>
-#include <muda/launch.h>
+#include <cuda_tool/muda_compat.h>
 
 // Implementation of InfoStacklessBVH.
 // All build/sort/reorder functions are identical to InfoStacklessBVH.

@@ -12,8 +12,7 @@
 #include <collision_detection/aabb.h>
 #include <collision_detection/info_stackless_bvh.h>
 #include <utils/simplex_contact_mask_utils.h>
-#include <muda/buffer.h>
-#include <muda/launch.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace std
 {

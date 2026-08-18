@@ -1,11 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/ext/linear_system/bcoo_matrix_view.h>
-#include <muda/ext/linear_system/bsr_matrix_view.h>
-#include <muda/ext/linear_system/dense_vector_view.h>
-#include <muda/ext/linear_system/device_dense_vector.h>
-#include <muda/buffer/var_view.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

@@ -1,7 +1,7 @@
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <affine_body/constraints/affine_body_external_body_force_constraint.h>
 #include <affine_body/affine_body_dynamics.h>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

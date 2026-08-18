@@ -1,9 +1,9 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/distance.h>
 #include <utils/distance/distance_flagged.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/friction_utils.h>
 
 namespace uipc::backend::cuda

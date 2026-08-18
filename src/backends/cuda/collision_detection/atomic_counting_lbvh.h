@@ -1,8 +1,7 @@
 #pragma once
 #include <uipc/common/span.h>
 #include <collision_detection/linear_bvh.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/launch.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

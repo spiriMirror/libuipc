@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/buffer_view.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda

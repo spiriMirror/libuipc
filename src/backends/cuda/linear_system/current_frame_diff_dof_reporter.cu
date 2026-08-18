@@ -2,7 +2,7 @@
 #include <linear_system/global_linear_system.h>
 #include <utils/matrix_unpacker.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

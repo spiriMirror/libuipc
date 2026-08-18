@@ -1,6 +1,6 @@
 #include <sim_engine.h>
 #include <uipc/common/log.h>
-#include <muda/muda.h>
+#include <cuda_tool/muda_compat.h>
 #include <kernel_cout.h>
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>

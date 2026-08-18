@@ -3,9 +3,7 @@
 #include <finite_element/finite_element_method.h>
 #include <line_search/line_searcher.h>
 #include <utils/offset_count_collection.h>
-#include <muda/ext/linear_system/device_dense_vector.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/muda_compat.h>
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <finite_element/fem_line_search_subreporter.h>
 

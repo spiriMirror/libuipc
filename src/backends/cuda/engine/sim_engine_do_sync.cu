@@ -1,5 +1,5 @@
 #include <sim_engine.h>
-#include <muda/launch/launch.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

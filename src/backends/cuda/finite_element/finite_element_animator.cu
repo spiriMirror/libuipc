@@ -5,7 +5,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <utils/report_extent_check.h>
 #include <uipc/common/enumerate.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/muda_compat.h>
 
 namespace uipc::backend::cuda
 {

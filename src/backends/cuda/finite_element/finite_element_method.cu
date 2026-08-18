@@ -10,7 +10,7 @@
 #include <finite_element/fem_utils.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/common/json_eigen.h>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/muda_compat.h>
 #include <ranges>
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>

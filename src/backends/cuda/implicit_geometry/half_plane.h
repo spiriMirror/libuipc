@@ -1,7 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <uipc/geometry/implicit_geometry_slot.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda

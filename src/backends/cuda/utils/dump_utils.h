@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_buffer.h>
+#include <cuda_tool/muda_compat.h>
 #include <uipc/common/vector.h>
 #include <fmt/printf.h>
 #include <uipc/common/log.h>

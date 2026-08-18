@@ -1,8 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <affine_body/affine_body_dynamics.h>
-#include <muda/ext/linear_system/triplet_matrix_view.h>
-#include <muda/ext/linear_system/doublet_vector_view.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/offset_count_collection.h>
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/abd_linear_subsystem.h>

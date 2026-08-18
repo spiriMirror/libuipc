@@ -1,6 +1,5 @@
 #include <contact_system/simplex_normal_contact.h>
-#include <muda/ext/eigen/evd.h>
-#include <muda/cub/device/device_merge_sort.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/distance.h>
 #include <utils/codim_thickness.h>
 

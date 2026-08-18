@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <linear_system/global_linear_system.h>
 
 namespace uipc::backend::cuda

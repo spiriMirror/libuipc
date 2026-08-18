@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <energy_component_flags.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/muda_compat.h>
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <dytopo_effect_system/dytopo_classify_info.h>
