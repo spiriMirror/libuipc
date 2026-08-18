@@ -150,7 +150,7 @@ Parent timer durations **include** their children. E.g., if `Newton Iteration` i
 
 ## Identifying muda Kernels in ncu Output
 
-UIPC uses the [muda](mdc:external/muda/src/muda/launch/parallel_for.h) library for CUDA kernel launches. All kernels are launched via `muda::ParallelFor().apply(N, lambda)` which compiles to `parallel_for_kernel<Lambda>`.
+UIPC uses the vendored [muda](mdc:src/backends/cuda/cuda_tool/muda/launch/parallel_for.h) library for CUDA kernel launches. All kernels are launched via `muda::ParallelFor().apply(N, lambda)` which compiles to `parallel_for_kernel<Lambda>`.
 
 **The lambda is NOT truly anonymous.** NVCC embeds the enclosing function in the demangled name:
 ```

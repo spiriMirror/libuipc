@@ -61,7 +61,7 @@ Pipeline
 
 ## muda 与 kernel 命名
 
-所有 kernel 经 `external/muda` 的 `muda::ParallelFor().apply(N, lambda)` 启动，编译产物为 `parallel_for_kernel<Lambda>`。NVCC 会把外层函数名嵌入符号：
+所有 kernel 经 muda 的 `muda::ParallelFor().apply(N, lambda)` 启动（muda 已 vendored 在 `src/backends/cuda/cuda_tool/muda/`，经 `cuda_tool/muda_compat.h` 引入），编译产物为 `parallel_for_kernel<Lambda>`。NVCC 会把外层函数名嵌入符号：
 
 ```
 parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
@@ -100,9 +100,10 @@ parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
 | `debug.h` | `debug_sync_all/check_finite/debug_log` |
 
 **迁移状态（重要，供后续接手）**：
-- 项目对 muda 的真实依赖**无 CUDA Graph**（`src/backends/cuda` 中 0 处 `cudaGraph`/`BeginCapture`），`LinearSystemContext::spmv/convert` 与 `DeviceSpmv` 项目均未调用（CUDA 13 已删 `cub::DeviceSpmv`）。
-- 基础层已完成，但**业务代码尚未迁移**（180 个文件仍 `muda::`）。
-- **待补**：`Logger`（kernel printf 收集，`kernel_cout` 依赖）、`Debug`（sync 回调/断言钩子）、`LinearSystemContext`（cublas dot/norm host 封装）三块运行时机制，决定后即可批量 `muda::`→`cuda_tool::` 迁移，最后删 `external/muda` 并更新 CMake/xmake。
+- muda 已 vendored 进 `cuda_tool/muda/`（288 文件，删除了零耦合的 `ext/spatial_hash`、`ext/spgrid`、`ext/field` 子树），业务代码经 `cuda_tool/muda_compat.h` 使用 **vendored muda**；`external/muda` 子模块已移除（CMake 侧无引用）。
+- xmake 侧注意：`src/backends/cuda/xmake.lua` 仍用 `add_requires("muda <commit>", {system=false})` 由 xmake 包管理器自行拉取 muda，与子模块无关，但也未指向 vendored 副本。
+- 项目对 muda 的真实依赖**无 CUDA Graph**（`src/backends/cuda` 业务代码 0 处 `cudaGraph`/`BeginCapture`）；`muda.h` 伞头的 `graph.h`/`compute_graph.h` include 已删除（launch 内部 `.inl` 自行 include 所需头，不受影响）。`LinearSystemContext::spmv/convert` 与 `DeviceSpmv` 未使用（CUDA 13 已删 `cub::DeviceSpmv`）。
+- 自研原语（上表）功能可用但**业务代码未使用**；`logger.h`/`debug.h`/`linear_system.h`（LinearSystemContext）三块运行时机制已补齐（`b291d571`），是否批量 `muda::`→`cuda_tool::` 迁移待定。
 - 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `stream.h`）。
 
 ## none 后端

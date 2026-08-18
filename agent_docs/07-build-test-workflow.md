@@ -4,7 +4,7 @@
 
 - CMake ≥ 3.26、Python ≥ 3.11、CUDA ≥ 12.4（wheel 用 12.8）、Vcpkg（设 `CMAKE_TOOLCHAIN_FILE`）。
 - vcpkg 清单由 `scripts/gen_vcpkg_json.py` 生成。基础依赖：eigen3、catch2、libigl、spdlog、fmt（锁 10.2.1）、cppitertools、dylib、nlohmann-json、magic-enum、tinygltf、tbb、urdfdom、cpptrace、octree（私有 registry spiriMirror/vcpkg，同 registry 还有 ftetwild）；GUI 追加 imgui/glfw3/opengl/freeglut/bgfx；VDB 追加 openvdb。
-- `external/muda/` 为源码内置的 CUDA 封装库（kernel 启动、buffer、线性代数）。
+- muda（CUDA 封装库：kernel 启动、buffer、线性代数）已 vendored 在 `src/backends/cuda/cuda_tool/muda/`，随主仓库源码编译；`external/` 下仅剩源码内置的 GKlib/METIS。
 
 ## CMake
 
