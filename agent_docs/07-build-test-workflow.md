@@ -10,6 +10,8 @@
 
 **选项**（根 `CMakeLists.txt`）：`UIPC_USING_LOCAL_VCPKG`(ON)、`UIPC_BUILD_PYBIND`(OFF)、`UIPC_BUILD_PYTHON_WHEEL`(OFF)、`UIPC_BUILD_EXAMPLES/TESTS/BENCHMARKS`(ON)、`UIPC_DEV_MODE`(OFF)、`UIPC_WITH_USD_SUPPORT`(OFF)、`UIPC_WITH_VDB_SUPPORT`(OFF)、`UIPC_WITH_CUDA_BACKEND`(ON，Apple 强制 OFF)、`UIPC_CUDA_ARCHITECTURES`("native")。WHEEL=ON ⇒ PYBIND=ON。（C++ GUI 已移除，`UIPC_BUILD_GUI` 选项不再存在。）
 
+**源码 glob**：所有 `file(GLOB...)` 均带 `CONFIGURE_DEPENDS`，增删源码文件后**无需手动重 configure**，直接 build 即可（CMake ≥3.12 的 VerifyGlobs 机制）。
+
 **Presets**（`CMakePresets.json` v6，Ninja 生成器）：
 - `ci-release`：Release 默认构建
 - `ci-build-wheel`：Release + PYBIND/WHEEL ON
@@ -47,6 +49,12 @@ xmake run sim_case         # 跑测试目标
 | `usd/`、`gui/` | 条件编译 / 未完成 |
 
 运行：`./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`。
+
+**Catch2 v3.8 过滤实测**：多个 spec 作独立 argv 是 **AND** 交集（常致 "No tests ran"）；**OR 需写在单个 argv 内用逗号分隔**：`uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`。列用例：`--list-tests --verbosity quiet`（每行一个用例名）。
+
+**sim_case 隔离进程模式**：`python scripts/run_sim_case_isolated.py [--filter '3*'] [--start-from <case>] [--timeout 900]`——逐用例起独立进程，与单进程全套件互补，用于区分"跨用例全局状态污染"与"用例局部失败"（参见 handoff 的占用率缓存事故）。
+
+**严格模式报错信息量**：line search 超 max_iter 的 warning 与 strict 异常均带 `alpha_last / E0 / E_last / rel_E_increase / ccd_alpha / cfl_alpha`（`advance_ipc.cu`、`advance_al.cu`），用于判断是真回归还是 ULP 抖动压线。
 
 **Python（pytest）**：`uv run --no-sync pytest python/tests` 或 `.venv/bin/pytest python/tests`。
 

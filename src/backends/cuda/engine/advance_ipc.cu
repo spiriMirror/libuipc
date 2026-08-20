@@ -215,18 +215,33 @@ void SimEngine::advance()
         }
     };
 
-    auto check_line_search_iter = [this](SizeT line_search_iter_after_loop)
+    auto check_line_search_iter = [&](SizeT line_search_iter_after_loop, Float E0, Float last_E)
     {
         if(line_search_iter_after_loop >= m_line_searcher->max_iter())
         {
-            logger::warn("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
-                         m_line_searcher->max_iter(),
-                         m_current_frame,
-                         m_newton_iter);
+            // alpha was halved once more after the last failed try,
+            // so the last actually tried step length is 2*alpha
+            Float alpha_last = 2.0 * alpha;
+            Float abs_E0     = std::abs(E0);
+            Float rel_E_increase = (last_E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
+            auto detail = fmt::format(
+                "Line Search Exits with Max Iteration: {} (Frame={}, Newton={}, "
+                "alpha_last={}, E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e}, "
+                "ccd_alpha={}, cfl_alpha={})",
+                m_line_searcher->max_iter(),
+                m_current_frame,
+                m_newton_iter,
+                alpha_last,
+                E0,
+                last_E,
+                rel_E_increase,
+                ccd_alpha,
+                cfl_alpha);
+            logger::warn("{}", detail);
 
             if(m_strict_mode->view()[0])
             {
-                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+                throw SimEngineException("StrictMode: " + detail);
             }
         }
     };
@@ -383,6 +398,7 @@ void SimEngine::advance()
                     // Line Search Iteration
                     bool  converged        = convergence_check(newton_iter);
                     SizeT line_search_iter = 0;
+                    Float last_E           = E0;
                     for(; line_search_iter < m_line_searcher->max_iter(); ++line_search_iter)
                     {
                         Timer timer{"Line Search Iteration"};
@@ -392,6 +408,7 @@ void SimEngine::advance()
                         //  * Step Forward => x = x_0 + alpha * dx
                         //  * Compute New Energy => E
                         Float E = compute_energy(alpha);
+                        last_E  = E;
 
                         // To prevent numerical energy (fake-) increasing caused by tiny dx
                         if(converged)
@@ -414,7 +431,7 @@ void SimEngine::advance()
                     }
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
-                    check_line_search_iter(line_search_iter);
+                    check_line_search_iter(line_search_iter, E0, last_E);
 
                     bool terminated = converged && (newton_iter >= newton_min_iter);
                     if(terminated)

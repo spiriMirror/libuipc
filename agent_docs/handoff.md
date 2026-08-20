@@ -101,6 +101,31 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
 5. **两轮 cuda_tool 精简** (`f6fd6bb3`, `2a8f78d7`) — 删零引用原语与
    helper。
 
+## Hygiene & test-robustness batch (after `d2f48087`)
+
+- **Duplicate-include sweep**: 17 files had identical `#include` lines
+  (mostly migration-cruft `cuda_tool/cuda_tool.h`); deduped. The
+  `geometry_export_types.inl` double-include in `geometry_factory.cpp` is an
+  intentional X-macro pattern — do NOT dedupe it.
+- **Catch2 v3.8 filter syntax (measured)**: multiple specs as separate argv
+  are AND-intersected ("No tests ran"); OR requires comma-separated specs in
+  ONE argv: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`.
+  `--list-tests --verbosity quiet` prints one case name per line.
+- **`file(GLOB ... CONFIGURE_DEPENDS)`** added to all 44 project CMake files
+  (external/ untouched) — adding/removing sources no longer needs a manual
+  re-configure.
+- **Line-search diagnostics**: the "Line Search Exits with Max Iteration"
+  warning and the strict-mode exception now carry
+  `alpha_last / E0 / E_last / rel_E_increase / ccd_alpha / cfl_alpha`
+  (`engine/advance_ipc.cu`, `engine/advance_al.cu`) so a threshold-crossing
+  can be judged as real regression vs ULP jitter from the log alone.
+- **Isolated suite runner**: `scripts/run_sim_case_isolated.py` runs each
+  sim case in its own process (`--filter/--start-from/--timeout`) —
+  complements the single-process suite to separate cross-case global-state
+  pollution from case-local failures.
+- (ccache integration was implemented and then reverted at user request;
+  nothing ccache-related remains in the tree.)
+
 ## Build-time optimization (after `88965feb`)
 
 - **Umbrella split**: `cuda_tool/cuda_tool.h` no longer includes `cub.h`
