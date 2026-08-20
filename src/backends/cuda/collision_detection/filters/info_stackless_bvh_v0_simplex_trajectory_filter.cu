@@ -1,4 +1,5 @@
 #include <collision_detection/filters/info_stackless_bvh_v0_simplex_trajectory_filter.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>

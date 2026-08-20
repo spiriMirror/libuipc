@@ -1,4 +1,5 @@
 #include <finite_element/mas_preconditioner_engine.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>

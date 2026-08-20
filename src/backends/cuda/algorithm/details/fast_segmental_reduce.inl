@@ -1,4 +1,5 @@
 #include <cub/warp/warp_reduce.cuh>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda_tool

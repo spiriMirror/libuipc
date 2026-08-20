@@ -1,5 +1,6 @@
 #include <dytopo_effect_system/dytopo_effect_line_search_reporter.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
+#include <cuda_tool/cub.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(DyTopoEffectLineSearchReporter);

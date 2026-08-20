@@ -2,7 +2,6 @@
 // Minimal linear-system formats used by the backend's global linear solver.
 // Raw CUDA containers + views; dot/norm reductions replace muda's cublas context.
 #include <cuda_tool/buffer.h>
-#include <cuda_tool/cub.h>
 #include <cuda_tool/linear_system/views.h>
 #include <cublas_v2.h>
 #include <Eigen/Core>

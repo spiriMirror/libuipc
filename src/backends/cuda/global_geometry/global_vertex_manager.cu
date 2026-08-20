@@ -3,6 +3,7 @@
 #include <joint_dof_system/global_joint_dof_manager.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <global_geometry/vertex_reporter.h>
 #include <collision_detection/global_trajectory_filter.h>

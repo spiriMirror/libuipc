@@ -1,3 +1,4 @@
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cuda_tool/cuda_tool.h>

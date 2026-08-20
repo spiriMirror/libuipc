@@ -1,4 +1,5 @@
 #include <linear_system/spmv.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cub/warp/warp_scan.cuh>

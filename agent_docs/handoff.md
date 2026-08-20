@@ -101,6 +101,27 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
 5. **两轮 cuda_tool 精简** (`f6fd6bb3`, `2a8f78d7`) — 删零引用原语与
    helper。
 
+## Build-time optimization (after `88965feb`)
+
+- **Umbrella split**: `cuda_tool/cuda_tool.h` no longer includes `cub.h`
+  (CCCL device-algorithm headers add ~165K preprocessed lines per TU); the
+  ~23 files using `Device*` wrappers include `<cuda_tool/cub.h>` explicitly
+  (found via API grep over `DeviceReduce(/DeviceScan(/...` + `cub::`).
+  `linear_system.h` also dropped its (unused) cub.h include.
+- **RDC off**: removed `CUDA_SEPARABLE_COMPILATION ON` /
+  `CUDA_RESOLVE_DEVICE_SYMBOLS ON` from `src/backends/cuda/CMakeLists.txt` —
+  verified no cross-TU device symbols exist (no `__device__` globals,
+  `__managed__`, `__constant__`, texture/surface). xmake never set `-rdc`,
+  which independently confirms it links fine without.
+- Measured (32-core, CUDA 13.2): full rebuild wall **~4.7 min** (was ~10 min
+  perceived), CUDA TU CPU 8.3K→6.5K s, per-TU avg 38→35 s. Line-count
+  attribution of a non-cub TU (~1.63M lines after -E): CUDA toolkit headers
+  ~860K, WinSDK ~310K, MSVC STL ~150K, Eigen ~150K, project <20K — the
+  remaining cost is toolchain headers, not project includes. Next lever if
+  needed: ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`).
+- Verified after both changes: 6 fast binaries pass; full sim suite passes
+  (14214 assertions / 95 cases).
+
 ## Environment notes (unchanged)
 
 - Build: `output/build.bat`（vcvars64 + `cmake --build build --config

@@ -9,6 +9,7 @@
 #include <pipeline/al_ipc_pipeline_flag.h>
 #include <uipc/common/log.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend::cuda
 {

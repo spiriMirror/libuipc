@@ -2,6 +2,7 @@
 #include <global_geometry/simplicial_surface_reporter.h>
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 

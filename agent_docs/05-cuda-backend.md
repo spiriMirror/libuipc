@@ -104,6 +104,9 @@ FEMLineSearchReporter_step_forward_kernel
 | `atomic.h` | 标量 `atomic_add/atomic_exch` |
 
 - 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `type_define.h`）。
+- **伞头 `cuda_tool.h` 不含 `cub.h`**：CCCL 设备算法头极重（每个 TU 多展开 ~16.5 万行），使用 `Device*` 封装的 ~23 个文件显式 `#include <cuda_tool/cub.h>`；`linear_system.h` 也不再传递包含 cub.h。
+- **不启用 RDC**（`CUDA_SEPARABLE_COMPILATION` 关闭）：后端无跨 TU 设备符号（无 `__device__` 全局/`__managed__`/`__constant__`/纹理表面对象），xmake 侧历史上本就无 `-rdc`。若未来引入跨 TU 设备符号需重新打开（xmake 同步）。
+- 编译耗时画像（32 核，CUDA 13.2，RTX 5090）：全量 ~4.7 min / ~8800 CPU·s，219 个 .cu 平均 ~35s；单 TU 预处理展开 ~163 万行，其中 CUDA 工具链头 ~86 万、WinSDK ~31 万、MSVC STL ~15 万、Eigen ~15 万、项目自身 <2 万——大头是工具链头，项目头已经砍无可砍。
 - smoke test 保留为 `test_compile.cu.txt`。
 
 ## none 后端

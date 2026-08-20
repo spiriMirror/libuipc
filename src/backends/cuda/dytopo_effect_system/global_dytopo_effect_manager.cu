@@ -7,6 +7,7 @@
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
 #include <energy_component_flags.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend
 {

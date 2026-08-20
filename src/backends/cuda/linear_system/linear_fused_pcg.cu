@@ -3,6 +3,7 @@
 #include <linear_system/global_linear_system.h>
 #include <uipc/common/timer.h>
 #include <cub/warp/warp_reduce.cuh>
+#include <cuda_tool/cub.h>
 namespace uipc::backend::cuda
 {
 namespace

@@ -3,6 +3,7 @@
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <finite_element/finite_element_kinetic.h>
 #include <kernel_cout.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>

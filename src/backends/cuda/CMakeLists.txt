@@ -41,8 +41,10 @@ target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/cuda_tool")
 # the vendored muda headers reference the CUDA driver API header <cuda.h>
 target_include_directories(cuda PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set_target_properties(cuda PROPERTIES
-    CUDA_SEPARABLE_COMPILATION ON
-    CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    # No CUDA_SEPARABLE_COMPILATION: the backend has no cross-TU device symbols
+    # (no __device__ globals, __managed__, __constant__ or texture/surface
+    # objects), and RDC costs compile time in every TU plus a device-link pass.
+    # (The xmake build has always compiled this target without -rdc.)
     CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}
     CUDA_STANDARD_REQUIRED ON
     CUDA_STANDARD 20

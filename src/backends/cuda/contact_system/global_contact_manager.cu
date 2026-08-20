@@ -7,6 +7,7 @@
 #include <uipc/common/zip.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <contact_system/adaptive_contact_parameter_reporter.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend
 {

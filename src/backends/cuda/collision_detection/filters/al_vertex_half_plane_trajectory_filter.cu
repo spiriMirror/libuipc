@@ -1,4 +1,5 @@
 #include <collision_detection/filters/al_vertex_half_plane_trajectory_filter.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
