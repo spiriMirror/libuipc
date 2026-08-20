@@ -94,7 +94,7 @@ FEMLineSearchReporter_step_forward_kernel
 |---|---|
 | `stream.h` | `CUDA_TOOL_CHECK` 错误检查、`default_stream`、`Stream`（`Stream::Default()`） |
 | `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`、`Dense/CDense`（标量 viewer）、`ViewerBase`、`Extent2D`、`Buffer2DView`、`Dense1D/Dense2D`（含 `make_dense_1d/2d`） |
-| `launch.h` | `best_block_dim/best_grid_dim`（占用率自选）；`ParallelFor`（占用率自选块大小，仅 1 处遗留使用，待收尾后移除） |
+| `launch.h` | `best_block_dim/best_grid_dim`（占用率自选块大小/grid 计算） |
 | `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`、`BufferLaunch`（fill/copy/resize，内部命名模板 kernel） |
 | `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装（指针形态）+ warp 级 cub 头 |
 | `linear_system.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + 全套 view（Triplet/Doublet/DenseVector/BCOO）+ `LinearSystemContext`（cublas dot/norm） |

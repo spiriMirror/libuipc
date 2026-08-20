@@ -51,16 +51,13 @@ external/muda submodule removal, `9018bec7` vendored ext/ subtree trim.)
    `Launch`/`KernelLabel`/`parallel_for` 自由函数/3D 视图族
    （DeviceBuffer3D/Buffer3DView/Extent3D）/`DeviceCOOVector`。
 
-## Leftover（唯一遗留）
+## Leftover（已全部解决）
 
-- **`src/backends/cuda/linear_system/current_frame_diff_dof_reporter.cu`
-  仍是一个 lambda ParallelFor 点**（273 中的 1 个）。该文件在本机被某
-  进程硬锁（无法写/改名/删除，多次尝试 + 杀进程排查未果；疑似
-  VSCode/索引器/杀软持有）。转换内容已就绪并在
-  `current_frame_diff_dof_reporter.cu.staged`（已提交跟踪）。锁释放后：
-  `cp ...cu.staged ...cu && git rm ...cu.staged`，然后从 cuda_tool 移除
-  `ParallelFor`（届时零引用）。
-- `ParallelFor` 目前因这 1 处引用保留在 cuda_tool/launch.h。
+- ~~`current_frame_diff_dof_reporter.cu` 文件锁导致 1 个 lambda 点未改~~
+  —— 锁自行释放后已应用转换内容、删除 `.cu.staged`，并把 `ParallelFor`
+  机制从 cuda_tool 一并移除（业务代码 lambda kernel 至此 **0 处**）。
+- 一同清理的库内死代码：自由 `dot/norm`（linear_system.h）与
+  `check_finite`（debug.h，均未被调用且含 lambda）。
 
 ## Environment notes (unchanged)
 

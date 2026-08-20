@@ -291,7 +291,7 @@ class VarView : public CVarView<T>
     }
 };
 
-// AsViewer adapters used by parallel_for to turn owning buffers into views.
+// AsViewer adapters for turning owning buffers into views.
 template <typename T>
 auto as_device_view(BufferView<T> v)
 {

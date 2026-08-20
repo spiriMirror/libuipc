@@ -376,33 +376,6 @@ class DeviceDenseMatrix
 };
 
 // ---------------------------------------------------------------------------
-// Reductions replacing cuda_tool::LinearSystemContext::dot / norm.
-// Device-side cub reduction into a temporary DeviceVar, synced back to host.
-// ---------------------------------------------------------------------------
-template <typename T>
-T dot(CBufferView<T> x, CBufferView<T> y, cudaStream_t s = default_stream())
-{
-    // element-wise product then sum
-    DeviceVector<T> tmp(x.size());
-    parallel_for(
-        (int)x.size(), [x, y, t = tmp.viewer()] __device__(int i) mutable
-        { t[i] = x[i] * y[i]; },
-        s);
-    DeviceVar<T> result;
-    DeviceReduce(s).Sum(tmp.cview().data(), result.data(), (int)tmp.size());
-    T host;
-    result.copy_to(host, s);
-    CUDA_TOOL_CHECK(cudaStreamSynchronize(s));
-    return host;
-}
-
-template <typename T>
-T norm(CBufferView<T> x, cudaStream_t s = default_stream())
-{
-    return std::sqrt(dot(x, x, s));
-}
-
-// ---------------------------------------------------------------------------
 // LinearSystemContext: holds a cublas handle and provides dot/norm reductions
 // on dense vectors, matching cuda_tool::LinearSystemContext's used surface.
 // ---------------------------------------------------------------------------
