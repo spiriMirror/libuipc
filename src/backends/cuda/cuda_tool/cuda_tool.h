@@ -13,3 +13,4 @@
 #include <cuda_tool/debug.h>
 #include <cuda_tool/logger.h>
 #include <cuda_tool/launch_base.h>
+#include <cuda_tool/atomic.h>

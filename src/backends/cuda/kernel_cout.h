@@ -1,39 +1,34 @@
 #pragma once
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/logger.h>
 
 /*****************************************************************/ /**
- * \file   kernel_cout.h
- * \brief  Remove the original implementation, because of NVCC unstablity
- * 
- * To use: `cout << xxx` in kernel, you should now
- * 
- * @code
- * 
- * ParallelFor()
- *     .apply(N, 
- * [cout = KernelCout::viewer()] __device__ (int i) mutable
- * { 
- *     cout << "xxx"; 
- * })
- * 
- * @endcode
- * 
- * \author Lenovo
- * \date   April 2025
- *********************************************************************/
+* \file   kernel_cout.h
+* \brief  Kernel-side console output for debugging.
+*
+* To use `cout << xxx` in a kernel:
+*
+* @code
+* my_kernel<<<grid, block>>>(cout_view, ...);
+* // in kernel: cout << "xxx";
+* @endcode
+*
+* where `cout_view` is obtained from `KernelCout::viewer()`. Output goes
+* through device printf and is flushed to stdout on the next sync.
+*
+* \author Lenovo
+* \date   April 2025
+*********************************************************************/
 
 namespace uipc::backend::cuda
 {
+// Facade kept for call-site compatibility; the implementation lives in
+// cuda_tool::KernelCout (device-printf based).
 class KernelCout
 {
   public:
-    static muda::LoggerViewer viewer();
-
-  private:
-    KernelCout();
-    muda::LoggerViewer _viewer();
-    std::stringstream  m_string_stream;
-    muda::Logger       m_logger;
-    void               init();
+    static cuda_tool::LoggerViewer viewer()
+    {
+        return cuda_tool::KernelCout::viewer();
+    }
 };
 }  // namespace uipc::backend::cuda

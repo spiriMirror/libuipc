@@ -10,6 +10,9 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_merge_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
+// warp-level primitives used directly by backend kernels (spmv etc.)
+#include <cub/warp/warp_reduce.cuh>
+#include <cub/warp/warp_scan.cuh>
 // NOTE: cub::DeviceSpmv was removed in CUDA 13's CCCL. The backend never actually
 // calls DeviceSpmv (LinearSystemContext::spmv is unused), so it is intentionally
 // not wrapped here. Use a custom SpMV kernel if one is ever needed.
@@ -34,7 +37,7 @@ namespace details
 }  // namespace details
 
 // Thin raw-CUDA wrappers over cub. Each returns a small builder bound to a stream,
-// mirroring the muda::Device* API shape used across the backend.
+// mirroring the cuda_tool::Device* API shape used across the backend.
 
 class DeviceReduce
 {

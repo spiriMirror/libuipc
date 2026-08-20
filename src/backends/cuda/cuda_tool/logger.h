@@ -1,8 +1,9 @@
 #pragma once
 // Kernel-side string logging collected to the host after a launch.
-// Replacement for muda::Logger / LoggerViewer / KernelCout.
+// Replacement for cuda_tool::Logger / LoggerViewer / KernelCout.
 #include <cuda_tool/stream.h>
 #include <cuda_tool/buffer.h>
+#include <Eigen/Core>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -38,6 +39,62 @@ class LoggerViewer
     __device__ void operator()(const char* fmt, Args&&... args) const
     {
         printf(fmt, std::forward<Args>(args)...);
+    }
+
+    // muda-style streaming: `cout << "x" << 1 << "\n"`; each fragment is
+    // emitted with an immediate device printf (debug-only aid).
+    __device__ const LoggerViewer& operator<<(const char* s) const
+    {
+        printf("%s", s);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(char c) const
+    {
+        printf("%c", c);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(int v) const
+    {
+        printf("%d", v);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(unsigned int v) const
+    {
+        printf("%u", v);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(long long v) const
+    {
+        printf("%lld", v);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(unsigned long long v) const
+    {
+        printf("%llu", v);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(float v) const
+    {
+        printf("%f", (double)v);
+        return *this;
+    }
+    __device__ const LoggerViewer& operator<<(double v) const
+    {
+        printf("%f", v);
+        return *this;
+    }
+    // Eigen dense matrices/vectors/expressions: printed as [a, b, ...] rows
+    template <typename Derived>
+    __device__ const LoggerViewer& operator<<(const Eigen::MatrixBase<Derived>& M) const
+    {
+        for(int i = 0; i < M.rows(); ++i)
+        {
+            printf("[");
+            for(int j = 0; j < M.cols(); ++j)
+                printf("%f%s", (double)M(i, j), j + 1 < M.cols() ? ", " : "");
+            printf("]%s", i + 1 < M.rows() ? "\n" : "");
+        }
+        return *this;
     }
 
   private:

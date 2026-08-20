@@ -1,6 +1,6 @@
 #pragma once
 // CRTP launch base providing a fluent, chainable stream-bound launcher.
-// Replacement for muda::LaunchBase (the algorithm backends subclass it).
+// Replacement for cuda_tool::LaunchBase (the algorithm backends subclass it).
 #include <cuda_tool/stream.h>
 #include <functional>
 #include <string>

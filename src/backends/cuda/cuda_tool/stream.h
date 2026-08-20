@@ -3,7 +3,8 @@
 // Provide a global-scope ::arg(std::complex) BEFORE any Eigen include. nvcc's
 // passes cannot resolve Eigen MathFunctions.h's `using ::arg` otherwise. This must
 // precede <uipc/common/type_define.h> (which pulls in <Eigen/Core>).
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) && !defined(UIPC_EIGEN_ARG_SHIM)
+#define UIPC_EIGEN_ARG_SHIM
 #include <complex>
 template <typename T>
 __host__ __device__ inline T arg(const std::complex<T>& z)
@@ -59,4 +60,28 @@ inline void check_cuda_error(cudaError_t e, const char* expr, const char* file, 
 
 // Block size used by cuda_tool launches (matches muda's default_parallel_dim).
 inline constexpr int default_block_dim = 256;
+
+// Lightweight stream handle wrapper (replacement for cuda_tool::Stream).
+// The default stream is a process-wide singleton identical to cudaStream_t{nullptr}.
+class Stream
+{
+  public:
+    Stream() = default;
+    explicit Stream(cudaStream_t h) noexcept
+        : m_handle(h)
+    {
+    }
+    operator cudaStream_t() const noexcept { return m_handle; }
+    cudaStream_t view() const noexcept { return m_handle; }
+    void         synchronize() const { CUDA_TOOL_CHECK(cudaStreamSynchronize(m_handle)); }
+
+    static Stream& Default() noexcept
+    {
+        static Stream s{nullptr};
+        return s;
+    }
+
+  private:
+    cudaStream_t m_handle = nullptr;
+};
 }  // namespace uipc::backend::cuda_tool
