@@ -4,10 +4,10 @@
 
 namespace
 {
-__global__ void hello_muda_kernel(cuda_tool::CBufferView<int> a,
-                                  cuda_tool::CBufferView<int> b,
-                                  cuda_tool::BufferView<int>  c,
-                                  int                         n)
+__global__ void hello_muda_kernel(uipc::backend::cuda_tool::CBufferView<int> a,
+                                  uipc::backend::cuda_tool::CBufferView<int> b,
+                                  uipc::backend::cuda_tool::BufferView<int>  c,
+                                  int                                        n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n)
@@ -18,7 +18,7 @@ __global__ void hello_muda_kernel(cuda_tool::CBufferView<int> a,
 
 void hello_muda()
 {
-    using namespace cuda_tool;
+    using namespace uipc::backend::cuda_tool;
 
     DeviceBuffer<int> a(100);
     DeviceBuffer<int> b(100);

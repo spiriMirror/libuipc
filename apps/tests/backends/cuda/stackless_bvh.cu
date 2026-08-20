@@ -5,11 +5,12 @@
 #include <collision_detection/stackless_bvh.h>
 #include <uipc/geometry.h>
 #include <uipc/geometry/simplicial_complex.h>
-#include <muda/cub/device/device_scan.h>
-#include <muda/viewer/viewer_base.h>
+#include <cuda_tool/cuda_tool.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 
+namespace cuda_tool = uipc::backend::cuda_tool;
 using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;

@@ -68,7 +68,7 @@ InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel
 FEMLineSearchReporter_step_forward_kernel
 ```
 
-- 启动块大小经 `cuda_tool::best_block_dim(kernel)` 按占用率自动选择（与 muda 的 occupancy 自选一致，保证 FP 行为不变）；grid 由 `cuda_tool::best_grid_dim(n, kernel)` 计算。
+- 启动块大小经 `cuda_tool::best_block_dim(kernel)` 按占用率自动选择（与 muda 的 occupancy 自选一致，保证 FP 行为不变）；grid 由 `cuda_tool::best_grid_dim(n, kernel)` 计算。**块大小缓存以 kernel 函数地址为键**（`unordered_map<const void*, int>`），不能按函数指针类型做 `static` 缓存——同签名的不同 kernel 会共享缓存项，跨 kernel 串扰块大小会扰动 atomic 归约顺序，曾在全套件中引发 case 36 frame 17 line-search 失败（隔离单跑不现）。
 - `buffer::kernel_fill<int>` 类内存操作统一走 `cuda_tool::BufferLaunch`（内部为命名模板 kernel）。
 - `python/src/uipc/profile/nsight.py` 的 `_shorten_kernel_name()` 原用于从 `parallel_for_kernel<Lambda>` 提取外层函数名；命名 kernel 时代理不再需要（符号本身可读）。
 

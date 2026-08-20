@@ -32,6 +32,9 @@ target("cuda")
             target:add('cuflags', '-allow-unsupported-compiler', {public = true})
             -- Suppress MSVC C4819 for host compilation of CUDA sources.
             target:add('cuflags', '-Xcompiler=/wd4819', {public = true})
+            -- CUDA >= 13 CCCL requires the standard-conforming MSVC preprocessor
+            -- (parity with src/backends/cuda/CMakeLists.txt).
+            target:add('cuflags', '-Xcompiler=/Zc:preprocessor', {public = true})
             target:set('toolchains', 'msvc')
         end
         target:set('toolchains', 'cuda')

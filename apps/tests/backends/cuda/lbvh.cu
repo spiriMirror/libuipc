@@ -3,13 +3,14 @@
 #include <app/asset_dir.h>
 #include <collision_detection/linear_bvh.h>
 #include <uipc/geometry.h>
-#include <muda/cub/device/device_scan.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/enumerate.h>
-#include <muda/viewer/viewer_base.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 #include <algorithm>
 
+namespace cuda_tool = uipc::backend::cuda_tool;
 using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
@@ -378,20 +379,26 @@ std::vector<Vector2i> two_step_lbvh_cp(span<const LinearBVHAABB> aabbs)
         }
     }
 
-    DeviceBuffer<LinearBVHNode> nodes_1 = LinearBVHVisitor(lbvh).nodes();
-    DeviceBuffer<LinearBVHAABB> aabbs_1 = LinearBVHVisitor(lbvh).aabbs();
+    DeviceBuffer<LinearBVHNode> nodes_1;
+    nodes_1.copy_from(LinearBVHVisitor(lbvh).nodes());
+    DeviceBuffer<LinearBVHAABB> aabbs_1;
+    aabbs_1.copy_from(LinearBVHVisitor(lbvh).aabbs());
 
     lbvh.build(d_aabbs);  // do_build again, the internal nodes should be the same.
-    DeviceBuffer<LinearBVHNode> nodes_2 = LinearBVHVisitor(lbvh).nodes();
-    DeviceBuffer<LinearBVHAABB> aabbs_2 = LinearBVHVisitor(lbvh).aabbs();
+    DeviceBuffer<LinearBVHNode> nodes_2;
+    nodes_2.copy_from(LinearBVHVisitor(lbvh).nodes());
+    DeviceBuffer<LinearBVHAABB> aabbs_2;
+    aabbs_2.copy_from(LinearBVHVisitor(lbvh).aabbs());
 
     tree_consistency_test(nodes_1, nodes_2, aabbs_1, aabbs_2);
 
     LinearBVH lbvh2;
     lbvh2.build(d_aabbs);
 
-    DeviceBuffer<LinearBVHNode> nodes_3 = LinearBVHVisitor(lbvh2).nodes();
-    DeviceBuffer<LinearBVHAABB> aabbs_3 = LinearBVHVisitor(lbvh2).aabbs();
+    DeviceBuffer<LinearBVHNode> nodes_3;
+    nodes_3.copy_from(LinearBVHVisitor(lbvh2).nodes());
+    DeviceBuffer<LinearBVHAABB> aabbs_3;
+    aabbs_3.copy_from(LinearBVHVisitor(lbvh2).aabbs());
 
     tree_consistency_test(nodes_1, nodes_3, aabbs_1, aabbs_3);
 
@@ -512,7 +519,7 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
 
     LinearBVH m_lbvh;
 
-    DeviceVar<int>         cp_num = 0;
+    DeviceVar<int>         cp_num{0};
     DeviceBuffer<Vector2i> pairs;
     // prepare size with aabbs.size()
     pairs.resize(aabbs.size());

@@ -10,6 +10,7 @@
 #include <iterator>
 #include <list>
 
+namespace cuda_tool = uipc::backend::cuda_tool;
 using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;

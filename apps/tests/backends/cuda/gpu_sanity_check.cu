@@ -16,6 +16,7 @@
 #include <uipc/common/timer.h>
 #include <chrono>
 
+namespace cuda_tool = uipc::backend::cuda_tool;
 using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
