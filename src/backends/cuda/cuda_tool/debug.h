@@ -63,17 +63,6 @@ inline void debug_sync_all()
     Debug::call_sync_callback();
 }
 
-// muda compatibility alias: kernel asserts follow the project's runtime-check flag
-inline constexpr bool RUNTIME_CHECK_ON = uipc::RUNTIME_CHECK;
-
-// device-side printf-style log tagged with a name (debugging aid)
-template <typename... Args>
-__device__ inline void debug_log(const char* tag, const char* fmt_str, Args&&... args)
-{
-    printf("[%s] ", tag);
-    printf(fmt_str, std::forward<Args>(args)...);
-}
-
 // ---------------------------------------------------------------------------
 // trap(): device-side abort used by the kernel assert/error macros below.
 // ---------------------------------------------------------------------------

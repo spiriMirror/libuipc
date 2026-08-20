@@ -84,9 +84,7 @@ class LaunchBase : public LaunchCore
     T& derived() noexcept { return *static_cast<T*>(this); }
 };
 
-// free helpers matching muda's on()/wait_device()/wait_stream()
-inline LaunchCore on(cudaStream_t s) { return LaunchCore{s}; }
-inline LaunchCore on() { return LaunchCore{default_stream()}; }
-inline void        wait_device() { LaunchCore::wait_device(); }
-inline void        wait_stream(cudaStream_t s) { LaunchCore::wait_stream(s); }
+// free helpers matching muda's wait_device()/wait_stream()
+inline void wait_device() { LaunchCore::wait_device(); }
+inline void wait_stream(cudaStream_t s) { LaunchCore::wait_stream(s); }
 }  // namespace uipc::backend::cuda_tool

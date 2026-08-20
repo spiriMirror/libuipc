@@ -73,7 +73,6 @@ class Stream
     }
     operator cudaStream_t() const noexcept { return m_handle; }
     cudaStream_t view() const noexcept { return m_handle; }
-    void         synchronize() const { CUDA_TOOL_CHECK(cudaStreamSynchronize(m_handle)); }
 
     static Stream& Default() noexcept
     {

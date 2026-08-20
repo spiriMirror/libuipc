@@ -291,18 +291,6 @@ class VarView : public CVarView<T>
     }
 };
 
-// AsViewer adapters for turning owning buffers into views.
-template <typename T>
-auto as_device_view(BufferView<T> v)
-{
-    return v;
-}
-template <typename T>
-auto as_device_view(CBufferView<T> v)
-{
-    return v;
-}
-
 namespace details
 {
     template <typename T>

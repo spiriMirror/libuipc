@@ -236,18 +236,6 @@ using CDense2D = Dense2DBase<true, T>;
 // make functions (muda parity)
 // ---------------------------------------------------------------------------
 template <typename T>
-__host__ __device__ inline auto make_cdense_1d(const T* data, int dimx) noexcept
-{
-    return CDense1D<T>(data, dimx);
-}
-
-template <typename T, int N>
-__host__ __device__ inline auto make_cdense_1d(const T (&data)[N]) noexcept
-{
-    return CDense1D<T>(data, N);
-}
-
-template <typename T>
 __host__ __device__ inline auto make_dense_1d(T* data, int dimx) noexcept
 {
     return Dense1D<T>(data, dimx);
@@ -260,21 +248,9 @@ __host__ __device__ inline auto make_dense_1d(T (&data)[N]) noexcept
 }
 
 template <typename T>
-__host__ __device__ inline auto make_cdense_2d(const T* data, const int2& dim) noexcept
-{
-    return CDense2D<T>{data, make_int2(0, 0), dim, static_cast<int>(dim.y * sizeof(T))};
-}
-
-template <typename T>
 __host__ __device__ inline auto make_dense_2d(T* data, const int2& dim) noexcept
 {
     return Dense2D<T>{data, make_int2(0, 0), dim, static_cast<int>(dim.y * sizeof(T))};
-}
-
-template <typename T>
-__host__ __device__ inline auto make_cdense_2d(const T* data, int dimx, int dimy) noexcept
-{
-    return make_cdense_2d(data, make_int2(dimx, dimy));
 }
 
 template <typename T>

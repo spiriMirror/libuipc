@@ -123,7 +123,7 @@ UIPC_INLINE UIPC_DEVICE void LinearBVHViewer::check_index(const uint32_t idx) co
 UIPC_INLINE UIPC_DEVICE void LinearBVHViewer::stack_overflow(uint32_t num_found,
                                                              uint32_t stack_num) const noexcept
 {
-    if constexpr(cuda_tool::RUNTIME_CHECK_ON)
+    if constexpr(uipc::RUNTIME_CHECK)
     {
         UIPC_KERNEL_WARN_WITH_LOCATION(
             "BVHViewer[%s:%s]: stack overflow, num_found=%u, stack_num=%u,"
