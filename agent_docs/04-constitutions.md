@@ -37,8 +37,8 @@
 | `particle.h` | 质点（无弹性） |
 | `hookean_spring.h` | 线性弹簧 $E=\frac{\kappa}{2}((L-L_0)/L_0)^2$ |
 | `neo_hookean_shell.h` | 2D Neo-Hookean 壳 |
-| `baraff_witkin_shell.h` / `strain_limiting_baraff_witkin.h` | Baraff-Witkin 布料壳及其应变限制版 |
-| `discrete_shell_bending.h` | 离散壳弯曲能 |
+| `baraff_witkin_shell.h` / `strain_limiting_baraff_witkin.h` | Baraff-Witkin 布料壳及其应变限制版（`apply_to(sc, stretch_moduli, shear_moduli, ..., strain_rate=100)` 双模量重载：stretch/shear 用独立 (E,ν)；单模量重载保留。写入三角形属性 `lambda/mu/strain_rate`；**膜元权重=三角形 area（非体积）**，刚度属性自带厚度：stretch=`E_s·t/(1-ν_s²)`=(λ_s+2μ_s)·t、shear=μ_sh=`E_sh/(2(1+ν_sh))` 与厚度无关） |
+| `discrete_shell_bending.h` | 离散壳弯曲能（**弯曲测度=面积**；raw `apply_to(sc, κ)` 直接给单位面积刚度；公式重载 `apply_to(sc, E, ν)`——**厚度读网格 vertex `thickness` 属性**（边端点平均，支持非均匀壳），需先 apply 膜/stretch 本构；静态帮助 `bending_stiffness(E,ν,t)`=κ=`E·t³/(12(1-ν²))` 字面值） |
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | 应变/应力塑性的壳弯曲 |
 | `kirchhoff_rod_bending.h` | Kirchhoff 杆弯曲 |
 

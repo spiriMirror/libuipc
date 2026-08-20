@@ -29,8 +29,9 @@ namespace sym::discrete_shell_bending
         h_bar      = A / 3.0 / L0;
         dihedral_angle(x0_bar, x1_bar, x2_bar, x3_bar, theta_bar);
 
-        Float thickness = (thickness0 + thickness1 + thickness2 + thickness3) / 4.0;
-        V_bar = A * thickness;
+        // Shell element weight is the AREA: the bending_stiffness attribute
+        // carries the full thickness dependence (κ = E·t³/(12·(1-ν²))).
+        V_bar = A;
     }
 
     inline UIPC_GENERIC Float E(const Vector3& x0,

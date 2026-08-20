@@ -80,3 +80,53 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
                               [](Float v) { return v == Catch::Approx(0.0); }));
     CHECK(stress_plastic_mesh.edges().find<Float>("bending_yield_threshold") == nullptr);
 }
+
+TEST_CASE("discrete_shell_bending_formula_overload", "[constitution]")
+{
+    using namespace uipc;
+    using namespace uipc::geometry;
+    using namespace uipc::constitution;
+
+    vector<Vector3> Vs = {
+        Vector3{0.0, 0.0, 0.0},
+        Vector3{1.0, 0.0, 0.0},
+        Vector3{1.0, 0.0, 1.0},
+        Vector3{0.0, 0.0, 1.0},
+    };
+    vector<Vector3i> Fs = {
+        Vector3i{0, 1, 2},
+        Vector3i{0, 2, 3},
+    };
+
+    auto mesh = trimesh(Vs, Fs);
+
+    // non-uniform per-vertex thickness (as a membrane constitution would write)
+    auto attr_thickness = mesh.vertices().create<Float>(builtin::thickness);
+    {
+        auto tv = geometry::view(*attr_thickness);
+        tv[0]   = 0.001;
+        tv[1]   = 0.001;
+        tv[2]   = 0.002;
+        tv[3]   = 0.001;
+    }
+
+    Float E = 6.0e4, nu = 0.4;
+    DiscreteShellBending dsb;
+    dsb.apply_to(mesh, E, nu);
+
+    auto bs = mesh.edges().find<Float>("bending_stiffness");
+    REQUIRE(bs);
+    auto edges  = mesh.edges().topo().view();
+    auto tv     = geometry::view(*attr_thickness);
+    auto bsv    = geometry::view(*bs);
+    Float denom = 12.0 * (1.0 - nu * nu);
+    for(SizeT i = 0; i < edges.size(); ++i)
+    {
+        Float t_e = (tv[edges[i](0)] + tv[edges[i](1)]) * 0.5;
+        CHECK(bsv[i] == Catch::Approx(E * t_e * t_e * t_e / denom));
+    }
+
+    // missing thickness attribute -> clear error
+    auto bare = trimesh(Vs, Fs);
+    CHECK_THROWS(dsb.apply_to(bare, E, nu));
+}

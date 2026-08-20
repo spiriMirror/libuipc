@@ -99,7 +99,7 @@ S<geometry::GeometrySlot> build_scene(Scene& scene)
 
     auto moduli = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
-    spdsb.apply_to(patch.mesh, 5.0_kPa, 1.2_kPa, 0.0);
+    spdsb.apply_to(patch.mesh, 5.0_Pa, 1.2_Pa, 0.0);  // area measure: kappa & yield_stress *t(0.001)
     spc.apply_to(patch.mesh, 100.0);
 
     auto [slot, rest_slot] = object->geometries().create(patch.mesh);

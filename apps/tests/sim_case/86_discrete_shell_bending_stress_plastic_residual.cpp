@@ -116,12 +116,12 @@ uipc::Float residual_hinge_angle(bool use_stress_plastic)
     if(use_stress_plastic)
     {
         StressPlasticDiscreteShellBending spdsb;
-        spdsb.apply_to(patch.mesh, 20.0_kPa, 7.2_kPa, 0.0);
+        spdsb.apply_to(patch.mesh, 20.0_Pa, 7.2_Pa, 0.0);  // area measure: kappa & yield_stress *t(0.001)
     }
     else
     {
         DiscreteShellBending dsb;
-        dsb.apply_to(patch.mesh, 20.0_kPa);
+        dsb.apply_to(patch.mesh, 20.0_Pa);  // area measure: kappa*t(0.001)
     }
 
     spc.apply_to(patch.mesh, 100.0);

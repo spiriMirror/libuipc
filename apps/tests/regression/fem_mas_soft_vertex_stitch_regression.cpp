@@ -57,8 +57,8 @@ TEST_CASE("fem_mas_soft_vertex_stitch_regression", "[fem][mas][stitch][regressio
     auto moduli = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49);
     nhs.apply_to(cloth_a, moduli);
     nhs.apply_to(cloth_b, moduli);
-    dsb.apply_to(cloth_a, 10.0);
-    dsb.apply_to(cloth_b, 10.0);
+    dsb.apply_to(cloth_a, 0.01);  // area measure: kappa*t(0.001)
+    dsb.apply_to(cloth_b, 0.01);  // area measure: kappa*t(0.001)
     default_element.apply_to(cloth_a);
     default_element.apply_to(cloth_b);
 

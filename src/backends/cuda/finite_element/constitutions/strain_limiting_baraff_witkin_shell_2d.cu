@@ -60,10 +60,6 @@ namespace
         Float strain_rate = strain_rates(I);
         Float rest_area   = rest_areas(I);
 
-        Float thickness = triangle_thickness(thicknesses(idx(0)),
-                                             thicknesses(idx(1)),
-                                             thicknesses(idx(2)));
-
         Matrix<Float, 3, 2> Ds =
             BWS::Ds3x2(X.segment<3>(0), X.segment<3>(3), X.segment<3>(6));
         Matrix<Float, 3, 2> F = Ds * IB;
@@ -71,8 +67,10 @@ namespace
         Vector2 anisotropic_a = Vector2(1, 0);
         Vector2 anisotropic_b = Vector2(0, 1);
 
-        // thickness is onesided, so the Volume is area * thickness * 2
-        Float V = rest_area * thickness * 2;
+        // Membrane element weight is the triangle AREA (not volume): the
+        // stiffness attributes carry their own thickness factors
+        // (stretch ∝ t, shear is thickness-independent).
+        Float V = rest_area;
 
         Float E = BWS::E(F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);
         energies(I) = E * V * dt * dt;
@@ -109,10 +107,6 @@ namespace
         Float strain_rate = strainRates(I);
         Float rest_area   = rest_areas(I);
 
-        Float thickness = triangle_thickness(thicknesses(idx(0)),
-                                             thicknesses(idx(1)),
-                                             thicknesses(idx(2)));
-
         Matrix<Float, 3, 2> Ds =
             BWS::Ds3x2(X.segment<3>(0), X.segment<3>(3), X.segment<3>(6));
         Matrix<Float, 3, 2> F = Ds * IB;
@@ -122,7 +116,10 @@ namespace
 
         auto dFdx = BWS::dFdX(IB);
 
-        Float V = 2 * rest_area * thickness;
+        // Membrane element weight is the triangle AREA (not volume): the
+        // stiffness attributes carry their own thickness factors
+        // (stretch ∝ t, shear is thickness-independent).
+        Float V = rest_area;
 
         Float Vdt2 = V * dt * dt;
 
@@ -200,17 +197,27 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                 auto lambda = sc.triangles().find<Float>("lambda");
                 auto mu     = sc.triangles().find<Float>("mu");
 
-                return zip(lambda->view(), mu->view());
+                // strain_rate is user-settable via the constitution's apply_to;
+                // scenes saved before it existed default to the legacy 100.
+                auto strain_rate = sc.triangles().find<Float>("strain_rate");
+                if(!strain_rate)
+                {
+                    strain_rate = sc.triangles().create<Float>("strain_rate");
+                    for(auto& v : geometry::view(*strain_rate))
+                        v = 100.0;
+                }
+
+                return zip(lambda->view(), mu->view(), strain_rate->view());
             },
-            [&](const ForEachInfo& I, auto lambda_mu)
+            [&](const ForEachInfo& I, auto lambda_mu_strain_rate)
             {
                 auto vI = I.global_index();
 
-                auto&& [lambda, mu] = lambda_mu;
+                auto&& [lambda, mu, strain_rate] = lambda_mu_strain_rate;
 
                 h_lambdas[vI]      = lambda;
                 h_mus[vI]          = mu;
-                h_strain_rates[vI] = 100;
+                h_strain_rates[vI] = strain_rate;
             });
 
         mus.resize(N);

@@ -101,6 +101,40 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
 5. **两轮 cuda_tool 精简** (`f6fd6bb3`, `2a8f78d7`) — 删零引用原语与
    helper。
 
+## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
+
+- 布料刚度公式与 mas-pncg 对齐，膜元权重为三角形 **area**（非 volume，
+  避免与厚度无关的 shear 被体积测度错误加权）：
+  - stretch：`StrainLimitingBaraffWitkinShell` 的三角形属性 `"lambda"` 写
+    `(λ+2μ)·t`（恒等 `E·t/(1-ν²)`）；后端 `strain_limiting_baraff_witkin_shell_2d.cu`
+    两个能量 kernel 的测度已从 `area·2t` 改为纯 `rest_area`。
+  - shear：属性 `"mu"` = `E/(2(1+ν))`，与厚度无关（面积测度下无 t）。
+  - bend：`DiscreteShellBending` 系列（含 strain/stress plastic 变体）测度
+    统一为面积 `V_bar = A`（3 个 function header）；raw `apply_to(sc, κ)`
+    的 κ 语义变为"单位面积刚度"——**所有 raw 调用点已按 κ×t 迁移以保持
+    物理一致**（libuipc 测试 33/82-87、regression 全部 t=0.001；samples
+    11/24/26/33ext/34 按各自厚度）。公式重载 `apply_to(sc, E, ν)` 与
+    静态帮助 `bending_stiffness(E,ν,t)` 写字面值 `E·t³/(12(1-ν²))`。
+  - strainRate：不再硬编码 100——`apply_to(..., strain_rate=100)` 写
+    三角形属性 `"strain_rate"`，后端读属性（旧场景缺失自动创建并回填
+    100）；pybind 同步暴露。
+  - **stretch/shear 材料参数分离**：`StrainLimitingBaraffWitkinShell::apply_to`
+    双模量重载 `apply_to(sc, stretch_moduli, shear_moduli, ρ, t, strain_rate)`
+    （stretch 用 `(λ_s+2μ_s)·t`、shear 用 `μ_sh`，各自独立 (E,ν)，对齐
+    mas-pncg ClothMaterialConfig）；单模量旧重载保留兼容。samples
+    11_bunny_cloth/34_cloth_stack 已改用分离参数（shear 按 100:1 软化），
+    11 的 bend 同时改用公式重载演示；新增
+    `apps/tests/core/strain_limiting_baraff_witkin_constitution.cpp`
+    覆盖双模量属性布局。
+  - **厚度单一来源**：DSB 公式重载为 `apply_to(sc, E, ν)`——弯曲是可选件、
+    stretch 是必需件，故厚度只由膜本构设置（vertex `"thickness"` 属性），
+    DSB 按边端点平均读取（天然支持非均匀厚度壳）；缺失时给出明确报错。
+- 验证：Python 冒烟数值全对；DSB 相关 sim_case 33、82-87 全过；6 快速
+  二进制全过；全套件通过；`11_bunny_cloth` headless OK。
+- 注意：`ElasticModuli2D`/`EP_to_lame_2D` 与 NeoHookeanShell 等其他本构
+  未动（scope 仅布料 BW 应变限制壳 + DSB）；BW 壳无套件/样例使用，
+  测度改动零回归面。
+
 ## Hygiene & test-robustness batch (after `d2f48087`)
 
 - **Duplicate-include sweep**: 17 files had identical `#include` lines
