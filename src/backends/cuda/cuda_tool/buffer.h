@@ -168,7 +168,23 @@ class DeviceVector
 
     void resize(size_t n, cudaStream_t s = default_stream())
     {
+        size_t old = m_size;
         reserve(n, s);
+        // muda parity: value-initialize the newly expanded portion
+        // (zero for trivially-constructible types, T{} otherwise)
+        if(n > old)
+        {
+            if constexpr(std::is_trivially_constructible_v<T>)
+            {
+                CUDA_TOOL_CHECK(cudaMemsetAsync(m_data + old, 0, (n - old) * sizeof(T), s));
+            }
+            else
+            {
+                static_assert(std::is_constructible_v<T>,
+                              "T must be default-constructible for resize()");
+                fill(subview(old, n - old), T{}, s);
+            }
+        }
         m_size = n;
     }
     void resize(size_t n, const T& init, cudaStream_t s = default_stream())
