@@ -17,6 +17,11 @@ target("cuda")
     add_rules("cuda_no_host_compiler_check")    
     add_cuflags("--expt-relaxed-constexpr")
     add_cuflags("--extended-lambda")
+    -- RDC is required: affine_body/utils.cu defines UIPC_GENERIC free functions
+    -- (e.g. q_to_transform) called from device code in other TUs; without
+    -- separable compilation ptxas fails with "Unresolved extern".
+    -- (parity with CUDA_SEPARABLE_COMPILATION ON in CMakeLists.txt)
+    add_cuflags("-rdc=true")
     
     add_links(
         "cudart",

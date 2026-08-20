@@ -133,11 +133,8 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   ~23 files using `Device*` wrappers include `<cuda_tool/cub.h>` explicitly
   (found via API grep over `DeviceReduce(/DeviceScan(/...` + `cub::`).
   `linear_system.h` also dropped its (unused) cub.h include.
-- **RDC off**: removed `CUDA_SEPARABLE_COMPILATION ON` /
-  `CUDA_RESOLVE_DEVICE_SYMBOLS ON` from `src/backends/cuda/CMakeLists.txt` —
-  verified no cross-TU device symbols exist (no `__device__` globals,
-  `__managed__`, `__constant__`, texture/surface). xmake never set `-rdc`,
-  which independently confirms it links fine without.
+- **RDC 纠错过山车**：d2f48087 曾关闭 RDC 并声称"无跨 TU 设备符号"——**结论错误**。`affine_body/utils.cu` 的 `UIPC_GENERIC` 自由函数（`q_to_transform` 等）被其他 TU 的 kernel 调用，关 RDC 必现 `ptxas fatal: Unresolved extern`。当时未暴露是因为 CMake+ninja 不跟踪旗标变化，陈旧 RDC-on 对象混在链接里蒙混过关；pyuipc 构建触发大范围重编才现形。已恢复 `CUDA_SEPARABLE_COMPILATION/RESOLVE_DEVICE_SYMBOLS ON` 并给 xmake 补 `-rdc=true`。同时下条"全量重建 ~4.7 min"的数字也受影响（部分 TU 未重编），仅供参考。
+- ~~**RDC off**~~（已纠正，见上）
 - Measured (32-core, CUDA 13.2): full rebuild wall **~4.7 min** (was ~10 min
   perceived), CUDA TU CPU 8.3K→6.5K s, per-TU avg 38→35 s. Line-count
   attribution of a non-cub TU (~1.63M lines after -E): CUDA toolkit headers

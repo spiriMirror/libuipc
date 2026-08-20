@@ -105,7 +105,8 @@ FEMLineSearchReporter_step_forward_kernel
 
 - 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `type_define.h`）。
 - **伞头 `cuda_tool.h` 不含 `cub.h`**：CCCL 设备算法头极重（每个 TU 多展开 ~16.5 万行），使用 `Device*` 封装的 ~23 个文件显式 `#include <cuda_tool/cub.h>`；`linear_system.h` 也不再传递包含 cub.h。
-- **不启用 RDC**（`CUDA_SEPARABLE_COMPILATION` 关闭）：后端无跨 TU 设备符号（无 `__device__` 全局/`__managed__`/`__constant__`/纹理表面对象），xmake 侧历史上本就无 `-rdc`。若未来引入跨 TU 设备符号需重新打开（xmake 同步）。
+- **必须启用 RDC**（`CUDA_SEPARABLE_COMPILATION ON` + `CUDA_RESOLVE_DEVICE_SYMBOLS ON`）：`affine_body/utils.cu` 定义了 `UIPC_GENERIC` 自由函数（如 `q_to_transform`），被其他 TU 的 device 代码跨编译单元调用；关 RDC 会 `ptxas fatal: Unresolved extern`。xmake 侧对应 `add_cuflags("-rdc=true")`。
+- **教训（2026-08-20 纠错）**：CMake+ninja 不跟踪编译旗标变化（纯 mtime 驱动）——切换 RDC 这类全局旗标后"全量构建"可能实际只重编了源文件有变动的 TU，陈旧对象会蒙混链接成功造成"验证通过"假象；改全局旗标必须手动清对象目录再验证。曾因此误判 RDC 可关（提交 d2f48087 中的 RDC 部分已纠正）。
 - 编译耗时画像（32 核，CUDA 13.2，RTX 5090）：全量 ~4.7 min / ~8800 CPU·s，219 个 .cu 平均 ~35s；单 TU 预处理展开 ~163 万行，其中 CUDA 工具链头 ~86 万、WinSDK ~31 万、MSVC STL ~15 万、Eigen ~15 万、项目自身 <2 万——大头是工具链头，项目头已经砍无可砍。
 - smoke test 保留为 `test_compile.cu.txt`。
 
