@@ -22,7 +22,7 @@
 - 用户 API 三层概念：**Engine**（算法+后端）→ **World**（`init/advance/retrieve`）→ **Scene**（快照：Objects/Geometries/Constitutions/Contacts/Animator）。
 - 后端是**运行时动态加载的 MODULE 库**（`uipc_backend_cuda`、`uipc_backend_none`），通过 `uipc_init_module/uipc_create_engine/uipc_destroy_engine` 三个导出符号通信。
 - 后端内部采用 **DOP + RMR（Reporter-Manager-Receiver）** 的 ECS 风格架构，所有仿真功能都是 `SimSystem` 派生类，靠 `REGISTER_SIM_SYSTEM` 宏自动注册。
-- GPU kernel 全部通过 muda 库的 `muda::ParallelFor` 启动（已 vendored 进 `src/backends/cuda/cuda_tool/muda/`，无外部子模块依赖）。
+- GPU kernel 全部是命名 `__global__` 函数，经裸 `<<<>>>` 启动（设备工具统一来自自研 `src/backends/cuda/cuda_tool/`，无 muda 依赖；Eigen 保留）。
 - 本构模型（constitution）共 40+ 个，能量/梯度/Hessian 由 `scripts/symbol_calculation/` 的 Jupyter 符号推导生成（SymEigen）。
 - 双构建系统：CMake（主）+ XMake（备）；双 API：C++ + Python（pybind11，PyPI 包名 `pyuipc`）。
 - 测试：Catch2（`apps/tests/`，含 94 个编号 sim_case 仿真用例）+ pytest（`python/tests/`）。

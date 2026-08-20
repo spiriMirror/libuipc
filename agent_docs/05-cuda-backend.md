@@ -59,23 +59,24 @@ Pipeline
 
 `do_init/do_advance/do_retrieve/do_sync` 中各 sim system 通过 `SimActionCollection` 注册的回调（`on_init_scene/on_rebuild_scene/on_write_scene`）被依次调用。
 
-## muda 与 kernel 命名
+## kernel 与 kernel 命名
 
-所有 kernel 经 muda 的 `muda::ParallelFor().apply(N, lambda)` 启动（muda 已 vendored 在 `src/backends/cuda/cuda_tool/muda/`，经 `cuda_tool/muda_compat.h` 引入），编译产物为 `parallel_for_kernel<Lambda>`。NVCC 会把外层函数名嵌入符号：
+所有 kernel 都是**命名 `__global__` 函数**（匿名 namespace 内定义），经裸 `<<<grid, block, 0, stream>>>` 启动。kernel 名按 `<所属类>_<原函数>[_kN]_kernel` 约定命名，ncu 报告里直接可读：
 
 ```
-parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
+InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel
+FEMLineSearchReporter_step_forward_kernel
 ```
 
-- 一个函数多个 `ParallelFor` 时追加 `#N`（N = 源码中第 N 个 `ParallelFor().apply()` 调用）。
-- `buffer::kernel_fill<int>` 等是内存操作，通常不是优化目标。
-- `python/src/uipc/profile/nsight.py` 的 `_shorten_kernel_name()` 负责提取可读名。
+- 启动块大小经 `cuda_tool::best_block_dim(kernel)` 按占用率自动选择（与 muda 的 occupancy 自选一致，保证 FP 行为不变）；grid 由 `cuda_tool::best_grid_dim(n, kernel)` 计算。
+- `buffer::kernel_fill<int>` 类内存操作统一走 `cuda_tool::BufferLaunch`（内部为命名模板 kernel）。
+- `python/src/uipc/profile/nsight.py` 的 `_shorten_kernel_name()` 原用于从 `parallel_for_kernel<Lambda>` 提取外层函数名；命名 kernel 时代理不再需要（符号本身可读）。
 
 ## GPU 代码规范（摘自 review-pr / simulation-dev）
 
-- buffer 参数用 `muda::BufferView` / `muda::TripletMatrixView`，**禁裸指针**。
+- buffer 参数用 `cuda_tool::BufferView` / `cuda_tool::TripletMatrixView` 等 view 类型，**禁裸指针**。
 - kernel 体顶部先做索引守卫，越界立即 return。
-- 调试用 `muda::debug_sync_all()` 做快速失败屏障；给关键 buffer/viewer 命名（`viewer().name("x")`）；launch 带 `file_line(__FILE__, __LINE__)` 元数据。
+- 调试用 `cuda_tool::debug_sync_all()` 做快速失败屏障；kernel 断言用 `UIPC_KERNEL_ASSERT`（随 `uipc::RUNTIME_CHECK` 开关）。
 - 检查 `isfinite`；除零/负开方加保守守卫。
 - 修改 solver/kernel 遵循 `.cursor/skills/simulation-dev/SKILL.md` 的调试闭环。
 
@@ -85,26 +86,25 @@ parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
 - 流程：先 `run` 拿分阶段 wall-clock（`report/report.md` + `timer_frames.json`），再 `profile` 拿 per-kernel 指标（ncu），交叉定位"热点阶段 + 低效 kernel"；只占帧时间 <5% 的阶段不优化。
 - 细节见 `.cursor/skills/gpu-optimization/SKILL.md`。
 
-## cuda_tool（自研 raw-CUDA 工具库，muda 替代进行中）
+## cuda_tool（自研 raw-CUDA 工具库）
 
-`src/backends/cuda/cuda_tool/`，命名空间 `uipc::backend::cuda_tool`。为移除 muda 依赖而建的**最小 raw-CUDA 工具库**，已独立编译+运行验证（smoke test 保留为 `test_compile.cu.txt`）。
+`src/backends/cuda/cuda_tool/`，命名空间 `uipc::backend::cuda_tool`。**后端唯一的设备工具库**（muda 依赖已全部移除，无 vendored 副本、无外部子模块；Eigen 保留）。
 
-| 文件 | 替代 muda |
+| 文件 | 内容 |
 |---|---|
-| `stream.h` / `view.h` / `view_nd.h` | 错误检查、`CBufferView/BufferView/VarView`、2D/3D view |
-| `launch.h` | `ParallelFor`/`parallel_for`（raw `<<<>>>`） |
-| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D/3D` |
-| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装 |
-| `linear_system.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOO/BSR` + `dot/norm` |
-| `eigen.h` | 设备端 3x3 对称 `svd/evd/polar/logm` |
-| `debug.h` | `debug_sync_all/check_finite/debug_log` |
+| `stream.h` | `CUDA_TOOL_CHECK` 错误检查、`default_stream`、`Stream`（`Stream::Default()`） |
+| `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`、`Dense/CDense`（标量 viewer）、`ViewerBase`、`Extent2D`、`Buffer2DView`、`Dense1D/Dense2D`（含 `make_dense_1d/2d`） |
+| `launch.h` | `best_block_dim/best_grid_dim`（占用率自选）；`ParallelFor`（占用率自选块大小，仅 1 处遗留使用，待收尾后移除） |
+| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`、`BufferLaunch`（fill/copy/resize，内部命名模板 kernel） |
+| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装（指针形态）+ warp 级 cub 头 |
+| `linear_system.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + 全套 view（Triplet/Doublet/DenseVector/BCOO）+ `LinearSystemContext`（cublas dot/norm） |
+| `eigen.h` + `eigen/` | 设备端小矩阵数学（`eigen::evd/svd/pd/inverse/atomic_add`，自 muda ext/eigen 逐字移植，比特级一致） |
+| `debug.h` | `debug_sync_all/check_finite` + `UIPC_KERNEL_ASSERT/ERROR/WARN` 宏族（随 `uipc::RUNTIME_CHECK`） |
+| `logger.h` | `LoggerViewer`（kernel 内 `cout <<`，device printf）+ `KernelCout` |
+| `atomic.h` | 标量 `atomic_add/atomic_exch` |
 
-**迁移状态（重要，供后续接手）**：
-- muda 已 vendored 进 `cuda_tool/muda/`（288 文件，删除了零耦合的 `ext/spatial_hash`、`ext/spgrid`、`ext/field` 子树），业务代码经 `cuda_tool/muda_compat.h` 使用 **vendored muda**；`external/muda` 子模块已移除（CMake 侧无引用）。
-- xmake 侧注意：`src/backends/cuda/xmake.lua` 仍用 `add_requires("muda <commit>", {system=false})` 由 xmake 包管理器自行拉取 muda，与子模块无关，但也未指向 vendored 副本。
-- 项目对 muda 的真实依赖**无 CUDA Graph**（`src/backends/cuda` 业务代码 0 处 `cudaGraph`/`BeginCapture`）；`muda.h` 伞头的 `graph.h`/`compute_graph.h` include 已删除（launch 内部 `.inl` 自行 include 所需头，不受影响）。`LinearSystemContext::spmv/convert` 与 `DeviceSpmv` 未使用（CUDA 13 已删 `cub::DeviceSpmv`）。
-- 自研原语（上表）功能可用但**业务代码未使用**；`logger.h`/`debug.h`/`linear_system.h`（LinearSystemContext）三块运行时机制已补齐（`b291d571`），是否批量 `muda::`→`cuda_tool::` 迁移待定。
-- 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `stream.h`）。
+- 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `type_define.h`）。
+- smoke test 保留为 `test_compile.cu.txt`。
 
 ## none 后端
 

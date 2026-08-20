@@ -338,41 +338,7 @@ class DeviceBuffer2D
     Extent2D        m_extent;
 };
 
-template <typename T>
-class DeviceBuffer3D
-{
-  public:
-    DeviceBuffer3D() = default;
-    DeviceBuffer3D(Extent3D e) { resize(e); }
-    ~DeviceBuffer3D() { release(); }
-    DeviceBuffer3D(DeviceBuffer3D&&)            = default;
-    DeviceBuffer3D& operator=(DeviceBuffer3D&&) = default;
-    DeviceBuffer3D(const DeviceBuffer3D&)            = delete;
-    DeviceBuffer3D& operator=(const DeviceBuffer3D&) = delete;
-
-    void resize(Extent3D e, cudaStream_t s = default_stream())
-    {
-        m_extent = e;
-        m_buf.resize(e.count(), s);
-    }
-    void clear() { m_buf.clear(); }
-    void release() { m_buf.release(); }
-    Extent3D extent() const { return m_extent; }
-    T*       data() { return m_buf.data(); }
-    const T* data() const { return m_buf.data(); }
-
-    Buffer3DView<T>  view() { return Buffer3DView<T>{m_buf.data(), m_extent}; }
-    CBuffer3DView<T> cview() const { return CBuffer3DView<T>{m_buf.data(), m_extent}; }
-    Buffer3DView<T>  viewer() { return view(); }
-    CBuffer3DView<T> cviewer() const { return cview(); }
-                     operator Buffer3DView<T>() { return view(); }
-                     operator CBuffer3DView<T>() const { return cview(); }
-
-  private:
-    DeviceVector<T> m_buf;
-    Extent3D        m_extent;
-};
-// Stream-ordered buffer operations (replacement for cuda_tool::BufferLaunch).
+// Stream-ordered buffer operations (replacement for muda::BufferLaunch).
 // All device work is done by the raw template kernels above / cudaMemcpyAsync.
 class BufferLaunch
 {
@@ -402,11 +368,6 @@ class BufferLaunch
     }
     template <typename T>
     BufferLaunch& fill(Buffer2DView<T> dst, const T& value)
-    {
-        return fill(BufferView<T>{dst.data(), dst.extent().count()}, value);
-    }
-    template <typename T>
-    BufferLaunch& fill(Buffer3DView<T> dst, const T& value)
     {
         return fill(BufferView<T>{dst.data(), dst.extent().count()}, value);
     }

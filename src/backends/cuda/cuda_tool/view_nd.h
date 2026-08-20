@@ -16,18 +16,6 @@ struct Extent2D
     }
     __host__ __device__ constexpr size_t count() const { return h * w; }
 };
-struct Extent3D
-{
-    size_t d = 0, h = 0, w = 0;
-    __host__ __device__ constexpr Extent3D() = default;
-    __host__ __device__ constexpr Extent3D(size_t d, size_t h, size_t w)
-        : d(d)
-        , h(h)
-        , w(w)
-    {
-    }
-    __host__ __device__ constexpr size_t count() const { return d * h * w; }
-};
 
 // ---------------------------------------------------------------------------
 // Dense1D: C/C++ array like 1D viewer, indexing (x).
@@ -363,45 +351,5 @@ class Buffer2DView : public CBuffer2DView<T>
                            make_int2((int)this->m_extent.h, (int)this->m_extent.w),
                            (int)(this->m_extent.w * sizeof(T))};
     }
-};
-
-template <typename T>
-class CBuffer3DView
-{
-  public:
-    CBuffer3DView() = default;
-    __host__ __device__ constexpr CBuffer3DView(const T* data, Extent3D e)
-        : m_data(data)
-        , m_extent(e)
-    {
-    }
-    __host__ __device__ const T* data() const { return m_data; }
-    __host__ __device__ Extent3D  extent() const { return m_extent; }
-    __host__ __device__ const T&  operator()(size_t z, size_t y, size_t x) const
-    {
-        return m_data[(z * m_extent.h + y) * m_extent.w + x];
-    }
-
-  protected:
-    const T* m_data = nullptr;
-    Extent3D m_extent;
-};
-
-template <typename T>
-class Buffer3DView : public CBuffer3DView<T>
-{
-  public:
-    Buffer3DView() = default;
-    __host__ __device__ constexpr Buffer3DView(T* data, Extent3D e)
-        : CBuffer3DView<T>(data, e)
-    {
-    }
-    __host__ __device__ T* data() const { return const_cast<T*>(this->m_data); }
-    __host__ __device__ T& operator()(size_t z, size_t y, size_t x) const
-    {
-        return data()[(z * this->m_extent.h + y) * this->m_extent.w + x];
-    }
-    __host__ __device__ CBuffer3DView<T> cview() const { return *this; }
-    __host__ __device__ operator CBuffer3DView<T>() const { return *this; }
 };
 }  // namespace uipc::backend::cuda_tool

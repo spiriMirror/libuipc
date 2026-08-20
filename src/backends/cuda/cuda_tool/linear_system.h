@@ -276,9 +276,6 @@ class DeviceBCOOVector : public DeviceDoubletVector<T, N>
     auto non_zeros() const { return this->m_values.size(); }
 };
 
-template <typename T>
-using DeviceCOOVector = DeviceBCOOVector<T, 1>;
-
 // BSR block matrix: only used by the converter paths; provided for
 // completeness. Semantics follow muda: reshape() allocates row_offsets
 // (rows + 1), resize() only allocates values + col_indices.
