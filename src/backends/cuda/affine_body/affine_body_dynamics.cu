@@ -12,12 +12,12 @@
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/zip.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <sim_engine.h>
 #include <uipc/builtin/constitution_type.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/builtin/attribute_name.h>
 
 #include <utils/offset_count_collection.h>
@@ -572,7 +572,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     std::ranges::transform(h_body_id_to_abd_mass,
                            h_body_id_to_abd_mass_inv.begin(),
                            [](const ABDJacobiDyadicMass& mass) -> Matrix12x12
-                           { return muda::eigen::inverse(mass.to_mat()); });
+                           { return cuda_tool::eigen::inverse(mass.to_mat()); });
 
     // 6) Setup the affine body gravity
     {
@@ -665,10 +665,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
 {
-    auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
+    auto async_copy = []<typename T>(span<T> src, cuda_tool::DeviceBuffer<T>& dst)
     {
-        muda::BufferLaunch().resize<T>(dst, src.size());
-        muda::BufferLaunch().copy<T>(dst.view(), src.data());
+        cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+        cuda_tool::BufferLaunch().copy<T>(dst.view(), src.data());
     };
 
     async_copy(span{h_body_id_to_q}, body_id_to_q);
@@ -684,26 +684,26 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_is_dynamic}, body_id_to_is_dynamic);
     async_copy(span{h_body_id_to_external_kinetic}, body_id_to_external_kinetic);
 
-    auto async_transfer = []<typename T>(const muda::DeviceBuffer<T>& src,
-                                         muda::DeviceBuffer<T>&       dst)
+    auto async_transfer = []<typename T>(const cuda_tool::DeviceBuffer<T>& src,
+                                         cuda_tool::DeviceBuffer<T>&       dst)
     {
-        muda::BufferLaunch().resize<T>(dst, src.size());
-        muda::BufferLaunch().copy<T>(dst.view(), src.view());
+        cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+        cuda_tool::BufferLaunch().copy<T>(dst.view(), src.view());
     };
 
     async_transfer(body_id_to_q, body_id_to_q_temp);
     async_transfer(body_id_to_q, body_id_to_q_tilde);
     async_transfer(body_id_to_q, body_id_to_q_prev);
 
-    auto async_resize = []<typename T>(muda::DeviceBuffer<T>& buf, SizeT size, const T& value)
+    auto async_resize = []<typename T>(cuda_tool::DeviceBuffer<T>& buf, SizeT size, const T& value)
     {
-        muda::BufferLaunch().resize<T>(buf, size);
-        muda::BufferLaunch().fill<T>(buf.view(), value);
+        cuda_tool::BufferLaunch().resize<T>(buf, size);
+        cuda_tool::BufferLaunch().fill<T>(buf.view(), value);
     };
 
     async_resize(body_id_to_dq, abd_body_count, Vector12::Zero().eval());
 
-    muda::wait_stream(nullptr);
+    cuda_tool::wait_stream(nullptr);
 }
 
 void AffineBodyDynamics::Impl::_distribute_geo_infos()
@@ -747,14 +747,14 @@ void AffineBodyDynamics::Impl::_init_diff_reporters()
 
 void AffineBodyDynamics::Impl::_download_geometry_to_host()
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
-    auto aync_copy = []<typename T>(muda::DeviceBuffer<T>& src, span<T> dst)
-    { muda::BufferLaunch().copy<T>(dst.data(), src.view()); };
+    auto aync_copy = []<typename T>(cuda_tool::DeviceBuffer<T>& src, span<T> dst)
+    { cuda_tool::BufferLaunch().copy<T>(dst.data(), src.view()); };
 
     aync_copy(body_id_to_q, span{h_body_id_to_q});
 
-    muda::wait_device();
+    cuda_tool::wait_device();
 }
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
@@ -865,7 +865,7 @@ SizeT AffineBodyDynamics::FilteredInfo::vertex_count() const noexcept
     return constitution_info().vertex_count;
 }
 
-void AffineBodyDynamics::overwrite_qs(muda::CBufferView<Vector12> qs)
+void AffineBodyDynamics::overwrite_qs(cuda_tool::CBufferView<Vector12> qs)
 {
     m_impl.body_id_to_q.view().copy_from(qs);
 }

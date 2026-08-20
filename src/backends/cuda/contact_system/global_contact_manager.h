@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <contact_system/contact_coeff.h>
 #include <algorithm/matrix_converter.h>
 #include <utils/offset_count_collection.h>
@@ -39,10 +39,10 @@ class GlobalContactManager final : public SimSystem
         {
         }
 
-        muda::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
+        cuda_tool::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
 
-        S<muda::DeviceBuffer2D<ContactCoeff>> exchange_contact_tabular(
-            S<muda::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept;
+        S<cuda_tool::DeviceBuffer2D<ContactCoeff>> exchange_contact_tabular(
+            S<cuda_tool::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept;
 
       private:
         Impl* m_impl;
@@ -63,13 +63,13 @@ class GlobalContactManager final : public SimSystem
 
         bool cfl_enabled = false;
 
-        S<muda::DeviceBuffer2D<ContactCoeff>> contact_tabular;
+        S<cuda_tool::DeviceBuffer2D<ContactCoeff>> contact_tabular;
 
         vector<ContactCoeff>         h_contact_tabular;
         vector<IndexT>               h_contact_mask_tabular;
         vector<IndexT>               h_subcene_mask_tabular;
-        muda::DeviceBuffer2D<IndexT> contact_mask_tabular;
-        muda::DeviceBuffer2D<IndexT> subscene_mask_tabular;
+        cuda_tool::DeviceBuffer2D<IndexT> contact_mask_tabular;
+        cuda_tool::DeviceBuffer2D<IndexT> subscene_mask_tabular;
         Float                        reserve_ratio = 1.1;
 
         Float                                   d_hat = 0.0;
@@ -82,9 +82,9 @@ class GlobalContactManager final : public SimSystem
         *                     Global Vertex Contact Info                       *
         ***********************************************************************/
 
-        muda::DeviceBuffer<IndexT> vert_is_active_contact;
-        muda::DeviceBuffer<Float>  vert_disp_norms;
-        muda::DeviceVar<Float>     max_disp_norm;
+        cuda_tool::DeviceBuffer<IndexT> vert_is_active_contact;
+        cuda_tool::DeviceBuffer<Float>  vert_disp_norms;
+        cuda_tool::DeviceVar<Float>     max_disp_norm;
 
         SimSystemSlotCollection<ContactReporter> contact_reporters;
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
@@ -95,9 +95,9 @@ class GlobalContactManager final : public SimSystem
     Float eps_velocity() const;
     bool  cfl_enabled() const;
 
-    muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
-    muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
-    muda::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
+    cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
+    cuda_tool::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
+    cuda_tool::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
 
 
   protected:

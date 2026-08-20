@@ -1,5 +1,5 @@
 #include <finite_element/finite_element_body_reporter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -34,12 +34,12 @@ void FiniteElementBodyReporter::Impl::report_count(BodyCountInfo& info)
 
 void FiniteElementBodyReporter::Impl::report_attributes(BodyAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.coindices().size(),
-               [coindices = info.coindices().viewer().name("coindices")] __device__(int i)
+               [coindices = info.coindices().viewer()] __device__(int i)
                {
                    coindices(i) = i;  // just iota
                });

@@ -10,7 +10,7 @@
 #include <iterator>
 #include <list>
 
-using namespace muda;
+using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
@@ -19,12 +19,12 @@ namespace test_info_stackless_bvh
 {
 struct NodePred
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const { return true; }
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const { return true; }
 };
 
 struct LeafPred
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
     {
         return ((info.i ^ info.j) & 1) == 0;
     }
@@ -384,8 +384,8 @@ void run_two_leaf_nodepred_cases()
         qbuffer.reserve(8);
         bvh.detect(
             d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
+            [bids = d_bids.viewer(),
+             is_self_contact = d_is_self_contact.viewer(),
              self_contact_count,
              calls = node_calls.data(),
              rejects = node_rejects.data(),
@@ -447,10 +447,10 @@ void run_two_leaf_nodepred_cases()
         qbuffer.reserve(8);
         bvh.detect(
             d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             cids = d_cids.viewer().name("cids"),
-             cmts = d_cmts.viewer().name("cmts"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
+            [bids = d_bids.viewer(),
+             cids = d_cids.viewer(),
+             cmts = d_cmts.viewer(),
+             is_self_contact = d_is_self_contact.viewer(),
              self_contact_count,
              rejects = node_rejects.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
             {
@@ -509,10 +509,10 @@ void run_two_leaf_nodepred_cases()
         qbuffer.reserve(8);
         bvh.detect(
             d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             cids = d_cids.viewer().name("cids"),
-             cmts = d_cmts.viewer().name("cmts"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
+            [bids = d_bids.viewer(),
+             cids = d_cids.viewer(),
+             cmts = d_cmts.viewer(),
+             is_self_contact = d_is_self_contact.viewer(),
              self_contact_count,
              rejects = node_rejects.data(),
              invalid_bid_hits = node_invalid_bid_hits.data(),

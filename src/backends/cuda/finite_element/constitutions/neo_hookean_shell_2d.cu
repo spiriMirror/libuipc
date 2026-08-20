@@ -1,9 +1,9 @@
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/constitutions/neo_hookean_shell_2d_function.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/codim_thickness.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
@@ -23,9 +23,9 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     vector<Float> h_lambdas;
     vector<Float> h_mus;
 
-    muda::DeviceBuffer<Float>     lambdas;
-    muda::DeviceBuffer<Float>     mus;
-    muda::DeviceBuffer<Matrix2x2> inv_B_matrices;
+    cuda_tool::DeviceBuffer<Float>     lambdas;
+    cuda_tool::DeviceBuffer<Float>     mus;
+    cuda_tool::DeviceBuffer<Matrix2x2> inv_B_matrices;
 
     SimSystemSlot<FiniteElementMethod> fem;
 
@@ -83,14 +83,14 @@ class NeoHookeanShell2D final : public Codim2DConstitution
         inv_B_matrices.resize(N);
 
         // Precompute inverse of rest shape matrix for each triangle
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NH = sym::neo_hookean_shell_2d;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(N,
-                   [prims  = prims.viewer().name("prims"),
-                    x_bars = x_bars.viewer().name("x_bars"),
-                    inv_B_mats = inv_B_matrices.viewer().name("inv_B_mats")] __device__(int I)
+                   [prims  = prims.viewer(),
+                    x_bars = x_bars.viewer(),
+                    inv_B_mats = inv_B_matrices.viewer()] __device__(int I)
                    {
                        Vector9  X_bar;
                        Vector3i idx = prims(I);
@@ -99,7 +99,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        Matrix2x2 B;
                        NH::A(B, X_bar);
 
-                       inv_B_mats(I) = muda::eigen::inverse(B);
+                       inv_B_mats(I) = cuda_tool::eigen::inverse(B);
                    });
     }
 
@@ -116,21 +116,21 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NH = sym::neo_hookean_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [lambdas    = lambdas.cviewer().name("lambdas"),
-                    mus        = mus.cviewer().name("mus"),
-                    rest_areas = info.rest_areas().viewer().name("rest_area"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    x_bars   = info.x_bars().viewer().name("x_bars"),
-                    IBs      = inv_B_matrices.cviewer().name("IBs"),
+                   [lambdas    = lambdas.cviewer(),
+                    mus        = mus.cviewer(),
+                    rest_areas = info.rest_areas().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    energies = info.energies().viewer(),
+                    indices  = info.indices().viewer(),
+                    xs       = info.xs().viewer(),
+                    x_bars   = info.x_bars().viewer(),
+                    IBs      = inv_B_matrices.cviewer(),
                     dt       = info.dt()] __device__(int I)
                    {
                        Vector9          X;
@@ -157,21 +157,21 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NH = sym::neo_hookean_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [lambdas = lambdas.cviewer().name("lambdas"),
-                    mus     = mus.cviewer().name("mus"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    IBs     = inv_B_matrices.cviewer().name("IBs"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G3s        = info.gradients().viewer().name("gradients"),
-                    H3x3s      = info.hessians().viewer().name("hessians"),
-                    rest_areas = info.rest_areas().viewer().name("volumes"),
+                   [lambdas = lambdas.cviewer(),
+                    mus     = mus.cviewer(),
+                    indices = info.indices().viewer(),
+                    xs      = info.xs().viewer(),
+                    IBs     = inv_B_matrices.cviewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    G3s        = info.gradients().viewer(),
+                    H3x3s      = info.hessians().viewer(),
+                    rest_areas = info.rest_areas().viewer(),
                     dt         = info.dt(),
                     half_hessian_size = HalfHessianSize,
                     gradient_only = info.gradient_only()] __device__(int I) mutable

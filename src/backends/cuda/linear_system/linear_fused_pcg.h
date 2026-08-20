@@ -1,6 +1,6 @@
 #pragma once
 #include <linear_system/iterative_solver.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -19,9 +19,9 @@ class LinearFusedPCG : public IterativeSolver
     virtual void do_solve(GlobalLinearSystem::SolvingInfo& info) override;
 
   private:
-    using DeviceDenseVector = muda::DeviceDenseVector<Float>;
+    using DeviceDenseVector = cuda_tool::DeviceDenseVector<Float>;
 
-    SizeT fused_pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter);
+    SizeT fused_pcg(cuda_tool::DenseVectorView<Float> x, cuda_tool::CDenseVectorView<Float> b, SizeT max_iter);
     void check_init_rz_nan_inf(Float rz);
     void check_iter_rz_nan_inf(Float rz, SizeT k);
 
@@ -30,10 +30,10 @@ class LinearFusedPCG : public IterativeSolver
     DeviceDenseVector p;
     DeviceDenseVector Ap;
 
-    muda::DeviceVar<Float>  d_rz;
-    muda::DeviceVar<Float>  d_pAp;
-    muda::DeviceVar<Float>  d_rz_new;
-    muda::DeviceVar<IndexT> d_converged;
+    cuda_tool::DeviceVar<Float>  d_rz;
+    cuda_tool::DeviceVar<Float>  d_pAp;
+    cuda_tool::DeviceVar<Float>  d_rz_new;
+    cuda_tool::DeviceVar<IndexT> d_converged;
 
     Float max_iter_ratio  = 2.0;
     Float global_tol_rate = 1e-4;

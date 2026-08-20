@@ -14,7 +14,7 @@ class OrthoPotential final : public AffineBodyConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
@@ -38,10 +38,10 @@ class OrthoPotential final : public AffineBodyConstitution
                 h_kappas[bodyI] = kappa;
             });
 
-        auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
+        auto async_copy = []<typename T>(span<T> src, cuda_tool::DeviceBuffer<T>& dst)
         {
-            muda::BufferLaunch().resize<T>(dst, src.size());
-            muda::BufferLaunch().copy<T>(dst.view(), src.data());
+            cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+            cuda_tool::BufferLaunch().copy<T>(dst.view(), src.data());
         };
 
         async_copy(span{h_kappas}, kappas);
@@ -49,7 +49,7 @@ class OrthoPotential final : public AffineBodyConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         auto body_count = info.qs().size();
 
@@ -58,10 +58,10 @@ class OrthoPotential final : public AffineBodyConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_count,
-                   [shape_energies = info.energies().viewer().name("energies"),
-                    qs             = info.qs().cviewer().name("qs"),
-                    kappas         = kappas.cviewer().name("kappas"),
-                    volumes        = info.volumes().cviewer().name("volumes"),
+                   [shape_energies = info.energies().viewer(),
+                    qs             = info.qs().cviewer(),
+                    kappas         = kappas.cviewer(),
+                    volumes        = info.volumes().cviewer(),
                     dt             = info.dt()] __device__(int i) mutable
                    {
                        auto& q      = qs(i);
@@ -78,7 +78,7 @@ class OrthoPotential final : public AffineBodyConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         auto N             = info.qs().size();
         auto gradient_only = info.gradient_only();
 
@@ -87,11 +87,11 @@ class OrthoPotential final : public AffineBodyConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(N,
-                   [qs      = info.qs().cviewer().name("qs"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.gradients().viewer().name("shape_gradients"),
-                    body_hessian = info.hessians().viewer().name("shape_hessian"),
-                    kappas = kappas.cviewer().name("kappas"),
+                   [qs      = info.qs().cviewer(),
+                    volumes = info.volumes().cviewer(),
+                    gradients = info.gradients().viewer(),
+                    body_hessian = info.hessians().viewer(),
+                    kappas = kappas.cviewer(),
                     dt     = info.dt(),
                     gradient_only] __device__(int i) mutable
                    {

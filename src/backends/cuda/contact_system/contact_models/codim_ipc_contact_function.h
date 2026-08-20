@@ -1,9 +1,9 @@
 #pragma once
 #include <type_define.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/distance.h>
 #include <utils/distance/distance_flagged.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/friction_utils.h>
 
 namespace uipc::backend::cuda
@@ -66,7 +66,7 @@ namespace sym::codim_ipc_contact
     {
         Vector2   eigen_values;
         Matrix2x2 eigen_vectors;
-        muda::eigen::template evd(mat, eigen_values, eigen_vectors);
+        cuda_tool::eigen::template evd(mat, eigen_values, eigen_vectors);
 #pragma unroll
         for(int i = 0; i < 2; ++i)
         {

@@ -4,7 +4,7 @@
 #include <utils/matrix_assembler.h>
 #include <utils/make_spd.h>
 #include <Eigen/Dense>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -21,12 +21,12 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
     void do_build(BuildInfo& info) override {}
 
-    muda::DeviceBuffer<Vector3i>  topos;
-    muda::DeviceBuffer<Float>     mus;
-    muda::DeviceBuffer<Float>     lambdas;
-    muda::DeviceBuffer<Matrix2x2> inv_Bs;
-    muda::DeviceBuffer<Float>     rest_areas;
-    muda::DeviceBuffer<Float>     thicknesses;
+    cuda_tool::DeviceBuffer<Vector3i>  topos;
+    cuda_tool::DeviceBuffer<Float>     mus;
+    cuda_tool::DeviceBuffer<Float>     lambdas;
+    cuda_tool::DeviceBuffer<Matrix2x2> inv_Bs;
+    cuda_tool::DeviceBuffer<Float>     rest_areas;
+    cuda_tool::DeviceBuffer<Float>     thicknesses;
 
     vector<Vector3i>  h_topos;
     vector<Float>     h_mus;
@@ -35,9 +35,9 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
     vector<Float>     h_rest_areas;
     vector<Float>     h_thicknesses;
 
-    muda::CBufferView<Float>              energies;
-    muda::CDoubletVectorView<Float, 3>    gradients;
-    muda::CTripletMatrixView<Float, 3, 3> hessians;
+    cuda_tool::CBufferView<Float>              energies;
+    cuda_tool::CDoubletVectorView<Float, 3>    gradients;
+    cuda_tool::CTripletMatrixView<Float, 3, 3> hessians;
 
     void do_init(FilteredInfo& info) override
     {
@@ -205,7 +205,7 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NH = sym::soft_vertex_edge_stitch;
 
         energies = info.energies();
@@ -213,14 +213,14 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos       = topos.cviewer().name("topos"),
-                    xs          = info.positions().cviewer().name("xs"),
-                    mus         = mus.cviewer().name("mus"),
-                    lambdas     = lambdas.cviewer().name("lambdas"),
-                    IBs         = inv_Bs.cviewer().name("IBs"),
-                    rest_areas  = rest_areas.cviewer().name("rest_areas"),
-                    thick       = thicknesses.cviewer().name("thicknesses"),
-                    Es          = info.energies().viewer().name("Es"),
+                   [topos       = topos.cviewer(),
+                    xs          = info.positions().cviewer(),
+                    mus         = mus.cviewer(),
+                    lambdas     = lambdas.cviewer(),
+                    IBs         = inv_Bs.cviewer(),
+                    rest_areas  = rest_areas.cviewer(),
+                    thick       = thicknesses.cviewer(),
+                    Es          = info.energies().viewer(),
                     dt          = info.dt()] __device__(int I)
                    {
                        const Vector3i& tri = topos(I);
@@ -248,7 +248,7 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NH = sym::soft_vertex_edge_stitch;
 
         gradients = info.gradients();
@@ -257,15 +257,15 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos         = topos.cviewer().name("topos"),
-                    xs            = info.positions().cviewer().name("xs"),
-                    mus           = mus.cviewer().name("mus"),
-                    lambdas       = lambdas.cviewer().name("lambdas"),
-                    IBs           = inv_Bs.cviewer().name("IBs"),
-                    rest_areas    = rest_areas.cviewer().name("rest_areas"),
-                    thick         = thicknesses.cviewer().name("thicknesses"),
-                    G3s           = info.gradients().viewer().name("Gs"),
-                    H3x3s        = info.hessians().viewer().name("H3x3s"),
+                   [topos         = topos.cviewer(),
+                    xs            = info.positions().cviewer(),
+                    mus           = mus.cviewer(),
+                    lambdas       = lambdas.cviewer(),
+                    IBs           = inv_Bs.cviewer(),
+                    rest_areas    = rest_areas.cviewer(),
+                    thick         = thicknesses.cviewer(),
+                    G3s           = info.gradients().viewer(),
+                    H3x3s        = info.hessians().viewer(),
                     dt            = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {

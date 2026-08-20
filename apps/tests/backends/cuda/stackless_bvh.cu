@@ -10,7 +10,7 @@
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 
-using namespace muda;
+using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
@@ -66,13 +66,13 @@ void compare(thrust::device_vector<T1>& l, thrust::device_vector<T2>& r, F&& f)
 }
 
 template <typename T>
-void compare(muda::CBufferView<T> l, const T* r)
+void compare(cuda_tool::CBufferView<T> l, const T* r)
 {
     std::vector<T> hl;
     hl.resize(l.size());
     l.copy_to(hl.data());
 
-    muda::CBufferView<T> r_view(r, l.size());
+    cuda_tool::CBufferView<T> r_view(r, l.size());
     std::vector<T>       hr;
     hr.resize(r_view.size());
     r_view.copy_to(hr.data());
@@ -232,7 +232,7 @@ std::vector<Vector2i> stackless_bvh_query_cp(span<const AABB> aabbs)
 void stackless_bvh_test(const SimplicialComplex& mesh)
 {
     Timer::enable_all();
-    Timer::set_sync_func([]() { muda::wait_device(); });
+    Timer::set_sync_func([]() { cuda_tool::wait_device(); });
 
     std::cout << "num_aabb=" << mesh.triangles().size() << std::endl;
 

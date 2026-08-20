@@ -12,7 +12,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/geometry_type.h>
 #include <uipc/common/map.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace std
 {
@@ -140,7 +140,7 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
 
     virtual SanityCheckResult do_check(core::SanityCheckMessage& msg) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         collect_halfplanes();
 
@@ -292,18 +292,18 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(num_vertices,
-                   [positions       = positions.cviewer().name("positions"),
-                    thickness       = thickness.cviewer().name("thickness"),
-                    contact_ids     = contact_ids.cviewer().name("contact_ids"),
-                    subscene_ids    = subscene_ids.cviewer().name("subscene_ids"),
-                    contact_mask    = contact_mask.cviewer().name("contact_mask"),
-                    subscene_mask   = subscene_mask.cviewer().name("subscene_mask"),
-                    hp_normals      = hp_normals.cviewer().name("hp_normals"),
-                    hp_origins      = hp_origins.cviewer().name("hp_origins"),
-                    hp_contact_ids  = hp_contact_ids.cviewer().name("hp_contact_ids"),
-                    hp_subscene_ids = hp_subscene_ids.cviewer().name("hp_subscene_ids"),
-                    vertex_too_close = vertex_too_close.viewer().name("vertex_too_close"),
-                    has_violation    = has_violation.viewer().name("has_violation"),
+                   [positions       = positions.cviewer(),
+                    thickness       = thickness.cviewer(),
+                    contact_ids     = contact_ids.cviewer(),
+                    subscene_ids    = subscene_ids.cviewer(),
+                    contact_mask    = contact_mask.cviewer(),
+                    subscene_mask   = subscene_mask.cviewer(),
+                    hp_normals      = hp_normals.cviewer(),
+                    hp_origins      = hp_origins.cviewer(),
+                    hp_contact_ids  = hp_contact_ids.cviewer(),
+                    hp_subscene_ids = hp_subscene_ids.cviewer(),
+                    vertex_too_close = vertex_too_close.viewer(),
+                    has_violation    = has_violation.viewer(),
                     num_hp] __device__(int i) mutable
                    {
                        for(SizeT h = 0; h < num_hp; ++h)

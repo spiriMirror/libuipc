@@ -25,12 +25,12 @@ void AffineBodyExternalBodyForceConstraint::do_init(AffineBodyAnimator::Filtered
     do_step(info);
 }
 
-muda::CBufferView<Vector12> AffineBodyExternalBodyForceConstraint::forces() const noexcept
+cuda_tool::CBufferView<Vector12> AffineBodyExternalBodyForceConstraint::forces() const noexcept
 {
     return m_impl.forces.view();
 }
 
-muda::CBufferView<IndexT> AffineBodyExternalBodyForceConstraint::body_ids() const noexcept
+cuda_tool::CBufferView<IndexT> AffineBodyExternalBodyForceConstraint::body_ids() const noexcept
 {
     return m_impl.body_ids.view();
 }

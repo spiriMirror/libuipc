@@ -51,7 +51,7 @@ void ALSimplexFrictionalContact::do_report_gradient_hessian_extent(
 
 void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_simplex_contact;
     auto& active_set = global_active_set_manager;
 
@@ -73,16 +73,16 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                PTs    = PTs.cviewer().name("PTs"),
-                lambda = PT_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                Es = PT_energies.viewer().name("Es")] __device__(int idx) mutable
+                PTs    = PTs.cviewer(),
+                lambda = PT_lambda.cviewer(),
+                x      = x.cviewer(),
+                prev_x = prev_x.cviewer(),
+                Es = PT_energies.viewer()] __device__(int idx) mutable
                {
                    auto     PT   = PTs(idx);
                    Vector4i cids = {contact_ids(PT[0]),
@@ -110,16 +110,16 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                EEs    = EEs.cviewer().name("EEs"),
-                lambda = EE_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                Es = EE_energies.viewer().name("Es")] __device__(int idx) mutable
+                EEs    = EEs.cviewer(),
+                lambda = EE_lambda.cviewer(),
+                x      = x.cviewer(),
+                prev_x = prev_x.cviewer(),
+                Es = EE_energies.viewer()] __device__(int idx) mutable
                {
                    auto     EE   = EEs(idx);
                    Vector4i cids = {contact_ids(EE[0]),
@@ -147,7 +147,7 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
 
 void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_simplex_contact;
     auto& active_set = global_active_set_manager;
 
@@ -172,17 +172,17 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                PTs    = PTs.cviewer().name("PTs"),
-                lambda = PT_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                Gs     = PT_grad.viewer().name("Gs"),
-                Hs = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
+                PTs    = PTs.cviewer(),
+                lambda = PT_lambda.cviewer(),
+                x      = x.cviewer(),
+                prev_x = prev_x.cviewer(),
+                Gs     = PT_grad.viewer(),
+                Hs = PT_hess.viewer()] __device__(int idx) mutable
                {
                    auto     PT   = PTs(idx);
                    Vector4i cids = {contact_ids(PT[0]),
@@ -219,18 +219,18 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                EEs    = EEs.cviewer().name("EEs"),
-                lambda = EE_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                rest_x = rest_x.viewer().name("rest_x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                Gs     = EE_grad.viewer().name("Gs"),
-                Hs = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
+                EEs    = EEs.cviewer(),
+                lambda = EE_lambda.cviewer(),
+                x      = x.cviewer(),
+                rest_x = rest_x.viewer(),
+                prev_x = prev_x.cviewer(),
+                Gs     = EE_grad.viewer(),
+                Hs = EE_hess.viewer()] __device__(int idx) mutable
                {
                    auto     EE   = EEs(idx);
                    Vector4i cids = {contact_ids(EE[0]),

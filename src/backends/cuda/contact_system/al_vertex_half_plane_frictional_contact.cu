@@ -52,7 +52,7 @@ void ALVertexHalfPlaneFrictionalContact::do_report_gradient_hessian_extent(
 
 void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_vertex_half_plane_contact;
     auto& active_set = global_active_set_manager;
 
@@ -70,19 +70,19 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactMa
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                PHs    = PHs.cviewer().name("PHs"),
-                lambda = PH_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                plane_positions = half_plane->positions().viewer().name("plane_positions"),
-                plane_normals = half_plane->normals().viewer().name("plane_normals"),
-                Es = PH_energies.viewer().name("Es")] __device__(int idx) mutable
+                PHs    = PHs.cviewer(),
+                lambda = PH_lambda.cviewer(),
+                x      = x.cviewer(),
+                prev_x = prev_x.cviewer(),
+                plane_positions = half_plane->positions().viewer(),
+                plane_normals = half_plane->normals().viewer(),
+                Es = PH_energies.viewer()] __device__(int idx) mutable
                {
                    auto vI = PHs(idx)(0), HI = PHs(idx)(1);
 
@@ -100,7 +100,7 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactMa
 
 void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_vertex_half_plane_contact;
     auto& active_set = global_active_set_manager;
 
@@ -119,20 +119,20 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [table = global_contact_manager->contact_tabular().cviewer().name("contact_tabular"),
+               [table = global_contact_manager->contact_tabular().cviewer(),
                 contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer().name("contact_element_ids"),
+                    global_vertex_manager->contact_element_ids().cviewer(),
                 half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
                 eps_v  = global_contact_manager->eps_velocity(),
                 dt     = dt_attr->view()[0],
-                PHs    = PHs.cviewer().name("PHs"),
-                lambda = PH_lambda.cviewer().name("lambda"),
-                x      = x.cviewer().name("x"),
-                prev_x = prev_x.cviewer().name("prev_x"),
-                plane_positions = half_plane->positions().viewer().name("plane_positions"),
-                plane_normals = half_plane->normals().viewer().name("plane_normals"),
-                Gs = PH_grad.viewer().name("Gs"),
-                Hs = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
+                PHs    = PHs.cviewer(),
+                lambda = PH_lambda.cviewer(),
+                x      = x.cviewer(),
+                prev_x = prev_x.cviewer(),
+                plane_positions = half_plane->positions().viewer(),
+                plane_normals = half_plane->normals().viewer(),
+                Gs = PH_grad.viewer(),
+                Hs = PH_hess.viewer()] __device__(int idx) mutable
                {
                    auto vI = PHs(idx)(0), HI = PHs(idx)(1);
 

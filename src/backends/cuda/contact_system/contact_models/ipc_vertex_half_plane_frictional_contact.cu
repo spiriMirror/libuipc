@@ -23,23 +23,23 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
     virtual void do_compute_energy(EnergyInfo& info)
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::ipc_vertex_half_contact;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.friction_PHs().size(),
-                   [Es  = info.energies().viewer().name("Es"),
-                    PHs = info.friction_PHs().viewer().name("PHs"),
-                    plane_positions = half_plane->positions().viewer().name("plane_positions"),
-                    plane_normals = half_plane->normals().viewer().name("plane_normals"),
-                    table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                   [Es  = info.energies().viewer(),
+                    PHs = info.friction_PHs().viewer(),
+                    plane_positions = half_plane->positions().viewer(),
+                    plane_normals = half_plane->normals().viewer(),
+                    table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    Ps      = info.positions().viewer(),
+                    prev_Ps = info.prev_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
                     eps_v  = info.eps_velocity(),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    d_hats = info.d_hats().viewer(),
                     half_plane_vertex_offset = info.half_plane_vertex_offset(),
                     dt = info.dt()] __device__(int I) mutable
                    {
@@ -69,7 +69,7 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
     virtual void do_assemble(ContactInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::ipc_vertex_half_contact;
 
         if(info.friction_PHs().size())
@@ -79,18 +79,18 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                 .apply(
                     info.friction_PHs().size(),
                     [gradient_only = info.gradient_only(),
-                     Grad          = info.gradients().viewer().name("Grad"),
-                     Hess          = info.hessians().viewer().name("Hess"),
-                     PHs           = info.friction_PHs().viewer().name("PHs"),
-                     plane_positions = half_plane->positions().viewer().name("plane_positions"),
-                     plane_normals = half_plane->normals().viewer().name("plane_normals"),
-                     table = info.contact_tabular().viewer().name("contact_tabular"),
-                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                     Ps      = info.positions().viewer().name("Ps"),
-                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                     Grad          = info.gradients().viewer(),
+                     Hess          = info.hessians().viewer(),
+                     PHs           = info.friction_PHs().viewer(),
+                     plane_positions = half_plane->positions().viewer(),
+                     plane_normals = half_plane->normals().viewer(),
+                     table = info.contact_tabular().viewer(),
+                     contact_ids = info.contact_element_ids().viewer(),
+                     Ps      = info.positions().viewer(),
+                     prev_Ps = info.prev_positions().viewer(),
+                     thicknesses = info.thicknesses().viewer(),
                      eps_v  = info.eps_velocity(),
-                     d_hats = info.d_hats().viewer().name("d_hats"),
+                     d_hats = info.d_hats().viewer(),
                      half_plane_vertex_offset = info.half_plane_vertex_offset(),
                      dt = info.dt()] __device__(int I) mutable
                     {

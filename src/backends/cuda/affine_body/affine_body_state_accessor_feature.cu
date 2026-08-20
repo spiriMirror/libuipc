@@ -4,7 +4,7 @@
 #include <joint_dof_system/global_joint_dof_manager.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/utils.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -94,13 +94,13 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_transform_to(
 
     auto* dst_ptr =
         reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
-    muda::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
+    cuda_tool::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [q_in = q_subview.cviewer().name("q_in"),
-                dst  = dst_view.viewer().name("dst")] __device__(int i) mutable
+               [q_in = q_subview.cviewer(),
+                dst  = dst_view.viewer()] __device__(int i) mutable
                { dst(i) = q_to_transform(q_in(i)); });
 }
 
@@ -113,13 +113,13 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_velocity_to(backend::Buffe
 
     auto* dst_ptr =
         reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
-    muda::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
+    cuda_tool::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [q_in = q_v_subview.cviewer().name("q_v_in"),
-                dst  = dst_view.viewer().name("dst")] __device__(int i) mutable
+               [q_in = q_v_subview.cviewer(),
+                dst  = dst_view.viewer()] __device__(int i) mutable
                { dst(i) = q_v_to_transform_v(q_in(i)); });
 }
 }  // namespace uipc::backend::cuda

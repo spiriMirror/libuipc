@@ -22,17 +22,17 @@ void HalfPlaneVertexReporter::Impl::report_count(GlobalVertexManager::VertexCoun
 
 void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::VertexAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     // fill the coindices for later use
     auto N = info.coindices().size();
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coindices = info.coindices().viewer().name("coindices"),
-                dst_pos   = info.positions().viewer().name("dst_pos"),
-                src_pos = half_plane->m_impl.positions.viewer().name("src_pos"),
-                dst_vertex_body_ids = info.body_ids().viewer().name("dst_vertex_body_ids"),
+               [coindices = info.coindices().viewer(),
+                dst_pos   = info.positions().viewer(),
+                src_pos = half_plane->m_impl.positions.viewer(),
+                dst_vertex_body_ids = info.body_ids().viewer(),
                 body_offset = body_reporter->body_offset()] __device__(int i) mutable
                {
                    coindices(i) = i;

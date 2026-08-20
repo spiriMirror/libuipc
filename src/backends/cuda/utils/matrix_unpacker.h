@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -8,7 +8,7 @@ template <typename T, int BlockDim>
 class TripletMatrixUnpacker
 {
   public:
-    MUDA_GENERIC TripletMatrixUnpacker(const muda::TripletMatrixViewer<T, BlockDim>& triplet)
+    UIPC_GENERIC TripletMatrixUnpacker(const cuda_tool::TripletMatrixViewer<T, BlockDim>& triplet)
         : m_triplet(triplet)
     {
     }
@@ -18,11 +18,11 @@ class TripletMatrixUnpacker
     class ProxyRange
     {
       public:
-        MUDA_GENERIC ProxyRange(const TripletMatrixUnpacker& unpacker, IndexT I)
+        UIPC_GENERIC ProxyRange(const TripletMatrixUnpacker& unpacker, IndexT I)
             : m_unpacker(unpacker)
             , m_I(I)
         {
-            MUDA_ASSERT(I + (M * N) <= m_unpacker.m_triplet.triplet_count(),
+            UIPC_KERNEL_ASSERT(I + (M * N) <= m_unpacker.m_triplet.triplet_count(),
                         "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
                         I,
                         M,
@@ -33,7 +33,7 @@ class TripletMatrixUnpacker
         }
 
 
-        MUDA_GENERIC void write(IndexT i,
+        UIPC_GENERIC void write(IndexT i,
                                 IndexT j,
                                 const Eigen::Matrix<T, BlockDim * M, BlockDim * N>& value)
             requires(BlockDim > 1 && (M > 1 || N > 1))
@@ -52,7 +52,7 @@ class TripletMatrixUnpacker
             }
         }
 
-        MUDA_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, M, N>& value)
+        UIPC_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, M, N>& value)
             requires(BlockDim == 1 && (M > 1 || N > 1))
         {
             IndexT offset = m_I;
@@ -67,14 +67,14 @@ class TripletMatrixUnpacker
         }
 
 
-        MUDA_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, BlockDim, BlockDim>& value)
+        UIPC_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, BlockDim, BlockDim>& value)
             requires(BlockDim > 1 && M == 1 && N == 1)
         {
             m_unpacker.m_triplet(m_I).write(i, j, value);
         }
 
 
-        MUDA_GENERIC void write(IndexT i, IndexT j, const T& value)
+        UIPC_GENERIC void write(IndexT i, IndexT j, const T& value)
             requires(BlockDim == 1 && M == 1 && N == 1)
         {
             m_unpacker.m_triplet(m_I).write(i, j, value);
@@ -100,11 +100,11 @@ class TripletMatrixUnpacker
         };
 
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
-        MUDA_GENERIC ProxyRangeHalf(const TripletMatrixUnpacker& unpacker, IndexT I)
+        UIPC_GENERIC ProxyRangeHalf(const TripletMatrixUnpacker& unpacker, IndexT I)
             : m_unpacker(unpacker)
             , m_I(I)
         {
-            MUDA_ASSERT(I + (N * (N + 1)) / 2 <= m_unpacker.m_triplet.triplet_count(),
+            UIPC_KERNEL_ASSERT(I + (N * (N + 1)) / 2 <= m_unpacker.m_triplet.triplet_count(),
                         "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
                         I,
                         N,
@@ -117,7 +117,7 @@ class TripletMatrixUnpacker
         /**
          * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
          */
-        MUDA_GENERIC void write(IndexT i, IndexT j, const BlockMatrix& value)
+        UIPC_GENERIC void write(IndexT i, IndexT j, const BlockMatrix& value)
         {
             IndexT offset = m_I;
             for(IndexT ii = 0; ii < N; ++ii)
@@ -136,13 +136,13 @@ class TripletMatrixUnpacker
         }
 
       private:
-        MUDA_GENERIC UpperIJ upper_ij(const IndexT& i,
+        UIPC_GENERIC UpperIJ upper_ij(const IndexT& i,
                                       const IndexT& j,
                                       const IndexT& ii,
                                       const IndexT& jj)
         {
             auto submatrix_offset = m_unpacker.m_triplet.submatrix_offset();
-            MUDA_ASSERT(submatrix_offset.x == submatrix_offset.y,
+            UIPC_KERNEL_ASSERT(submatrix_offset.x == submatrix_offset.y,
                         "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
                         submatrix_offset.x,
                         submatrix_offset.y);
@@ -175,13 +175,13 @@ class TripletMatrixUnpacker
      * @brief Take a range of [I, I + M * N) from the triplets.
      */
     template <int M, int N>
-    MUDA_GENERIC ProxyRange<M, N> block(IndexT I) const
+    UIPC_GENERIC ProxyRange<M, N> block(IndexT I) const
     {
         return ProxyRange<M, N>(*this, I);
     }
 
     template <int N>
-    MUDA_GENERIC ProxyRangeHalf<N> half_block(IndexT I) const
+    UIPC_GENERIC ProxyRangeHalf<N> half_block(IndexT I) const
     {
         return ProxyRangeHalf<N>(*this, I);
     }
@@ -190,7 +190,7 @@ class TripletMatrixUnpacker
      * @brief Take a range of [I, I + N) from the triplets.
      */
     template <int N>
-    MUDA_GENERIC ProxyRange<N, 1> segment(IndexT I) const
+    UIPC_GENERIC ProxyRange<N, 1> segment(IndexT I) const
     {
         return ProxyRange<N, 1>(*this, I);
     }
@@ -198,17 +198,17 @@ class TripletMatrixUnpacker
     /** 
      * @brief Take a range of [I, I + 1) from the triplets.
      */
-    MUDA_GENERIC ProxyRange<1, 1> operator()(IndexT I) const
+    UIPC_GENERIC ProxyRange<1, 1> operator()(IndexT I) const
     {
         return ProxyRange<1, 1>(*this, I);
     }
 
   private:
-    const muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
+    const cuda_tool::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
 template <typename T, int BlockDim>
-TripletMatrixUnpacker(const muda::TripletMatrixViewer<T, BlockDim>&)
+TripletMatrixUnpacker(const cuda_tool::TripletMatrixViewer<T, BlockDim>&)
     -> TripletMatrixUnpacker<T, BlockDim>;
 }  // namespace uipc::backend::cuda

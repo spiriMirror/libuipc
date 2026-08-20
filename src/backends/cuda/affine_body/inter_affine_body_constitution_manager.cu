@@ -236,19 +236,19 @@ void InterAffineBodyConstitutionManager::EnergyExtentInfo::energy_count(SizeT co
     m_energy_count = count;
 }
 
-muda::BufferView<Float> InterAffineBodyConstitutionManager::EnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> InterAffineBodyConstitutionManager::EnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constitution_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::gradients() const noexcept
+cuda_tool::DoubletVectorView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::hessians() const noexcept
+cuda_tool::TripletMatrixView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);
@@ -317,22 +317,22 @@ Float InterAffineBodyConstitutionManager::BaseInfo::dt() const noexcept
     return m_impl->dt_attr->view()[0];
 }
 
-muda::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::qs() const noexcept
+cuda_tool::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::qs() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_q.view();
 }
 
-muda::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::q_prevs() const noexcept
+cuda_tool::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::q_prevs() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_q_prev.view();
 }
 
-muda::CBufferView<ABDJacobiDyadicMass> InterAffineBodyConstitutionManager::BaseInfo::body_masses() const noexcept
+cuda_tool::CBufferView<ABDJacobiDyadicMass> InterAffineBodyConstitutionManager::BaseInfo::body_masses() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_abd_mass.view();
 }
 
-muda::CBufferView<IndexT> InterAffineBodyConstitutionManager::BaseInfo::is_fixed() const noexcept
+cuda_tool::CBufferView<IndexT> InterAffineBodyConstitutionManager::BaseInfo::is_fixed() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
 }

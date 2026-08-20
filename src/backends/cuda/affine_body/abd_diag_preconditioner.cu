@@ -2,7 +2,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/abd_linear_subsystem.h>
 #include <linear_system/global_linear_system.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend::cuda
@@ -14,7 +14,7 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
 
     ABDLinearSubsystem* abd_linear_subsystem = nullptr;
 
-    muda::DeviceBuffer<Matrix12x12> diag_inv;
+    cuda_tool::DeviceBuffer<Matrix12x12> diag_inv;
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -28,7 +28,7 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
 
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         auto diag_hessian = abd_linear_subsystem->diag_hessian();
         diag_inv.resize(diag_hessian.size());
@@ -36,23 +36,23 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
-                   [diag_hessian = diag_hessian.viewer().name("diag_hessian"),
-                    diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
-                   { diag_inv(i) = muda::eigen::inverse(diag_hessian(i)); });
+                   [diag_hessian = diag_hessian.viewer(),
+                    diag_inv = diag_inv.viewer()] __device__(int i) mutable
+                   { diag_inv(i) = cuda_tool::eigen::inverse(diag_hessian(i)); });
     }
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         auto converged = info.converged();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
-                   [r = info.r().viewer().name("r"),
-                    z = info.z().viewer().name("z"),
-                    converged = converged.cviewer().name("converged"),
-                    diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
+                   [r = info.r().viewer(),
+                    z = info.z().viewer(),
+                    converged = converged.cviewer(),
+                    diag_inv = diag_inv.viewer()] __device__(int i) mutable
                    {
                        if(*converged != 0)
                            return;

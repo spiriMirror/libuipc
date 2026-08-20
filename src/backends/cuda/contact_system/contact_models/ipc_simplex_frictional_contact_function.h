@@ -28,7 +28,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_triangle_distance2(prev_P, prev_T0, prev_T1, prev_T2, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
         point_triangle_distance2_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
@@ -92,7 +92,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_triangle_distance2(prev_P, prev_T0, prev_T1, prev_T2, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
         point_triangle_distance2_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
@@ -165,7 +165,7 @@ namespace sym::ipc_contact
 
         Float D;
         edge_edge_distance2(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
         edge_edge_distance2_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
 
@@ -231,7 +231,7 @@ namespace sym::ipc_contact
 
         Float D;
         edge_edge_distance2(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
         edge_edge_distance2_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
 
@@ -304,7 +304,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_edge_distance2(prev_P, prev_E0, prev_E1, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector9 GradD;
         point_edge_distance2_gradient(prev_P, prev_E0, prev_E1, GradD);
 
@@ -354,7 +354,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_edge_distance2(prev_P, prev_E0, prev_E1, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector9 GradD = Vector9::Zero();
         point_edge_distance2_gradient(prev_P, prev_E0, prev_E1, GradD);
 
@@ -411,7 +411,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_point_distance2(prev_P, prev_Q, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector6 GradD;
         point_point_distance2_gradient(prev_P, prev_Q, GradD);
 
@@ -453,7 +453,7 @@ namespace sym::ipc_contact
 
         Float D;
         point_point_distance2(prev_P, prev_Q, D);
-        MUDA_ASSERT(D <= squared_d_hat);
+        UIPC_KERNEL_ASSERT(D <= squared_d_hat);
         Vector6 GradD;
         point_point_distance2_gradient(prev_P, prev_Q, GradD);
 

@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <affine_body/abd_jacobi_matrix.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <sim_engine.h>
@@ -18,10 +18,10 @@ class AffineBodyKinetic;
 class AffineBodyDynamics : public SimSystem
 {
     template <typename T>
-    using DeviceBuffer = muda::DeviceBuffer<T>;
+    using DeviceBuffer = cuda_tool::DeviceBuffer<T>;
 
     template <typename T>
-    using DeviceVar = muda::DeviceVar<T>;
+    using DeviceVar = cuda_tool::DeviceVar<T>;
 
   public:
     using SimSystem::SimSystem;
@@ -326,7 +326,7 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<IndexT> body_id_to_external_kinetic;  // Body IsExternalKinetic
 
         template <typename T>
-        muda::BufferView<T> subview(DeviceBuffer<T>& body_id_to_values,
+        cuda_tool::BufferView<T> subview(DeviceBuffer<T>& body_id_to_values,
                                     SizeT constitution_index) const noexcept;
 
         template <typename T>
@@ -381,7 +381,7 @@ class AffineBodyDynamics : public SimSystem
     /**
      * @brief overwrite the dof `q` of the body
      */
-    void overwrite_qs(muda::CBufferView<Vector12> qs);
+    void overwrite_qs(cuda_tool::CBufferView<Vector12> qs);
 
     /**
      * @brief return the delta dof `dq` of the body

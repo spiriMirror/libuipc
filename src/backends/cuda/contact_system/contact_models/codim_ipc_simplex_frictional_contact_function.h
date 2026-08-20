@@ -8,7 +8,7 @@ namespace uipc::backend::cuda
 namespace sym::codim_ipc_contact
 {
 
-    inline __device__ ContactCoeff PT_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PT_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
@@ -22,7 +22,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 3.0, mu / 3.0};
     }
 
-    inline __device__ ContactCoeff EE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff EE_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
@@ -39,7 +39,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 4.0, mu / 4.0};
     }
 
-    inline __device__ ContactCoeff PE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PE_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector3i& cids)
     {
         Float kappa = 0.0;
@@ -53,7 +53,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 2.0, mu / 2.0};
     }
 
-    inline __device__ ContactCoeff PP_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PP_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector2i& cids)
     {
         return table(cids[0], cids[1]);

@@ -4,7 +4,7 @@
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 #include <utils/codim_thickness.h>
 #include <utils/primitive_d_hat.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/enumerate.h>
 #include <string_view>
 
@@ -68,7 +68,7 @@ void DistanceDiagnoser::do_build()
 namespace detail
 {
     template <typename T>
-    MUDA_GENERIC void point_triangle_closest_point_coord(
+    UIPC_GENERIC void point_triangle_closest_point_coord(
         const Vector4i&            flag,
         const Eigen::Vector<T, 3>& p,
         const Eigen::Vector<T, 3>& t0,
@@ -128,7 +128,7 @@ namespace detail
     }
 
     template <typename T>
-    MUDA_GENERIC void edge_edge_closest_point_coord(
+    UIPC_GENERIC void edge_edge_closest_point_coord(
         const Vector4i&            flag,
         const Eigen::Vector<T, 3>& ea0,
         const Eigen::Vector<T, 3>& ea1,
@@ -221,7 +221,7 @@ namespace detail
     }
 
     template <typename T>
-    MUDA_GENERIC void point_edge_closest_point_coord(
+    UIPC_GENERIC void point_edge_closest_point_coord(
         const Vector3i&            flag,
         const Eigen::Vector<T, 3>& p,
         const Eigen::Vector<T, 3>& e0,
@@ -251,7 +251,7 @@ namespace detail
     }
 
     template <typename T>
-    void upload_vertex_attribute(muda::DeviceBuffer<T>&             dst,
+    void upload_vertex_attribute(cuda_tool::DeviceBuffer<T>&             dst,
                                  const geometry::SimplicialComplex& sc,
                                  std::string_view                   name)
     {
@@ -268,7 +268,7 @@ namespace detail
     void copy_back(geometry::Geometry&    R,
                    std::string_view       name,
                    const D&               default_val,
-                   muda::BufferView<T>    buf)
+                   cuda_tool::BufferView<T>    buf)
     {
         std::string n{name};
         auto attr = R.instances().find<T>(n);
@@ -286,7 +286,7 @@ void DistanceDiagnoser::compute_point_triangle_distance(
     const geometry::SimplicialComplex& points,
     const geometry::SimplicialComplex& triangles)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto h_point_pos = points.positions().view();
     auto h_tri_pos   = triangles.positions().view();
@@ -331,21 +331,21 @@ void DistanceDiagnoser::compute_point_triangle_distance(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [point_pos    = point_pos.viewer().name("point_pos"),
-                tri_pos      = tri_pos.viewer().name("tri_pos"),
-                tri_topo     = tri_topo.viewer().name("tri_topo"),
-                dhat_p       = dhat_p.cviewer().name("dhat_p"),
-                dhat_t       = dhat_t.cviewer().name("dhat_t"),
-                thickness_p         = thickness_p.cviewer().name("thickness_p"),
-                thickness_t         = thickness_t.cviewer().name("thickness_t"),
-                dist2        = dist2.viewer().name("dist2"),
-                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
-                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
-                flags        = flags.viewer().name("flags"),
-                coords       = coords.viewer().name("coords"),
-                barrier      = barrier.viewer().name("barrier"),
-                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
-                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+               [point_pos    = point_pos.viewer(),
+                tri_pos      = tri_pos.viewer(),
+                tri_topo     = tri_topo.viewer(),
+                dhat_p       = dhat_p.cviewer(),
+                dhat_t       = dhat_t.cviewer(),
+                thickness_p         = thickness_p.cviewer(),
+                thickness_t         = thickness_t.cviewer(),
+                dist2        = dist2.viewer(),
+                dist2_grad   = dist2_grad.viewer(),
+                dist2_hess   = dist2_hess.viewer(),
+                flags        = flags.viewer(),
+                coords       = coords.viewer(),
+                barrier      = barrier.viewer(),
+                barrier_grad = barrier_grad.viewer(),
+                barrier_hess = barrier_hess.viewer(),
                 M] __device__(int i) mutable
                {
                    IndexT pi = i / M;
@@ -423,7 +423,7 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     const geometry::SimplicialComplex& rest_edges_a,
     const geometry::SimplicialComplex& rest_edges_b)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto h_pos_a      = edges_a.positions().view();
     auto h_pos_b      = edges_b.positions().view();
@@ -492,28 +492,28 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [pos_a        = pos_a.viewer().name("pos_a"),
-                pos_b        = pos_b.viewer().name("pos_b"),
-                topo_a       = topo_a.viewer().name("topo_a"),
-                topo_b       = topo_b.viewer().name("topo_b"),
-                rest_pos_a   = rest_pos_a.viewer().name("rest_pos_a"),
-                rest_pos_b   = rest_pos_b.viewer().name("rest_pos_b"),
-                dhat_a       = dhat_a.cviewer().name("dhat_a"),
-                dhat_b       = dhat_b.cviewer().name("dhat_b"),
-                thickness_a         = thickness_a.cviewer().name("thickness_a"),
-                thickness_b         = thickness_b.cviewer().name("thickness_b"),
-                dist2        = dist2.viewer().name("dist2"),
-                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
-                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
-                flags        = flags.viewer().name("flags"),
-                coords       = coords.viewer().name("coords"),
-                eps_xs       = eps_xs.viewer().name("eps_xs"),
-                e_ks         = e_ks.viewer().name("e_ks"),
-                ek_grad      = ek_grad.viewer().name("ek_grad"),
-                ek_hess      = ek_hess.viewer().name("ek_hess"),
-                barrier      = barrier.viewer().name("barrier"),
-                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
-                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+               [pos_a        = pos_a.viewer(),
+                pos_b        = pos_b.viewer(),
+                topo_a       = topo_a.viewer(),
+                topo_b       = topo_b.viewer(),
+                rest_pos_a   = rest_pos_a.viewer(),
+                rest_pos_b   = rest_pos_b.viewer(),
+                dhat_a       = dhat_a.cviewer(),
+                dhat_b       = dhat_b.cviewer(),
+                thickness_a         = thickness_a.cviewer(),
+                thickness_b         = thickness_b.cviewer(),
+                dist2        = dist2.viewer(),
+                dist2_grad   = dist2_grad.viewer(),
+                dist2_hess   = dist2_hess.viewer(),
+                flags        = flags.viewer(),
+                coords       = coords.viewer(),
+                eps_xs       = eps_xs.viewer(),
+                e_ks         = e_ks.viewer(),
+                ek_grad      = ek_grad.viewer(),
+                ek_hess      = ek_hess.viewer(),
+                barrier      = barrier.viewer(),
+                barrier_grad = barrier_grad.viewer(),
+                barrier_hess = barrier_hess.viewer(),
                 M, coeff] __device__(int i) mutable
                {
                    IndexT ai = i / M;
@@ -635,7 +635,7 @@ void DistanceDiagnoser::compute_point_edge_distance(
     const geometry::SimplicialComplex& points,
     const geometry::SimplicialComplex& edges)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto h_point_pos = points.positions().view();
     auto h_edge_pos  = edges.positions().view();
@@ -680,21 +680,21 @@ void DistanceDiagnoser::compute_point_edge_distance(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [point_pos    = point_pos.viewer().name("point_pos"),
-                edge_pos     = edge_pos.viewer().name("edge_pos"),
-                edge_topo    = edge_topo.viewer().name("edge_topo"),
-                dhat_p       = dhat_p.cviewer().name("dhat_p"),
-                dhat_e       = dhat_e.cviewer().name("dhat_e"),
-                thickness_p         = thickness_p.cviewer().name("thickness_p"),
-                thickness_e         = thickness_e.cviewer().name("thickness_e"),
-                dist2        = dist2.viewer().name("dist2"),
-                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
-                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
-                flags        = flags.viewer().name("flags"),
-                coords       = coords.viewer().name("coords"),
-                barrier      = barrier.viewer().name("barrier"),
-                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
-                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+               [point_pos    = point_pos.viewer(),
+                edge_pos     = edge_pos.viewer(),
+                edge_topo    = edge_topo.viewer(),
+                dhat_p       = dhat_p.cviewer(),
+                dhat_e       = dhat_e.cviewer(),
+                thickness_p         = thickness_p.cviewer(),
+                thickness_e         = thickness_e.cviewer(),
+                dist2        = dist2.viewer(),
+                dist2_grad   = dist2_grad.viewer(),
+                dist2_hess   = dist2_hess.viewer(),
+                flags        = flags.viewer(),
+                coords       = coords.viewer(),
+                barrier      = barrier.viewer(),
+                barrier_grad = barrier_grad.viewer(),
+                barrier_hess = barrier_hess.viewer(),
                 M] __device__(int i) mutable
                {
                    IndexT pi = i / M;
@@ -769,7 +769,7 @@ void DistanceDiagnoser::compute_point_point_distance(
     const geometry::SimplicialComplex& points_a,
     const geometry::SimplicialComplex& points_b)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto h_pos_a = points_a.positions().view();
     auto h_pos_b = points_b.positions().view();
@@ -809,18 +809,18 @@ void DistanceDiagnoser::compute_point_point_distance(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [pos_a        = pos_a.viewer().name("pos_a"),
-                pos_b        = pos_b.viewer().name("pos_b"),
-                dhat_a       = dhat_a.cviewer().name("dhat_a"),
-                dhat_b       = dhat_b.cviewer().name("dhat_b"),
-                thickness_a         = thickness_a.cviewer().name("thickness_a"),
-                thickness_b         = thickness_b.cviewer().name("thickness_b"),
-                dist2        = dist2.viewer().name("dist2"),
-                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
-                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
-                barrier      = barrier.viewer().name("barrier"),
-                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
-                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+               [pos_a        = pos_a.viewer(),
+                pos_b        = pos_b.viewer(),
+                dhat_a       = dhat_a.cviewer(),
+                dhat_b       = dhat_b.cviewer(),
+                thickness_a         = thickness_a.cviewer(),
+                thickness_b         = thickness_b.cviewer(),
+                dist2        = dist2.viewer(),
+                dist2_grad   = dist2_grad.viewer(),
+                dist2_hess   = dist2_hess.viewer(),
+                barrier      = barrier.viewer(),
+                barrier_grad = barrier_grad.viewer(),
+                barrier_hess = barrier_hess.viewer(),
                 M] __device__(int i) mutable
                {
                    IndexT ai = i / M;

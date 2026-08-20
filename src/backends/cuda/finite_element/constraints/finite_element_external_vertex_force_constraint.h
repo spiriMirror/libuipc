@@ -22,14 +22,14 @@ class FiniteElementExternalVertexForceConstraint final : public FiniteElementCon
       public:
         vector<Vector3>             h_forces;
         vector<IndexT>              h_vertex_ids;
-        muda::DeviceBuffer<Vector3> forces;
-        muda::DeviceBuffer<IndexT>  vertex_ids;
+        cuda_tool::DeviceBuffer<Vector3> forces;
+        cuda_tool::DeviceBuffer<IndexT>  vertex_ids;
 
         void step(backend::WorldVisitor& world, FiniteElementAnimator::FilteredInfo& info);
     };
 
-    muda::CBufferView<Vector3> forces() const noexcept;
-    muda::CBufferView<IndexT>  vertex_ids() const noexcept;
+    cuda_tool::CBufferView<Vector3> forces() const noexcept;
+    cuda_tool::CBufferView<IndexT>  vertex_ids() const noexcept;
 
   private:
     virtual void do_build(BuildInfo& info) override;

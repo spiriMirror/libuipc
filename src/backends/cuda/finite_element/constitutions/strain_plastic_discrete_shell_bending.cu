@@ -74,14 +74,14 @@ class StrainPlasticDiscreteShellBending final : public FiniteElementExtraConstit
     vector<Float>    h_hardening_moduli;
     vector<Float>    h_V_bars;
 
-    muda::DeviceBuffer<Vector4i> stencils;
-    muda::DeviceBuffer<Float>    bending_stiffnesses;
-    muda::DeviceBuffer<Float>    rest_lengths;
-    muda::DeviceBuffer<Float>    h_bars;
-    muda::DeviceBuffer<Float>    theta_bars;
-    muda::DeviceBuffer<Float>    yield_thresholds;
-    muda::DeviceBuffer<Float>    hardening_moduli;
-    muda::DeviceBuffer<Float>    V_bars;
+    cuda_tool::DeviceBuffer<Vector4i> stencils;
+    cuda_tool::DeviceBuffer<Float>    bending_stiffnesses;
+    cuda_tool::DeviceBuffer<Float>    rest_lengths;
+    cuda_tool::DeviceBuffer<Float>    h_bars;
+    cuda_tool::DeviceBuffer<Float>    theta_bars;
+    cuda_tool::DeviceBuffer<Float>    yield_thresholds;
+    cuda_tool::DeviceBuffer<Float>    hardening_moduli;
+    cuda_tool::DeviceBuffer<Float>    V_bars;
 
     virtual void do_build(BuildInfo& info) override {}
 
@@ -250,20 +250,20 @@ class StrainPlasticDiscreteShellBending final : public FiniteElementExtraConstit
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace PDSB = sym::strain_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.energies().size(),
-                   [stencils = stencils.viewer().name("stencils"),
-                    bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
-                    theta_bars = theta_bars.viewer().name("theta_bar"),
-                    h_bars     = h_bars.viewer().name("h_bar"),
-                    V_bars     = V_bars.viewer().name("V_bar"),
-                    L0s        = rest_lengths.viewer().name("rest_lengths"),
-                    xs         = info.xs().viewer().name("xs"),
-                    energies   = info.energies().viewer().name("energies"),
+                   [stencils = stencils.viewer(),
+                    bending_stiffnesses = bending_stiffnesses.viewer(),
+                    theta_bars = theta_bars.viewer(),
+                    h_bars     = h_bars.viewer(),
+                    V_bars     = V_bars.viewer(),
+                    L0s        = rest_lengths.viewer(),
+                    xs         = info.xs().viewer(),
+                    energies   = info.energies().viewer(),
                     dt         = info.dt()] __device__(int I)
                    {
                        Vector4i stencil   = stencils(I);
@@ -285,22 +285,22 @@ class StrainPlasticDiscreteShellBending final : public FiniteElementExtraConstit
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace PDSB = sym::strain_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(stencils.size(),
-                   [stencils = stencils.viewer().name("stencils"),
-                    bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
-                    theta_bars = theta_bars.viewer().name("theta_bar"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    h_bars = h_bars.viewer().name("h_bar"),
-                    V_bars = V_bars.viewer().name("V_bar"),
-                    L0s    = rest_lengths.viewer().name("rest_lengths"),
-                    xs     = info.xs().viewer().name("xs"),
-                    G3s    = info.gradients().viewer().name("gradients"),
-                    H3x3s  = info.hessians().viewer().name("hessians"),
+                   [stencils = stencils.viewer(),
+                    bending_stiffnesses = bending_stiffnesses.viewer(),
+                    theta_bars = theta_bars.viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    h_bars = h_bars.viewer(),
+                    V_bars = V_bars.viewer(),
+                    L0s    = rest_lengths.viewer(),
+                    xs     = info.xs().viewer(),
+                    G3s    = info.gradients().viewer(),
+                    H3x3s  = info.hessians().viewer(),
                     dt     = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
@@ -363,17 +363,17 @@ class StrainPlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegra
 
     void do_update_state(TimeIntegrator::UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace PDSB = sym::strain_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(pdsb->stencils.size(),
-                   [stencils = pdsb->stencils.cviewer().name("stencils"),
-                    theta_bars = pdsb->theta_bars.viewer().name("theta_bar"),
-                    yield_thresholds = pdsb->yield_thresholds.viewer().name("yield_threshold"),
-                    hardening_moduli = pdsb->hardening_moduli.cviewer().name("hardening_modulus"),
-                    xs = fem->xs().cviewer().name("xs")] __device__(int I) mutable
+                   [stencils = pdsb->stencils.cviewer(),
+                    theta_bars = pdsb->theta_bars.viewer(),
+                    yield_thresholds = pdsb->yield_thresholds.viewer(),
+                    hardening_moduli = pdsb->hardening_moduli.cviewer(),
+                    xs = fem->xs().cviewer()] __device__(int I) mutable
                    {
                        Vector4i stencil = stencils(I);
 

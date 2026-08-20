@@ -22,11 +22,11 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 
     void do_build(BuildInfo& info) override {}
 
-    muda::DeviceBuffer<Vector4i>  topos;
-    muda::DeviceBuffer<Float>     mus;
-    muda::DeviceBuffer<Float>     lambdas;
-    muda::DeviceBuffer<Matrix3x3> Dm_invs;
-    muda::DeviceBuffer<Float>     rest_volumes;
+    cuda_tool::DeviceBuffer<Vector4i>  topos;
+    cuda_tool::DeviceBuffer<Float>     mus;
+    cuda_tool::DeviceBuffer<Float>     lambdas;
+    cuda_tool::DeviceBuffer<Matrix3x3> Dm_invs;
+    cuda_tool::DeviceBuffer<Float>     rest_volumes;
 
     vector<Vector4i>  h_topos;
     vector<Float>     h_mus;
@@ -34,9 +34,9 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
     vector<Matrix3x3> h_Dm_invs;
     vector<Float>     h_rest_volumes;
 
-    muda::CBufferView<Float>              energies;
-    muda::CDoubletVectorView<Float, 3>    gradients;
-    muda::CTripletMatrixView<Float, 3, 3> hessians;
+    cuda_tool::CBufferView<Float>              energies;
+    cuda_tool::CDoubletVectorView<Float, 3>    gradients;
+    cuda_tool::CTripletMatrixView<Float, 3, 3> hessians;
 
     void do_init(FilteredInfo& info) override
     {
@@ -181,7 +181,7 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace SVTS = sym::soft_vertex_triangle_stitch;
 
         energies = info.energies();
@@ -189,13 +189,13 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos     = topos.cviewer().name("topos"),
-                    xs        = info.positions().cviewer().name("xs"),
-                    mus       = mus.cviewer().name("mus"),
-                    lambdas   = lambdas.cviewer().name("lambdas"),
-                    Dm_invs   = Dm_invs.cviewer().name("Dm_invs"),
-                    rest_vols = rest_volumes.cviewer().name("rest_volumes"),
-                    Es        = info.energies().viewer().name("Es"),
+                   [topos     = topos.cviewer(),
+                    xs        = info.positions().cviewer(),
+                    mus       = mus.cviewer(),
+                    lambdas   = lambdas.cviewer(),
+                    Dm_invs   = Dm_invs.cviewer(),
+                    rest_vols = rest_volumes.cviewer(),
+                    Es        = info.energies().viewer(),
                     dt        = info.dt()] __device__(int I)
                    {
                        const Vector4i& tet = topos(I);
@@ -225,7 +225,7 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace SVTS = sym::soft_vertex_triangle_stitch;
 
         gradients = info.gradients();
@@ -234,14 +234,14 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos         = topos.cviewer().name("topos"),
-                    xs            = info.positions().cviewer().name("xs"),
-                    mus           = mus.cviewer().name("mus"),
-                    lambdas       = lambdas.cviewer().name("lambdas"),
-                    Dm_invs       = Dm_invs.cviewer().name("Dm_invs"),
-                    rest_vols     = rest_volumes.cviewer().name("rest_volumes"),
-                    G3s           = info.gradients().viewer().name("Gs"),
-                    H3x3s         = info.hessians().viewer().name("H3x3s"),
+                   [topos         = topos.cviewer(),
+                    xs            = info.positions().cviewer(),
+                    mus           = mus.cviewer(),
+                    lambdas       = lambdas.cviewer(),
+                    Dm_invs       = Dm_invs.cviewer(),
+                    rest_vols     = rest_volumes.cviewer(),
+                    G3s           = info.gradients().viewer(),
+                    H3x3s         = info.hessians().viewer(),
                     dt            = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I)
                    {

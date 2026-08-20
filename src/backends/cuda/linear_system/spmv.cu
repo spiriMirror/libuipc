@@ -1,5 +1,5 @@
 #include <linear_system/spmv.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cub/warp/warp_scan.cuh>
 #include <cub/util_math.cuh>
@@ -10,10 +10,10 @@
 namespace uipc::backend::cuda
 {
 void Spmv::sym_spmv(Float                           a,
-                    muda::CBCOOMatrixView<Float, 3> A,
-                    muda::CDenseVectorView<Float>   x,
+                    cuda_tool::CBCOOMatrixView<Float, 3> A,
+                    cuda_tool::CDenseVectorView<Float>   x,
                     Float                           b,
-                    muda::DenseVectorView<Float>    y)
+                    cuda_tool::DenseVectorView<Float>    y)
 {
 
     constexpr int N = 3;
@@ -21,25 +21,25 @@ void Spmv::sym_spmv(Float                           a,
 
     if(b != 0)
     {
-        muda::ParallelFor()
+        cuda_tool::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(y.size(),
-                   [b = b, y = y.viewer().name("y")] __device__(int i) mutable
+                   [b = b, y = y.viewer()] __device__(int i) mutable
                    { y(i) = b * y(i); });
     }
     else
     {
-        muda::BufferLaunch().fill<Float>(y.buffer_view(), 0);
+        cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(A.triplet_count(),
                [a = a,
-                A = A.viewer().name("A"),
-                x = x.viewer().name("x"),
+                A = A.viewer(),
+                x = x.viewer(),
                 b = b,
-                y = y.viewer().name("y")] __device__(int index) mutable
+                y = y.viewer()] __device__(int index) mutable
                {
                    auto&& [i, j, block] = A(index);
 
@@ -107,26 +107,26 @@ struct Flags
 };
 
 void Spmv::rbk_spmv(Float                           a,
-                    muda::CBCOOMatrixView<Float, 3> A,
-                    muda::CDenseVectorView<Float>   x,
+                    cuda_tool::CBCOOMatrixView<Float, 3> A,
+                    cuda_tool::CDenseVectorView<Float>   x,
                     Float                           b,
-                    muda::DenseVectorView<Float>    y)
+                    cuda_tool::DenseVectorView<Float>    y)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr int N = 3;
     using T         = Float;
 
     if(b != 0)
     {
-        muda::ParallelFor()
+        cuda_tool::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(y.size(),
-                   [b = b, y = y.viewer().name("y")] __device__(int i) mutable
+                   [b = b, y = y.viewer()] __device__(int i) mutable
                    { y(i) = b * y(i); });
     }
     else
     {
-        muda::BufferLaunch().fill<Float>(y.buffer_view(), 0);
+        cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
     constexpr int          warp_size = 32;
@@ -134,14 +134,14 @@ void Spmv::rbk_spmv(Float                           a,
     constexpr int          block_dim = 128;
     int block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
-    muda::Launch(block_count, block_dim)
+    cuda_tool::Launch(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
         .apply(
             [a = a,
-             A = A.viewer().name("A"),
-             x = x.viewer().name("x"),
+             A = A.viewer(),
+             x = x.viewer(),
              b = b,
-             y = y.viewer().name("y")] __device__() mutable
+             y = y.viewer()] __device__() mutable
             {
                 using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
                 using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
@@ -279,41 +279,41 @@ void Spmv::rbk_spmv(Float                           a,
 }
 
 void Spmv::rbk_sym_spmv(Float                           a,
-                        muda::CBCOOMatrixView<Float, 3> A,
-                        muda::CDenseVectorView<Float>   x,
+                        cuda_tool::CBCOOMatrixView<Float, 3> A,
+                        cuda_tool::CDenseVectorView<Float>   x,
                         Float                           b,
-                        muda::DenseVectorView<Float>    y)
+                        cuda_tool::DenseVectorView<Float>    y)
 
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr int N = 3;
     using T         = Float;
 
     if(b != 0)
     {
-        muda::ParallelFor()
+        cuda_tool::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(y.size(),
-                   [b = b, y = y.viewer().name("y")] __device__(int i) mutable
+                   [b = b, y = y.viewer()] __device__(int i) mutable
                    { y(i) = b * y(i); });
     }
     else
     {
-        muda::BufferLaunch().fill<Float>(y.buffer_view(), 0);
+        cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
     constexpr int warp_size   = 32;
     constexpr int block_dim   = 256;
     int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
-    muda::ParallelFor(block_count, block_dim)
+    cuda_tool::ParallelFor(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
         .apply(A.triplet_count(),
                [a = a,
-                A = A.viewer().name("A"),
-                x = x.viewer().name("x"),
+                A = A.viewer(),
+                x = x.viewer(),
                 b = b,
-                y = y.viewer().name("y")] __device__(int idx) mutable
+                y = y.viewer()] __device__(int idx) mutable
                {
                    using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
                    using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
@@ -407,27 +407,27 @@ void Spmv::rbk_sym_spmv(Float                           a,
 }
 
 void Spmv::rbk_sym_spmv_dot(Float                           a,
-                            muda::CBCOOMatrixView<Float, 3> A,
-                            muda::CDenseVectorView<Float>   x,
+                            cuda_tool::CBCOOMatrixView<Float, 3> A,
+                            cuda_tool::CDenseVectorView<Float>   x,
                             Float                           b,
-                            muda::DenseVectorView<Float>    y,
-                            muda::VarView<Float>            d_dot)
+                            cuda_tool::DenseVectorView<Float>    y,
+                            cuda_tool::VarView<Float>            d_dot)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr int N = 3;
     using T         = Float;
 
     if(b != 0)
     {
-        muda::ParallelFor()
+        cuda_tool::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(y.size(),
-                   [b = b, y = y.viewer().name("y")] __device__(int i) mutable
+                   [b = b, y = y.viewer()] __device__(int i) mutable
                    { y(i) = b * y(i); });
     }
     else
     {
-        muda::BufferLaunch().fill<Float>(y.buffer_view(), 0);
+        cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
     cudaMemsetAsync(d_dot.data(), 0, sizeof(Float));
@@ -438,15 +438,15 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
 
     int triplet_count = A.triplet_count();
 
-    muda::Launch(block_count, block_dim)
+    cuda_tool::Launch(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
         .apply(
                [a     = a,
-                A     = A.viewer().name("A"),
-                x     = x.viewer().name("x"),
+                A     = A.viewer(),
+                x     = x.viewer(),
                 b     = b,
-                y     = y.viewer().name("y"),
-                d_dot = d_dot.viewer().name("d_dot"),
+                y     = y.viewer(),
+                d_dot = d_dot.viewer(),
                 triplet_count] __device__() mutable
                {
                    using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
@@ -543,10 +543,10 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
 }
 
 void Spmv::cpu_sym_spmv(Float                           a,
-                        muda::CBCOOMatrixView<Float, 3> A_view,
-                        muda::CDenseVectorView<Float>   x,
+                        cuda_tool::CBCOOMatrixView<Float, 3> A_view,
+                        cuda_tool::CDenseVectorView<Float>   x,
                         Float                           b,
-                        muda::DenseVectorView<Float>    y)
+                        cuda_tool::DenseVectorView<Float>    y)
 {
     using BlockMatrix      = Matrix3x3;
     constexpr int BlockDim = 3;

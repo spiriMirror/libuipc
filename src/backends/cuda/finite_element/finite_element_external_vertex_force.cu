@@ -1,7 +1,7 @@
 #include <finite_element/finite_element_external_force_reporter.h>
 #include <finite_element/constraints/finite_element_external_vertex_force_constraint.h>
 #include <finite_element/finite_element_method.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -33,14 +33,13 @@ class FiniteElementExternalVertexForce final : public FiniteElementExternalForce
     {
         SizeT force_count = constraint->forces().size();
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(force_count,
-                   [forces     = info.external_forces().viewer().name("forces"),
-                    vertex_ids = constraint->vertex_ids().viewer().name("vertex_ids"),
-                    vertex_forces = constraint->forces().viewer().name(
-                        "vertex_forces")] __device__(int i) mutable
+                   [forces     = info.external_forces().viewer(),
+                    vertex_ids = constraint->vertex_ids().viewer(),
+                    vertex_forces = constraint->forces().viewer()] __device__(int i) mutable
                    {
                        auto vid = vertex_ids(i);
                        eigen::atomic_add(forces(vid), vertex_forces(i));

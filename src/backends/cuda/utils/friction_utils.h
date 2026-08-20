@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda::friction
 {
@@ -40,7 +40,7 @@ inline UIPC_GENERIC void point_triangle_closest_point(const Eigen::Vector<T, 3>&
     Eigen::Vector<T, 2>    rhs = basis * (P - T0);
 
     // Note: don't use Eigen solve, it doesn't work for CUDA
-    beta = muda::eigen::inverse(BBT) * rhs;
+    beta = cuda_tool::eigen::inverse(BBT) * rhs;
 }
 
 template <typename T>
@@ -126,7 +126,7 @@ inline UIPC_GENERIC void edge_edge_closest_point(const Eigen::Vector<T, 3>& Ea0,
     rhs[1] = e20.dot(e23);
 
     // Note: don't use Eigen solve, it doesn't work for CUDA
-    gamma = muda::eigen::inverse(coefMtr) * rhs;
+    gamma = cuda_tool::eigen::inverse(coefMtr) * rhs;
 }
 
 template <typename T>

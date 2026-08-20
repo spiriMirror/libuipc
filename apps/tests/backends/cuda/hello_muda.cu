@@ -5,7 +5,7 @@
 
 void hello_muda()
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     DeviceBuffer<int> a(100);
     DeviceBuffer<int> b(100);
@@ -18,12 +18,12 @@ void hello_muda()
     std::vector<int> result(100, 0);
     std::vector<int> expected(100, 3);
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .kernel_name("hello_muda")
         .apply(a.size(),
-               [a = a.cviewer().name("a"),
-                b = b.cviewer().name("b"),
-                c = c.viewer().name("c")] __device__(int i) mutable
+               [a = a.cviewer(),
+                b = b.cviewer(),
+                c = c.viewer()] __device__(int i) mutable
                { c(i) = a(i) + b(i); });
 
     c.copy_to(result);

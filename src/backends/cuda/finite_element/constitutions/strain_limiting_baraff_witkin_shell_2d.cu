@@ -1,9 +1,9 @@
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/constitutions/strain_limiting_baraff_witkin_shell_2d.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/codim_thickness.h>
 #include <utils/matrix_assembler.h>
 #include <utils/make_spd.h>
@@ -24,10 +24,10 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     vector<Float> h_lambdas;
     vector<Float> h_strain_rates;
 
-    muda::DeviceBuffer<Float>     mus;
-    muda::DeviceBuffer<Float>     lambdas;
-    muda::DeviceBuffer<Float>     strain_rates;
-    muda::DeviceBuffer<Matrix2x2> inv_B_matrices;
+    cuda_tool::DeviceBuffer<Float>     mus;
+    cuda_tool::DeviceBuffer<Float>     lambdas;
+    cuda_tool::DeviceBuffer<Float>     strain_rates;
+    cuda_tool::DeviceBuffer<Matrix2x2> inv_B_matrices;
 
     SimSystemSlot<FiniteElementMethod> fem;
 
@@ -89,16 +89,16 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
         inv_B_matrices.resize(N);
 
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
 
         // Precompute inverse of rest shape matrix for each triangle
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(prims.size(),
-                   [indices = prims.cviewer().name("prims"),
-                    x_bars  = x_bars.cviewer().name("x_bars"),
-                    inv_Bs = inv_B_matrices.viewer().name("inv_Bs")] __device__(int I)
+                   [indices = prims.cviewer(),
+                    x_bars  = x_bars.cviewer(),
+                    inv_Bs = inv_B_matrices.viewer()] __device__(int I)
                    {
                        Vector3i  tri = indices(I);
                        Matrix2x2 Dm =
@@ -120,21 +120,21 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [mus          = mus.cviewer().name("mus"),
-                    lambdas      = lambdas.cviewer().name("lambdas"),
-                    strain_rates = strain_rates.cviewer().name("strain_rates"),
-                    rest_areas   = info.rest_areas().viewer().name("rest_area"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    IBs      = inv_B_matrices.cviewer().name("IBs"),
+                   [mus          = mus.cviewer(),
+                    lambdas      = lambdas.cviewer(),
+                    strain_rates = strain_rates.cviewer(),
+                    rest_areas   = info.rest_areas().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    energies = info.energies().viewer(),
+                    indices  = info.indices().viewer(),
+                    xs       = info.xs().viewer(),
+                    IBs      = inv_B_matrices.cviewer(),
                     dt       = info.dt()] __device__(int I)
                    {
                        Vector9  X;
@@ -170,23 +170,23 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [mus         = mus.cviewer().name("mus"),
-                    lambdas     = lambdas.cviewer().name("lambdas"),
-                    strainRates = strain_rates.cviewer().name("strainRates"),
-                    indices     = info.indices().viewer().name("indices"),
-                    xs          = info.xs().viewer().name("xs"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G3s        = info.gradients().viewer().name("gradients"),
-                    H3x3s      = info.hessians().viewer().name("hessians"),
-                    rest_areas = info.rest_areas().viewer().name("volumes"),
+                   [mus         = mus.cviewer(),
+                    lambdas     = lambdas.cviewer(),
+                    strainRates = strain_rates.cviewer(),
+                    indices     = info.indices().viewer(),
+                    xs          = info.xs().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    G3s        = info.gradients().viewer(),
+                    H3x3s      = info.hessians().viewer(),
+                    rest_areas = info.rest_areas().viewer(),
                     dt         = info.dt(),
-                    IBs        = inv_B_matrices.cviewer().name("IBs"),
+                    IBs        = inv_B_matrices.cviewer(),
                     half_hessian_size = HalfHessianSize,
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {

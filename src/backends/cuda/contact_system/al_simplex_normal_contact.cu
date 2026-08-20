@@ -45,7 +45,7 @@ void ALSimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactMana
 
 void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_simplex_contact;
     auto& active_set = global_active_set_manager;
 
@@ -66,14 +66,14 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                PTs    = PTs.cviewer().name("PTs"),
-                cnt    = PT_cnt.cviewer().name("cnt"),
-                d0     = PT_d0.cviewer().name("d0"),
-                d_grad = PT_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Es = PT_energies.viewer().name("Es")] __device__(int idx) mutable
+                PTs    = PTs.cviewer(),
+                cnt    = PT_cnt.cviewer(),
+                d0     = PT_d0.cviewer(),
+                d_grad = PT_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Es = PT_energies.viewer()] __device__(int idx) mutable
                {
                    auto PT = PTs(idx);
                    auto mu = min(min(mu_v(PT(0)), mu_v(PT(1))),
@@ -91,14 +91,14 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                EEs    = EEs.cviewer().name("EEs"),
-                cnt    = EE_cnt.cviewer().name("cnt"),
-                d0     = EE_d0.cviewer().name("d0"),
-                d_grad = EE_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Es = EE_energies.viewer().name("Es")] __device__(int idx) mutable
+                EEs    = EEs.cviewer(),
+                cnt    = EE_cnt.cviewer(),
+                d0     = EE_d0.cviewer(),
+                d_grad = EE_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Es = EE_energies.viewer()] __device__(int idx) mutable
                {
                    auto EE = EEs(idx);
                    auto mu = min(min(mu_v(EE(0)), mu_v(EE(1))),
@@ -116,7 +116,7 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
 
 void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_simplex_contact;
     auto& active_set = global_active_set_manager;
 
@@ -139,15 +139,15 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                PTs    = PTs.cviewer().name("PTs"),
-                cnt    = PT_cnt.cviewer().name("cnt"),
-                d0     = PT_d0.cviewer().name("d0"),
-                d_grad = PT_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = PT_grad.viewer().name("Gs"),
-                Hs = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
+                PTs    = PTs.cviewer(),
+                cnt    = PT_cnt.cviewer(),
+                d0     = PT_d0.cviewer(),
+                d_grad = PT_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Gs     = PT_grad.viewer(),
+                Hs = PT_hess.viewer()] __device__(int idx) mutable
                {
                    auto        PT = PTs(idx);
                    auto        mu = min(min(mu_v(PT(0)), mu_v(PT(1))),
@@ -175,15 +175,15 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                EEs    = EEs.cviewer().name("EEs"),
-                cnt    = EE_cnt.cviewer().name("cnt"),
-                d0     = EE_d0.cviewer().name("d0"),
-                d_grad = EE_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = EE_grad.viewer().name("Gs"),
-                Hs = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
+                EEs    = EEs.cviewer(),
+                cnt    = EE_cnt.cviewer(),
+                d0     = EE_d0.cviewer(),
+                d_grad = EE_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Gs     = EE_grad.viewer(),
+                Hs = EE_hess.viewer()] __device__(int idx) mutable
                {
                    auto        EE = EEs(idx);
                    auto        mu = min(min(mu_v(EE(0)), mu_v(EE(1))),

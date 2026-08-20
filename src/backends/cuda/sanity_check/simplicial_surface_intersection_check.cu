@@ -12,7 +12,7 @@
 #include <collision_detection/aabb.h>
 #include <collision_detection/info_stackless_bvh.h>
 #include <utils/simplex_contact_mask_utils.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace std
 {
@@ -28,7 +28,7 @@ struct less<uipc::Vector2i>
 
 namespace uipc::backend::cuda
 {
-MUDA_GENERIC inline bool tri_edge_intersect_device(const Vector3& t0,
+UIPC_GENERIC inline bool tri_edge_intersect_device(const Vector3& t0,
                                                    const Vector3& t1,
                                                    const Vector3& t2,
                                                    const Vector3& e0,
@@ -88,7 +88,7 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
                                               span<const IndexT> h_subscene_mask,
                                               SizeT subscene_element_count)
         {
-            using namespace muda;
+            using namespace cuda_tool;
 
             SizeT num_verts = Vs.size();
             SizeT num_edges = Es.size();
@@ -116,13 +116,13 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(num_tris,
-                       [positions = positions.cviewer().name("positions"),
-                        triangles = triangles.cviewer().name("triangles"),
-                        vert_bids = vert_bids.cviewer().name("vert_bids"),
-                        vert_cids = vert_cids.cviewer().name("vert_cids"),
-                        tri_aabbs = tri_aabbs.viewer().name("tri_aabbs"),
-                        tri_bids  = tri_bids.viewer().name("tri_bids"),
-                        tri_cids = tri_cids.viewer().name("tri_cids")] __device__(int i) mutable
+                       [positions = positions.cviewer(),
+                        triangles = triangles.cviewer(),
+                        vert_bids = vert_bids.cviewer(),
+                        vert_cids = vert_cids.cviewer(),
+                        tri_aabbs = tri_aabbs.viewer(),
+                        tri_bids  = tri_bids.viewer(),
+                        tri_cids = tri_cids.viewer()] __device__(int i) mutable
                        {
                            Vector3i F = triangles(i);
                            AABB     box;
@@ -140,13 +140,13 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(num_edges,
-                       [positions  = positions.cviewer().name("positions"),
-                        edges      = edges.cviewer().name("edges"),
-                        vert_bids  = vert_bids.cviewer().name("vert_bids"),
-                        vert_cids  = vert_cids.cviewer().name("vert_cids"),
-                        edge_aabbs = edge_aabbs.viewer().name("edge_aabbs"),
-                        edge_bids  = edge_bids.viewer().name("edge_bids"),
-                        edge_cids = edge_cids.viewer().name("edge_cids")] __device__(int i) mutable
+                       [positions  = positions.cviewer(),
+                        edges      = edges.cviewer(),
+                        vert_bids  = vert_bids.cviewer(),
+                        vert_cids  = vert_cids.cviewer(),
+                        edge_aabbs = edge_aabbs.viewer(),
+                        edge_bids  = edge_bids.viewer(),
+                        edge_cids = edge_cids.viewer()] __device__(int i) mutable
                        {
                            Vector2i E = edges(i);
                            AABB     box;

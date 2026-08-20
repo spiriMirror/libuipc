@@ -41,11 +41,11 @@ class AffineBodyConstitution : public SimSystem
             return m_impl->affine_body_dynamics->body_is_fixed();
         }
 
-        muda::CBufferView<Vector12> qs() const noexcept;
+        cuda_tool::CBufferView<Vector12> qs() const noexcept;
 
-        muda::CBufferView<Vector12> q_prevs() const noexcept;
+        cuda_tool::CBufferView<Vector12> q_prevs() const noexcept;
 
-        muda::CBufferView<Float> volumes() const noexcept;
+        cuda_tool::CBufferView<Float> volumes() const noexcept;
 
       protected:
         Impl*  m_impl  = nullptr;

@@ -10,7 +10,7 @@
 #include <finite_element/fem_utils.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/common/json_eigen.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <ranges>
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
@@ -883,7 +883,7 @@ To avoid this warning, please apply the transform to the positions mannally. htt
 
 void FiniteElementMethod::Impl::_build_on_device()
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // 1) Vertex States
     xs.resize(h_positions.size());
@@ -939,9 +939,9 @@ void FiniteElementMethod::Impl::_build_on_device()
     ParallelFor()
         .kernel_name("Rod Basis")
         .apply(codim_1ds.size(),
-               [codim_1ds = codim_1ds.viewer().name("codim_1ds"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                rest_lengths = rest_lengths.viewer().name("rest_lengths")] __device__(int i) mutable
+               [codim_1ds = codim_1ds.viewer(),
+                x_bars    = x_bars.viewer(),
+                rest_lengths = rest_lengths.viewer()] __device__(int i) mutable
                {
                    const Vector2i& edge = codim_1ds(i);
                    const Vector3&  x0   = x_bars(edge[0]);
@@ -955,9 +955,9 @@ void FiniteElementMethod::Impl::_build_on_device()
     ParallelFor()
         .kernel_name("Shell Basis")
         .apply(codim_2ds.size(),
-               [codim_2ds = codim_2ds.viewer().name("codim_2ds"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                rest_areas = rest_areas.viewer().name("rest_areas")] __device__(int i) mutable
+               [codim_2ds = codim_2ds.viewer(),
+                x_bars    = x_bars.viewer(),
+                rest_areas = rest_areas.viewer()] __device__(int i) mutable
                {
                    const Vector3i& tri = codim_2ds(i);
                    const Vector3&  x0  = x_bars(tri[0]);
@@ -975,10 +975,10 @@ void FiniteElementMethod::Impl::_build_on_device()
     ParallelFor()
         .kernel_name("FEM3D Material Basis")
         .apply(tets.size(),
-               [tets      = tets.viewer().name("tets"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                Dm9x9_inv = Dm3x3_invs.viewer().name("Dm3x3_inv"),
-                rest_volumes = rest_volumes.viewer().name("rest_volumes")] __device__(int i) mutable
+               [tets      = tets.viewer(),
+                x_bars    = x_bars.viewer(),
+                Dm9x9_inv = Dm3x3_invs.viewer(),
+                rest_volumes = rest_volumes.viewer()] __device__(int i) mutable
                {
                    const Vector4i& tet = tets(i);
                    const Vector3&  x0  = x_bars(tet[0]);
@@ -988,7 +988,7 @@ void FiniteElementMethod::Impl::_build_on_device()
 
                    Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
                    Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
-                   MUDA_ASSERT(V > 0.0,
+                   UIPC_KERNEL_ASSERT(V > 0.0,
                                "Negative volume tetrahedron (%d, %d, %d, %d)",
                                tet[0],
                                tet[1],
@@ -1160,7 +1160,7 @@ size_t FiniteElementMethod::FilteredInfo::primitive_count() const noexcept
     return constitution_info().primitive_count;
 }
 
-void FiniteElementMethod::overwrite_xs(muda::CBufferView<Vector3> xs)
+void FiniteElementMethod::overwrite_xs(cuda_tool::CBufferView<Vector3> xs)
 {
     m_impl.xs.view().copy_from(xs);
 }

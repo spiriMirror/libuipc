@@ -4,7 +4,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
@@ -18,7 +18,7 @@ class ARAP final : public AffineBodyConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
@@ -45,10 +45,10 @@ class ARAP final : public AffineBodyConstitution
 
     void _build_on_device()
     {
-        auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
+        auto async_copy = []<typename T>(span<T> src, cuda_tool::DeviceBuffer<T>& dst)
         {
-            muda::BufferLaunch().resize<T>(dst, src.size());
-            muda::BufferLaunch().copy<T>(dst.view(), src.data());
+            cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+            cuda_tool::BufferLaunch().copy<T>(dst.view(), src.data());
         };
 
         async_copy(span{h_kappas}, kappas);
@@ -56,7 +56,7 @@ class ARAP final : public AffineBodyConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace abd_arap = sym::abd_arap;
 
         auto body_count = info.qs().size();
@@ -64,10 +64,10 @@ class ARAP final : public AffineBodyConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_count,
-                   [shape_energies = info.energies().viewer().name("energies"),
-                    qs             = info.qs().cviewer().name("qs"),
-                    kappas         = kappas.cviewer().name("kappas"),
-                    volumes        = info.volumes().cviewer().name("volumes"),
+                   [shape_energies = info.energies().viewer(),
+                    qs             = info.qs().cviewer(),
+                    kappas         = kappas.cviewer(),
+                    volumes        = info.volumes().cviewer(),
                     dt             = info.dt()] __device__(int i) mutable
                    {
                        auto& q      = qs(i);
@@ -85,7 +85,7 @@ class ARAP final : public AffineBodyConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace abd_arap = sym::abd_arap;
 
         auto N             = info.qs().size();
@@ -94,11 +94,11 @@ class ARAP final : public AffineBodyConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(N,
-                   [qs      = info.qs().cviewer().name("qs"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.gradients().viewer().name("shape_gradients"),
-                    hessians = info.hessians().viewer().name("shape_hessian"),
-                    kappas   = kappas.cviewer().name("kappas"),
+                   [qs      = info.qs().cviewer(),
+                    volumes = info.volumes().cviewer(),
+                    gradients = info.gradients().viewer(),
+                    hessians = info.hessians().viewer(),
+                    kappas   = kappas.cviewer(),
                     dt       = info.dt(),
                     gradient_only] __device__(int i) mutable
                    {

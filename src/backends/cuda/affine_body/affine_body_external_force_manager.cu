@@ -24,11 +24,11 @@ void AffineBodyExternalForceManager::Impl::clear()
     auto external_forces =
         affine_body_dynamics->m_impl.body_id_to_external_force.view();
 
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(external_forces.size(),
-               [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
+               [forces = external_forces.viewer()] __device__(int i) mutable
                { forces(i).setZero(); });
 }
 
@@ -43,7 +43,7 @@ void AffineBodyExternalForceManager::Impl::step()
 
     // At this point, constraints have already written to external_force buffer
     // Now compute accelerations from external forces
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto& abd = affine_body_dynamics->m_impl;
     // Read Write BufferView
@@ -55,13 +55,13 @@ void AffineBodyExternalForceManager::Impl::step()
 
     SizeT body_count = forces.size();
 
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [forces     = forces.cviewer().name("forces"),
-                force_accs = force_accs.viewer().name("force_accs"),
-                masses_inv = masses_inv.cviewer().name("masses_inv")] __device__(int i)
+               [forces     = forces.cviewer(),
+                force_accs = force_accs.viewer(),
+                masses_inv = masses_inv.cviewer()] __device__(int i)
                {
                    const auto& F     = forces(i);
                    const auto& M_inv = masses_inv(i);
@@ -90,7 +90,7 @@ void AffineBodyExternalForceManager::do_step()
     m_impl.step();
 }
 
-muda::BufferView<Vector12> AffineBodyExternalForceManager::ExternalForceInfo::external_forces() noexcept
+cuda_tool::BufferView<Vector12> AffineBodyExternalForceManager::ExternalForceInfo::external_forces() noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_external_force.view();
 }

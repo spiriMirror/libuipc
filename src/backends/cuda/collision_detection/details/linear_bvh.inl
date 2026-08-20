@@ -1,8 +1,8 @@
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 #include <cub/util_ptx.cuh>
 #include <cuda/atomic>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 #include <uipc/common/log.h>
 
@@ -13,7 +13,7 @@
 namespace uipc::backend::cuda
 {
 template <typename QueryType, typename IntersectF, typename CallbackF>
-MUDA_DEVICE uint32_t LinearBVHViewer::query(const QueryType& Q,
+UIPC_DEVICE uint32_t LinearBVHViewer::query(const QueryType& Q,
                                             IntersectF       Intersect,
                                             uint32_t*        stack,
                                             uint32_t         stack_num,
@@ -83,7 +83,7 @@ MUDA_DEVICE uint32_t LinearBVHViewer::query(const QueryType& Q,
 
 namespace uipc::backend::cuda
 {
-MUDA_INLINE LinearBVHViewer::LinearBVHViewer(const uint32_t       num_nodes,
+UIPC_INLINE LinearBVHViewer::LinearBVHViewer(const uint32_t       num_nodes,
                                              const uint32_t       num_objects,
                                              const LinearBVHNode* nodes,
                                              const LinearBVHAABB* aabbs)
@@ -95,21 +95,21 @@ MUDA_INLINE LinearBVHViewer::LinearBVHViewer(const uint32_t       num_nodes,
 }
 
 template <typename T>
-void LinearBVH::resize(muda::Stream& s, muda::DeviceBuffer<T>& V, size_t size)
+void LinearBVH::resize(cuda_tool::Stream& s, cuda_tool::DeviceBuffer<T>& V, size_t size)
 {
     if(size > V.capacity())
-        muda::BufferLaunch(s).reserve(V, size * m_config.buffer_resize_factor);
-    muda::BufferLaunch(s).resize(V, size);
+        cuda_tool::BufferLaunch(s).reserve(V, size * m_config.buffer_resize_factor);
+    cuda_tool::BufferLaunch(s).resize(V, size);
 }
 
-MUDA_INLINE MUDA_DEVICE bool LinearBVHViewer::stack_overflow() const noexcept
+UIPC_INLINE UIPC_DEVICE bool LinearBVHViewer::stack_overflow() const noexcept
 {
     return m_stack_overflow;
 }
 
-MUDA_INLINE MUDA_DEVICE void LinearBVHViewer::check_index(const uint32_t idx) const noexcept
+UIPC_INLINE UIPC_DEVICE void LinearBVHViewer::check_index(const uint32_t idx) const noexcept
 {
-    MUDA_KERNEL_ASSERT(idx < m_num_objects,
+    UIPC_KERNEL_ASSERT(idx < m_num_objects,
                        "BVHViewer[%s:%s]: index out of range, idx=%u, num_objects=%u. %s(%d)",
                        this->name(),
                        this->kernel_name(),
@@ -119,12 +119,12 @@ MUDA_INLINE MUDA_DEVICE void LinearBVHViewer::check_index(const uint32_t idx) co
                        this->kernel_line());
 }
 
-MUDA_INLINE MUDA_DEVICE void LinearBVHViewer::stack_overflow(uint32_t num_found,
+UIPC_INLINE UIPC_DEVICE void LinearBVHViewer::stack_overflow(uint32_t num_found,
                                                              uint32_t stack_num) const noexcept
 {
-    if constexpr(muda::RUNTIME_CHECK_ON)
+    if constexpr(cuda_tool::RUNTIME_CHECK_ON)
     {
-        MUDA_KERNEL_WARN_WITH_LOCATION(
+        UIPC_KERNEL_WARN_WITH_LOCATION(
             "BVHViewer[%s:%s]: stack overflow, num_found=%u, stack_num=%u,"
             "the intersection count may be smaller than the ground truth, try enlarge the stack please. %s(%d)",
             this->name(),
@@ -138,17 +138,17 @@ MUDA_INLINE MUDA_DEVICE void LinearBVHViewer::stack_overflow(uint32_t num_found,
     m_stack_overflow = 1;
 }
 
-MUDA_INLINE bool LinearBVHNode::is_leaf() const noexcept
+UIPC_INLINE bool LinearBVHNode::is_leaf() const noexcept
 {
     return object_idx != 0xFFFFFFFF;
 }
 
-MUDA_INLINE bool LinearBVHNode::is_top() const noexcept
+UIPC_INLINE bool LinearBVHNode::is_top() const noexcept
 {
     return parent_idx == 0xFFFFFFFF;
 }
 
-MUDA_INLINE bool LinearBVHNode::is_internal() const noexcept
+UIPC_INLINE bool LinearBVHNode::is_internal() const noexcept
 {
     return object_idx == 0xFFFFFFFF;
 }
@@ -161,18 +161,18 @@ MUDA_INLINE bool LinearBVHNode::is_internal() const noexcept
 
 namespace uipc::backend::cuda::detail
 {
-MUDA_INLINE MUDA_DEVICE int common_upper_bits(const unsigned long long int lhs,
+UIPC_INLINE UIPC_DEVICE int common_upper_bits(const unsigned long long int lhs,
                                               const unsigned long long int rhs) noexcept
 {
 #ifdef __CUDA_ARCH__
     return ::__clzll(lhs ^ rhs);
 #else
-    MUDA_ASSERT(false, "common_upper_bits is not supported on the host.");
+    UIPC_KERNEL_ASSERT(false, "common_upper_bits is not supported on the host.");
     return -1;
 #endif
 }
 
-MUDA_INLINE MUDA_GENERIC std::uint32_t expand_bits(std::uint32_t v) noexcept
+UIPC_INLINE UIPC_GENERIC std::uint32_t expand_bits(std::uint32_t v) noexcept
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
@@ -181,7 +181,7 @@ MUDA_INLINE MUDA_GENERIC std::uint32_t expand_bits(std::uint32_t v) noexcept
     return v;
 }
 
-MUDA_INLINE MUDA_GENERIC std::uint32_t morton_code(Eigen::Vector3f xyz) noexcept
+UIPC_INLINE UIPC_GENERIC std::uint32_t morton_code(Eigen::Vector3f xyz) noexcept
 {
     xyz = xyz.cwiseMin(1.0).cwiseMax(0.0);
     const std::uint32_t xx = expand_bits(static_cast<std::uint32_t>(xyz.x() * 1024.0));
@@ -190,7 +190,7 @@ MUDA_INLINE MUDA_GENERIC std::uint32_t morton_code(Eigen::Vector3f xyz) noexcept
     return xx * 4 + yy * 2 + zz;
 }
 
-MUDA_INLINE MUDA_DEVICE uint2 determine_range(muda::Dense1D<LinearBVHMortonIndex> node_code,
+UIPC_INLINE UIPC_DEVICE uint2 determine_range(cuda_tool::Dense1D<LinearBVHMortonIndex> node_code,
                                               const uint32_t num_leaves,
                                               uint32_t       idx)
 {
@@ -255,7 +255,7 @@ MUDA_INLINE MUDA_DEVICE uint2 determine_range(muda::Dense1D<LinearBVHMortonIndex
 }
 
 
-MUDA_INLINE MUDA_DEVICE uint32_t find_split(muda::Dense1D<LinearBVHMortonIndex> node_code,
+UIPC_INLINE UIPC_DEVICE uint32_t find_split(cuda_tool::Dense1D<LinearBVHMortonIndex> node_code,
                                             const uint32_t num_leaves,
                                             const uint32_t first,
                                             const uint32_t last) noexcept
@@ -290,25 +290,23 @@ MUDA_INLINE MUDA_DEVICE uint32_t find_split(muda::Dense1D<LinearBVHMortonIndex> 
 }
 
 
-MUDA_INLINE void build_internal_aabbs(size_t num_objects,
-                                      muda::CBufferView<LinearBVHNode> nodes,
-                                      muda::BufferView<LinearBVHAABB> sorted_aabbs,
-                                      muda::BufferView<int> flags,
-                                      muda::Stream&         s)
+UIPC_INLINE void build_internal_aabbs(size_t num_objects,
+                                      cuda_tool::CBufferView<LinearBVHNode> nodes,
+                                      cuda_tool::BufferView<LinearBVHAABB> sorted_aabbs,
+                                      cuda_tool::BufferView<int> flags,
+                                      cuda_tool::Stream&         s)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto num_internal_nodes = num_objects - 1;
     auto leaf_start         = num_internal_nodes;
 
     auto internal_aabbs = sorted_aabbs.subview(0, num_internal_nodes);
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(num_objects,
-               [nodes = nodes.cviewer().name("nodes"),
-                aabbs = sorted_aabbs.viewer().name("aabbs"),
-                flags = flags.viewer().name("flags"),
+               [nodes = nodes.cviewer(),
+                aabbs = sorted_aabbs.viewer(),
+                flags = flags.viewer(),
                 leaf_start] __device__(int I) mutable
                {
                    auto leaf_idx = I + leaf_start;
@@ -316,7 +314,7 @@ MUDA_INLINE void build_internal_aabbs(size_t num_objects,
 
                    while(parent != 0xFFFFFFFF)  // means idx == 0
                    {
-                       const int old = muda::atomic_add(&flags(parent), 1);
+                       const int old = cuda_tool::atomic_add(&flags(parent), 1);
 
                        // the memory fence is necessary to disable reordering of the memory access.
                        // we need to ensure that this thread can get the updated value of AABB.
@@ -329,7 +327,7 @@ MUDA_INLINE void build_internal_aabbs(size_t num_objects,
                            // wait the other thread from the other child node.
                            return;
                        }
-                       MUDA_KERNEL_ASSERT(old == 1, "old=%d", old);
+                       UIPC_KERNEL_ASSERT(old == 1, "old=%d", old);
                        //here, the flag has already been 1. it means that this
                        //thread is the 2nd thread. merge AABB of both childlen.
 
@@ -371,9 +369,9 @@ MUDA_INLINE void build_internal_aabbs(size_t num_objects,
 
 namespace uipc::backend::cuda
 {
-MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
+UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, cuda_tool::Stream& s)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     if(aabbs.size() == 0)
         return;
@@ -409,18 +407,16 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
         default_aabb);
 
     // 2) calculate m_morton_index code
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(num_objects,
-               [max_aabb = m_max_aabb.viewer().name("max_aabb"),
-                aabbs    = aabbs.viewer().name("filled_aabbs"),
-                mortons = m_mortons.viewer().name("mortons")] __device__(int i) mutable
+               [max_aabb = m_max_aabb.viewer(),
+                aabbs    = aabbs.viewer(),
+                mortons = m_mortons.viewer()] __device__(int i) mutable
                {
                    auto&           aabb = aabbs(i);
                    Eigen::Vector3f p    = aabb.center();
 
-                   MUDA_ASSERT(aabbs(i).volume() >= 0,
+                   UIPC_KERNEL_ASSERT(aabbs(i).volume() >= 0,
                                "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
 
                                i,
@@ -437,9 +433,7 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                });
 
     // 3) sort m_morton_index code
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(m_indices.size(),
                [indices = m_indices.viewer()] __device__(int i) mutable
                { indices(i) = i; });
@@ -452,13 +446,11 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                                  num_objects);
 
     // 5) expand m_morton_index code to 64bit, the last 32bit is the index
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(m_mortons.size(),
-               [morton64s = m_morton_idx.viewer().name("morton64s"),
-                mortons   = m_sorted_mortons.viewer().name("mortons"),
-                indices = m_new_to_old.viewer().name("indices")] __device__(int i) mutable
+               [morton64s = m_morton_idx.viewer(),
+                mortons   = m_sorted_mortons.viewer(),
+                indices = m_new_to_old.viewer()] __device__(int i) mutable
                {
                    uint32_t    idx = i;
                    MortonIndex morton{mortons(i), idx};
@@ -468,14 +460,12 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
     // 6) setup leaf nodes
     auto leaf_aabbs = m_aabbs.view(leaf_start);  // offset = leaf_start
     auto leaf_nodes = m_nodes.view(leaf_start);  // offset = leaf_start
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(num_objects,
-               [leaf_nodes = leaf_nodes.viewer().name("leaf_nodes"),
-                indices    = m_new_to_old.viewer().name("indices"),
-                aabbs      = aabbs.viewer().name("aabbs"),
-                sorted_aabbs = leaf_aabbs.viewer().name("sorted_aabbs")] __device__(int i) mutable
+               [leaf_nodes = leaf_nodes.viewer(),
+                indices    = m_new_to_old.viewer(),
+                aabbs      = aabbs.viewer(),
+                sorted_aabbs = leaf_aabbs.viewer()] __device__(int i) mutable
                {
                    LinearBVHNode node;
                    node.parent_idx = 0xFFFFFFFF;
@@ -487,12 +477,10 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                });
 
     // 7) construct internal nodes
-    on(s)
-        .next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor(0, s)
         .apply(num_internal_nodes,
-               [nodes      = m_nodes.viewer().name("nodes"),
-                morton_idx = m_morton_idx.viewer().name("morton_idx"),
+               [nodes      = m_nodes.viewer(),
+                morton_idx = m_morton_idx.viewer(),
                 num_objects] __device__(int idx) mutable
                {
                    nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
@@ -519,9 +507,9 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
     build_internal_aabbs(s);
 }
 
-MUDA_INLINE void LinearBVH::update(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
+UIPC_INLINE void LinearBVH::update(cuda_tool::CBufferView<LinearBVHAABB> aabbs, cuda_tool::Stream& s)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     UIPC_ASSERT(aabbs.size() == m_indices.size(),
                 "To update the tree, the number of input AABBs({}) must be the same as the original number of objects ({}) in the BVH.",
@@ -530,21 +518,20 @@ MUDA_INLINE void LinearBVH::update(muda::CBufferView<LinearBVHAABB> aabbs, muda:
 
     // 1) update leaf aabbs
     auto leaf_aabbs = m_aabbs.view(m_nodes.size() - aabbs.size());
-    on().next<ParallelFor>()
-        .file_line(__FILE__, __LINE__)
+    ParallelFor()
         .apply(aabbs.size(),
-               [indices = m_new_to_old.viewer().name("indices"),
-                aabbs   = aabbs.viewer().name("aabbs"),
-                leaf_aabbs = leaf_aabbs.viewer().name("sorted_aabbs")] __device__(int i) mutable
+               [indices = m_new_to_old.viewer(),
+                aabbs   = aabbs.viewer(),
+                leaf_aabbs = leaf_aabbs.viewer()] __device__(int i) mutable
                { leaf_aabbs(i) = aabbs(indices(i)); });
 
     // 2) update internal aabbs
     build_internal_aabbs(s);
 }
 
-MUDA_INLINE void LinearBVH::build_internal_aabbs(muda::Stream& s)
+UIPC_INLINE void LinearBVH::build_internal_aabbs(cuda_tool::Stream& s)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto num_internal_nodes = m_nodes.size() - m_indices.size();
     resize(s, m_flags, num_internal_nodes);
     BufferLaunch(s).fill(m_flags.view(), 0);
@@ -558,19 +545,19 @@ MUDA_INLINE void LinearBVH::build_internal_aabbs(muda::Stream& s)
  *****************************************************************************************/
 namespace uipc::backend::cuda::detail
 {
-MUDA_INLINE LinearBVHMortonIndex::LinearBVHMortonIndex(uint32_t m, uint32_t idx) noexcept
+UIPC_INLINE LinearBVHMortonIndex::LinearBVHMortonIndex(uint32_t m, uint32_t idx) noexcept
 {
     m_morton_index = m;
     m_morton_index <<= 32;
     m_morton_index |= idx;
 }
 
-MUDA_INLINE LinearBVHMortonIndex::operator uint64_t() const noexcept
+UIPC_INLINE LinearBVHMortonIndex::operator uint64_t() const noexcept
 {
     return m_morton_index;
 }
 
-MUDA_INLINE bool operator==(const LinearBVHMortonIndex& lhs,
+UIPC_INLINE bool operator==(const LinearBVHMortonIndex& lhs,
                             const LinearBVHMortonIndex& rhs) noexcept
 {
     return lhs.m_morton_index == rhs.m_morton_index;
@@ -579,9 +566,9 @@ MUDA_INLINE bool operator==(const LinearBVHMortonIndex& lhs,
 
 namespace uipc::backend::cuda
 {
-MUDA_INLINE LinearBVH::LinearBVH(const LinearBVHConfig& config) noexcept {}
+UIPC_INLINE LinearBVH::LinearBVH(const LinearBVHConfig& config) noexcept {}
 
-MUDA_INLINE LinearBVHViewer LinearBVH::viewer() const noexcept
+UIPC_INLINE LinearBVHViewer LinearBVH::viewer() const noexcept
 {
     return LinearBVHViewer{(uint32_t)m_nodes.size(),
                            (uint32_t)m_mortons.size(),
@@ -589,29 +576,29 @@ MUDA_INLINE LinearBVHViewer LinearBVH::viewer() const noexcept
                            m_aabbs.data()};
 }
 
-MUDA_INLINE LinearBVHVisitor::LinearBVHVisitor(LinearBVH& bvh) noexcept
+UIPC_INLINE LinearBVHVisitor::LinearBVHVisitor(LinearBVH& bvh) noexcept
     : m_bvh(bvh)
 {
 }
 
-MUDA_INLINE muda::CBufferView<LinearBVHNode> LinearBVHVisitor::nodes() const noexcept
+UIPC_INLINE cuda_tool::CBufferView<LinearBVHNode> LinearBVHVisitor::nodes() const noexcept
 {
     return m_bvh.m_nodes;
 }
 
-MUDA_INLINE muda::CBufferView<LinearBVHNode> LinearBVHVisitor::object_nodes() const noexcept
+UIPC_INLINE cuda_tool::CBufferView<LinearBVHNode> LinearBVHVisitor::object_nodes() const noexcept
 {
     auto object_count = m_bvh.m_indices.size();
     auto node_offset  = m_bvh.m_nodes.size() - object_count;
     return m_bvh.m_nodes.view(node_offset);
 }
 
-MUDA_INLINE muda::CBufferView<LinearBVHAABB> LinearBVHVisitor::aabbs() const noexcept
+UIPC_INLINE cuda_tool::CBufferView<LinearBVHAABB> LinearBVHVisitor::aabbs() const noexcept
 {
     return m_bvh.m_aabbs;
 }
 
-MUDA_INLINE muda::CVarView<LinearBVHAABB> LinearBVHVisitor::top_aabb() const noexcept
+UIPC_INLINE cuda_tool::CVarView<LinearBVHAABB> LinearBVHVisitor::top_aabb() const noexcept
 {
     return m_bvh.m_max_aabb;
 }

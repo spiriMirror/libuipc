@@ -1,6 +1,6 @@
 #include <affine_body/affine_body_kinetic.h>
 #include <time_integrator/bdf1_flag.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend::cuda
@@ -18,19 +18,19 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    ext_kinetic = info.external_kinetic().cviewer().name("ext_kinetic"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_tildes"),
-                    q_tildes  = info.q_tildes().cviewer().name("q_tildes"),
-                    gravities = info.gravities().cviewer().name("gravities"),
-                    masses    = info.masses().cviewer().name("masses"),
-                    Ks = info.energies().viewer().name("kinetic_energy")] __device__(int i) mutable
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    ext_kinetic = info.external_kinetic().cviewer(),
+                    qs        = info.qs().cviewer(),
+                    q_prevs   = info.q_prevs().cviewer(),
+                    q_tildes  = info.q_tildes().cviewer(),
+                    gravities = info.gravities().cviewer(),
+                    masses    = info.masses().cviewer(),
+                    Ks = info.energies().viewer()] __device__(int i) mutable
                    {
                        auto& K = Ks(i);
                        if(is_fixed(i) || ext_kinetic(i))
@@ -50,20 +50,20 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    qs         = info.qs().cviewer().name("qs"),
-                    q_prevs    = info.q_prevs().cviewer().name("q_tildes"),
-                    q_tildes   = info.q_tildes().cviewer().name("q_tildes"),
-                    gravities  = info.gravities().cviewer().name("gravities"),
-                    masses     = info.masses().cviewer().name("masses"),
-                    hessians   = info.hessians().viewer().name("hessians"),
-                    gradients  = info.gradients().viewer().name("gradients"),
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    qs         = info.qs().cviewer(),
+                    q_prevs    = info.q_prevs().cviewer(),
+                    q_tildes   = info.q_tildes().cviewer(),
+                    gravities  = info.gravities().cviewer(),
+                    masses     = info.masses().cviewer(),
+                    hessians   = info.hessians().viewer(),
+                    gradients  = info.gradients().viewer(),
                     dt         = info.dt(),
                     gradient_only = info.gradient_only(),
                     cout = KernelCout::viewer()] __device__(int i) mutable

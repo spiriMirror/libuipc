@@ -3,9 +3,9 @@
 #include <finite_element/finite_element_kinetic.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -38,28 +38,28 @@ void FEMLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& i
 
 void FEMLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     fem().x_temps = fem().xs;
 }
 
 void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                x_temps  = fem().x_temps.cviewer().name("x_temps"),
-                xs       = fem().xs.viewer().name("xs"),
-                dxs      = fem().dxs.cviewer().name("dxs"),
+               [is_fixed = fem().is_fixed.cviewer(),
+                x_temps  = fem().x_temps.cviewer(),
+                xs       = fem().xs.viewer(),
+                dxs      = fem().dxs.cviewer(),
                 alpha    = info.alpha] __device__(int i) mutable
                { xs(i) = x_temps(i) + alpha * dxs(i); });
 }
 
 void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // Compute Kinetic (special)
     {

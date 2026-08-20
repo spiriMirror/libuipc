@@ -19,17 +19,17 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     void do_build(BuildInfo& info) override {}
 
-    muda::DeviceBuffer<Vector2i> topos;
-    muda::DeviceBuffer<Float>    kappas;
-    muda::DeviceBuffer<Float>    rest_lengths;
+    cuda_tool::DeviceBuffer<Vector2i> topos;
+    cuda_tool::DeviceBuffer<Float>    kappas;
+    cuda_tool::DeviceBuffer<Float>    rest_lengths;
 
     vector<Vector2i> h_topos;
     vector<Float>    h_kappas;
     vector<Float>    h_rest_lengths;
 
-    muda::CBufferView<Float>              energies;
-    muda::CDoubletVectorView<Float, 3>    gradients;
-    muda::CTripletMatrixView<Float, 3, 3> hessians;
+    cuda_tool::CBufferView<Float>              energies;
+    cuda_tool::CDoubletVectorView<Float, 3>    gradients;
+    cuda_tool::CTripletMatrixView<Float, 3, 3> hessians;
 
     void do_init(FilteredInfo& info) override
     {
@@ -120,18 +120,18 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         energies = info.energies();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos        = topos.cviewer().name("topos"),
-                    xs           = info.positions().cviewer().name("xs"),
-                    kappas       = kappas.cviewer().name("kappas"),
-                    rest_lengths = rest_lengths.cviewer().name("rest_lengths"),
-                    Es           = info.energies().viewer().name("Es"),
+                   [topos        = topos.cviewer(),
+                    xs           = info.positions().cviewer(),
+                    kappas       = kappas.cviewer(),
+                    rest_lengths = rest_lengths.cviewer(),
+                    Es           = info.energies().viewer(),
                     dt           = info.dt()] __device__(int I)
                    {
                        const Vector2i& PP  = topos(I);
@@ -163,7 +163,7 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace SVS = sym::soft_vertex_stitch;
 
         gradients = info.gradients();
@@ -172,12 +172,12 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos         = topos.cviewer().name("topos"),
-                    xs            = info.positions().cviewer().name("xs"),
-                    kappas        = kappas.cviewer().name("kappas"),
-                    rest_lengths  = rest_lengths.cviewer().name("rest_lengths"),
-                    G3s           = info.gradients().viewer().name("Gs"),
-                    H3x3s         = info.hessians().viewer().name("H3x3s"),
+                   [topos         = topos.cviewer(),
+                    xs            = info.positions().cviewer(),
+                    kappas        = kappas.cviewer(),
+                    rest_lengths  = rest_lengths.cviewer(),
+                    G3s           = info.gradients().viewer(),
+                    H3x3s         = info.hessians().viewer(),
                     dt            = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I)
                    {

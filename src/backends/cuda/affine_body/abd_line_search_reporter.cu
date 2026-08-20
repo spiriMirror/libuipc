@@ -1,8 +1,8 @@
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/affine_body_constitution.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <affine_body/abd_line_search_subreporter.h>
 #include <affine_body/affine_body_kinetic.h>
 
@@ -28,7 +28,7 @@ void ABDLineSearchReporter::Impl::init(LineSearchReporter::InitInfo& info)
 
 void ABDLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     BufferLaunch().template copy<Vector12>(abd().body_id_to_q_temp.view(),
                                            abd().body_id_to_q.view());
@@ -36,14 +36,14 @@ void ABDLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& i
 
 void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
-               [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                q_temps  = abd().body_id_to_q_temp.cviewer().name("q_temps"),
-                qs       = abd().body_id_to_q.viewer().name("qs"),
-                dqs      = abd().body_id_to_dq.cviewer().name("dqs"),
+               [is_fixed = abd().body_id_to_is_fixed.cviewer(),
+                q_temps  = abd().body_id_to_q_temp.cviewer(),
+                qs       = abd().body_id_to_q.viewer(),
+                dqs      = abd().body_id_to_dq.cviewer(),
                 alpha    = info.alpha] __device__(int i) mutable
                {
                    if(is_fixed(i))
@@ -54,7 +54,7 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 
 void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto body_count = abd().body_count();
 
@@ -68,17 +68,16 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
         abd().kinetic->compute_energy(this_info);
 
-        using namespace muda;
+        using namespace cuda_tool;
 
         // Zero out the kinetic energy of fixed bodies and bodies with external kinetic
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(abd().abd_body_count,
-                   [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                   [is_fixed = abd().body_id_to_is_fixed.cviewer(),
                     external_kinetic =
-                        abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
-                    kinetic_energy = body_id_to_kinetic_energy.viewer().name(
-                        "kinetic_energy")] __device__(int i) mutable
+                        abd().body_id_to_external_kinetic.cviewer(),
+                    kinetic_energy = body_id_to_kinetic_energy.viewer()] __device__(int i) mutable
                    {
                        if(is_fixed(i) || external_kinetic(i))
                        {

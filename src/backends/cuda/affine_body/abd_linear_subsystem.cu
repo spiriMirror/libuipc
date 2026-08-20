@@ -1,7 +1,7 @@
 #include <affine_body/abd_linear_subsystem.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
 #include <uipc/builtin/attribute_name.h>
@@ -158,7 +158,7 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // 0) Prepare buffers for reporters
     {
@@ -199,7 +199,7 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
                                                        GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     Float dt = dt_attr->view()[0];
 
@@ -223,12 +223,12 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd().body_count(),
-               [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+               [is_fixed = abd().body_id_to_is_fixed.cviewer(),
                 is_external_kinetic =
-                    abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
-                shape_gradient = body_id_to_shape_gradient.cviewer().name("shape_gradient"),
-                kinetic_gradient = body_id_to_kinetic_gradient.cviewer().name("kinetic_gradient"),
-                gradients = info.gradients().viewer().name("gradients"),
+                    abd().body_id_to_external_kinetic.cviewer(),
+                shape_gradient = body_id_to_shape_gradient.cviewer(),
+                kinetic_gradient = body_id_to_kinetic_gradient.cviewer(),
+                gradients = info.gradients().viewer(),
                 cout      = KernelCout::viewer()] __device__(int i) mutable
                {
                    Vector12 src;
@@ -263,13 +263,13 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [dst      = body_H3x3.viewer().name("dst_hessian"),
-                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+               [dst      = body_H3x3.viewer(),
+                is_fixed = abd().body_id_to_is_fixed.cviewer(),
                 is_external_kinetic =
-                    abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
-                shape_hessian = body_id_to_shape_hessian.cviewer().name("src_hessian"),
-                kinetic_hessian = body_id_to_kinetic_hessian.cviewer().name("kinetic_hessian"),
-                diag_hessian = this->diag_hessian.viewer().name("diag_hessian")] __device__(int I) mutable
+                    abd().body_id_to_external_kinetic.cviewer(),
+                shape_hessian = body_id_to_shape_hessian.cviewer(),
+                kinetic_hessian = body_id_to_kinetic_hessian.cviewer(),
+                diag_hessian = this->diag_hessian.viewer()] __device__(int I) mutable
                {
                    TripletMatrixUnpacker MA{dst};
                    Matrix12x12           H12x12;
@@ -309,7 +309,7 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
 void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
                                                    GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // Fill TripletMatrix and DoubletVector
     for(auto& R : reporters.view())
@@ -323,10 +323,9 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(reporter_gradients.doublet_count(),
-                   [dst = info.gradients().viewer().name("dst_gradient"),
-                    src = reporter_gradients.cviewer().name("src_gradient"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name(
-                        "is_fixed")] __device__(int I) mutable
+                   [dst = info.gradients().viewer(),
+                    src = reporter_gradients.cviewer(),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int I) mutable
                    {
                        auto&& [body_i, G12] = src(I);
 
@@ -349,11 +348,10 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(reporter_hessians.triplet_count(),
-                   [dst = H3x3s.viewer().name("dst_hessian"),
-                    src = reporter_hessians.cviewer().name("src_hessian"),
-                    diag_hessian = this->diag_hessian.viewer().name("diag_hessian"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name(
-                        "is_fixed")] __device__(int I) mutable
+                   [dst = H3x3s.viewer(),
+                    src = reporter_hessians.cviewer(),
+                    diag_hessian = this->diag_hessian.viewer(),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int I) mutable
                    {
                        TripletMatrixUnpacker MU{dst};
                        Matrix12x12           H12x12;
@@ -400,7 +398,7 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
 void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
                                                        GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto  vertex_offset = affine_body_vertex_reporter->vertex_offset();
     SizeT dytopo_effect_gradient_count = 0;
@@ -416,11 +414,11 @@ void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
             .file_line(__FILE__, __LINE__)
             .apply(dytopo_effect_gradient_count,
                    [dytopo_effect_gradient =
-                        dytopo_effect_receiver->gradients().cviewer().name("dytopo_effect_gradient"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                    Js  = abd().vertex_id_to_J.cviewer().name("Js"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                        dytopo_effect_receiver->gradients().cviewer(),
+                    gradients = info.gradients().viewer(),
+                    v2b = abd().vertex_id_to_body_id.cviewer(),
+                    Js  = abd().vertex_id_to_J.cviewer(),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer(),
                     vertex_offset = vertex_offset,
                     cout = KernelCout::viewer()] __device__(int I) mutable
                    {
@@ -462,12 +460,12 @@ void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
             .file_line(__FILE__, __LINE__)
             .apply(dytopo_effect_hessian_count,
                    [dytopo_effect_hessian =
-                        dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
-                    dst = dytopo_effect_H3x3.viewer().name("dst_hessian"),
-                    v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                    Js  = abd().vertex_id_to_J.cviewer().name("Js"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                    diag_hessian = this->diag_hessian.viewer().name("diag_hessian"),
+                        dytopo_effect_receiver->hessians().cviewer(),
+                    dst = dytopo_effect_H3x3.viewer(),
+                    v2b = abd().vertex_id_to_body_id.cviewer(),
+                    Js  = abd().vertex_id_to_J.cviewer(),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer(),
+                    diag_hessian = this->diag_hessian.viewer(),
                     vertex_offset = vertex_offset] __device__(int I) mutable
                    {
                        const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
@@ -547,14 +545,14 @@ void ABDLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& 
 
 void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto dq = abd().body_id_to_dq.view();
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd().body_count(),
-               [dq = dq.viewer().name("dq"),
-                x = info.solution().viewer().name("x")] __device__(int i) mutable
+               [dq = dq.viewer(),
+                x = info.solution().viewer()] __device__(int i) mutable
                {
                    // retrieve solution for each body
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
@@ -565,19 +563,19 @@ Float ABDLinearSubsystem::Impl::diag_norm()
 {
     auto diag_hess = diag_hessian.view();
     block_norm.resize(diag_hess.size() * 12);
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(diag_hess.size(),
-               [diag_hess        = diag_hess.cviewer().name("diag_hess"),
-                diag_blocks_norm = block_norm.viewer().name("diag_blocks_norm"),
-                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed")] __device__(int idx) mutable
+               [diag_hess        = diag_hess.cviewer(),
+                diag_blocks_norm = block_norm.viewer(),
+                is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int idx) mutable
                {
                    for(int i = 0; i < 12; i++)
                        diag_blocks_norm(idx * 12 + i) =
                            is_fixed(idx) ? 0 : abs(diag_hess(idx)(i, i));
                });
 
-    muda::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
+    cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
 
     return reduced_norm;
 }
@@ -586,15 +584,15 @@ Float ABDLinearSubsystem::Impl::mass_norm()
 {
     auto mass = abd().body_id_to_abd_mass.view();
     block_norm.resize(mass.size());
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(mass.size(),
-               [mass       = mass.cviewer().name("diag_hess"),
-                block_norm = block_norm.viewer().name("diag_blocks_norm"),
-                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed")] __device__(int idx) mutable
+               [mass       = mass.cviewer(),
+                block_norm = block_norm.viewer(),
+                is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int idx) mutable
                { block_norm(idx) = is_fixed(idx) ? 0 : mass(idx).mass(); });
 
-    muda::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
+    cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
 
     return reduced_norm;
 }
@@ -666,13 +664,13 @@ ABDLinearSubsystem::AssembleInfo::AssembleInfo(Impl* impl, IndexT index, bool gr
 {
 }
 
-muda::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradients() const
+cuda_tool::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradients() const
 {
     auto [offset, count] = m_impl->reporter_gradient_offsets_counts[m_index];
     return m_impl->reporter_gradients.view().subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12, 12> ABDLinearSubsystem::AssembleInfo::hessians() const
+cuda_tool::TripletMatrixView<Float, 12, 12> ABDLinearSubsystem::AssembleInfo::hessians() const
 {
     auto [offset, count] = m_impl->reporter_hessian_offsets_counts[m_index];
     return m_impl->reporter_hessians.view().subview(offset, count);

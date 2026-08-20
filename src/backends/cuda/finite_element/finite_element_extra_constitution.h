@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/finite_element_elastics.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -68,10 +68,10 @@ class FiniteElementExtraConstitution : public SimSystem
 
         Float dt() const noexcept;
 
-        muda::CBufferView<Vector3> xs() const noexcept;
-        muda::CBufferView<Vector3> x_bars() const noexcept;
-        muda::CBufferView<IndexT>  is_fixed() const noexcept;
-        muda::CBufferView<Float>   thicknesses() const noexcept;
+        cuda_tool::CBufferView<Vector3> xs() const noexcept;
+        cuda_tool::CBufferView<Vector3> x_bars() const noexcept;
+        cuda_tool::CBufferView<IndexT>  is_fixed() const noexcept;
+        cuda_tool::CBufferView<Float>   thicknesses() const noexcept;
 
       protected:
         Impl* m_impl = nullptr;

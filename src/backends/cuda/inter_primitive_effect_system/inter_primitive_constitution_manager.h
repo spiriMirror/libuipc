@@ -70,7 +70,7 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
         {
         }
 
-        muda::CBufferView<Vector3> positions() const noexcept;
+        cuda_tool::CBufferView<Vector3> positions() const noexcept;
         Float                      dt() const noexcept;
 
       protected:
@@ -82,16 +82,16 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl, IndexT index, Float dt, muda::BufferView<Float> energy)
+        EnergyInfo(Impl* impl, IndexT index, Float dt, cuda_tool::BufferView<Float> energy)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
         {
         }
-        muda::BufferView<Float> energies() const noexcept;
+        cuda_tool::BufferView<Float> energies() const noexcept;
 
       private:
         friend class InterPrimitiveConstitutionManager;
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class GradientHessianInfo : public BaseInfo
@@ -101,8 +101,8 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
                             IndexT                            index,
                             bool                              gradient_only,
                             Float                             dt,
-                            muda::DoubletVectorView<Float, 3> gradients,
-                            muda::TripletMatrixView<Float, 3> hessians)
+                            cuda_tool::DoubletVectorView<Float, 3> gradients,
+                            cuda_tool::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -110,14 +110,14 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
         {
         }
 
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+        cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept;
+        cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept;
         bool                              gradient_only() const noexcept;
 
       private:
         friend class InterPrimitiveConstitutionManager;
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
         bool                              m_gradient_only = false;
     };
 

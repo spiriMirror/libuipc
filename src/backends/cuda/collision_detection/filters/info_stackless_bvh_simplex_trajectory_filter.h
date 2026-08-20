@@ -24,18 +24,18 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
         *                   Broad Phase
         ****************************************************/
 
-        muda::DeviceBuffer<AABB> codim_point_aabbs;
-        muda::DeviceBuffer<AABB> point_aabbs;
-        muda::DeviceBuffer<AABB> edge_aabbs;
-        muda::DeviceBuffer<AABB> triangle_aabbs;
-        muda::DeviceBuffer<IndexT> codim_point_bids;
-        muda::DeviceBuffer<IndexT> point_bids;
-        muda::DeviceBuffer<IndexT> edge_bids;
-        muda::DeviceBuffer<IndexT> triangle_bids;
-        muda::DeviceBuffer<IndexT> codim_point_cids;
-        muda::DeviceBuffer<IndexT> point_cids;
-        muda::DeviceBuffer<IndexT> edge_cids;
-        muda::DeviceBuffer<IndexT> triangle_cids;
+        cuda_tool::DeviceBuffer<AABB> codim_point_aabbs;
+        cuda_tool::DeviceBuffer<AABB> point_aabbs;
+        cuda_tool::DeviceBuffer<AABB> edge_aabbs;
+        cuda_tool::DeviceBuffer<AABB> triangle_aabbs;
+        cuda_tool::DeviceBuffer<IndexT> codim_point_bids;
+        cuda_tool::DeviceBuffer<IndexT> point_bids;
+        cuda_tool::DeviceBuffer<IndexT> edge_bids;
+        cuda_tool::DeviceBuffer<IndexT> triangle_bids;
+        cuda_tool::DeviceBuffer<IndexT> codim_point_cids;
+        cuda_tool::DeviceBuffer<IndexT> point_cids;
+        cuda_tool::DeviceBuffer<IndexT> edge_cids;
+        cuda_tool::DeviceBuffer<IndexT> triangle_cids;
 
         using ThisBVH = InfoStacklessBVH;
 
@@ -52,33 +52,33 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
         ThisBVH              lbvh_T;
         ThisBVH::QueryBuffer candidate_AllP_AllT_pairs;
 
-        muda::DeviceVar<IndexT> selected_PT_count;
-        muda::DeviceVar<IndexT> selected_EE_count;
-        muda::DeviceVar<IndexT> selected_PE_count;
-        muda::DeviceVar<IndexT> selected_PP_count;
+        cuda_tool::DeviceVar<IndexT> selected_PT_count;
+        cuda_tool::DeviceVar<IndexT> selected_EE_count;
+        cuda_tool::DeviceVar<IndexT> selected_PE_count;
+        cuda_tool::DeviceVar<IndexT> selected_PP_count;
 
-        muda::DeviceBuffer<Vector4i> temp_PTs;
-        muda::DeviceBuffer<Vector4i> temp_EEs;
-        muda::DeviceBuffer<Vector3i> temp_PEs;
-        muda::DeviceBuffer<Vector2i> temp_PPs;
+        cuda_tool::DeviceBuffer<Vector4i> temp_PTs;
+        cuda_tool::DeviceBuffer<Vector4i> temp_EEs;
+        cuda_tool::DeviceBuffer<Vector3i> temp_PEs;
+        cuda_tool::DeviceBuffer<Vector2i> temp_PPs;
 
-        muda::DeviceBuffer<Vector4i> PTs;
-        muda::DeviceBuffer<Vector4i> EEs;
-        muda::DeviceBuffer<Vector3i> PEs;
-        muda::DeviceBuffer<Vector2i> PPs;
+        cuda_tool::DeviceBuffer<Vector4i> PTs;
+        cuda_tool::DeviceBuffer<Vector4i> EEs;
+        cuda_tool::DeviceBuffer<Vector3i> PEs;
+        cuda_tool::DeviceBuffer<Vector2i> PPs;
 
 
         /****************************************************
         *                   CCD TOI
         ****************************************************/
 
-        muda::DeviceBuffer<Float> tois;  // PP, PE, PT, EE
+        cuda_tool::DeviceBuffer<Float> tois;  // PP, PE, PT, EE
     };
 
-    virtual muda::CBufferView<Vector2i> candidate_PTs() const noexcept override;
-    virtual muda::CBufferView<Vector2i> candidate_EEs() const noexcept override;
-    virtual muda::CBufferView<Float>    toi_PTs() const noexcept override;
-    virtual muda::CBufferView<Float>    toi_EEs() const noexcept override;
+    virtual cuda_tool::CBufferView<Vector2i> candidate_PTs() const noexcept override;
+    virtual cuda_tool::CBufferView<Vector2i> candidate_EEs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float>    toi_PTs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float>    toi_EEs() const noexcept override;
 
   private:
     Impl m_impl;

@@ -62,16 +62,16 @@ void FiniteElementElastics::init()
     m_impl.constitution_hessian_offsets_counts.scan();
 }
 
-muda::DoubletVectorView<Float, 3> FiniteElementElastics::ComputeGradientHessianInfo::gradients() const noexcept
+cuda_tool::DoubletVectorView<Float, 3> FiniteElementElastics::ComputeGradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 3> FiniteElementElastics::ComputeGradientHessianInfo::hessians() const noexcept
+cuda_tool::TripletMatrixView<Float, 3> FiniteElementElastics::ComputeGradientHessianInfo::hessians() const noexcept
 {
     if(m_gradient_only)
-        return muda::TripletMatrixView<Float, 3>{};
+        return cuda_tool::TripletMatrixView<Float, 3>{};
 
     auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);

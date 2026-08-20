@@ -24,7 +24,7 @@ class ABDBDF2Integrator final : public ABDTimeIntegrator
 
     void do_predict_dof(PredictDofInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BDF2 = sym::abd_bdf2;
 
         if(state->q_n_1s().size() != info.qs().size())
@@ -38,15 +38,15 @@ class ABDBDF2Integrator final : public ABDTimeIntegrator
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    qs         = info.qs().cviewer().name("qs"),
-                    q_ns       = info.q_prevs().viewer().name("q_ns"),
-                    q_n_1s     = state->q_n_1s().cviewer().name("q_n_1s"),
-                    q_v_ns     = info.q_vs().viewer().name("q_v_ns"),
-                    q_v_n_1s   = state->q_v_n_1s().cviewer().name("q_v_n_1s"),
-                    q_tildes   = info.q_tildes().viewer().name("q_tilde"),
-                    gravity    = info.gravities().cviewer().name("affine_gravity"),
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    qs         = info.qs().cviewer(),
+                    q_ns       = info.q_prevs().viewer(),
+                    q_n_1s     = state->q_n_1s().cviewer(),
+                    q_v_ns     = info.q_vs().viewer(),
+                    q_v_n_1s   = state->q_v_n_1s().cviewer(),
+                    q_tildes   = info.q_tildes().viewer(),
+                    gravity    = info.gravities().cviewer(),
                     dt         = info.dt()] __device__(int i) mutable
                    {
                        // q_n is tracked in q_prevs for current step.
@@ -81,17 +81,17 @@ class ABDBDF2Integrator final : public ABDTimeIntegrator
 
     void do_update_state(UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BDF2 = sym::abd_bdf2;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [qs       = info.qs().cviewer().name("qs"),
-                    q_ns     = info.q_prevs().cviewer().name("q_n"),
-                    q_n_1s   = state->q_n_1s().viewer().name("q_n_1s"),
-                    q_v_ns   = info.q_vs().viewer().name("q_v_ns"),
-                    q_v_n_1s = state->q_v_n_1s().viewer().name("q_v_n_1s"),
+                   [qs       = info.qs().cviewer(),
+                    q_ns     = info.q_prevs().cviewer(),
+                    q_n_1s   = state->q_n_1s().viewer(),
+                    q_v_ns   = info.q_vs().viewer(),
+                    q_v_n_1s = state->q_v_n_1s().viewer(),
                     dt       = info.dt()] __device__(int i) mutable
                    {
                        Vector12 qv;

@@ -13,7 +13,7 @@ void FEMALStiffnessEstimator::do_build(BuildInfo& info)
 
 void FEMALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     UIPC_ASSERT(vertex_reporter->vertex_count()
                     == finite_element_method->masses().size(),
                 "vertex count mismatch");
@@ -22,9 +22,8 @@ void FEMALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
         .apply(vertex_reporter->vertex_count(),
                [mu_vertices = info.mu_vertices(vertex_reporter->vertex_offset(),
                                                vertex_reporter->vertex_count())
-                                  .viewer()
-                                  .name("mu_vertices"),
-                masses = finite_element_method->masses().cviewer().name("masses"),
+                                  .viewer(),
+                masses = finite_element_method->masses().cviewer(),
                 mu_scale_fem = mu_scale_fem,
                 dt           = info.dt()] __device__(int idx) mutable
                { mu_vertices(idx) = masses(idx) * mu_scale_fem * dt * dt; });

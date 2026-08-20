@@ -3,7 +3,7 @@ namespace uipc::backend::cuda
 template <typename Pred>
 void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     if(m_aabbs.size() == 0)
     {
@@ -19,10 +19,10 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
         ParallelFor(0, s)
             .file_line(__FILE__, __LINE__)
             .apply(m_aabbs.size(),
-                   [lbvh   = m_lbvh.viewer().name("lbvh"),
-                    aabbs  = m_aabbs.viewer().name("aabbs"),
-                    cp_num = m_cp_num.viewer().name("cp_num"),
-                    pairs  = qbuffer.m_pairs.viewer().name("pairs"),
+                   [lbvh   = m_lbvh.viewer(),
+                    aabbs  = m_aabbs.viewer(),
+                    cp_num = m_cp_num.viewer(),
+                    pairs  = qbuffer.m_pairs.viewer(),
                     p      = p] __device__(int i) mutable
                    {
                        auto N = aabbs.total_size();
@@ -33,7 +33,7 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
                                   {
                                       if(id > i && p(i, id))
                                       {
-                                          auto last = muda::atomic_add(cp_num.data(), 1);
+                                          auto last = cuda_tool::atomic_add(cp_num.data(), 1);
                                           if(last < pairs.total_size())
                                               pairs(last) = Vector2i(i, id);
                                       }
@@ -56,9 +56,9 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
 }
 
 template <typename Pred>
-void AtomicCountingLBVH::query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& qbuffer)
+void AtomicCountingLBVH::query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& qbuffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     if(m_aabbs.size() == 0 || query_aabbs.size() == 0)
     {
@@ -74,10 +74,10 @@ void AtomicCountingLBVH::query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pre
         ParallelFor(0, s)
             .file_line(__FILE__, __LINE__)
             .apply(query_aabbs.size(),
-                   [lbvh   = m_lbvh.viewer().name("lbvh"),
-                    aabbs  = query_aabbs.viewer().name("aabbs"),
-                    cp_num = m_cp_num.viewer().name("cp_num"),
-                    pairs  = qbuffer.m_pairs.viewer().name("pairs"),
+                   [lbvh   = m_lbvh.viewer(),
+                    aabbs  = query_aabbs.viewer(),
+                    cp_num = m_cp_num.viewer(),
+                    pairs  = qbuffer.m_pairs.viewer(),
                     p      = p] __device__(int i) mutable
                    {
                        auto N = aabbs.total_size();
@@ -89,7 +89,7 @@ void AtomicCountingLBVH::query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pre
                                   {
                                       if(p(i, id))
                                       {
-                                          auto last = muda::atomic_add(cp_num.data(), 1);
+                                          auto last = cuda_tool::atomic_add(cp_num.data(), 1);
                                           if(last < pairs.total_size())
                                               pairs(last) = Vector2i(i, id);
                                       }

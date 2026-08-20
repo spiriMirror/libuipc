@@ -16,8 +16,8 @@ class ABDDyTopoEffectReceiver final : public DyTopoEffectReceiver
 
         AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
 
-        muda::CDoubletVectorView<Float, 3> gradients;
-        muda::CTripletMatrixView<Float, 3> hessians;
+        cuda_tool::CDoubletVectorView<Float, 3> gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> hessians;
     };
 
 

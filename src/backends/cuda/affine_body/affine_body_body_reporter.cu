@@ -1,5 +1,5 @@
 #include <affine_body/affine_body_body_reporter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -34,12 +34,12 @@ void AffineBodyBodyReporter::Impl::report_count(BodyCountInfo& info)
 
 void AffineBodyBodyReporter::Impl::report_attributes(BodyAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.coindices().size(),
-               [coindices = info.coindices().viewer().name("coindices")] __device__(int i)
+               [coindices = info.coindices().viewer()] __device__(int i)
                {
                    coindices(i) = i;  // just iota
                });

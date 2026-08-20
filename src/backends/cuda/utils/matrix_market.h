@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <fmt/printf.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -34,7 +34,7 @@ namespace uipc::backend::cuda
  */
 template <typename T, int BlockDim>
 bool export_matrix_market(std::string_view                             filename,
-                          const muda::CTripletMatrixView<T, BlockDim>& matrix,
+                          const cuda_tool::CTripletMatrixView<T, BlockDim>& matrix,
                           bool one_based = true)
 {
     using BlockMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
@@ -125,7 +125,7 @@ bool export_matrix_market(std::string_view                             filename,
  */
 template <typename T>
 bool export_vector_market(std::string_view                 filename,
-                          const muda::CDenseVectorView<T>& vector,
+                          const cuda_tool::CDenseVectorView<T>& vector,
                           bool                             one_based = true)
 {
     // Copy data from device to host
@@ -167,7 +167,7 @@ bool export_vector_market(std::string_view                 filename,
  */
 template <typename T>
 bool export_vector_market(std::string_view            filename,
-                          const muda::CBufferView<T>& vector,
+                          const cuda_tool::CBufferView<T>& vector,
                           bool                        one_based = true)
 {
     // Copy data from device to host
@@ -245,7 +245,7 @@ bool export_vector_market(span<const T> vector, std::string_view filename, bool 
  * @return true if successful, false otherwise
  */
 template <typename T, int BlockDim>
-bool import_matrix_market(muda::DeviceTripletMatrix<T, BlockDim>& matrix,
+bool import_matrix_market(cuda_tool::DeviceTripletMatrix<T, BlockDim>& matrix,
                           std::string_view                        filename,
                           bool one_based = true)
 {
@@ -374,7 +374,7 @@ bool import_matrix_market(muda::DeviceTripletMatrix<T, BlockDim>& matrix,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool import_vector_market(muda::DeviceDenseVector<T>& vector,
+bool import_vector_market(cuda_tool::DeviceDenseVector<T>& vector,
                           std::string_view            filename,
                           bool                        one_based = true)
 {
@@ -458,7 +458,7 @@ bool import_vector_market(muda::DeviceDenseVector<T>& vector,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool import_vector_market(muda::DeviceBuffer<T>& vector,
+bool import_vector_market(cuda_tool::DeviceBuffer<T>& vector,
                           std::string_view       filename,
                           bool                   one_based = true)
 {

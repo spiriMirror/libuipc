@@ -2,7 +2,7 @@
 #include <finite_element/constitutions/arap_function.h>
 #include <finite_element/fem_utils.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
@@ -21,7 +21,7 @@ class ARAP3D final : public FEM3DConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
@@ -63,18 +63,18 @@ class ARAP3D final : public FEM3DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ARAP = sym::arap_3d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [kappas   = kappas.cviewer().name("mus"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
-                    volumes  = info.rest_volumes().viewer().name("volumes"),
+                   [kappas   = kappas.cviewer(),
+                    energies = info.energies().viewer(),
+                    indices  = info.indices().viewer(),
+                    xs       = info.xs().viewer(),
+                    Dm_invs  = info.Dm_invs().viewer(),
+                    volumes  = info.rest_volumes().viewer(),
                     dt       = info.dt()] __device__(int I)
                    {
                        const Vector4i&  tet    = indices(I);
@@ -96,19 +96,19 @@ class ARAP3D final : public FEM3DConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ARAP = sym::arap_3d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [kappas  = kappas.cviewer().name("mus"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G3s     = info.gradients().viewer().name("gradients"),
-                    H3x3s   = info.hessians().viewer().name("hessians"),
-                    volumes = info.rest_volumes().viewer().name("volumes"),
+                   [kappas  = kappas.cviewer(),
+                    indices = info.indices().viewer(),
+                    xs      = info.xs().viewer(),
+                    Dm_invs = info.Dm_invs().viewer(),
+                    G3s     = info.gradients().viewer(),
+                    H3x3s   = info.hessians().viewer(),
+                    volumes = info.rest_volumes().viewer(),
                     dt      = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {

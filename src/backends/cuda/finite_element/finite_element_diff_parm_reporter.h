@@ -34,7 +34,7 @@ class FiniteElementDiffParmReporter : public DiffParmReporter
         IndexT dof_offset(SizeT frame) const;
         IndexT dof_count(SizeT frame) const;
 
-        muda::TripletMatrixView<Float, 1> pGpP() const;
+        cuda_tool::TripletMatrixView<Float, 1> pGpP() const;
         Float                             dt() const;
 
       private:

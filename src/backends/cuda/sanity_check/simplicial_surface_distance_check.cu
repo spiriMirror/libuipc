@@ -12,7 +12,7 @@
 #include <collision_detection/info_stackless_bvh.h>
 #include <utils/distance/distance_flagged.h>
 #include <utils/simplex_contact_mask_utils.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -75,7 +75,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                               span<const IndexT>   h_subscene_mask,
                               SizeT                subscene_element_count)
         {
-            using namespace muda;
+            using namespace cuda_tool;
 
             SizeT num_verts = Vs.size();
             SizeT num_edges = Es.size();
@@ -112,10 +112,10 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(num_verts,
-                       [positions = positions.cviewer().name("positions"),
-                        thickness = thickness.cviewer().name("thickness"),
-                        d_hat     = d_hat.cviewer().name("d_hat"),
-                        point_aabbs = point_aabbs.viewer().name("point_aabbs")] __device__(int i) mutable
+                       [positions = positions.cviewer(),
+                        thickness = thickness.cviewer(),
+                        d_hat     = d_hat.cviewer(),
+                        point_aabbs = point_aabbs.viewer()] __device__(int i) mutable
                        {
                            Float           expansion = d_hat(i);
                            Float           extend_f  = thickness(i) + expansion;
@@ -135,12 +135,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_codim,
-                           [positions = positions.cviewer().name("positions"),
-                            thickness = thickness.cviewer().name("thickness"),
-                            d_hat     = d_hat.cviewer().name("d_hat"),
-                            codim_indices = codim_indices.cviewer().name("codim_indices"),
-                            codim_aabbs = codim_point_aabbs.viewer().name(
-                                "codim_aabbs")] __device__(int i) mutable
+                           [positions = positions.cviewer(),
+                            thickness = thickness.cviewer(),
+                            d_hat     = d_hat.cviewer(),
+                            codim_indices = codim_indices.cviewer(),
+                            codim_aabbs = codim_point_aabbs.viewer()] __device__(int i) mutable
                            {
                                IndexT p            = codim_indices(i);
                                Float  expansion    = d_hat(p);
@@ -162,11 +161,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_edges,
-                           [positions = positions.cviewer().name("positions"),
-                            edges     = edges.cviewer().name("edges"),
-                            thickness = thickness.cviewer().name("thickness"),
-                            d_hat     = d_hat.cviewer().name("d_hat"),
-                            edge_aabbs = edge_aabbs.viewer().name("edge_aabbs")] __device__(int i) mutable
+                           [positions = positions.cviewer(),
+                            edges     = edges.cviewer(),
+                            thickness = thickness.cviewer(),
+                            d_hat     = d_hat.cviewer(),
+                            edge_aabbs = edge_aabbs.viewer()] __device__(int i) mutable
                            {
                                Vector2i E  = edges(i);
                                Float thick = thickness(E[0]) + thickness(E[1]);
@@ -192,11 +191,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_tris,
-                           [positions = positions.cviewer().name("positions"),
-                            triangles = triangles.cviewer().name("triangles"),
-                            thickness = thickness.cviewer().name("thickness"),
-                            d_hat     = d_hat.cviewer().name("d_hat"),
-                            tri_aabbs = tri_aabbs.viewer().name("tri_aabbs")] __device__(int i) mutable
+                           [positions = positions.cviewer(),
+                            triangles = triangles.cviewer(),
+                            thickness = thickness.cviewer(),
+                            d_hat     = d_hat.cviewer(),
+                            tri_aabbs = tri_aabbs.viewer()] __device__(int i) mutable
                            {
                                Vector3i F  = triangles(i);
                                Float thick = thickness(F[0]) + thickness(F[1])
@@ -231,11 +230,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_codim,
-                           [codim_indices = codim_indices.cviewer().name("codim_indices"),
-                            vert_bids  = vert_bids.cviewer().name("vert_bids"),
-                            vert_cids  = vert_cids.cviewer().name("vert_cids"),
-                            codim_bids = codim_bids.viewer().name("codim_bids"),
-                            codim_cids = codim_cids.viewer().name("codim_cids")] __device__(int i) mutable
+                           [codim_indices = codim_indices.cviewer(),
+                            vert_bids  = vert_bids.cviewer(),
+                            vert_cids  = vert_cids.cviewer(),
+                            codim_bids = codim_bids.viewer(),
+                            codim_cids = codim_cids.viewer()] __device__(int i) mutable
                            {
                                IndexT p      = codim_indices(i);
                                codim_bids(i) = vert_bids(p);
@@ -250,11 +249,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_edges,
-                           [edges     = edges.cviewer().name("edges"),
-                            vert_bids = vert_bids.cviewer().name("vert_bids"),
-                            vert_cids = vert_cids.cviewer().name("vert_cids"),
-                            edge_bids = edge_bids.viewer().name("edge_bids"),
-                            edge_cids = edge_cids.viewer().name("edge_cids")] __device__(int i) mutable
+                           [edges     = edges.cviewer(),
+                            vert_bids = vert_bids.cviewer(),
+                            vert_cids = vert_cids.cviewer(),
+                            edge_bids = edge_bids.viewer(),
+                            edge_cids = edge_cids.viewer()] __device__(int i) mutable
                            {
                                edge_bids(i) = vert_bids(edges(i)[0]);
                                edge_cids(i) = vert_cids(edges(i)[0]);
@@ -268,11 +267,11 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(num_tris,
-                           [triangles = triangles.cviewer().name("triangles"),
-                            vert_bids = vert_bids.cviewer().name("vert_bids"),
-                            vert_cids = vert_cids.cviewer().name("vert_cids"),
-                            tri_bids  = tri_bids.viewer().name("tri_bids"),
-                            tri_cids = tri_cids.viewer().name("tri_cids")] __device__(int i) mutable
+                           [triangles = triangles.cviewer(),
+                            vert_bids = vert_bids.cviewer(),
+                            vert_cids = vert_cids.cviewer(),
+                            tri_bids  = tri_bids.viewer(),
+                            tri_cids = tri_cids.viewer()] __device__(int i) mutable
                            {
                                tri_bids(i) = vert_bids(triangles(i)[0]);
                                tri_cids(i) = vert_cids(triangles(i)[0]);

@@ -449,9 +449,9 @@ void GlobalLinearSystem::Impl::distribute_solution()
     }
 }
 
-void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>  z,
-                                                    muda::CDenseVectorView<Float> r,
-                                                    muda::CVarView<IndexT>        converged)
+void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
+                                                    cuda_tool::CDenseVectorView<Float> r,
+                                                    cuda_tool::CVarView<IndexT>        converged)
 {
     (void)converged;
     auto diag_dof_counts  = diag_dof_offsets_counts.counts();
@@ -493,9 +493,9 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
 }
 
 void GlobalLinearSystem::Impl::spmv(Float                         a,
-                                    muda::CDenseVectorView<Float> x,
+                                    cuda_tool::CDenseVectorView<Float> x,
                                     Float                         b,
-                                    muda::DenseVectorView<Float>  y)
+                                    cuda_tool::DenseVectorView<Float>  y)
 {
     spmver.rbk_sym_spmv(a, bcoo_A.cview(), x, b, y);
 
@@ -504,14 +504,14 @@ void GlobalLinearSystem::Impl::spmv(Float                         a,
     //  * spmver.cpu_sym_spmv(a, bcoo_A.cview(), x, b, y);  // Much slower
 }
 
-void GlobalLinearSystem::Impl::spmv_dot(muda::CDenseVectorView<Float> x,
-                                        muda::DenseVectorView<Float>  y,
-                                        muda::VarView<Float>          d_dot)
+void GlobalLinearSystem::Impl::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
+                                        cuda_tool::DenseVectorView<Float>  y,
+                                        cuda_tool::VarView<Float>          d_dot)
 {
     spmver.rbk_sym_spmv_dot(1.0, bcoo_A.cview(), x, 0.0, y, d_dot);
 }
 
-bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> r)
+bool GlobalLinearSystem::Impl::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
 {
     auto diag_dof_counts  = diag_dof_offsets_counts.counts();
     auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
@@ -661,7 +661,7 @@ void GlobalLinearSystem::ComputeGradientInfo::flags(ComponentFlags flags) noexce
     m_flags = flags;
 }
 
-void GlobalLinearSystem::ComputeGradientInfo::buffer_view(muda::DenseVectorView<Float> grad) noexcept
+void GlobalLinearSystem::ComputeGradientInfo::buffer_view(cuda_tool::DenseVectorView<Float> grad) noexcept
 {
     m_gradients = grad;
 }

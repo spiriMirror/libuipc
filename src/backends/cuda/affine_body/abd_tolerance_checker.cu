@@ -13,7 +13,7 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     S<const geometry::AttributeSlot<Float>> dt_attr;
     Float                                   transrate_tol = 0.0;
     Float                                   abs_tol       = 0.0;
-    muda::DeviceVar<IndexT>                 success;
+    cuda_tool::DeviceVar<IndexT>                 success;
     IndexT h_success = 1;  // 1 means success, 0 means failure
 
     // Inherited via NewtonToleranceChecker
@@ -35,14 +35,14 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     {
         abs_tol  = transrate_tol * dt_attr->view()[0];
         auto dqs = affine_body_dynamics->dqs();
-        using namespace muda;
+        using namespace cuda_tool;
         BufferLaunch().fill(success.view(), 1);  // reset success flag
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(dqs.size(),
-                   [dqs     = dqs.viewer().name("dqs"),
-                    success = success.viewer().name("success"),
+                   [dqs     = dqs.viewer(),
+                    success = success.viewer(),
                     abs_tol = abs_tol] __device__(int I)
                    {
                        const Vector12& dq            = dqs(I);
@@ -58,7 +58,7 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
                        {
                            if(abs(dq[i]) > abs_tol)
                            {
-                               muda::atomic_exch(success.data(), 0);
+                               cuda_tool::atomic_exch(success.data(), 0);
                                break;  // no need to check further
                            }
                        }

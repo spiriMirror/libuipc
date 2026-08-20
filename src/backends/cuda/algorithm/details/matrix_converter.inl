@@ -1,15 +1,15 @@
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/timer.h>
 #include <algorithm/fast_segmental_reduce.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
 template <typename T, int N>
-void MatrixConverter<T, N>::convert(const muda::DeviceTripletMatrix<T, N>& from,
-                                    muda::DeviceBCOOMatrix<T, N>&          to)
+void MatrixConverter<T, N>::convert(const cuda_tool::DeviceTripletMatrix<T, N>& from,
+                                    cuda_tool::DeviceBCOOMatrix<T, N>&          to)
 {
     to.reshape(from.rows(), from.cols());
     to.resize_triplets(from.triplet_count());
@@ -26,9 +26,9 @@ void MatrixConverter<T, N>::convert(const muda::DeviceTripletMatrix<T, N>& from,
 
 template <typename T, int N>
 void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
-    const muda::DeviceTripletMatrix<T, N>& from, muda::DeviceBCOOMatrix<T, N>& to)
+    const cuda_tool::DeviceTripletMatrix<T, N>& from, cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto src_row_indices = from.row_indices();
     auto src_col_indices = from.col_indices();
@@ -46,10 +46,10 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(src_row_indices.size(),
-               [row_indices = src_row_indices.cviewer().name("row_indices"),
-                col_indices = src_col_indices.cviewer().name("col_indices"),
-                ij_hash     = ij_hash_input.viewer().name("ij_hash"),
-                sort_index = sort_index_input.viewer().name("sort_index")] __device__(int i) mutable
+               [row_indices = src_row_indices.cviewer(),
+                col_indices = src_col_indices.cviewer(),
+                ij_hash     = ij_hash_input.viewer(),
+                sort_index = sort_index_input.viewer()] __device__(int i) mutable
                {
                    ij_hash(i) = (static_cast<uint64_t>(row_indices(i)) << 32)
                                 + static_cast<uint64_t>(col_indices(i));
@@ -70,8 +70,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(dst_row_indices.size(),
-               [ij_hash = ij_hash.viewer().name("ij_hash"),
-                ij_pairs = ij_pairs.viewer().name("ij_pairs")] __device__(int i) mutable
+               [ij_hash = ij_hash.viewer(),
+                ij_pairs = ij_pairs.viewer()] __device__(int i) mutable
                {
                    auto hash      = ij_hash(i);
                    auto row_index = static_cast<int>(hash >> 32);
@@ -87,17 +87,17 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
         ParallelFor(256)
             .file_line(__FILE__, __LINE__)
             .apply(src_blocks.size(),
-                   [src_blocks = src_blocks.cviewer().name("blocks"),
-                    sort_index = sort_index.cviewer().name("sort_index"),
-                    dst_blocks = blocks_sorted.viewer().name("values")] __device__(int i) mutable
+                   [src_blocks = src_blocks.cviewer(),
+                    sort_index = sort_index.cviewer(),
+                    dst_blocks = blocks_sorted.viewer()] __device__(int i) mutable
                    { dst_blocks(i) = src_blocks(sort_index(i)); });
     }
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatrix<T, N>& to)
+void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto src_row_indices = to.row_indices();
     auto src_col_indices = to.col_indices();
@@ -115,10 +115,10 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(src_row_indices.size(),
-               [row_indices = src_row_indices.cviewer().name("row_indices"),
-                col_indices = src_col_indices.cviewer().name("col_indices"),
-                ij_hash     = ij_hash_input.viewer().name("ij_hash"),
-                sort_index = sort_index_input.viewer().name("sort_index")] __device__(int i) mutable
+               [row_indices = src_row_indices.cviewer(),
+                col_indices = src_col_indices.cviewer(),
+                ij_hash     = ij_hash_input.viewer(),
+                sort_index = sort_index_input.viewer()] __device__(int i) mutable
                {
                    ij_hash(i) =
                        (uint64_t{row_indices(i)} << 32) + uint64_t{col_indices(i)};
@@ -139,8 +139,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(dst_row_indices.size(),
-               [ij_hash = ij_hash.viewer().name("ij_hash"),
-                ij_pairs = ij_pairs.viewer().name("ij_pairs")] __device__(int i) mutable
+               [ij_hash = ij_hash.viewer(),
+                ij_pairs = ij_pairs.viewer()] __device__(int i) mutable
                {
                    auto hash      = ij_hash(i);
                    auto row_index = int{hash >> 32};
@@ -156,13 +156,13 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
         ParallelFor(256)
             .file_line(__FILE__, __LINE__)
             .apply(src_blocks.size(),
-                   [src_blocks = src_blocks.cviewer().name("blocks"),
-                    sort_index = sort_index.cviewer().name("sort_index"),
-                    ij_pairs   = ij_pairs.cviewer().name("ij_pairs"),
-                    dst_row    = to.row_indices().viewer().name("row_indices"),
-                    dst_col    = to.col_indices().viewer().name("col_indices"),
+                   [src_blocks = src_blocks.cviewer(),
+                    sort_index = sort_index.cviewer(),
+                    ij_pairs   = ij_pairs.cviewer(),
+                    dst_row    = to.row_indices().viewer(),
+                    dst_col    = to.col_indices().viewer(),
 
-                    dst_blocks = blocks_sorted.viewer().name("values")] __device__(int i) mutable
+                    dst_blocks = blocks_sorted.viewer()] __device__(int i) mutable
                    {
                        dst_blocks(i) = src_blocks(sort_index(i));
                        dst_row(i)    = ij_pairs(i).x;
@@ -174,10 +174,10 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceTripletMatrix<T, N>& from,
-                                                 muda::DeviceBCOOMatrix<T, N>& to)
+void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceTripletMatrix<T, N>& from,
+                                                 cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto row_indices = to.row_indices();
     auto col_indices = to.col_indices();
@@ -203,12 +203,12 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceTripletMatrix
         unique_counts.data(), offsets.data(), unique_counts.size());
 
 
-    muda::ParallelFor(256)
+    cuda_tool::ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
-               [unique_ij_pairs = unique_ij_pairs.viewer().name("unique_ij_pairs"),
-                row_indices = row_indices.viewer().name("row_indices"),
-                col_indices = col_indices.viewer().name("col_indices")] __device__(int i) mutable
+               [unique_ij_pairs = unique_ij_pairs.viewer(),
+                row_indices = row_indices.viewer(),
+                col_indices = col_indices.viewer()] __device__(int i) mutable
                {
                    row_indices(i) = unique_ij_pairs(i).x;
                    col_indices(i) = unique_ij_pairs(i).y;
@@ -219,9 +219,9 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceTripletMatrix
 
 template <typename T, int N>
 void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
-    const muda::DeviceTripletMatrix<T, N>& from, muda::DeviceBCOOMatrix<T, N>& to)
+    const cuda_tool::DeviceTripletMatrix<T, N>& from, cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     loose_resize(sorted_partition_input, ij_pairs.size());
     loose_resize(sorted_partition_output, ij_pairs.size());
@@ -232,9 +232,9 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
-               [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
-                unique_counts = unique_counts.viewer().name("unique_counts"),
-                offsets = offsets.viewer().name("offsets")] __device__(int i) mutable
+               [sorted_partition = sorted_partition_input.viewer(),
+                unique_counts = unique_counts.viewer(),
+                offsets = offsets.viewer()] __device__(int i) mutable
                {
                    auto offset = offsets(i);
                    auto count  = unique_counts(i);
@@ -257,8 +257,8 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::convert(const muda::DeviceBCOOMatrix<T, N>& from,
-                                    muda::DeviceBSRMatrix<T, N>&        to)
+void MatrixConverter<T, N>::convert(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
+                                    cuda_tool::DeviceBSRMatrix<T, N>&        to)
 {
     // calculate the row offsets
     _calculate_block_offsets(from, to);
@@ -273,12 +273,12 @@ void MatrixConverter<T, N>::convert(const muda::DeviceBCOOMatrix<T, N>& from,
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::_calculate_block_offsets(const muda::DeviceBCOOMatrix<T, N>& from,
-                                                     muda::DeviceBSRMatrix<T, N>& to)
+void MatrixConverter<T, N>::_calculate_block_offsets(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
+                                                     cuda_tool::DeviceBSRMatrix<T, N>& to)
 {
     //Timer timer{__FUNCTION__};
 
-    using namespace muda;
+    using namespace cuda_tool;
     to.reshape(from.rows(), from.cols());
 
 
@@ -305,10 +305,9 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const muda::DeviceBCOOMatri
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
-               [unique_indices     = unique_indices.cviewer().name("offset"),
-                counts             = unique_counts.viewer().name("counts"),
-                col_counts_per_row = col_counts_per_row.viewer().name(
-                    "col_counts_per_row")] __device__(int i) mutable
+               [unique_indices     = unique_indices.cviewer(),
+                counts             = unique_counts.viewer(),
+                col_counts_per_row = col_counts_per_row.viewer()] __device__(int i) mutable
                {
                    auto row                = unique_indices(i);
                    col_counts_per_row(row) = counts(i);
@@ -324,8 +323,8 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const muda::DeviceBCOOMatri
 //constexpr int N = 3;
 
 template <typename T, int N>
-void MatrixConverter<T, N>::convert(const muda::DeviceDoubletVector<T, N>& from,
-                                    muda::DeviceBCOOVector<T, N>&          to)
+void MatrixConverter<T, N>::convert(const cuda_tool::DeviceDoubletVector<T, N>& from,
+                                    cuda_tool::DeviceBCOOVector<T, N>&          to)
 {
     to.reshape(from.count());
     to.resize_doublets(from.doublet_count());
@@ -340,9 +339,9 @@ void MatrixConverter<T, N>::convert(const muda::DeviceDoubletVector<T, N>& from,
 
 template <typename T, int N>
 void MatrixConverter<T, N>::_radix_sort_indices_and_segments(
-    const muda::DeviceDoubletVector<T, N>& from, muda::DeviceBCOOVector<T, N>& to)
+    const cuda_tool::DeviceDoubletVector<T, N>& from, cuda_tool::DeviceBCOOVector<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto src_indices  = from.indices();
     auto src_segments = from.values();
@@ -358,10 +357,10 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_segments(
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceDoubletVector<T, N>& from,
-                                                 muda::DeviceBCOOVector<T, N>& to)
+void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceDoubletVector<T, N>& from,
+                                                 cuda_tool::DeviceBCOOVector<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto dst_indices  = to.indices();
     auto dst_segments = to.values();
@@ -384,11 +383,11 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceDoubletVector
     DeviceScan().ExclusiveSum(
         unique_counts.data(), offsets.data(), unique_counts.size());
 
-    muda::ParallelFor(256)
+    cuda_tool::ParallelFor(256)
         .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
-               [unique_indices = unique_indices.viewer().name("unique_indices"),
-                dst_indices = dst_indices.viewer().name("indices_sorted")] __device__(int i) mutable
+               [unique_indices = unique_indices.viewer(),
+                dst_indices = dst_indices.viewer()] __device__(int i) mutable
                { dst_indices(i) = unique_indices(i); });
 
     to.resize_doublets(h_count);
@@ -396,9 +395,9 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceDoubletVector
 
 template <typename T, int N>
 void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
-    const muda::DeviceDoubletVector<T, N>& from, muda::DeviceBCOOVector<T, N>& to)
+    const cuda_tool::DeviceDoubletVector<T, N>& from, cuda_tool::DeviceBCOOVector<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     loose_resize(sorted_partition_input, indices_sorted.size());
     loose_resize(sorted_partition_output, indices_sorted.size());
@@ -408,9 +407,9 @@ void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
-               [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
-                unique_counts = unique_counts.viewer().name("unique_counts"),
-                offsets = offsets.viewer().name("offsets")] __device__(int i) mutable
+               [sorted_partition = sorted_partition_input.viewer(),
+                unique_counts = unique_counts.viewer(),
+                offsets = offsets.viewer()] __device__(int i) mutable
                {
                    auto offset = offsets(i);
                    auto count  = unique_counts(i);
@@ -433,9 +432,9 @@ void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
+void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // alias to reuse the memory
     auto& counts     = unique_counts;
@@ -450,12 +449,12 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(to.non_zeros(),
-               [row_indices = to.row_indices().cviewer().name("row_indices"),
-                col_indices = to.col_indices().cviewer().name("col_indices"),
-                ij_pairs    = ij_pairs.viewer().name("ij_pairs"),
-                blocks      = to.values().cviewer().name("block_temp"),
-                block_temp  = block_temp.viewer().name("block_temp"),
-                counts = counts.viewer().name("counts")] __device__(int i) mutable
+               [row_indices = to.row_indices().cviewer(),
+                col_indices = to.col_indices().cviewer(),
+                ij_pairs    = ij_pairs.viewer(),
+                blocks      = to.values().cviewer(),
+                block_temp  = block_temp.viewer(),
+                counts = counts.viewer()] __device__(int i) mutable
                {
                    counts(i)     = row_indices(i) <= col_indices(i) ? 1 : 0;
                    ij_pairs(i).x = row_indices(i);
@@ -472,14 +471,14 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(dst_block.size(),
-               [dst_blocks  = dst_block.viewer().name("blocks"),
-                src_blocks  = block_temp.cviewer().name("src_blocks"),
-                ij_pairs    = ij_pairs.cviewer().name("ij_pairs"),
-                row_indices = to.row_indices().viewer().name("row_indices"),
-                col_indices = to.col_indices().viewer().name("col_indices"),
-                counts      = counts.cviewer().name("counts"),
-                offsets     = offsets.cviewer().name("offsets"),
-                total_count = count.viewer().name("total_count")] __device__(int i) mutable
+               [dst_blocks  = dst_block.viewer(),
+                src_blocks  = block_temp.cviewer(),
+                ij_pairs    = ij_pairs.cviewer(),
+                row_indices = to.row_indices().viewer(),
+                col_indices = to.col_indices().viewer(),
+                counts      = counts.cviewer(),
+                offsets     = offsets.cviewer(),
+                total_count = count.viewer()] __device__(int i) mutable
                {
                    auto count  = counts(i);
                    auto offset = offsets(i);
@@ -504,9 +503,9 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::ge2sym(muda::DeviceTripletMatrix<T, N>& to)
+void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceTripletMatrix<T, N>& to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // alias to reuse the memory
     auto& counts     = unique_counts;
@@ -521,12 +520,12 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceTripletMatrix<T, N>& to)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(to.triplet_count(),
-               [row_indices = to.row_indices().cviewer().name("row_indices"),
-                col_indices = to.col_indices().cviewer().name("col_indices"),
-                ij_pairs    = ij_pairs.viewer().name("ij_pairs"),
-                blocks      = to.values().cviewer().name("block_temp"),
-                block_temp  = block_temp.viewer().name("block_temp"),
-                counts = counts.viewer().name("counts")] __device__(int i) mutable
+               [row_indices = to.row_indices().cviewer(),
+                col_indices = to.col_indices().cviewer(),
+                ij_pairs    = ij_pairs.viewer(),
+                blocks      = to.values().cviewer(),
+                block_temp  = block_temp.viewer(),
+                counts = counts.viewer()] __device__(int i) mutable
                {
                    counts(i)     = row_indices(i) <= col_indices(i) ? 1 : 0;
                    ij_pairs(i).x = row_indices(i);
@@ -543,14 +542,14 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceTripletMatrix<T, N>& to)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(dst_block.size(),
-               [dst_blocks  = dst_block.viewer().name("blocks"),
-                src_blocks  = block_temp.cviewer().name("src_blocks"),
-                ij_pairs    = ij_pairs.cviewer().name("ij_pairs"),
-                row_indices = to.row_indices().viewer().name("row_indices"),
-                col_indices = to.col_indices().viewer().name("col_indices"),
-                counts      = counts.cviewer().name("counts"),
-                offsets     = offsets.cviewer().name("offsets"),
-                total_count = count.viewer().name("total_count")] __device__(int i) mutable
+               [dst_blocks  = dst_block.viewer(),
+                src_blocks  = block_temp.cviewer(),
+                ij_pairs    = ij_pairs.cviewer(),
+                row_indices = to.row_indices().viewer(),
+                col_indices = to.col_indices().viewer(),
+                counts      = counts.cviewer(),
+                offsets     = offsets.cviewer(),
+                total_count = count.viewer()] __device__(int i) mutable
                {
                    auto count  = counts(i);
                    auto offset = offsets(i);
@@ -576,10 +575,10 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceTripletMatrix<T, N>& to)
 
 
 template <typename T, int N>
-void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
-                                   muda::DeviceBCOOMatrix<T, N>&       to)
+void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
+                                   cuda_tool::DeviceBCOOMatrix<T, N>&       to)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto sym_size = from.non_zeros();
 
@@ -600,18 +599,17 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(sym_size,
-               [flags       = flags.viewer().name("flags"),
-                row_indices = from.row_indices().cviewer().name("row_indices"),
-                col_indices = from.col_indices().cviewer().name("col_indices"),
-                partition_index = partition_index_input.viewer().name(
-                    "partitioned")] __device__(int i) mutable
+               [flags       = flags.viewer(),
+                row_indices = from.row_indices().cviewer(),
+                col_indices = from.col_indices().cviewer(),
+                partition_index = partition_index_input.viewer()] __device__(int i) mutable
                {
                    flags(i) = (row_indices(i) == col_indices(i)) ? 1 : 0;
                    partition_index(i) = i;
                });
 
 
-    muda::DevicePartition().Flagged(partition_index_input.data(),
+    cuda_tool::DevicePartition().Flagged(partition_index_input.data(),
                                     flags.data(),
                                     partition_index.data(),
                                     selected_count.data(),
@@ -629,9 +627,9 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(sym_size,
-               [to   = to.viewer().name("to"),
-                from = from.cviewer().name("from"),
-                partition_index = partition_index.cviewer().name("partition_index"),
+               [to   = to.viewer(),
+                from = from.cviewer(),
+                partition_index = partition_index.cviewer(),
                 diag_count = diag_count,
                 sym_size   = sym_size] __device__(int i) mutable
                {

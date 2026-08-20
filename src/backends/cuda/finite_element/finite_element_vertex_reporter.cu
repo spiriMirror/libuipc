@@ -1,7 +1,7 @@
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_body_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 
@@ -29,7 +29,7 @@ void FiniteElementVertexReporter::Impl::report_count(VertexCountInfo& info)
 
 void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     info.contact_element_ids().copy_from(fem().h_vertex_contact_element_ids.data());
     info.subscene_element_ids().copy_from(
@@ -46,13 +46,13 @@ void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& inf
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coindices    = info.coindices().viewer().name("coindices"),
-                src_pos      = fem().xs.cviewer().name("src_pos"),
-                dst_pos      = info.positions().viewer().name("dst_pos"),
-                src_rest_pos = fem().x_bars.cviewer().name("rest_pos"),
+               [coindices    = info.coindices().viewer(),
+                src_pos      = fem().xs.cviewer(),
+                dst_pos      = info.positions().viewer(),
+                src_rest_pos = fem().x_bars.cviewer(),
                 body_offset  = body_reporter->body_offset(),
-                dst_body_ids = info.body_ids().viewer().name("dst_body_ids"),
-                dst_rest_pos = info.rest_positions().viewer().name("rest_pos")] __device__(int i) mutable
+                dst_body_ids = info.body_ids().viewer(),
+                dst_rest_pos = info.rest_positions().viewer()] __device__(int i) mutable
                {
                    coindices(i)    = i;
                    dst_pos(i)      = src_pos(i);

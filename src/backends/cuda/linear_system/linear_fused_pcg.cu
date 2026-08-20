@@ -116,11 +116,11 @@ void LinearFusedPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
 }
 
 // d_result = x^T * y  (cublas-free, device-only, CUB warp reduction)
-void fused_dot(muda::CDenseVectorView<Float> x,
-               muda::CDenseVectorView<Float> y,
-               muda::VarView<Float>          d_result)
+void fused_dot(cuda_tool::CDenseVectorView<Float> x,
+               cuda_tool::CDenseVectorView<Float> y,
+               cuda_tool::VarView<Float>          d_result)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     cudaMemsetAsync(d_result.data(), 0, sizeof(Float));
 
@@ -133,9 +133,9 @@ void fused_dot(muda::CDenseVectorView<Float> x,
     Launch(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
         .apply(
-            [x        = x.cviewer().name("x"),
-             y        = y.cviewer().name("y"),
-             d_result = d_result.viewer().name("d_result"),
+            [x        = x.cviewer(),
+             y        = y.cviewer(),
+             d_result = d_result.viewer(),
              n] __device__() mutable
             {
                 using WarpReduce = cub::WarpReduce<Float, warp_size>;
@@ -149,31 +149,31 @@ void fused_dot(muda::CDenseVectorView<Float> x,
                 Float warp_sum = WarpReduce(temp_storage[warp_id]).Sum(val);
 
                 if(lane_id == 0)
-                    muda::atomic_add(d_result.data(), warp_sum);
+                    cuda_tool::atomic_add(d_result.data(), warp_sum);
             });
 }
 
 // Same as linear_pcg update_xr: alpha = rz/pAp, x += alpha*p, r -= alpha*Ap. Alpha computed on device from d_rz, d_pAp.
-void fused_update_xr(muda::CVarView<Float>         d_rz,
-                     muda::CVarView<Float>         d_pAp,
-                     muda::CVarView<IndexT>        d_converged,
-                     muda::DenseVectorView<Float>  x,
-                     muda::CDenseVectorView<Float> p,
-                     muda::DenseVectorView<Float>  r,
-                     muda::CDenseVectorView<Float> Ap)
+void fused_update_xr(cuda_tool::CVarView<Float>         d_rz,
+                     cuda_tool::CVarView<Float>         d_pAp,
+                     cuda_tool::CVarView<IndexT>        d_converged,
+                     cuda_tool::DenseVectorView<Float>  x,
+                     cuda_tool::CDenseVectorView<Float> p,
+                     cuda_tool::DenseVectorView<Float>  r,
+                     cuda_tool::CDenseVectorView<Float> Ap)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(r.size(),
-               [d_rz        = d_rz.cviewer().name("d_rz"),
-                d_pAp       = d_pAp.cviewer().name("d_pAp"),
-                d_converged = d_converged.cviewer().name("d_converged"),
-                x           = x.viewer().name("x"),
-                p           = p.cviewer().name("p"),
-                r           = r.viewer().name("r"),
-                Ap          = Ap.cviewer().name("Ap")] __device__(int i) mutable
+               [d_rz        = d_rz.cviewer(),
+                d_pAp       = d_pAp.cviewer(),
+                d_converged = d_converged.cviewer(),
+                x           = x.viewer(),
+                p           = p.cviewer(),
+                r           = r.viewer(),
+                Ap          = Ap.cviewer()] __device__(int i) mutable
                {
                    if(*d_converged != 0)
                        return;
@@ -185,22 +185,22 @@ void fused_update_xr(muda::CVarView<Float>         d_rz,
 
 // Same as linear_pcg update_p: beta = rz_new/rz, p = z + beta*p.
 // Convergence is guarded by d_converged.
-void fused_update_p(muda::CVarView<Float>         d_rz_new,
-                    muda::CVarView<Float>         d_rz,
-                    muda::CVarView<IndexT>        d_converged,
-                    muda::DenseVectorView<Float>  p,
-                    muda::CDenseVectorView<Float> z)
+void fused_update_p(cuda_tool::CVarView<Float>         d_rz_new,
+                    cuda_tool::CVarView<Float>         d_rz,
+                    cuda_tool::CVarView<IndexT>        d_converged,
+                    cuda_tool::DenseVectorView<Float>  p,
+                    cuda_tool::CDenseVectorView<Float> z)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(p.size(),
-               [d_rz_new    = d_rz_new.cviewer().name("d_rz_new"),
-                d_rz        = d_rz.cviewer().name("d_rz"),
-                d_converged = d_converged.cviewer().name("d_converged"),
-                p           = p.viewer().name("p"),
-                z           = z.cviewer().name("z")] __device__(int i) mutable
+               [d_rz_new    = d_rz_new.cviewer(),
+                d_rz        = d_rz.cviewer(),
+                d_converged = d_converged.cviewer(),
+                p           = p.viewer(),
+                z           = z.cviewer()] __device__(int i) mutable
                {
                    if(*d_converged != 0)
                        return;
@@ -210,18 +210,18 @@ void fused_update_p(muda::CVarView<Float>         d_rz_new,
 }
 
 // d_rz = d_rz_new when not converged (single-thread write).
-void fused_swap_rz(muda::CVarView<Float>  d_rz_new,
-                   muda::VarView<Float>   d_rz,
-                   muda::CVarView<IndexT> d_converged)
+void fused_swap_rz(cuda_tool::CVarView<Float>  d_rz_new,
+                   cuda_tool::VarView<Float>   d_rz,
+                   cuda_tool::CVarView<IndexT> d_converged)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     Launch()
         .file_line(__FILE__, __LINE__)
         .apply(
-            [d_rz_new = d_rz_new.cviewer().name("d_rz_new"),
-             d_rz     = d_rz.viewer().name("d_rz"),
-             d_converged = d_converged.cviewer().name("d_converged")] __device__() mutable
+            [d_rz_new = d_rz_new.cviewer(),
+             d_rz     = d_rz.viewer(),
+             d_converged = d_converged.cviewer()] __device__() mutable
             {
                 if(*d_converged != 0)
                     return;
@@ -229,17 +229,17 @@ void fused_swap_rz(muda::CVarView<Float>  d_rz_new,
             });
 }
 
-void fused_update_converged(muda::CVarView<Float> d_rz_new,
-                            muda::VarView<IndexT> d_converged,
+void fused_update_converged(cuda_tool::CVarView<Float> d_rz_new,
+                            cuda_tool::VarView<IndexT> d_converged,
                             Float                 rz_tol)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(1,
-               [d_rz_new    = d_rz_new.cviewer().name("d_rz_new"),
-                d_converged = d_converged.viewer().name("d_converged"),
+               [d_rz_new    = d_rz_new.cviewer(),
+                d_converged = d_converged.viewer(),
                 rz_tol] __device__(int) mutable
                {
                    Float rz_new = *d_rz_new;
@@ -247,8 +247,8 @@ void fused_update_converged(muda::CVarView<Float> d_rz_new,
                });
 }
 
-SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
-                                muda::CDenseVectorView<Float> b,
+SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
+                                cuda_tool::CDenseVectorView<Float> b,
                                 SizeT                         max_iter)
 {
     Timer pcg_timer{"FusedPCG"};

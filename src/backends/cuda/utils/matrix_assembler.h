@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -34,13 +34,13 @@ template <typename T>
 class DenseVectorAssembler
 {
   public:
-    MUDA_GENERIC DenseVectorAssembler(const muda::DenseVectorViewer<T>& dense)
+    UIPC_GENERIC DenseVectorAssembler(const cuda_tool::DenseVectorViewer<T>& dense)
         : m_dense(dense)
     {
     }
 
     template <int M, int N>
-    MUDA_DEVICE void atomic_add(const Vector<IndexT, N>& indices,
+    UIPC_DEVICE void atomic_add(const Vector<IndexT, N>& indices,
                                 const Vector<IndexT, N>& ignore,
                                 const Vector<Float, M>&  G3N)
         requires(N >= 2 && M % N == 0)
@@ -62,7 +62,7 @@ class DenseVectorAssembler
     }
 
     template <int M, int N>
-    MUDA_DEVICE void atomic_add(const Vector<IndexT, N>& indices,
+    UIPC_DEVICE void atomic_add(const Vector<IndexT, N>& indices,
                                 const Vector<Float, M>&  G3N)
         requires(N >= 2 && M % N == 0)
     {
@@ -81,12 +81,12 @@ class DenseVectorAssembler
     }
 
   private:
-    const muda::DenseVectorViewer<T>& m_dense;
+    const cuda_tool::DenseVectorViewer<T>& m_dense;
 };
 
 // CTAD
 template <typename T>
-DenseVectorAssembler(const muda::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
+DenseVectorAssembler(const cuda_tool::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
 
 template <typename T, int SegmentDim>
 class DoubletVectorAssembler
@@ -94,7 +94,7 @@ class DoubletVectorAssembler
   public:
     using ElementVector = Eigen::Matrix<T, SegmentDim, 1>;
 
-    MUDA_GENERIC DoubletVectorAssembler(const muda::DoubletVectorViewer<T, SegmentDim>& doublet)
+    UIPC_GENERIC DoubletVectorAssembler(const cuda_tool::DoubletVectorViewer<T, SegmentDim>& doublet)
         : m_doublet(doublet)
     {
     }
@@ -106,11 +106,11 @@ class DoubletVectorAssembler
       public:
         using SegmentVector = Eigen::Vector<T, N * SegmentDim>;
 
-        MUDA_GENERIC ProxyRange(DoubletVectorAssembler& assembler, IndexT I)
+        UIPC_GENERIC ProxyRange(DoubletVectorAssembler& assembler, IndexT I)
             : m_assembler(assembler)
             , m_I(I)
         {
-            MUDA_ASSERT(I + N <= m_assembler.m_doublet.doublet_count(),
+            UIPC_KERNEL_ASSERT(I + N <= m_assembler.m_doublet.doublet_count(),
                         "Doublet out of range, I = %d, Count=%d, total=%d. %s(%d)",
                         I,
                         N,
@@ -119,7 +119,7 @@ class DoubletVectorAssembler
                         m_assembler.m_doublet.kernel_line());
         }
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
                                 const SegmentVector&            value)
             requires(N > 1)
         {
@@ -131,7 +131,7 @@ class DoubletVectorAssembler
             }
         }
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
                                 const Eigen::Vector<IndexT, N>& ignore,
                                 const SegmentVector&            value)
             requires(N > 1)
@@ -146,13 +146,13 @@ class DoubletVectorAssembler
             }
         }
 
-        MUDA_GENERIC void write(IndexT indices, const ElementVector& value)
+        UIPC_GENERIC void write(IndexT indices, const ElementVector& value)
             requires(N == 1)
         {
             m_assembler.m_doublet(m_I).write(indices, value);
         }
 
-        MUDA_GENERIC void write(IndexT indices, IndexT ignore, const ElementVector& value)
+        UIPC_GENERIC void write(IndexT indices, IndexT ignore, const ElementVector& value)
             requires(N == 1)
         {
             ElementVector G = value;
@@ -171,7 +171,7 @@ class DoubletVectorAssembler
      * @brief Take a range of [I, I + N) from the doublets.
      */
     template <int N>
-    MUDA_GENERIC ProxyRange<N> segment(IndexT I)
+    UIPC_GENERIC ProxyRange<N> segment(IndexT I)
     {
         return ProxyRange<N>(*this, I);
     }
@@ -179,18 +179,18 @@ class DoubletVectorAssembler
     /** 
      * @brief Take a range of [I, I + 1) from the doublets.
      */
-    MUDA_GENERIC ProxyRange<1> operator()(IndexT I)
+    UIPC_GENERIC ProxyRange<1> operator()(IndexT I)
     {
         return ProxyRange<1>(*this, I);
     }
 
   private:
-    const muda::DoubletVectorViewer<T, SegmentDim>& m_doublet;
+    const cuda_tool::DoubletVectorViewer<T, SegmentDim>& m_doublet;
 };
 
 // CTAD
 template <typename T, int SegmentDim>
-DoubletVectorAssembler(muda::DoubletVectorViewer<T, SegmentDim>&)
+DoubletVectorAssembler(cuda_tool::DoubletVectorViewer<T, SegmentDim>&)
     -> DoubletVectorAssembler<T, SegmentDim>;
 
 
@@ -201,7 +201,7 @@ class TripletMatrixAssembler
     using ElementMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
 
 
-    MUDA_GENERIC TripletMatrixAssembler(const muda::TripletMatrixViewer<T, BlockDim>& triplet)
+    UIPC_GENERIC TripletMatrixAssembler(const cuda_tool::TripletMatrixViewer<T, BlockDim>& triplet)
         : m_triplet(triplet)
     {
     }
@@ -213,11 +213,11 @@ class TripletMatrixAssembler
       public:
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
 
-        MUDA_GENERIC ProxyRange(TripletMatrixAssembler& assembler, IndexT I)
+        UIPC_GENERIC ProxyRange(TripletMatrixAssembler& assembler, IndexT I)
             : m_assembler(assembler)
             , m_I(I)
         {
-            MUDA_ASSERT(I + (N * N) <= m_assembler.m_triplet.triplet_count(),
+            UIPC_KERNEL_ASSERT(I + (N * N) <= m_assembler.m_triplet.triplet_count(),
                         "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
                         I,
                         N,
@@ -228,7 +228,7 @@ class TripletMatrixAssembler
         }
 
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
                                 const Eigen::Vector<IndexT, N>& r_indices,
                                 const BlockMatrix&              value)
             requires(N > 1)
@@ -246,7 +246,7 @@ class TripletMatrixAssembler
             }
         }
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
                                 const Eigen::Vector<int8_t, N>& l_ignore,
                                 const Eigen::Vector<IndexT, N>& r_indices,
                                 const Eigen::Vector<int8_t, N>& r_ignore,
@@ -272,14 +272,14 @@ class TripletMatrixAssembler
         }
 
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
             requires(N > 1)
         {
             write(indices, indices, value);
         }
 
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
                                 const Eigen::Vector<int8_t, N>  ignore,
                                 const BlockMatrix&              value)
             requires(N > 1)
@@ -287,14 +287,14 @@ class TripletMatrixAssembler
             write(indices, ignore, indices, ignore, value);
         }
 
-        MUDA_GENERIC void write(IndexT indices, const ElementMatrix& value)
+        UIPC_GENERIC void write(IndexT indices, const ElementMatrix& value)
             requires(N == 1)
         {
             IndexT offset = m_I;
             m_assembler.m_triplet(offset).write(indices, indices, value);
         }
 
-        MUDA_GENERIC void write(IndexT indices, IndexT ignore, const ElementMatrix& value)
+        UIPC_GENERIC void write(IndexT indices, IndexT ignore, const ElementMatrix& value)
             requires(N == 1)
         {
             IndexT        offset = m_I;
@@ -321,11 +321,11 @@ class TripletMatrixAssembler
         };
 
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
-        MUDA_GENERIC ProxyRangeHalf(const TripletMatrixAssembler& assembler, IndexT I)
+        UIPC_GENERIC ProxyRangeHalf(const TripletMatrixAssembler& assembler, IndexT I)
             : m_assembler(assembler)
             , m_I(I)
         {
-            MUDA_ASSERT(I + (N * (N + 1)) / 2 <= m_assembler.m_triplet.triplet_count(),
+            UIPC_KERNEL_ASSERT(I + (N * (N + 1)) / 2 <= m_assembler.m_triplet.triplet_count(),
                         "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
                         I,
                         N,
@@ -338,7 +338,7 @@ class TripletMatrixAssembler
         /**
          * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
          */
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
         {
             IndexT offset = m_I;
             for(IndexT ii = 0; ii < N; ++ii)
@@ -359,7 +359,7 @@ class TripletMatrixAssembler
         /**
          * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
          */
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
                                 const Eigen::Vector<IndexT, N>& r_indices,
                                 const BlockMatrix&              value)
         {
@@ -384,7 +384,7 @@ class TripletMatrixAssembler
          * 
          * Constraints: if either side is ignored, write zero.
          */
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+        UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
                                 const Eigen::Vector<int8_t, N>  ignore,
                                 const BlockMatrix&              value)
         {
@@ -410,20 +410,20 @@ class TripletMatrixAssembler
         }
 
       private:
-        MUDA_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& indices,
+        UIPC_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& indices,
                                       const IndexT&                   I,
                                       const IndexT&                   J)
         {
             return upper_LR(indices, indices, I, J);
         }
 
-        MUDA_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& l_indices,
+        UIPC_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& l_indices,
                                       const Eigen::Vector<IndexT, N>& r_indices,
                                       const IndexT&                   I,
                                       const IndexT&                   J)
         {
             auto submatrix_offset = m_assembler.m_triplet.submatrix_offset();
-            MUDA_ASSERT(submatrix_offset.x == submatrix_offset.y,
+            UIPC_KERNEL_ASSERT(submatrix_offset.x == submatrix_offset.y,
                         "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
                         submatrix_offset.x,
                         submatrix_offset.y);
@@ -452,7 +452,7 @@ class TripletMatrixAssembler
      * @brief Take a range of [I, I + N * N) from the triplets.
      */
     template <int M, int N>
-    MUDA_GENERIC ProxyRange<N> block(IndexT I)
+    UIPC_GENERIC ProxyRange<N> block(IndexT I)
         requires(M == N)
     {
         return ProxyRange<N>(*this, I);
@@ -462,7 +462,7 @@ class TripletMatrixAssembler
      * @brief Take a range of [I, I + N * (N + 1) / 2) from the triplets.
      */
     template <int N>
-    MUDA_GENERIC ProxyRangeHalf<N> half_block(IndexT I)
+    UIPC_GENERIC ProxyRangeHalf<N> half_block(IndexT I)
     {
         return ProxyRangeHalf<N>(*this, I);
     }
@@ -470,17 +470,17 @@ class TripletMatrixAssembler
     /** 
      * @brief Take a range of [I, I + 1) from the triplets.
      */
-    MUDA_GENERIC ProxyRange<1> operator()(IndexT I)
+    UIPC_GENERIC ProxyRange<1> operator()(IndexT I)
     {
         return ProxyRange<1>(*this, I);
     }
 
   private:
-    const muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
+    const cuda_tool::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
 template <typename T, int BlockDim>
-TripletMatrixAssembler(const muda::TripletMatrixViewer<T, BlockDim>&)
+TripletMatrixAssembler(const cuda_tool::TripletMatrixViewer<T, BlockDim>&)
     -> TripletMatrixAssembler<T, BlockDim>;
 }  // namespace uipc::backend::cuda

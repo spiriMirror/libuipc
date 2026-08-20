@@ -2,6 +2,7 @@
 #include <diff_sim/diff_dof_reporter.h>
 #include <diff_sim/diff_parm_reporter.h>
 #include <linear_system/global_linear_system.h>
+#include <algorithm/matrix_converter.h>
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
 #include <sim_engine.h>
@@ -31,12 +32,12 @@ namespace uipc::backend::cuda
 {
 namespace detail
 {
-    void build_coo_matrix(muda::LinearSystemContext&           ctx,
-                          muda::DeviceCOOMatrix<Float>&        total_coo,
-                          muda::DeviceTripletMatrix<Float, 1>& total_triplet,
-                          muda::DeviceTripletMatrix<Float, 1>& local_triplet)
+    void build_coo_matrix(cuda_tool::LinearSystemContext&           ctx,
+                          cuda_tool::DeviceCOOMatrix<Float>&        total_coo,
+                          cuda_tool::DeviceTripletMatrix<Float, 1>& total_triplet,
+                          cuda_tool::DeviceTripletMatrix<Float, 1>& local_triplet)
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         // 1) reshape the total_coo and total_triplet
         auto M = local_triplet.rows();
@@ -52,11 +53,10 @@ namespace detail
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(total_coo.non_zeros(),
-                   [total_coo     = total_coo.cviewer().name("total_coo"),
+                   [total_coo     = total_coo.cviewer(),
                     total_triplet = total_triplet_view
                                         .subview(0, total_coo.non_zeros())  // front
-                                        .viewer()
-                                        .name("total_triplet")] __device__(int I) mutable
+                                        .viewer()] __device__(int I) mutable
                    {
                        auto&& [i, j, V] = total_coo(I);
                        total_triplet(I).write(i, j, V);
@@ -65,22 +65,21 @@ namespace detail
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(local_triplet.triplet_count(),
-                   [local_triplet = local_triplet.cviewer().name("local_triplet"),
+                   [local_triplet = local_triplet.cviewer(),
                     total_triplet = total_triplet_view
                                         .subview(total_coo.non_zeros(),
                                                  local_triplet.triplet_count())  // back
-                                        .viewer()
-                                        .name("total_triplet")] __device__(int I) mutable
+                                        .viewer()] __device__(int I) mutable
                    {
                        auto&& [i, j, V] = local_triplet(I);
                        total_triplet(I).write(i, j, V);
                    });
 
         // 3) convert the total_triplet to total_coo
-        ctx.convert(total_triplet, total_coo);
+        MatrixConverter<Float, 1>{}.convert(total_triplet, total_coo);
     }
 
-    void copy_to_host(const muda::DeviceCOOMatrix<Float>& total_coo,
+    void copy_to_host(const cuda_tool::DeviceCOOMatrix<Float>& total_coo,
                       GlobalDiffSimManager::SparseCOO&    host_coo)
     {
         // copy row_inides, col_indices, values to host_coo
@@ -112,7 +111,7 @@ void GlobalDiffSimManager::do_build()
     on_write_scene([&] { m_impl.write_scene(world()); });
 }
 
-muda::LinearSystemContext& GlobalDiffSimManager::Impl::ctx()
+cuda_tool::LinearSystemContext& GlobalDiffSimManager::Impl::ctx()
 {
     return global_linear_system->m_impl.ctx;
 }
@@ -197,14 +196,14 @@ void GlobalDiffSimManager::add_reporter(DiffParmReporter* subsystem)
     m_impl.diff_parm_reporters.register_sim_system(*subsystem);
 }
 
-muda::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffParmInfo::pGpP() const
+cuda_tool::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffParmInfo::pGpP() const
 {
     auto offset = m_impl->diff_parm_triplet_offset_count.offsets()[m_index];
     auto count  = m_impl->diff_parm_triplet_offset_count.counts()[m_index];
     return m_impl->local_triplet_pGpP.view().subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffDofInfo::H() const
+cuda_tool::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffDofInfo::H() const
 {
     auto offset = m_impl->diff_dof_triplet_offset_count.offsets()[m_index];
     auto count  = m_impl->diff_dof_triplet_offset_count.counts()[m_index];
@@ -231,7 +230,7 @@ diff_sim::SparseCOOView GlobalDiffSimManager::SparseCOO::view() const
     return diff_sim::SparseCOOView{row_indices, col_indices, values, shape};
 }
 
-muda::CBufferView<Float> GlobalDiffSimManager::DiffParmUpdateInfo::parameters() const noexcept
+cuda_tool::CBufferView<Float> GlobalDiffSimManager::DiffParmUpdateInfo::parameters() const noexcept
 {
     return m_impl->parameters.view();
 }

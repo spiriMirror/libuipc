@@ -2,7 +2,7 @@
 #include <linear_system/global_linear_system.h>
 #include <utils/matrix_unpacker.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -26,7 +26,7 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
     GlobalLinearSystem* global_linear_system = nullptr;
     IndexT              triplet_count        = 0;
 
-    muda::BCOOMatrixView<Float, 3> bcoo_A()
+    cuda_tool::BCOOMatrixView<Float, 3> bcoo_A()
     {
         return global_linear_system->m_impl.bcoo_A;
     }
@@ -49,7 +49,7 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
 
     virtual void do_assemble(GlobalDiffSimManager::DiffDofInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
 
         auto frame      = info.frame();
@@ -63,8 +63,8 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(A.triplet_count(),
-                   [bcoo_A = A.cviewer().name("bcoo_A"),
-                    sub_H = sub_H.viewer().name("sub_H")] __device__(int I) mutable
+                   [bcoo_A = A.cviewer(),
+                    sub_H = sub_H.viewer()] __device__(int I) mutable
                    {
                        auto&& [i, j, H3x3] = bcoo_A(I);
 

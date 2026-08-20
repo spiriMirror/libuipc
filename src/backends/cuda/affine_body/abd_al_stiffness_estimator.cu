@@ -13,7 +13,7 @@ void ABDALStiffnessEstimator::do_build(BuildInfo& info)
 
 void ABDALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     UIPC_ASSERT(vertex_reporter->vertex_count() == affine_body_dynamics->v2b().size(),
                 "vertex count mismatch");
     ParallelFor()
@@ -21,10 +21,9 @@ void ABDALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
         .apply(vertex_reporter->vertex_count(),
                [mu_vertices = info.mu_vertices(vertex_reporter->vertex_offset(),
                                                vertex_reporter->vertex_count())
-                                  .viewer()
-                                  .name("mu_vertices"),
-                body_id = affine_body_dynamics->v2b().cviewer().name("body_id"),
-                body_masses = affine_body_dynamics->body_masses().cviewer().name("body_masses"),
+                                  .viewer(),
+                body_id = affine_body_dynamics->v2b().cviewer(),
+                body_masses = affine_body_dynamics->body_masses().cviewer(),
                 mu_scale_abd = mu_scale_abd,
                 dt           = info.dt()] __device__(int idx) mutable
                {

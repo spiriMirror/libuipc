@@ -22,8 +22,8 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
     vector<Vector3i> h_hinges;
     vector<Float>    h_bending_stiffness;
 
-    muda::DeviceBuffer<Vector3i> hinges;
-    muda::DeviceBuffer<Float>    bending_stiffnesses;
+    cuda_tool::DeviceBuffer<Vector3i> hinges;
+    cuda_tool::DeviceBuffer<Float>    bending_stiffnesses;
 
 
     virtual void do_build(BuildInfo& info) override {}
@@ -112,7 +112,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace KRB = sym::kirchhoff_rod_bending;
 
         constexpr Float Pi = std::numbers::pi;
@@ -120,12 +120,12 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.energies().size(),
-                   [hinges = hinges.viewer().name("hinges"),
-                    bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
-                    thicknesses = info.thicknesses().viewer().name("thickness"),
-                    xs          = info.xs().viewer().name("xs"),
-                    x_bars      = info.x_bars().viewer().name("x_bars"),
-                    energies    = info.energies().viewer().name("energies"),
+                   [hinges = hinges.viewer(),
+                    bending_stiffnesses = bending_stiffnesses.viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    xs          = info.xs().viewer(),
+                    x_bars      = info.x_bars().viewer(),
+                    energies    = info.energies().viewer(),
                     dt          = info.dt(),
                     Pi] __device__(int I)
                    {
@@ -155,7 +155,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace KRB = sym::kirchhoff_rod_bending;
 
         constexpr Float Pi = std::numbers::pi;
@@ -163,13 +163,13 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(hinges.size(),
-                   [hinges = hinges.viewer().name("hinges"),
-                    bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
-                    thicknesses = info.thicknesses().viewer().name("thickness"),
-                    xs          = info.xs().viewer().name("xs"),
-                    x_bars      = info.x_bars().viewer().name("x_bars"),
-                    G3s         = info.gradients().viewer().name("gradients"),
-                    H3x3s       = info.hessians().viewer().name("hessians"),
+                   [hinges = hinges.viewer(),
+                    bending_stiffnesses = bending_stiffnesses.viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    xs          = info.xs().viewer(),
+                    x_bars      = info.x_bars().viewer(),
+                    G3s         = info.gradients().viewer(),
+                    H3x3s       = info.hessians().viewer(),
                     dt          = info.dt(),
                     Pi,
                     gradient_only = info.gradient_only()] __device__(int I) mutable

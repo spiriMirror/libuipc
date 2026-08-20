@@ -25,19 +25,19 @@ class SimplexNormalContact : public ContactReporter
         {
         }
 
-        muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
-        muda::CBufferView<Vector4i>       PTs() const;
-        muda::CBufferView<Vector4i>       EEs() const;
-        muda::CBufferView<Vector3i>       PEs() const;
-        muda::CBufferView<Vector2i>       PPs() const;
+        cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const;
+        cuda_tool::CBufferView<Vector4i>       PTs() const;
+        cuda_tool::CBufferView<Vector4i>       EEs() const;
+        cuda_tool::CBufferView<Vector3i>       PEs() const;
+        cuda_tool::CBufferView<Vector2i>       PPs() const;
 
-        muda::CBufferView<Float>   thicknesses() const;
-        muda::CBufferView<Vector3> positions() const;
-        muda::CBufferView<Vector3> prev_positions() const;
-        muda::CBufferView<Vector3> rest_positions() const;
-        muda::CBufferView<IndexT>  contact_element_ids() const;
+        cuda_tool::CBufferView<Float>   thicknesses() const;
+        cuda_tool::CBufferView<Vector3> positions() const;
+        cuda_tool::CBufferView<Vector3> prev_positions() const;
+        cuda_tool::CBufferView<Vector3> rest_positions() const;
+        cuda_tool::CBufferView<IndexT>  contact_element_ids() const;
         Float                      d_hat() const;
-        muda::CBufferView<Float>   d_hats() const;
+        cuda_tool::CBufferView<Float>   d_hats() const;
         Float                      dt() const;
         Float                      eps_velocity() const;
 
@@ -65,17 +65,17 @@ class SimplexNormalContact : public ContactReporter
 
       private:
         friend class SimplexNormalContact;
-        muda::DoubletVectorView<Float, 3> m_PT_gradients;
-        muda::TripletMatrixView<Float, 3> m_PT_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_PT_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_PT_hessians;
 
-        muda::DoubletVectorView<Float, 3> m_EE_gradients;
-        muda::TripletMatrixView<Float, 3> m_EE_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_EE_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_EE_hessians;
 
-        muda::DoubletVectorView<Float, 3> m_PE_gradients;
-        muda::TripletMatrixView<Float, 3> m_PE_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_PE_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_PE_hessians;
 
-        muda::DoubletVectorView<Float, 3> m_PP_gradients;
-        muda::TripletMatrixView<Float, 3> m_PP_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_PP_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_PP_hessians;
         bool                              m_gradient_only = false;
     };
 
@@ -92,29 +92,29 @@ class SimplexNormalContact : public ContactReporter
         {
         }
 
-        muda::BufferView<Float> PT_energies() const noexcept
+        cuda_tool::BufferView<Float> PT_energies() const noexcept
         {
             return m_PT_energies;
         }
-        muda::BufferView<Float> EE_energies() const noexcept
+        cuda_tool::BufferView<Float> EE_energies() const noexcept
         {
             return m_EE_energies;
         }
-        muda::BufferView<Float> PE_energies() const noexcept
+        cuda_tool::BufferView<Float> PE_energies() const noexcept
         {
             return m_PE_energies;
         }
-        muda::BufferView<Float> PP_energies() const noexcept
+        cuda_tool::BufferView<Float> PP_energies() const noexcept
         {
             return m_PP_energies;
         }
 
       private:
         friend class SimplexNormalContact;
-        muda::BufferView<Float> m_PT_energies;
-        muda::BufferView<Float> m_EE_energies;
-        muda::BufferView<Float> m_PE_energies;
-        muda::BufferView<Float> m_PP_energies;
+        cuda_tool::BufferView<Float> m_PT_energies;
+        cuda_tool::BufferView<Float> m_EE_energies;
+        cuda_tool::BufferView<Float> m_PE_energies;
+        cuda_tool::BufferView<Float> m_PP_energies;
     };
 
     class Impl
@@ -134,12 +134,12 @@ class SimplexNormalContact : public ContactReporter
         SizeT PP_count = 0;
 
         S<const geometry::AttributeSlot<Float>> dt_attr;
-        muda::DeviceVar<IndexT>                 selected_count;
+        cuda_tool::DeviceVar<IndexT>                 selected_count;
 
         Float reserve_ratio = 1.1;
 
         template <typename T>
-        void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
+        void loose_resize(cuda_tool::DeviceBuffer<T>& buffer, SizeT size)
         {
             if(size > buffer.capacity())
             {
@@ -148,42 +148,42 @@ class SimplexNormalContact : public ContactReporter
             buffer.resize(size);
         }
 
-        muda::CBufferView<Float>           PT_energies;
-        muda::CDoubletVectorView<Float, 3> PT_gradients;
-        muda::CTripletMatrixView<Float, 3> PT_hessians;
+        cuda_tool::CBufferView<Float>           PT_energies;
+        cuda_tool::CDoubletVectorView<Float, 3> PT_gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> PT_hessians;
 
-        muda::CBufferView<Float>           EE_energies;
-        muda::CDoubletVectorView<Float, 3> EE_gradients;
-        muda::CTripletMatrixView<Float, 3> EE_hessians;
+        cuda_tool::CBufferView<Float>           EE_energies;
+        cuda_tool::CDoubletVectorView<Float, 3> EE_gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> EE_hessians;
 
-        muda::CBufferView<Float>           PE_energies;
-        muda::CDoubletVectorView<Float, 3> PE_gradients;
-        muda::CTripletMatrixView<Float, 3> PE_hessians;
+        cuda_tool::CBufferView<Float>           PE_energies;
+        cuda_tool::CDoubletVectorView<Float, 3> PE_gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> PE_hessians;
 
-        muda::CBufferView<Float>           PP_energies;
-        muda::CDoubletVectorView<Float, 3> PP_gradients;
-        muda::CTripletMatrixView<Float, 3> PP_hessians;
+        cuda_tool::CBufferView<Float>           PP_energies;
+        cuda_tool::CDoubletVectorView<Float, 3> PP_gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> PP_hessians;
     };
 
-    muda::CBufferView<Vector4i>        PTs() const;
-    muda::CBufferView<Float>           PT_energies() const;
-    muda::CDoubletVectorView<Float, 3> PT_gradients() const;
-    muda::CTripletMatrixView<Float, 3> PT_hessians() const;
+    cuda_tool::CBufferView<Vector4i>        PTs() const;
+    cuda_tool::CBufferView<Float>           PT_energies() const;
+    cuda_tool::CDoubletVectorView<Float, 3> PT_gradients() const;
+    cuda_tool::CTripletMatrixView<Float, 3> PT_hessians() const;
 
-    muda::CBufferView<Vector4i>        EEs() const;
-    muda::CBufferView<Float>           EE_energies() const;
-    muda::CDoubletVectorView<Float, 3> EE_gradients() const;
-    muda::CTripletMatrixView<Float, 3> EE_hessians() const;
+    cuda_tool::CBufferView<Vector4i>        EEs() const;
+    cuda_tool::CBufferView<Float>           EE_energies() const;
+    cuda_tool::CDoubletVectorView<Float, 3> EE_gradients() const;
+    cuda_tool::CTripletMatrixView<Float, 3> EE_hessians() const;
 
-    muda::CBufferView<Vector3i>        PEs() const;
-    muda::CBufferView<Float>           PE_energies() const;
-    muda::CDoubletVectorView<Float, 3> PE_gradients() const;
-    muda::CTripletMatrixView<Float, 3> PE_hessians() const;
+    cuda_tool::CBufferView<Vector3i>        PEs() const;
+    cuda_tool::CBufferView<Float>           PE_energies() const;
+    cuda_tool::CDoubletVectorView<Float, 3> PE_gradients() const;
+    cuda_tool::CTripletMatrixView<Float, 3> PE_hessians() const;
 
-    muda::CBufferView<Vector2i>        PPs() const;
-    muda::CBufferView<Float>           PP_energies() const;
-    muda::CDoubletVectorView<Float, 3> PP_gradients() const;
-    muda::CTripletMatrixView<Float, 3> PP_hessians() const;
+    cuda_tool::CBufferView<Vector2i>        PPs() const;
+    cuda_tool::CBufferView<Float>           PP_energies() const;
+    cuda_tool::CDoubletVectorView<Float, 3> PP_gradients() const;
+    cuda_tool::CTripletMatrixView<Float, 3> PP_hessians() const;
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;

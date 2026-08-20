@@ -3,7 +3,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <implicit_geometry/half_plane.h>
 #include <utils/dump_utils.h>
 
@@ -26,19 +26,19 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         }
 
         Float                    d_hat() const noexcept;
-        muda::CBufferView<Float> d_hats() const noexcept;
+        cuda_tool::CBufferView<Float> d_hats() const noexcept;
 
         IndexT                     half_plane_vertex_offset() const noexcept;
-        muda::CBufferView<Vector3> plane_normals() const noexcept;
-        muda::CBufferView<Vector3> plane_positions() const noexcept;
+        cuda_tool::CBufferView<Vector3> plane_normals() const noexcept;
+        cuda_tool::CBufferView<Vector3> plane_positions() const noexcept;
 
-        muda::CBufferView<Vector3>  positions() const noexcept;
-        muda::CBufferView<Float>    thicknesses() const noexcept;
-        muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
-        muda::CBufferView<IndexT>   subscene_element_ids() const noexcept;
-        muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
-        muda::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
-        muda::CBufferView<IndexT>   surf_vertices() const noexcept;
+        cuda_tool::CBufferView<Vector3>  positions() const noexcept;
+        cuda_tool::CBufferView<Float>    thicknesses() const noexcept;
+        cuda_tool::CBufferView<IndexT>   contact_element_ids() const noexcept;
+        cuda_tool::CBufferView<IndexT>   subscene_element_ids() const noexcept;
+        cuda_tool::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
+        cuda_tool::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
+        cuda_tool::CBufferView<IndexT>   surf_vertices() const noexcept;
 
       private:
         friend class VertexHalfPlaneTrajectoryFilter;
@@ -50,7 +50,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
       public:
         using BaseInfo::BaseInfo;
         Float                      alpha() const noexcept;
-        muda::CBufferView<Vector3> displacements() const noexcept;
+        cuda_tool::CBufferView<Vector3> displacements() const noexcept;
 
       private:
         friend class VertexHalfPlaneTrajectoryFilter;
@@ -65,7 +65,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         /**
          * @brief Candidate vertex-half-plane pairs.
          */
-        void PHs(muda::CBufferView<Vector2i> Ps) noexcept;
+        void PHs(cuda_tool::CBufferView<Vector2i> Ps) noexcept;
     };
 
     class FilterTOIInfo : public DetectInfo
@@ -73,11 +73,11 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
       public:
         using DetectInfo::DetectInfo;
 
-        muda::VarView<Float> toi() noexcept;
+        cuda_tool::VarView<Float> toi() noexcept;
 
       private:
         friend class VertexHalfPlaneTrajectoryFilter;
-        muda::VarView<Float> m_toi;
+        cuda_tool::VarView<Float> m_toi;
     };
 
     class BuildInfo
@@ -101,16 +101,16 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         HalfPlane*               half_plane                 = nullptr;
         HalfPlaneVertexReporter* half_plane_vertex_reporter = nullptr;
 
-        muda::CBufferView<Vector2i>  PHs;
-        muda::DeviceBuffer<Vector2i> friction_PHs;
-        muda::DeviceBuffer<Vector2i> recovered_PHs;
+        cuda_tool::CBufferView<Vector2i>  PHs;
+        cuda_tool::DeviceBuffer<Vector2i> friction_PHs;
+        cuda_tool::DeviceBuffer<Vector2i> recovered_PHs;
 
         Float reserve_ratio = 1.1;
 
         BufferDump dump_PHs;
 
         template <typename T>
-        void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
+        void loose_resize(cuda_tool::DeviceBuffer<T>& buffer, SizeT size)
         {
             if(size > buffer.capacity())
             {
@@ -120,10 +120,10 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         }
     };
 
-    muda::CBufferView<Vector2i> PHs() noexcept;
-    muda::CBufferView<Vector2i> friction_PHs() noexcept;
-    virtual muda::CBufferView<Vector2i> candidate_PHs() const noexcept = 0;
-    virtual muda::CBufferView<Float>    toi_PHs() const noexcept       = 0;
+    cuda_tool::CBufferView<Vector2i> PHs() noexcept;
+    cuda_tool::CBufferView<Vector2i> friction_PHs() noexcept;
+    virtual cuda_tool::CBufferView<Vector2i> candidate_PHs() const noexcept = 0;
+    virtual cuda_tool::CBufferView<Float>    toi_PHs() const noexcept       = 0;
 
   protected:
     virtual void do_detect(DetectInfo& info)              = 0;

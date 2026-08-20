@@ -23,12 +23,12 @@ class Codim1DConstitution : public FiniteElementConstitution
         {
         }
 
-        muda::CBufferView<Vector3>  xs() const noexcept;
-        muda::CBufferView<Vector3>  x_bars() const noexcept;
-        muda::CBufferView<Float>    rest_lengths() const noexcept;
-        muda::CBufferView<Vector2i> indices() const noexcept;
-        muda::CBufferView<Float>    thicknesses() const noexcept;
-        muda::CBufferView<IndexT>   is_fixed() const noexcept;
+        cuda_tool::CBufferView<Vector3>  xs() const noexcept;
+        cuda_tool::CBufferView<Vector3>  x_bars() const noexcept;
+        cuda_tool::CBufferView<Float>    rest_lengths() const noexcept;
+        cuda_tool::CBufferView<Vector2i> indices() const noexcept;
+        cuda_tool::CBufferView<Float>    thicknesses() const noexcept;
+        cuda_tool::CBufferView<IndexT>   is_fixed() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
         Float dt() const noexcept;
 
@@ -44,7 +44,7 @@ class Codim1DConstitution : public FiniteElementConstitution
         ComputeEnergyInfo(Codim1DConstitution*    impl,
                           SizeT                   index_in_dim,
                           Float                   dt,
-                          muda::BufferView<Float> energies)
+                          cuda_tool::BufferView<Float> energies)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
         {
@@ -53,7 +53,7 @@ class Codim1DConstitution : public FiniteElementConstitution
         auto energies() const noexcept { return m_energies; }
 
       private:
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -63,8 +63,8 @@ class Codim1DConstitution : public FiniteElementConstitution
                                    SizeT                index_in_dim,
                                    bool                 gradient_only,
                                    Float                dt,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians)
+                                   cuda_tool::DoubletVectorView<Float, 3> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index_in_dim, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -77,8 +77,8 @@ class Codim1DConstitution : public FiniteElementConstitution
         auto gradient_only() const noexcept { return m_gradient_only; }
 
       private:
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
         bool                              m_gradient_only = false;
     };
 

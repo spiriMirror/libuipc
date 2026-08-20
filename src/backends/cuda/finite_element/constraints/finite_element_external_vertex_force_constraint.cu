@@ -20,12 +20,12 @@ void FiniteElementExternalVertexForceConstraint::do_init(FiniteElementAnimator::
     do_step(info);
 }
 
-muda::CBufferView<Vector3> FiniteElementExternalVertexForceConstraint::forces() const noexcept
+cuda_tool::CBufferView<Vector3> FiniteElementExternalVertexForceConstraint::forces() const noexcept
 {
     return m_impl.forces.view();
 }
 
-muda::CBufferView<IndexT> FiniteElementExternalVertexForceConstraint::vertex_ids() const noexcept
+cuda_tool::CBufferView<IndexT> FiniteElementExternalVertexForceConstraint::vertex_ids() const noexcept
 {
     return m_impl.vertex_ids.view();
 }

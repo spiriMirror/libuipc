@@ -1,5 +1,5 @@
 #include <cuda_device/builtin.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::info_stackless_v0_detail
 {
@@ -20,7 +20,7 @@ struct PlainAABB
     float3 _min, _max;
 };
 
-MUDA_GENERIC MUDA_INLINE PlainAABB to_plain(const aabb& box)
+UIPC_GENERIC UIPC_INLINE PlainAABB to_plain(const aabb& box)
 {
     PlainAABB out;
     out._min = make_float3(box.min().x(), box.min().y(), box.min().z());
@@ -29,32 +29,32 @@ MUDA_GENERIC MUDA_INLINE PlainAABB to_plain(const aabb& box)
 }
 
 template <typename T>
-MUDA_GENERIC MUDA_INLINE T mm_min(T a, T b)
+UIPC_GENERIC UIPC_INLINE T mm_min(T a, T b)
 {
     return a > b ? b : a;
 }
 
 template <typename T>
-MUDA_GENERIC MUDA_INLINE T mm_max(T a, T b)
+UIPC_GENERIC UIPC_INLINE T mm_max(T a, T b)
 {
     return a > b ? a : b;
 }
 
-MUDA_DEVICE MUDA_INLINE float atomic_minf(float* addr, float value)
+UIPC_DEVICE UIPC_INLINE float atomic_minf(float* addr, float value)
 {
     return (value >= 0) ?
                __int_as_float(atomicMin((int*)addr, __float_as_int(value))) :
                __uint_as_float(atomicMax((unsigned int*)addr, __float_as_uint(value)));
 }
 
-MUDA_DEVICE MUDA_INLINE float atomic_maxf(float* addr, float value)
+UIPC_DEVICE UIPC_INLINE float atomic_maxf(float* addr, float value)
 {
     return (value >= 0) ?
                __int_as_float(atomicMax((int*)addr, __float_as_int(value))) :
                __uint_as_float(atomicMin((unsigned int*)addr, __float_as_uint(value)));
 }
 
-MUDA_GENERIC MUDA_INLINE uint expand_bits(uint v)
+UIPC_GENERIC UIPC_INLINE uint expand_bits(uint v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
@@ -63,7 +63,7 @@ MUDA_GENERIC MUDA_INLINE uint expand_bits(uint v)
     return v;
 }
 
-MUDA_GENERIC MUDA_INLINE uint morton3D(float x, float y, float z)
+UIPC_GENERIC UIPC_INLINE uint morton3D(float x, float y, float z)
 {
     x       = ::fmin(::fmax(x * 1024.0f, 0.0f), 1023.0f);
     y       = ::fmin(::fmax(y * 1024.0f, 0.0f), 1023.0f);
@@ -74,22 +74,22 @@ MUDA_GENERIC MUDA_INLINE uint morton3D(float x, float y, float z)
     return xx * 4 + yy * 2 + zz;
 }
 
-MUDA_GENERIC MUDA_INLINE Vector2i to_eigen(int2 v)
+UIPC_GENERIC UIPC_INLINE Vector2i to_eigen(int2 v)
 {
     return Vector2i{v.x, v.y};
 }
 
-MUDA_GENERIC MUDA_INLINE int2 ordered_pair(int a, int b)
+UIPC_GENERIC UIPC_INLINE int2 ordered_pair(int a, int b)
 {
     return (a < b) ? int2{a, b} : int2{b, a};
 }
 
-MUDA_GENERIC MUDA_INLINE float3 operator-(const float3& v0, const float3& v1)
+UIPC_GENERIC UIPC_INLINE float3 operator-(const float3& v0, const float3& v1)
 {
     return make_float3(v0.x - v1.x, v0.y - v1.y, v0.z - v1.z);
 }
 
-MUDA_GENERIC MUDA_INLINE void safe_copy_to(int2*     shared_res,
+UIPC_GENERIC UIPC_INLINE void safe_copy_to(int2*     shared_res,
                                            int       total_in_block,
                                            Vector2i* global_res,
                                            int       global_idx,
@@ -114,13 +114,13 @@ namespace uipc::backend::cuda
 {
 using namespace info_stackless_v0_detail;
 
-inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aabbs,
-                                                       muda::VarView<AABB> scene_box)
+inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
+                                                       cuda_tool::VarView<AABB> scene_box)
 {
     if(aabbs.size() == 0)
         return;
 
-    using namespace muda;
+    using namespace cuda_tool;
     auto num  = aabbs.size();
     auto grid = (num + K_THREADS - 1) / K_THREADS;
 
@@ -128,8 +128,8 @@ inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> a
         .file_line(__FILE__, __LINE__)
         .apply(
             [size = aabbs.size(),
-             box  = aabbs.viewer().name("box"),
-             out  = scene_box.viewer().name("out")] __device__()
+             box  = aabbs.viewer(),
+             out  = scene_box.viewer()] __device__()
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(idx >= size)
@@ -194,17 +194,17 @@ inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> a
             });
 }
 
-inline void InfoStacklessBVHV0::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabbs,
-                                                     muda::CVarView<AABB> scene_box,
-                                                     muda::BufferView<uint32_t> codes)
+inline void InfoStacklessBVHV0::Impl::calcMCsFromBox(cuda_tool::CBufferView<AABB> aabbs,
+                                                     cuda_tool::CVarView<AABB> scene_box,
+                                                     cuda_tool::BufferView<uint32_t> codes)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(aabbs.size(),
-               [box   = aabbs.viewer().name("box"),
-                scene = scene_box.viewer().name("scene"),
-                codes = codes.viewer().name("codes")] __device__(int idx)
+               [box   = aabbs.viewer(),
+                scene = scene_box.viewer(),
+                codes = codes.viewer()] __device__(int idx)
                {
                    auto   bv     = box(idx);
                    auto   center = bv.center();
@@ -222,30 +222,30 @@ inline void InfoStacklessBVHV0::Impl::calcMCsFromBox(muda::CBufferView<AABB> aab
 
 inline void InfoStacklessBVHV0::Impl::calcInverseMapping()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(sorted_id.size(),
-               [map = sorted_id.viewer().name("map"),
-                inv = primMap.viewer().name("inv")] __device__(int idx)
+               [map = sorted_id.viewer(),
+                inv = primMap.viewer()] __device__(int idx)
                { inv(map(idx)) = idx; });
 }
 
-inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
     bool has_info = bids.size() == aabbs.size() && cids.size() == aabbs.size();
     ParallelFor().apply(aabbs.size(),
-                        [_prim_idx = ext_idx.viewer().name("prim_idx"),
-                         _prim_box = ext_aabb.viewer().name("prim_box"),
-                         _prim_map = primMap.viewer().name("prim_map"),
-                         _ext_bid  = ext_bid.viewer().name("ext_bid"),
-                         _ext_cid  = ext_cid.viewer().name("ext_cid"),
-                         _bids     = bids.viewer().name("bids"),
-                         _cids     = cids.viewer().name("cids"),
+                        [_prim_idx = ext_idx.viewer(),
+                         _prim_box = ext_aabb.viewer(),
+                         _prim_map = primMap.viewer(),
+                         _ext_bid  = ext_bid.viewer(),
+                         _ext_cid  = ext_cid.viewer(),
+                         _bids     = bids.viewer(),
+                         _cids     = cids.viewer(),
                          has_info,
-                         box = aabbs.viewer().name("box")] __device__(int idx)
+                         box = aabbs.viewer()] __device__(int idx)
                         {
                             int new_idx        = _prim_map(idx);
                             _prim_idx(new_idx) = idx;
@@ -265,13 +265,13 @@ inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(muda::CBufferView<A
 
 inline void InfoStacklessBVHV0::Impl::calcExtNodeSplitMetrics()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(mtcode.size(),
                [n       = mtcode.size(),
-                codes   = mtcode.viewer().name("codes"),
-                metrics = metric.viewer().name("metrics")] __device__(int idx)
+                codes   = mtcode.viewer(),
+                metrics = metric.viewer()] __device__(int idx)
                {
                    metrics(idx) =
                        idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
@@ -280,30 +280,30 @@ inline void InfoStacklessBVHV0::Impl::calcExtNodeSplitMetrics()
 
 inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
     auto             grid    = (size + 255) / 256;
     Launch(grid, 256)
         .file_line(__FILE__, __LINE__)
         .apply(
             [size,
-             _depths      = count.viewer().name("depths"),
-             _lvs_lca     = ext_lca.viewer().name("lvs_lca"),
-             _lvs_metric  = metric.viewer().name("lvs_metric"),
-             _lvs_par     = ext_par.viewer().name("lvs_par"),
-             _lvs_box     = ext_aabb.viewer().name("lvs_box"),
-             _lvs_bid     = ext_bid.viewer().name("lvs_bid"),
-             _lvs_cid     = ext_cid.viewer().name("lvs_cid"),
-             _tks_lc      = int_lc.viewer().name("tks_lc"),
-             _tks_rc      = int_rc.viewer().name("tks_rc"),
-             _tks_range_x = int_range_x.viewer().name("tks_range_x"),
-             _tks_range_y = int_range_y.viewer().name("tks_range_y"),
-             _tks_mark    = int_mark.viewer().name("tks_mark"),
-             _tks_box     = int_aabb.viewer().name("tks_box"),
-             _tks_bid     = int_bid.viewer().name("tks_bid"),
-             _tks_cid     = int_cid.viewer().name("tks_cid"),
-             _flag        = flags.viewer().name("flag"),
-             _tks_par     = int_par.viewer().name("tks_par")] __device__()
+             _depths      = count.viewer(),
+             _lvs_lca     = ext_lca.viewer(),
+             _lvs_metric  = metric.viewer(),
+             _lvs_par     = ext_par.viewer(),
+             _lvs_box     = ext_aabb.viewer(),
+             _lvs_bid     = ext_bid.viewer(),
+             _lvs_cid     = ext_cid.viewer(),
+             _tks_lc      = int_lc.viewer(),
+             _tks_rc      = int_rc.viewer(),
+             _tks_range_x = int_range_x.viewer(),
+             _tks_range_y = int_range_y.viewer(),
+             _tks_mark    = int_mark.viewer(),
+             _tks_box     = int_aabb.viewer(),
+             _tks_bid     = int_bid.viewer(),
+             _tks_cid     = int_cid.viewer(),
+             _flag        = flags.viewer(),
+             _tks_par     = int_par.viewer()] __device__()
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(idx >= size)
@@ -391,15 +391,15 @@ inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
 
 inline void InfoStacklessBVHV0::Impl::calcIntNodeOrders(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
-               [_tks_lc  = int_lc.viewer().name("tks_lc"),
-                _lcas    = ext_lca.viewer().name("lcas"),
-                _depths  = count.viewer().name("depths"),
-                _offsets = offsetTable.viewer().name("offsets"),
-                _tkMap   = tkMap.viewer().name("tkMap")] __device__(int idx)
+               [_tks_lc  = int_lc.viewer(),
+                _lcas    = ext_lca.viewer(),
+                _depths  = count.viewer(),
+                _offsets = offsetTable.viewer(),
+                _tkMap   = tkMap.viewer()] __device__(int idx)
                {
                    int node  = _lcas(idx);
                    int depth = _depths(idx);
@@ -414,15 +414,15 @@ inline void InfoStacklessBVHV0::Impl::calcIntNodeOrders(int size)
 
 inline void InfoStacklessBVHV0::Impl::updateBvhExtNodeLinks(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     if(flags.size() == 0)
         return;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
-               [_map  = tkMap.viewer().name("map"),
-                _lcas = ext_lca.viewer().name("lcas"),
-                _pars = ext_par.viewer().name("pars")] __device__(int idx)
+               [_map  = tkMap.viewer(),
+                _lcas = ext_lca.viewer(),
+                _pars = ext_par.viewer()] __device__(int idx)
                {
                    _pars(idx) = _map(_pars(idx));
                    int ori    = _lcas(idx);
@@ -432,24 +432,24 @@ inline void InfoStacklessBVHV0::Impl::updateBvhExtNodeLinks(int size)
 
 inline void InfoStacklessBVHV0::Impl::reorderNode(int int_size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(int_size + 1,
                [int_size,
-                _lvs_lca     = ext_lca.viewer().name("lvs_lca"),
-                _lvs_box     = ext_aabb.viewer().name("lvs_box"),
-                _lvs_bid     = ext_bid.viewer().name("lvs_bid"),
-                _lvs_cid     = ext_cid.viewer().name("lvs_cid"),
-                _tk_map      = tkMap.viewer().name("tk_map"),
-                _int_lc      = int_lc.viewer().name("int_lc"),
-                _int_mark    = int_mark.viewer().name("int_mark"),
-                _int_range_y = int_range_y.viewer().name("int_range_y"),
-                _int_box     = int_aabb.viewer().name("int_box"),
-                _int_bid     = int_bid.viewer().name("int_bid"),
-                _int_cid     = int_cid.viewer().name("int_cid"),
-                _nodes       = nodes.viewer().name("nodes")] __device__(int idx)
+                _lvs_lca     = ext_lca.viewer(),
+                _lvs_box     = ext_aabb.viewer(),
+                _lvs_bid     = ext_bid.viewer(),
+                _lvs_cid     = ext_cid.viewer(),
+                _tk_map      = tkMap.viewer(),
+                _int_lc      = int_lc.viewer(),
+                _int_mark    = int_mark.viewer(),
+                _int_range_y = int_range_y.viewer(),
+                _int_box     = int_aabb.viewer(),
+                _int_bid     = int_bid.viewer(),
+                _int_cid     = int_cid.viewer(),
+                _nodes       = nodes.viewer()] __device__(int idx)
                {
                    Node leaf;
                    leaf.lc    = -1;
@@ -492,9 +492,9 @@ inline void InfoStacklessBVHV0::Impl::reorderNode(int int_size)
 
 inline void InfoStacklessBVHV0::Impl::propagateInformativeMetadata(int) {}
 
-inline void InfoStacklessBVHV0::Impl::build(muda::CBufferView<AABB>   aabbs,
-                                            muda::CBufferView<IndexT> _bids,
-                                            muda::CBufferView<IndexT> _cids)
+inline void InfoStacklessBVHV0::Impl::build(cuda_tool::CBufferView<AABB>   aabbs,
+                                            cuda_tool::CBufferView<IndexT> _bids,
+                                            cuda_tool::CBufferView<IndexT> _cids)
 {
     objs          = aabbs;
     bids          = _bids;
@@ -557,23 +557,23 @@ inline void InfoStacklessBVHV0::Impl::build(muda::CBufferView<AABB>   aabbs,
 template <typename NodeCull, typename PairPred>
 void InfoStacklessBVHV0::Impl::stacklessSelf(NodeCull           node_cull,
                                              PairPred           pair_pred,
-                                             muda::VarView<int> cpNum,
-                                             muda::BufferView<Vector2i> buffer)
+                                             cuda_tool::VarView<int> cpNum,
+                                             cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto num_query = static_cast<int>(ext_aabb.size());
     auto num_objs  = num_query;
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
     Launch(grid, K_THREADS)
         .apply(
             [Size       = num_query,
-             _box       = objs.viewer().name("box"),
+             _box       = objs.viewer(),
              intSize    = num_objs - 1,
              numObjs    = num_objs,
-             _lvs_idx   = ext_idx.viewer().name("lvs_idx"),
-             _nodes     = nodes.viewer().name("nodes"),
-             resCounter = cpNum.viewer().name("cp_num"),
-             res        = buffer.viewer().name("res"),
+             _lvs_idx   = ext_idx.viewer(),
+             _nodes     = nodes.viewer(),
+             resCounter = cpNum.viewer(),
+             res        = buffer.viewer(),
              node_cull,
              pair_pred] __device__()
             {
@@ -634,7 +634,7 @@ void InfoStacklessBVHV0::Impl::stacklessSelf(NodeCull           node_cull,
                             else
                                 st = node.lc;
                         }
-                        MUDA_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
+                        UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
                     }
                     __syncthreads();
                     int total = min(shared_counter, MAX_RES_PER_BLOCK);
@@ -659,26 +659,26 @@ void InfoStacklessBVHV0::Impl::stacklessSelf(NodeCull           node_cull,
 template <typename NodeCull, typename PairPred>
 void InfoStacklessBVHV0::Impl::stacklessOther(NodeCull node_cull,
                                               PairPred pair_pred,
-                                              muda::CBufferView<AABB> query_aabbs,
-                                              muda::CBufferView<int> query_sorted_id,
-                                              muda::VarView<int>         cpNum,
-                                              muda::BufferView<Vector2i> buffer)
+                                              cuda_tool::CBufferView<AABB> query_aabbs,
+                                              cuda_tool::CBufferView<int> query_sorted_id,
+                                              cuda_tool::VarView<int>         cpNum,
+                                              cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto num_query = static_cast<int>(query_aabbs.size());
     auto num_objs  = static_cast<int>(ext_aabb.size());
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
     Launch(grid, K_THREADS)
         .apply(
             [Size       = num_query,
-             _box       = query_aabbs.viewer().name("qbox"),
-             sortedIdx  = query_sorted_id.viewer().name("sortedIdx"),
+             _box       = query_aabbs.viewer(),
+             sortedIdx  = query_sorted_id.viewer(),
              intSize    = num_objs - 1,
              numObjs    = num_objs,
-             _lvs_idx   = ext_idx.viewer().name("lvs_idx"),
-             _nodes     = nodes.viewer().name("nodes"),
-             resCounter = cpNum.viewer().name("cp_num"),
-             res        = buffer.viewer().name("res"),
+             _lvs_idx   = ext_idx.viewer(),
+             _nodes     = nodes.viewer(),
+             resCounter = cpNum.viewer(),
+             res        = buffer.viewer(),
              node_cull,
              pair_pred] __device__()
             {
@@ -736,7 +736,7 @@ void InfoStacklessBVHV0::Impl::stacklessOther(NodeCull node_cull,
                             else
                                 st = node.lc;
                         }
-                        MUDA_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
+                        UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
                     }
 
                     __syncthreads();
@@ -760,12 +760,12 @@ void InfoStacklessBVHV0::Impl::stacklessOther(NodeCull node_cull,
             });
 }
 
-inline InfoStacklessBVHV0::InfoStacklessBVHV0(muda::Stream& stream) noexcept
+inline InfoStacklessBVHV0::InfoStacklessBVHV0(cuda_tool::Stream& stream) noexcept
 {
     (void)stream;
 }
 
-inline void InfoStacklessBVHV0::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::QueryBuffer::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     m_queryMtCode.resize(aabbs.size());
     m_querySortedId.resize(aabbs.size());
@@ -779,9 +779,9 @@ inline void InfoStacklessBVHV0::QueryBuffer::build(muda::CBufferView<AABB> aabbs
     thrust::sort_by_key(null_stream, d_codes, d_codes + n, d_ids);
 }
 
-inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB>   aabbs,
-                                      muda::CBufferView<IndexT> BIDs,
-                                      muda::CBufferView<IndexT> CIDs)
+inline void InfoStacklessBVHV0::build(cuda_tool::CBufferView<AABB>   aabbs,
+                                      cuda_tool::CBufferView<IndexT> BIDs,
+                                      cuda_tool::CBufferView<IndexT> CIDs)
 {
     m_aabbs = aabbs;
     m_BIDs  = BIDs;
@@ -797,7 +797,7 @@ inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB>   aabbs,
     m_impl.build(aabbs, BIDs, CIDs);
 }
 
-inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     m_aabbs = aabbs;
     m_BIDs  = {};
@@ -806,7 +806,7 @@ inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB> aabbs)
 }
 
 template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVHV0::detect(muda::CBuffer2DView<IndexT> cmts,
+inline void InfoStacklessBVHV0::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
                                        NodePred                    np,
                                        LeafPred                    lp,
                                        QueryBuffer&                qbuffer)
@@ -825,15 +825,15 @@ inline void InfoStacklessBVHV0::detect(muda::CBuffer2DView<IndexT> cmts,
                 m_aabbs.size(),
                 m_CIDs.size());
 
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr IndexT invalid  = static_cast<IndexT>(-1);
     auto             do_query = [&]
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
         m_impl.stacklessSelf(
-            [bids = m_BIDs.viewer().name("bids"),
-             cids = m_CIDs.viewer().name("cids"),
-             cmts = cmts.viewer().name("cmts"),
+            [bids = m_BIDs.viewer(),
+             cids = m_CIDs.viewer(),
+             cmts = cmts.viewer(),
              np   = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
             {
                 NodePredInfo info{i, node_bid, node_cid};
@@ -861,10 +861,10 @@ inline void InfoStacklessBVHV0::detect(muda::CBuffer2DView<IndexT> cmts,
 }
 
 template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVHV0::query(muda::CBufferView<AABB>     query_aabbs,
-                                      muda::CBufferView<IndexT>   query_BIDs,
-                                      muda::CBufferView<IndexT>   query_CIDs,
-                                      muda::CBuffer2DView<IndexT> cmts,
+inline void InfoStacklessBVHV0::query(cuda_tool::CBufferView<AABB>     query_aabbs,
+                                      cuda_tool::CBufferView<IndexT>   query_BIDs,
+                                      cuda_tool::CBufferView<IndexT>   query_CIDs,
+                                      cuda_tool::CBuffer2DView<IndexT> cmts,
                                       NodePred                    np,
                                       LeafPred                    lp,
                                       QueryBuffer&                qbuffer)
@@ -883,7 +883,7 @@ inline void InfoStacklessBVHV0::query(muda::CBufferView<AABB>     query_aabbs,
                 query_aabbs.size(),
                 query_CIDs.size());
 
-    using namespace muda;
+    using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
     qbuffer.build(query_aabbs);
     auto do_query = [&]

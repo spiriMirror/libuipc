@@ -67,7 +67,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
     virtual void assemble(GlobalLinearSystem::OffDiagInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         auto count = abd_fem_dytopo_effect_receiver->hessians().triplet_count();
 
@@ -76,15 +76,15 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(count,
-                       [v2b = affine_body_dynamics->v2b().viewer().name("v2b"),
-                        Js  = affine_body_dynamics->Js().viewer().name("Js"),
+                       [v2b = affine_body_dynamics->v2b().viewer(),
+                        Js  = affine_body_dynamics->Js().viewer(),
                         body_is_fixed =
-                            affine_body_dynamics->body_is_fixed().viewer().name("body_is_fixed"),
+                            affine_body_dynamics->body_is_fixed().viewer(),
                         vertex_is_fixed =
-                            finite_element_method->is_fixed().viewer().name("vertex_is_fixed"),
-                        L = info.lr_hessian().viewer().name("L"),
+                            finite_element_method->is_fixed().viewer(),
+                        L = info.lr_hessian().viewer(),
                         abd_fem_dytopo_effect =
-                            abd_fem_dytopo_effect_receiver->hessians().viewer().name("abd_fem_dytopo_effect"),
+                            abd_fem_dytopo_effect_receiver->hessians().viewer(),
                         abd_point_offset = affine_body_vertex_reporter->vertex_offset(),
                         fem_point_offset =
                             finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
@@ -94,7 +94,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
                                auto&& [gI_abd_v, gJ_fem_v, H3x3] =
                                    abd_fem_dytopo_effect(I);
 
-                               MUDA_ASSERT(abd_point_offset <= fem_point_offset,
+                               UIPC_KERNEL_ASSERT(abd_point_offset <= fem_point_offset,
                                            "We assume ABD vertices are before FEM vertices, "
                                            "but got abd_point_offset=%d, fem_point_offset=%d",
                                            abd_point_offset,

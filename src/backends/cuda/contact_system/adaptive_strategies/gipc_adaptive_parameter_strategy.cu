@@ -23,8 +23,8 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
     SimSystemSlot<GlobalDyTopoEffectManager>      dytopo_effect_manager;
 
     std::vector<IndexT>                   h_adaptive_kappa_index;
-    muda::DeviceBuffer<Vector2i>          adaptive_topos;
-    S<muda::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
+    cuda_tool::DeviceBuffer<Vector2i>          adaptive_topos;
+    S<cuda_tool::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
 
     Float min_kappa  = 0.0;
     Float init_kappa = 0.0;
@@ -88,17 +88,16 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         // non-adaptive kappa to 0.0 (don't contribute)
         // adaptive kappa to 1.0 (contribute)
 
-        test_contact_tabular = std::make_shared<muda::DeviceBuffer2D<ContactCoeff>>();
+        test_contact_tabular = std::make_shared<cuda_tool::DeviceBuffer2D<ContactCoeff>>();
         test_contact_tabular->resize({N, N});
         test_contact_tabular->fill(ContactCoeff{0.0f});
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer().name("adaptive_topos"),
-                    contact_tabular = test_contact_tabular->viewer().name(
-                        "contact_tabular")] __device__(IndexT I) mutable
+                   [adaptive_topos = adaptive_topos.viewer(),
+                    contact_tabular = test_contact_tabular->viewer()] __device__(IndexT I) mutable
                    {
                        Vector2i topo  = adaptive_topos(I);
                        auto&    coefL = contact_tabular(topo.x(), topo.y());
@@ -112,8 +111,8 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         //DeviceReduce().Min(d_hats.data(), min_d_hat.data(), d_hats.size());
     }
 
-    muda::DeviceDenseVector<Float> contact_gradient;
-    muda::DeviceDenseVector<Float> non_contact_gradient;
+    cuda_tool::DeviceDenseVector<Float> contact_gradient;
+    cuda_tool::DeviceDenseVector<Float> non_contact_gradient;
 
     void compute_gradient(AdaptiveParameterInfo& info)
     {
@@ -121,7 +120,7 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         auto original_contact_tabular = info.exchange_contact_tabular(test_contact_tabular);
 
         auto _compute_gradient = [this](EnergyComponentFlags         flags,
-                                        muda::DenseVectorView<Float> gradient)
+                                        cuda_tool::DenseVectorView<Float> gradient)
         {
             // 1. Compute dytopo effect
             GlobalDyTopoEffectManager::ComputeDyTopoEffectInfo dytopo_effect_info;
@@ -152,7 +151,7 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
     virtual void do_compute_parameters(AdaptiveParameterInfo& info) override
     {
 
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_contact;
 
         compute_gradient(info);
@@ -188,8 +187,8 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer().name("adaptive_topos"),
-                    contact_tabular = info.contact_tabular().viewer().name("contact_tabular"),
+                   [adaptive_topos = adaptive_topos.viewer(),
+                    contact_tabular = info.contact_tabular().viewer(),
                     new_kappa = new_kappa] __device__(IndexT I) mutable
                    {
                        Vector2i topo  = adaptive_topos(I);

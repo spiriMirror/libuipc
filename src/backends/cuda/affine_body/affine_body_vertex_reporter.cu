@@ -27,7 +27,7 @@ void AffineBodyVertexReporter::Impl::report_count(VertexCountInfo& info)
 
 void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto N = info.positions().size();
 
@@ -39,14 +39,14 @@ void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coindices   = info.coindices().viewer().name("coindices"),
-                src_pos     = abd().vertex_id_to_J.cviewer().name("src_pos"),
-                dst_pos     = info.positions().viewer().name("dst_pos"),
-                v2b         = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+               [coindices   = info.coindices().viewer(),
+                src_pos     = abd().vertex_id_to_J.cviewer(),
+                dst_pos     = info.positions().viewer(),
+                v2b         = abd().vertex_id_to_body_id.cviewer(),
                 body_offset = body_reporter->body_offset(),
-                dst_v2b     = info.body_ids().viewer().name("dst_v2b"),
-                qs          = abd().body_id_to_q.cviewer().name("qs"),
-                dst_rest_pos = info.rest_positions().viewer().name("rest_pos")] __device__(int i) mutable
+                dst_v2b     = info.body_ids().viewer(),
+                qs          = abd().body_id_to_q.cviewer(),
+                dst_rest_pos = info.rest_positions().viewer()] __device__(int i) mutable
                {
                    coindices(i) = i;
 
@@ -57,8 +57,8 @@ void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
                    dst_v2b(i) = body_id + body_offset;  // offset by the global body offset
                });
 
-    auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
-    { muda::BufferLaunch().copy<T>(dst, src.data()); };
+    auto async_copy = []<typename T>(span<T> src, cuda_tool::BufferView<T> dst)
+    { cuda_tool::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
     async_copy(span{abd().h_vertex_id_to_subscene_contact_element_id},
@@ -68,7 +68,7 @@ void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 
 void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto N = info.positions().size();
 
@@ -76,11 +76,11 @@ void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coindices = info.coindices().viewer().name("coindices"),
-                src_pos   = abd().vertex_id_to_J.cviewer().name("src_pos"),
-                dst_pos   = info.positions().viewer().name("dst_pos"),
-                v2b       = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                qs = abd().body_id_to_q.cviewer().name("qs")] __device__(int i) mutable
+               [coindices = info.coindices().viewer(),
+                src_pos   = abd().vertex_id_to_J.cviewer(),
+                dst_pos   = info.positions().viewer(),
+                v2b       = abd().vertex_id_to_body_id.cviewer(),
+                qs = abd().body_id_to_q.cviewer()] __device__(int i) mutable
                {
                    coindices(i)        = i;
                    auto        body_id = v2b(i);
@@ -95,16 +95,16 @@ void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info
 
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto N = info.coindices().size();
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coindices = info.coindices().viewer().name("coindices"),
-                displacements = info.displacements().viewer().name("displacements"),
-                v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                dqs = abd().body_id_to_dq.cviewer().name("dqs"),
-                Js = abd().vertex_id_to_J.cviewer().name("Js")] __device__(int vI) mutable
+               [coindices = info.coindices().viewer(),
+                displacements = info.displacements().viewer(),
+                v2b = abd().vertex_id_to_body_id.cviewer(),
+                dqs = abd().body_id_to_dq.cviewer(),
+                Js = abd().vertex_id_to_J.cviewer()] __device__(int vI) mutable
                {
                    auto             body_id = v2b(vI);
                    const Vector12&  dq      = dqs(body_id);

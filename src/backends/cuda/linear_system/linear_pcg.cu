@@ -177,41 +177,41 @@ void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
 }
 
 void update_xr(Float                         alpha,
-               muda::DenseVectorView<Float>  x,
-               muda::CDenseVectorView<Float> p,
-               muda::DenseVectorView<Float>  r,
-               muda::CDenseVectorView<Float> Ap)
+               cuda_tool::DenseVectorView<Float>  x,
+               cuda_tool::CDenseVectorView<Float> p,
+               cuda_tool::DenseVectorView<Float>  r,
+               cuda_tool::CDenseVectorView<Float> Ap)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // Fused update of x and r for better performance
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(r.size(),
                [alpha = alpha,
-                x     = x.viewer().name("x"),
-                p     = p.cviewer().name("p"),
-                r     = r.viewer().name("r"),
-                Ap    = Ap.cviewer().name("Ap")] __device__(int i) mutable
+                x     = x.viewer(),
+                p     = p.cviewer(),
+                r     = r.viewer(),
+                Ap    = Ap.cviewer()] __device__(int i) mutable
                {
                    x(i) += alpha * p(i);
                    r(i) -= alpha * Ap(i);
                });
 }
 
-void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, Float beta)
+void update_p(cuda_tool::DenseVectorView<Float> p, cuda_tool::CDenseVectorView<Float> z, Float beta)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // Simple axpby
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(p.size(),
-               [p = p.viewer().name("p"), z = z.cviewer().name("z"), beta = beta] __device__(
+               [p = p.viewer(), z = z.cviewer(), beta = beta] __device__(
                    int i) mutable { p(i) = z(i) + beta * p(i); });
 }
 
-SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
+SizeT LinearPCG::pcg(cuda_tool::DenseVectorView<Float> x, cuda_tool::CDenseVectorView<Float> b, SizeT max_iter)
 {
     Timer pcg_timer{"PCG"};
 

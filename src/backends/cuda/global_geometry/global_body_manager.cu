@@ -75,22 +75,22 @@ void GlobalBodyManager::add_reporter(BodyReporter* reporter)
     m_impl.body_reporters.register_sim_system(*reporter);
 }
 
-muda::CBufferView<IndexT> GlobalBodyManager::coindices() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalBodyManager::coindices() const noexcept
 {
     return m_impl.coindices;
 }
 
-muda::CBufferView<IndexT> GlobalBodyManager::self_collision() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalBodyManager::self_collision() const noexcept
 {
     return m_impl.self_collision;
 }
 
-muda::BufferView<IndexT> GlobalBodyManager::BodyAttributeInfo::coindices() const noexcept
+cuda_tool::BufferView<IndexT> GlobalBodyManager::BodyAttributeInfo::coindices() const noexcept
 {
     return m_impl->subview(m_impl->coindices, m_index);
 }
 
-muda::BufferView<IndexT> GlobalBodyManager::BodyAttributeInfo::self_collision() const noexcept
+cuda_tool::BufferView<IndexT> GlobalBodyManager::BodyAttributeInfo::self_collision() const noexcept
 {
     return m_impl->subview(m_impl->self_collision, m_index);
 }

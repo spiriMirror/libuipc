@@ -14,9 +14,9 @@ class SoftPositionConstraint final : public FiniteElementConstraint
     vector<Vector3> h_aim_positions;
     vector<Float>   h_strength_ratios;
 
-    muda::DeviceBuffer<IndexT>  constrained_vertices;
-    muda::DeviceBuffer<Vector3> aim_positions;
-    muda::DeviceBuffer<Float>   strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT>  constrained_vertices;
+    cuda_tool::DeviceBuffer<Vector3> aim_positions;
+    cuda_tool::DeviceBuffer<Float>   strength_ratios;
 
     void do_build(BuildInfo& info) override {}
 
@@ -92,20 +92,20 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_compute_energy(FiniteElementAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_vertices.size(),
                    [substep_ratio = info.substep_ratio(),
-                    indices = constrained_vertices.viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
-                    aim_positions = aim_positions.viewer().name("aim_positions"),
-                    strength_ratio = strength_ratios.viewer().name("strength_ratio"),
-                    masses   = info.masses().viewer().name("masses"),
-                    energies = info.energies().viewer().name("energies"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I)
+                    indices = constrained_vertices.viewer(),
+                    xs      = info.xs().viewer(),
+                    x_prevs = info.x_prevs().viewer(),
+                    aim_positions = aim_positions.viewer(),
+                    strength_ratio = strength_ratios.viewer(),
+                    masses   = info.masses().viewer(),
+                    energies = info.energies().viewer(),
+                    is_fixed = info.is_fixed().viewer()] __device__(int I)
                    {
                        auto  i = indices(I);
                        auto& E = energies(I);
@@ -130,21 +130,21 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_compute_gradient_hessian(FiniteElementAnimator::ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_vertices.size(),
                    [substep_ratio = info.substep_ratio(),
-                    indices = constrained_vertices.viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
-                    aim_positions = aim_positions.viewer().name("aim_positions"),
-                    strength_ratio = strength_ratios.viewer().name("strength_ratio"),
-                    masses    = info.masses().viewer().name("masses"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
+                    indices = constrained_vertices.viewer(),
+                    xs      = info.xs().viewer(),
+                    x_prevs = info.x_prevs().viewer(),
+                    aim_positions = aim_positions.viewer(),
+                    strength_ratio = strength_ratios.viewer(),
+                    masses    = info.masses().viewer(),
+                    gradients = info.gradients().viewer(),
+                    hessians  = info.hessians().viewer(),
+                    is_fixed  = info.is_fixed().viewer(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        auto    i = indices(I);

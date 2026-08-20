@@ -1,8 +1,8 @@
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
 {
 template <size_t N>
-MUDA_GENERIC Vector<Float, 3 * N> ABDJacobiStack<N>::operator*(const Vector12& q) const
+UIPC_GENERIC Vector<Float, 3 * N> ABDJacobiStack<N>::operator*(const Vector12& q) const
 {
     Vector<Float, 3 * N> ret;
 #pragma unroll
@@ -14,7 +14,7 @@ MUDA_GENERIC Vector<Float, 3 * N> ABDJacobiStack<N>::operator*(const Vector12& q
 }
 
 template <size_t N>
-MUDA_GENERIC Matrix<Float, 3 * N, 12> ABDJacobiStack<N>::to_mat() const
+UIPC_GENERIC Matrix<Float, 3 * N, 12> ABDJacobiStack<N>::to_mat() const
 {
     Matrix<Float, 3 * N, 12> ret;
     for(size_t i = 0; i < N; ++i)
@@ -25,7 +25,7 @@ MUDA_GENERIC Matrix<Float, 3 * N, 12> ABDJacobiStack<N>::to_mat() const
 }
 
 template <size_t N>
-MUDA_GENERIC Vector12
+UIPC_GENERIC Vector12
 ABDJacobiStack<N>::ABDJacobiStackT::operator*(const Vector<Float, 3 * N>& g) const
 {
     Vector12 ret = Vector12::Zero();

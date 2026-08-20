@@ -35,12 +35,12 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalDyTopoEffectManager);
 
-muda::CBCOOVectorView<Float, 3> GlobalDyTopoEffectManager::gradients() const noexcept
+cuda_tool::CBCOOVectorView<Float, 3> GlobalDyTopoEffectManager::gradients() const noexcept
 {
     return m_impl.sorted_dytopo_effect_gradient.view();
 }
 
-muda::CBCOOMatrixView<Float, 3> GlobalDyTopoEffectManager::hessians() const noexcept
+cuda_tool::CBCOOMatrixView<Float, 3> GlobalDyTopoEffectManager::hessians() const noexcept
 {
     return m_impl.sorted_dytopo_effect_hessian.view();
 }
@@ -170,7 +170,7 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
 {
     Timer timer{"Distribute Dytopo Effect"};
 
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto vertex_count = global_vertex_manager->positions().size();
 
@@ -199,9 +199,9 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                 .file_line(__FILE__, __LINE__)
                 .apply(
                     N,
-                    [gradient_range = gradient_range.viewer().name("gradient_range"),
+                    [gradient_range = gradient_range.viewer(),
                      dytopo_effect_gradient =
-                         std::as_const(sorted_dytopo_effect_gradient).viewer().name("dytopo_effect_gradient"),
+                         std::as_const(sorted_dytopo_effect_gradient).viewer(),
                      range = classify_info.gradient_i_range()] __device__(int I) mutable
                     {
                         auto in_range = [](int i, const Vector2i& range)
@@ -253,9 +253,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                     .file_line(__FILE__, __LINE__)
                     .apply(count,
                            [dytopo_effect_gradient = std::as_const(sorted_dytopo_effect_gradient)
-                                                         .viewer()
-                                                         .name("dytopo_effect_gradient"),
-                            classified_gradient = classified_gradients.viewer().name("classified_gradient"),
+                                                         .viewer(),
+                            classified_gradient = classified_gradients.viewer(),
                             range = h_range] __device__(int I) mutable
                            {
                                auto&& [i, G] = dytopo_effect_gradient(range.x() + I);
@@ -280,11 +279,11 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                 .file_line(__FILE__, __LINE__)
                 .apply(
                     N,
-                    [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
+                    [selected_hessian = selected_hessian.view(0, N).viewer(),
                      last =
-                         VarView<IndexT>{selected_hessian.data() + N}.viewer().name("last"),
+                         VarView<IndexT>{selected_hessian.data() + N}.viewer(),
                      dytopo_effect_hessian =
-                         sorted_dytopo_effect_hessian.cviewer().name("dytopo_effect_hessian"),
+                         sorted_dytopo_effect_hessian.cviewer(),
                      i_range = classify_info.hessian_i_range(),
                      j_range = classify_info.hessian_j_range()] __device__(int I) mutable
                     {
@@ -318,12 +317,12 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                 ParallelFor()
                     .file_line(__FILE__, __LINE__)
                     .apply(N,
-                           [selected_hessian = selected_hessian.cviewer().name("selected_hessian"),
+                           [selected_hessian = selected_hessian.cviewer(),
                             selected_hessian_offsets =
-                                selected_hessian_offsets.cviewer().name("selected_hessian_offsets"),
+                                selected_hessian_offsets.cviewer(),
                             dytopo_effect_hessian =
-                                sorted_dytopo_effect_hessian.cviewer().name("dytopo_effect_hessian"),
-                            classified_hessian = classified_hessians.viewer().name("classified_hessian"),
+                                sorted_dytopo_effect_hessian.cviewer(),
+                            classified_hessian = classified_hessians.viewer(),
                             i_range = classify_info.hessian_i_range(),
                             j_range = classify_info.hessian_j_range()] __device__(int I) mutable
                            {
@@ -345,7 +344,7 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
 }
 
 void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
-    muda::DeviceTripletMatrix<Float, 3>& m, SizeT size)
+    cuda_tool::DeviceTripletMatrix<Float, 3>& m, SizeT size)
 {
     if(size > m.triplet_capacity())
     {
@@ -355,7 +354,7 @@ void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
 }
 
 void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
-    muda::DeviceDoubletVector<Float, 3>& v, SizeT size)
+    cuda_tool::DeviceDoubletVector<Float, 3>& v, SizeT size)
 {
     if(size > v.doublet_capacity())
     {

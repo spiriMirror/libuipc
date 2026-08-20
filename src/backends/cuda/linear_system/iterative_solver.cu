@@ -13,38 +13,38 @@ void IterativeSolver::do_build()
 }
 
 void IterativeSolver::spmv(Float                         a,
-                           muda::CDenseVectorView<Float> x,
+                           cuda_tool::CDenseVectorView<Float> x,
                            Float                         b,
-                           muda::DenseVectorView<Float>  y)
+                           cuda_tool::DenseVectorView<Float>  y)
 {
     m_system->m_impl.spmv(a, x, b, y);
 }
 
-void IterativeSolver::spmv(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y)
+void IterativeSolver::spmv(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y)
 {
     spmv(1.0, x, 0.0, y);
 }
 
-void IterativeSolver::spmv_dot(muda::CDenseVectorView<Float> x,
-                               muda::DenseVectorView<Float>  y,
-                               muda::VarView<Float>          d_dot)
+void IterativeSolver::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
+                               cuda_tool::DenseVectorView<Float>  y,
+                               cuda_tool::VarView<Float>          d_dot)
 {
     m_system->m_impl.spmv_dot(x, y, d_dot);
 }
 
-void IterativeSolver::apply_preconditioner(muda::DenseVectorView<Float>  z,
-                                           muda::CDenseVectorView<Float> r,
-                                           muda::CVarView<IndexT>        converged)
+void IterativeSolver::apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
+                                           cuda_tool::CDenseVectorView<Float> r,
+                                           cuda_tool::CVarView<IndexT>        converged)
 {
     m_system->m_impl.apply_preconditioner(z, r, converged);
 }
 
-bool IterativeSolver::accuracy_statisfied(muda::DenseVectorView<Float> r)
+bool IterativeSolver::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
 {
     return m_system->m_impl.accuracy_statisfied(r);
 }
 
-muda::LinearSystemContext& IterativeSolver::ctx() const
+cuda_tool::LinearSystemContext& IterativeSolver::ctx() const
 {
     return m_system->m_impl.ctx;
 }

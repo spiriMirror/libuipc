@@ -53,12 +53,12 @@ void GlobalContactManager::do_build()
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 }
 
-muda::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const noexcept
 {
     return m_impl.contact_mask_tabular;
 }
 
-muda::CBuffer2DView<IndexT> GlobalContactManager::subscene_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> GlobalContactManager::subscene_mask_tabular() const noexcept
 {
     return m_impl.subscene_mask_tabular;
 }
@@ -138,12 +138,12 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
         mask_map(ids.y(), ids.x()) = is_enabled;
     }
 
-    contact_tabular = std::make_shared<muda::DeviceBuffer2D<ContactCoeff>>();
+    contact_tabular = std::make_shared<cuda_tool::DeviceBuffer2D<ContactCoeff>>();
 
-    contact_tabular->resize(muda::Extent2D{N, N});
+    contact_tabular->resize(cuda_tool::Extent2D{N, N});
     contact_tabular->view().copy_from(h_contact_tabular.data());
 
-    contact_mask_tabular.resize(muda::Extent2D{N, N});
+    contact_mask_tabular.resize(cuda_tool::Extent2D{N, N});
     contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
 }
 
@@ -179,7 +179,7 @@ void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
         mask_map(ids.y(), ids.x()) = is_enabled;
     }
 
-    subscene_mask_tabular.resize(muda::Extent2D{SN, SN});
+    subscene_mask_tabular.resize(cuda_tool::Extent2D{SN, SN});
     subscene_mask_tabular.view().copy_from(h_subcene_mask_tabular.data());
 }
 
@@ -206,14 +206,13 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
         auto displacements = global_vertex_manager->displacements();
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(displacements.size(),
-                   [disps      = displacements.cviewer().name("disp"),
-                    disp_norms = vert_disp_norms.viewer().name("disp_norm"),
-                    is_contact_active = vert_is_active_contact.viewer().name(
-                        "vert_is_contact_active")] __device__(int i) mutable
+                   [disps      = displacements.cviewer(),
+                    disp_norms = vert_disp_norms.viewer(),
+                    is_contact_active = vert_is_active_contact.viewer()] __device__(int i) mutable
                    {
                        // if the contact is not active, then the displacement is ignored
                        disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
@@ -236,13 +235,13 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
 namespace uipc::backend::cuda
 {
-muda::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInfo::contact_tabular() const noexcept
+cuda_tool::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInfo::contact_tabular() const noexcept
 {
     return m_impl->contact_tabular->view();
 }
 
-S<muda::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
-    S<muda::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
+S<cuda_tool::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
+    S<cuda_tool::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
 {
     return std::exchange(m_impl->contact_tabular, new_buffer);
 }
@@ -298,7 +297,7 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
     m_impl.adaptive_contact_parameter_reporter.register_sim_system(*reporter);
 }
 
-muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
+cuda_tool::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
     return m_impl.contact_tabular->view();
 }

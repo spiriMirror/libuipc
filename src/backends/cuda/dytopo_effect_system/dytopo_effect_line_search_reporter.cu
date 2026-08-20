@@ -54,7 +54,7 @@ void DyTopoEffectLineSearchReporter::do_step_forward(LineSearcher::StepInfo& inf
 
 void DyTopoEffectLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     m_impl.compute_energy(info.is_initial());
 

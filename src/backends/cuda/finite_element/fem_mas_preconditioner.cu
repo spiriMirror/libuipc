@@ -18,25 +18,25 @@ namespace uipc::backend::cuda
 // Must match REGISTER_CONSTITUTION_UIDS EmptyUID in src/constitution/empty.cpp
 constexpr ::uipc::U64 kEmptyConstitutionUID = 0ull;
 // Free function: NVCC on Windows forbids __device__ lambdas in static / internal-linkage functions
-void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
+void fill_identity_indices(cuda_tool::DeviceBuffer<uint32_t>& buf, int count)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     buf.resize(count);
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(count,
-               [indices = buf.viewer().name("indices")] __device__(int i) mutable
+               [indices = buf.viewer()] __device__(int i) mutable
                { indices(i) = static_cast<uint32_t>(i); });
 }
 
-void assemble_diag_inv_for_unpartitioned(muda::DeviceBuffer<Matrix3x3>& diag_inv,
-                                         const muda::DeviceBuffer<int>& unpart_flags,
-                                         muda::CBCOOMatrixView<Float, 3> A,
+void assemble_diag_inv_for_unpartitioned(cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
+                                         const cuda_tool::DeviceBuffer<int>& unpart_flags,
+                                         cuda_tool::CBCOOMatrixView<Float, 3> A,
                                          int   fem_block_offset,
                                          int   fem_block_count,
                                          SizeT num_verts)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     diag_inv.resize(num_verts);
     diag_inv.fill(Matrix3x3::Identity());
@@ -44,9 +44,9 @@ void assemble_diag_inv_for_unpartitioned(muda::DeviceBuffer<Matrix3x3>& diag_inv
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(A.triplet_count(),
-               [triplet    = A.cviewer().name("triplet"),
-                diag       = diag_inv.viewer().name("diag_inv"),
-                unpart     = unpart_flags.cviewer().name("unpart_flags"),
+               [triplet    = A.cviewer(),
+                diag       = diag_inv.viewer(),
+                unpart     = unpart_flags.cviewer(),
                 fem_offset = fem_block_offset,
                 fem_count  = fem_block_count] __device__(int I) mutable
                {
@@ -63,23 +63,23 @@ void assemble_diag_inv_for_unpartitioned(muda::DeviceBuffer<Matrix3x3>& diag_inv
                });
 }
 
-void apply_diag_inv_for_unpartitioned(const muda::DeviceBuffer<Matrix3x3>& diag_inv,
-                                      const muda::DeviceBuffer<int>& unpart_flags,
-                                      muda::DenseVectorView<Float>  z,
-                                      muda::CDenseVectorView<Float> r,
-                                      muda::CVarView<IndexT>        converged,
+void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
+                                      const cuda_tool::DeviceBuffer<int>& unpart_flags,
+                                      cuda_tool::DenseVectorView<Float>  z,
+                                      cuda_tool::CDenseVectorView<Float> r,
+                                      cuda_tool::CVarView<IndexT>        converged,
                                       SizeT                         num_verts)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_verts,
-               [r_view = r.viewer().name("r"),
-                z_view = z.viewer().name("z"),
-                diag   = diag_inv.cviewer().name("diag_inv"),
-                unpart = unpart_flags.cviewer().name("unpart_flags"),
-                converged = converged.cviewer().name("converged")] __device__(int i) mutable
+               [r_view = r.viewer(),
+                z_view = z.viewer(),
+                diag   = diag_inv.cviewer(),
+                unpart = unpart_flags.cviewer(),
+                converged = converged.cviewer()] __device__(int i) mutable
                {
                    if(*converged != 0)
                        return;
@@ -119,11 +119,11 @@ class FEMMASPreconditioner : public LocalPreconditioner
     MASPreconditionerEngine      engine;
     bool                         m_has_partition     = false;
     bool                         m_has_unpartitioned = false;
-    muda::DeviceBuffer<uint32_t> sorted_indices;
+    cuda_tool::DeviceBuffer<uint32_t> sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
-    muda::DeviceBuffer<Matrix3x3> diag_inv;
-    muda::DeviceBuffer<int> unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
+    cuda_tool::DeviceBuffer<Matrix3x3> diag_inv;
+    cuda_tool::DeviceBuffer<int> unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -392,7 +392,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
         if(!m_has_partition || !engine.is_initialized())
             return;
 
-        using namespace muda;
+        using namespace cuda_tool;
 
         auto A          = info.A();
         int  dof_offset = static_cast<int>(info.dof_offset());
@@ -436,7 +436,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
         if(!m_has_partition || !engine.is_initialized())
             return;
 
-        using namespace muda;
+        using namespace cuda_tool;
         auto converged = info.converged();
 
         // MAS for partitioned vertices

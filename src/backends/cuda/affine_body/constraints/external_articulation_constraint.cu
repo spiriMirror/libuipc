@@ -90,18 +90,18 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     vector<Vector2i>              h_joint_joint_id_to_joint_ij;
     vector<Float>                 h_joint_joint_id_to_mass;
 
-    muda::DeviceBuffer<IndexT>   art_id_to_joint_offsets;
-    muda::DeviceBuffer<IndexT>   art_id_to_joint_counts;
-    muda::DeviceBuffer<IndexT>   joint_id_to_art_id;
-    muda::DeviceBuffer<U64>      joint_id_to_uid;
-    muda::DeviceBuffer<Vector2i> joint_id_to_body_ids;
-    muda::DeviceBuffer<Float>    joint_id_to_delta_theta;
-    muda::DeviceBuffer<Float>    joint_id_to_delta_theta_tilde;
+    cuda_tool::DeviceBuffer<IndexT>   art_id_to_joint_offsets;
+    cuda_tool::DeviceBuffer<IndexT>   art_id_to_joint_counts;
+    cuda_tool::DeviceBuffer<IndexT>   joint_id_to_art_id;
+    cuda_tool::DeviceBuffer<U64>      joint_id_to_uid;
+    cuda_tool::DeviceBuffer<Vector2i> joint_id_to_body_ids;
+    cuda_tool::DeviceBuffer<Float>    joint_id_to_delta_theta;
+    cuda_tool::DeviceBuffer<Float>    joint_id_to_delta_theta_tilde;
 
-    muda::DeviceBuffer<IndexT>   art_id_to_joint_joint_offsets;
-    muda::DeviceBuffer<IndexT>   art_id_to_joint_joint_counts;
-    muda::DeviceBuffer<Vector2i> joint_joint_id_to_joint_ij;
-    muda::DeviceBuffer<Float>    joint_joint_id_to_mass;
+    cuda_tool::DeviceBuffer<IndexT>   art_id_to_joint_joint_offsets;
+    cuda_tool::DeviceBuffer<IndexT>   art_id_to_joint_joint_counts;
+    cuda_tool::DeviceBuffer<Vector2i> joint_joint_id_to_joint_ij;
+    cuda_tool::DeviceBuffer<Float>    joint_joint_id_to_mass;
 
 
     unordered_map<IndexT, IndexT> h_body_id_to_ref_q_prev_id;
@@ -110,10 +110,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     // joint_id -> [l_ref_q_prev_id, r_ref_q_prev_id]
     vector<Vector2i>             h_joint_id_to_ref_q_prev_ids;
-    muda::DeviceBuffer<Vector2i> joint_id_to_ref_q_prev_ids;
+    cuda_tool::DeviceBuffer<Vector2i> joint_id_to_ref_q_prev_ids;
 
     vector<Vector12>             h_ref_q_prevs;
-    muda::DeviceBuffer<Vector12> ref_q_prevs;
+    cuda_tool::DeviceBuffer<Vector12> ref_q_prevs;
 
     /**
      * Joint Basis:
@@ -123,11 +123,11 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     vector<Vector6>             h_joint_id_to_L_basis;
     vector<Vector6>             h_joint_id_to_R_basis;
-    muda::DeviceBuffer<Vector6> joint_id_to_L_basis;
-    muda::DeviceBuffer<Vector6> joint_id_to_R_basis;
+    cuda_tool::DeviceBuffer<Vector6> joint_id_to_L_basis;
+    cuda_tool::DeviceBuffer<Vector6> joint_id_to_R_basis;
 
     // G^theta for each joint, intermediate variable for gradient and hessian computation
-    muda::DeviceBuffer<Float> joint_id_to_G_theta;
+    cuda_tool::DeviceBuffer<Float> joint_id_to_G_theta;
 
     void do_build(BuildInfo& info) override
     {
@@ -549,10 +549,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                                });
 
         // upload to device
-        auto async_copy = []<typename T>(muda::DeviceBuffer<T>& device_buffer,
+        auto async_copy = []<typename T>(cuda_tool::DeviceBuffer<T>& device_buffer,
                                          span<const T>          host_vector)
         {
-            muda::BufferLaunch().copy<T>(device_buffer.view(), host_vector.data());
+            cuda_tool::BufferLaunch().copy<T>(device_buffer.view(), host_vector.data());
         };
 
         async_copy(joint_joint_id_to_mass, span<const Float>{h_joint_joint_id_to_mass});
@@ -577,7 +577,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         namespace ERJ = sym::external_revolute_joint_constraint;
         namespace EPJ = sym::external_prismatic_joint_constraint;
@@ -586,31 +586,31 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             .file_line(__FILE__, __LINE__)
             .apply(
                 joint_joint_id_to_mass.size(),
-                [energies = info.energies().viewer().name("energies"),
-                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
+                [energies = info.energies().viewer(),
+                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer(),
                  joint_joint_id_to_joint_ij =
-                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+                     joint_joint_id_to_joint_ij.cviewer(),
 
                  art_joint_joint_offsets =
-                     art_id_to_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
-                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
-                 art_joint_offsets = art_id_to_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_id_to_joint_counts.cviewer().name("art_joint_counts"),
+                     art_id_to_joint_joint_offsets.cviewer(),
+                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer(),
+                 art_joint_offsets = art_id_to_joint_offsets.cviewer(),
+                 art_joint_counts = art_id_to_joint_counts.cviewer(),
 
-                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer().name("joint_id_to_delta_theta"),
+                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer(),
                  joint_id_to_delta_theta_tilde =
-                     joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
-                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
-                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
-                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
-                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                     joint_id_to_delta_theta_tilde.cviewer(),
+                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer(),
+                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer(),
+                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer(),
+                 joint_id_to_uid = joint_id_to_uid.cviewer(),
 
-                 qs      = info.qs().viewer().name("qs"),
-                 q_prevs = info.q_prevs().viewer().name("q_prevs"),
+                 qs      = info.qs().viewer(),
+                 q_prevs = info.q_prevs().viewer(),
 
                  joint_id_to_ref_q_prev_ids =
-                     joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+                     joint_id_to_ref_q_prev_ids.cviewer(),
+                 ref_q_prevs = ref_q_prevs.viewer(),
 
                  PrismaticUID = ExternalArticulationConstituion::PrismaticJointConstitutionUID,
                  RevoluteUID =
@@ -653,7 +653,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                         }
                         else
                         {
-                            MUDA_ASSERT(false,
+                            UIPC_KERNEL_ASSERT(false,
                                         "ExternalArticulationConstraint: Unknown joint UID {}",
                                         joint_uid);
                             // should not reach here
@@ -678,7 +678,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ = sym::external_revolute_joint_constraint;
         namespace EPJ = sym::external_prismatic_joint_constraint;
 
@@ -689,33 +689,32 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 joint_joint_id_to_mass.size(),
                 joint_id_to_G_theta.view(),
                 [joint_joint_id_to_joint_ij =
-                     joint_joint_id_to_joint_ij.cviewer().name(
-                         "joint_joint_id_to_joint_ij")] __device__(IndexT I) -> IndexT
+                     joint_joint_id_to_joint_ij.cviewer()] __device__(IndexT I) -> IndexT
                 {
                     Vector2i ij = joint_joint_id_to_joint_ij(I);
                     return ij[0];
                 },
-                [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
+                [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer(),
                  joint_joint_id_to_joint_ij =
-                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+                     joint_joint_id_to_joint_ij.cviewer(),
                  art_joint_joint_offsets =
-                     art_id_to_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
-                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
-                 art_joint_offsets = art_id_to_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_id_to_joint_counts.cviewer().name("art_joint_counts"),
-                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
-                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
-                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
+                     art_id_to_joint_joint_offsets.cviewer(),
+                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer(),
+                 art_joint_offsets = art_id_to_joint_offsets.cviewer(),
+                 art_joint_counts = art_id_to_joint_counts.cviewer(),
+                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer(),
+                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer(),
+                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer(),
                  joint_id_to_delta_theta_tilde =
-                     joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
+                     joint_id_to_delta_theta_tilde.cviewer(),
 
-                 qs      = info.qs().viewer().name("qs"),
-                 q_prevs = info.q_prevs().viewer().name("q_prevs"),
+                 qs      = info.qs().viewer(),
+                 q_prevs = info.q_prevs().viewer(),
                  joint_id_to_ref_q_prev_ids =
-                     joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+                     joint_id_to_ref_q_prev_ids.cviewer(),
+                 ref_q_prevs = ref_q_prevs.viewer(),
 
-                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 joint_id_to_uid = joint_id_to_uid.cviewer(),
                  RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                  PrismaticUID =
                      ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT joint_jointI) -> Float
@@ -773,25 +772,25 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             .file_line(__FILE__, __LINE__)
             .apply(
                 joint_id_to_G_theta.size(),
-                [gradients = info.gradients().viewer().name("gradients"),
-                 joint_id_to_G_theta = joint_id_to_G_theta.cviewer().name("G_theta"),
-                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
-                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer().name("delta_theta"),
-                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_id_to_art_id = joint_id_to_art_id.cviewer().name("joint_id_to_art_id"),
-                 art_joint_offsets = art_id_to_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_id_to_joint_counts.cviewer().name("art_joint_counts"),
+                [gradients = info.gradients().viewer(),
+                 joint_id_to_G_theta = joint_id_to_G_theta.cviewer(),
+                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer(),
+                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer(),
+                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer(),
+                 joint_id_to_art_id = joint_id_to_art_id.cviewer(),
+                 art_joint_offsets = art_id_to_joint_offsets.cviewer(),
+                 art_joint_counts = art_id_to_joint_counts.cviewer(),
                  joint_id_to_delta_theta_tilde =
-                     joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
-                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
-                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
-                 qs      = info.qs().viewer().name("qs"),
-                 q_prevs = info.q_prevs().viewer().name("q_prevs"),
+                     joint_id_to_delta_theta_tilde.cviewer(),
+                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer(),
+                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer(),
+                 qs      = info.qs().viewer(),
+                 q_prevs = info.q_prevs().viewer(),
                  joint_id_to_ref_q_prev_ids =
-                     joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+                     joint_id_to_ref_q_prev_ids.cviewer(),
+                 ref_q_prevs = ref_q_prevs.viewer(),
 
-                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 joint_id_to_uid = joint_id_to_uid.cviewer(),
                  RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                  PrismaticUID =
                      ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT jointI) mutable
@@ -827,7 +826,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                     }
                     else
                     {
-                        MUDA_ASSERT(false,
+                        UIPC_KERNEL_ASSERT(false,
                                     "ExternalArticulationConstraint: Unknown joint UID {}",
                                     joint_uid);
                         G24.setZero();
@@ -848,31 +847,31 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             .file_line(__FILE__, __LINE__)
             .apply(
                 joint_joint_id_to_mass.size(),
-                [hessians = info.hessians().viewer().name("hessians"),
+                [hessians = info.hessians().viewer(),
 
-                 joint_id_to_G_theta = joint_id_to_G_theta.cviewer().name("joint_id_to_G_theta"),
-                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
-                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer().name("delta_theta"),
-                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
+                 joint_id_to_G_theta = joint_id_to_G_theta.cviewer(),
+                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer(),
+                 joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer(),
+                 joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer(),
                  joint_joint_id_to_joint_ij =
-                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+                     joint_joint_id_to_joint_ij.cviewer(),
 
                  art_joint_joint_offsets =
-                     art_id_to_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
-                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
-                 art_joint_offsets = art_id_to_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_id_to_joint_counts.cviewer().name("art_joint_counts"),
+                     art_id_to_joint_joint_offsets.cviewer(),
+                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer(),
+                 art_joint_offsets = art_id_to_joint_offsets.cviewer(),
+                 art_joint_counts = art_id_to_joint_counts.cviewer(),
 
                  joint_id_to_delta_theta_tilde =
-                     joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
-                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
-                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
-                 qs      = info.qs().viewer().name("qs"),
-                 q_prevs = info.q_prevs().viewer().name("q_prevs"),
+                     joint_id_to_delta_theta_tilde.cviewer(),
+                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer(),
+                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer(),
+                 qs      = info.qs().viewer(),
+                 q_prevs = info.q_prevs().viewer(),
                  joint_id_to_ref_q_prev_ids =
-                     joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
-                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                     joint_id_to_ref_q_prev_ids.cviewer(),
+                 ref_q_prevs = ref_q_prevs.viewer(),
+                 joint_id_to_uid = joint_id_to_uid.cviewer(),
                  RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                  PrismaticUID =
                      ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT joint_joint_I) mutable
@@ -913,7 +912,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                         }
                         else
                         {
-                            MUDA_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", uid);
+                            UIPC_KERNEL_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", uid);
                             dDeltaTheta_dQ.setZero();
                         }
                         return dDeltaTheta_dQ;
@@ -975,7 +974,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                         }
                         else
                         {
-                            MUDA_ASSERT(false,
+                            UIPC_KERNEL_ASSERT(false,
                                         "ExternalArticulationConstraint: Unknown joint UID {}",
                                         joint_uid);
                         }
@@ -1072,7 +1071,7 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
 
     void do_update_state(UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ = sym::external_revolute_joint_constraint;
         namespace EPJ = sym::external_prismatic_joint_constraint;
 
@@ -1084,16 +1083,16 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
             .file_line(__FILE__, __LINE__)
             .apply(
                 c->joint_id_to_delta_theta.size(),
-                [joint_id_to_delta_theta = c->joint_id_to_delta_theta.viewer().name("joint_id_to_delta_theta"),
-                 joint_id_to_body_ids = c->joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
-                 joint_id_to_L_basis = c->joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
-                 joint_id_to_R_basis = c->joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
-                 qs      = abd->qs().viewer().name("qs"),
-                 q_prevs = abd->q_prevs().viewer().name("q_prevs"),
+                [joint_id_to_delta_theta = c->joint_id_to_delta_theta.viewer(),
+                 joint_id_to_body_ids = c->joint_id_to_body_ids.cviewer(),
+                 joint_id_to_L_basis = c->joint_id_to_L_basis.cviewer(),
+                 joint_id_to_R_basis = c->joint_id_to_R_basis.cviewer(),
+                 qs      = abd->qs().viewer(),
+                 q_prevs = abd->q_prevs().viewer(),
                  joint_id_to_ref_q_prev_ids =
-                     c->joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = c->ref_q_prevs.viewer().name("ref_q_prevs"),
-                 joint_id_to_uid = c->joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                     c->joint_id_to_ref_q_prev_ids.cviewer(),
+                 ref_q_prevs = c->ref_q_prevs.viewer(),
+                 joint_id_to_uid = c->joint_id_to_uid.cviewer(),
                  RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                  PrismaticUID =
                      ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT jointI) mutable
@@ -1129,7 +1128,7 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
                     }
                     else
                     {
-                        MUDA_ASSERT(false,
+                        UIPC_KERNEL_ASSERT(false,
                                     "ExternalArticulationConstraint: Unknown joint UID {}",
                                     joint_uid);
                         // should not reach here

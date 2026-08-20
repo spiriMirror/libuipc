@@ -1,5 +1,5 @@
 #include <contact_system/simplex_normal_contact.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/distance.h>
 #include <utils/codim_thickness.h>
 
@@ -165,134 +165,134 @@ void SimplexNormalContact::do_assemble(GlobalContactManager::GradientHessianInfo
     do_assemble(this_info);
 }
 
-muda::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_tabular() const
+cuda_tool::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
 
-muda::CBufferView<Vector4i> SimplexNormalContact::PTs() const
+cuda_tool::CBufferView<Vector4i> SimplexNormalContact::PTs() const
 {
     return m_impl.simplex_trajectory_filter->PTs();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::PT_energies() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::PT_energies() const
 {
     return m_impl.PT_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexNormalContact::PT_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexNormalContact::PT_gradients() const
 {
     return m_impl.PT_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexNormalContact::PT_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexNormalContact::PT_hessians() const
 {
     return m_impl.PT_hessians;
 }
 
-muda::CBufferView<Vector4i> SimplexNormalContact::EEs() const
+cuda_tool::CBufferView<Vector4i> SimplexNormalContact::EEs() const
 {
     return m_impl.simplex_trajectory_filter->EEs();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::EE_energies() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::EE_energies() const
 {
     return m_impl.EE_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexNormalContact::EE_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexNormalContact::EE_gradients() const
 {
     return m_impl.EE_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexNormalContact::EE_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexNormalContact::EE_hessians() const
 {
     return m_impl.EE_hessians;
 }
 
-muda::CBufferView<Vector3i> SimplexNormalContact::PEs() const
+cuda_tool::CBufferView<Vector3i> SimplexNormalContact::PEs() const
 {
     return m_impl.simplex_trajectory_filter->PEs();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::PE_energies() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::PE_energies() const
 {
     return m_impl.PE_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexNormalContact::PE_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexNormalContact::PE_gradients() const
 {
     return m_impl.PE_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexNormalContact::PE_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexNormalContact::PE_hessians() const
 {
     return m_impl.PE_hessians;
 }
 
-muda::CBufferView<Vector2i> SimplexNormalContact::PPs() const
+cuda_tool::CBufferView<Vector2i> SimplexNormalContact::PPs() const
 {
     return m_impl.simplex_trajectory_filter->PPs();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::PP_energies() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::PP_energies() const
 {
     return m_impl.PP_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexNormalContact::PP_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexNormalContact::PP_gradients() const
 {
     return m_impl.PP_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexNormalContact::PP_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexNormalContact::PP_hessians() const
 {
     return m_impl.PP_hessians;
 }
 
-muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::PTs() const
+cuda_tool::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::PTs() const
 {
     // return m_impl->PT_constraints.view();
     return m_impl->simplex_trajectory_filter->PTs();
 }
 
-muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::EEs() const
+cuda_tool::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::EEs() const
 {
     return m_impl->simplex_trajectory_filter->EEs();
 }
 
-muda::CBufferView<Vector3i> SimplexNormalContact::BaseInfo::PEs() const
+cuda_tool::CBufferView<Vector3i> SimplexNormalContact::BaseInfo::PEs() const
 {
     return m_impl->simplex_trajectory_filter->PEs();
 }
 
-muda::CBufferView<Vector2i> SimplexNormalContact::BaseInfo::PPs() const
+cuda_tool::CBufferView<Vector2i> SimplexNormalContact::BaseInfo::PPs() const
 {
     return m_impl->simplex_trajectory_filter->PPs();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::BaseInfo::thicknesses() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::BaseInfo::thicknesses() const
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::positions() const
+cuda_tool::CBufferView<Vector3> SimplexNormalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::prev_positions() const
+cuda_tool::CBufferView<Vector3> SimplexNormalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::rest_positions() const
+cuda_tool::CBufferView<Vector3> SimplexNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<IndexT> SimplexNormalContact::BaseInfo::contact_element_ids() const
+cuda_tool::CBufferView<IndexT> SimplexNormalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
@@ -302,7 +302,7 @@ Float SimplexNormalContact::BaseInfo::d_hat() const
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> SimplexNormalContact::BaseInfo::d_hats() const
+cuda_tool::CBufferView<Float> SimplexNormalContact::BaseInfo::d_hats() const
 {
     return m_impl->global_vertex_manager->d_hats();
 }

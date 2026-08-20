@@ -24,7 +24,7 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
 
     void do_predict_dof(PredictDofInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BDF2 = sym::fem_bdf2;
 
         if(state->x_n_1s().size() != info.xs().size())
@@ -38,16 +38,16 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    xs         = info.xs().cviewer().name("xs"),
-                    x_ns       = info.x_prevs().viewer().name("x_ns"),
-                    x_n_1s     = state->x_n_1s().cviewer().name("x_n_1s"),
-                    v_ns       = info.vs().viewer().name("v_ns"),
-                    v_n_1s     = state->v_n_1s().cviewer().name("v_n_1s"),
-                    x_tildes   = info.x_tildes().viewer().name("x_tilde"),
-                    gravity    = info.gravities().cviewer().name("gravity"),
-                    external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    xs         = info.xs().cviewer(),
+                    x_ns       = info.x_prevs().viewer(),
+                    x_n_1s     = state->x_n_1s().cviewer(),
+                    v_ns       = info.vs().viewer(),
+                    v_n_1s     = state->v_n_1s().cviewer(),
+                    x_tildes   = info.x_tildes().viewer(),
+                    gravity    = info.gravities().cviewer(),
+                    external_force_accs = info.external_force_accs().cviewer(),
                     dt         = info.dt()] __device__(int i) mutable
                    {
                        // x_n is tracked in x_prevs for current step.
@@ -82,17 +82,17 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
 
     void do_update_state(UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace BDF2 = sym::fem_bdf2;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [xs     = info.xs().cviewer().name("xs"),
-                    x_ns   = info.x_prevs().cviewer().name("x_n"),
-                    x_n_1s = state->x_n_1s().viewer().name("x_n_1s"),
-                    v_ns   = info.vs().viewer().name("v_ns"),
-                    v_n_1s = state->v_n_1s().viewer().name("v_n_1s"),
+                   [xs     = info.xs().cviewer(),
+                    x_ns   = info.x_prevs().cviewer(),
+                    x_n_1s = state->x_n_1s().viewer(),
+                    v_ns   = info.vs().viewer(),
+                    v_n_1s = state->v_n_1s().viewer(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector3 v;

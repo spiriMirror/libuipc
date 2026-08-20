@@ -13,7 +13,7 @@ public:
         SimSystemSlot<AffineBodyDynamics>               affine_body_dynamics;
         SimSystemSlot<AffineBodyVertexReporter>         vertex_reporter;
 
-        muda::DeviceBuffer<Vector12> non_penetrate_q;
+        cuda_tool::DeviceBuffer<Vector12> non_penetrate_q;
 
         void recover_non_penetrate(NonPenetratePositionsInfo &info);
         void record_non_penetrate();

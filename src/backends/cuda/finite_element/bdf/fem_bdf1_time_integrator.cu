@@ -18,19 +18,19 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
 
     virtual void do_predict_dof(PredictDofInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    x_prevs    = info.x_prevs().viewer().name("x_prevs"),
-                    xs         = info.xs().cviewer().name("xs"),
-                    vs         = info.vs().cviewer().name("vs"),
-                    x_tildes   = info.x_tildes().viewer().name("x_tildes"),
-                    gravities  = info.gravities().cviewer().name("gravities"),
-                    external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    x_prevs    = info.x_prevs().viewer(),
+                    xs         = info.xs().cviewer(),
+                    vs         = info.vs().cviewer(),
+                    x_tildes   = info.x_tildes().viewer(),
+                    gravities  = info.gravities().cviewer(),
+                    external_force_accs = info.external_force_accs().cviewer(),
                     dt         = info.dt()] __device__(int i) mutable
                    {
                        // record previous position
@@ -63,14 +63,14 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
 
     virtual void do_update_state(UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [xs      = info.xs().cviewer().name("xs"),
-                    vs      = info.vs().viewer().name("vs"),
-                    x_prevs = info.x_prevs().cviewer().name("x_prevs"),
+                   [xs      = info.xs().cviewer(),
+                    vs      = info.vs().viewer(),
+                    x_prevs = info.x_prevs().cviewer(),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        Vector3&       v      = vs(i);

@@ -203,19 +203,19 @@ void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalDyTopoEffe
     info.energy_count(m_impl.constitution_energy_offsets_counts.total_count());
 }
 
-muda::BufferView<Float> InterPrimitiveConstitutionManager::EnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> InterPrimitiveConstitutionManager::EnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constitution_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 3> InterPrimitiveConstitutionManager::GradientHessianInfo::gradients() const noexcept
+cuda_tool::DoubletVectorView<Float, 3> InterPrimitiveConstitutionManager::GradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 3> InterPrimitiveConstitutionManager::GradientHessianInfo::hessians() const noexcept
+cuda_tool::TripletMatrixView<Float, 3> InterPrimitiveConstitutionManager::GradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);
@@ -242,7 +242,7 @@ S<geometry::GeometrySlot> InterPrimitiveConstitutionManager::FilteredInfo::rest_
     return scene->find_rest_geometry(id);
 }
 
-muda::CBufferView<Vector3> InterPrimitiveConstitutionManager::BaseInfo::positions() const noexcept
+cuda_tool::CBufferView<Vector3> InterPrimitiveConstitutionManager::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
 }

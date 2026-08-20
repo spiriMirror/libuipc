@@ -19,8 +19,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     {
       public:
         ComputeGradientHessianInfo(bool gradient_only,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3, 3> hessians,
+                                   cuda_tool::DoubletVectorView<Float, 3> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 3, 3> hessians,
                                    Float dt) noexcept
             : m_gradient_only(gradient_only)
             , m_gradients(gradients)
@@ -36,8 +36,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
       private:
         bool                                 m_gradient_only = false;
-        muda::DoubletVectorView<Float, 3>    m_gradients;
-        muda::TripletMatrixView<Float, 3, 3> m_hessians;
+        cuda_tool::DoubletVectorView<Float, 3>    m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3, 3> m_hessians;
         Float                                m_dt = 0.0;
     };
 
@@ -71,7 +71,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
       public:
         AssembleInfo(Impl*                                impl,
                      IndexT                               index,
-                     muda::TripletMatrixView<Float, 3, 3> hessians,
+                     cuda_tool::TripletMatrixView<Float, 3, 3> hessians,
                      bool gradient_only) noexcept
             : m_impl(impl)
             , m_index(index)
@@ -80,8 +80,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         {
         }
 
-        muda::DoubletVectorView<Float, 3>    gradients() const;
-        muda::TripletMatrixView<Float, 3, 3> hessians() const;
+        cuda_tool::DoubletVectorView<Float, 3>    gradients() const;
+        cuda_tool::TripletMatrixView<Float, 3, 3> hessians() const;
         Float                                dt() const noexcept;
         bool                                 gradient_only() const noexcept;
 
@@ -90,7 +90,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
         Impl*                                m_impl  = nullptr;
         IndexT                               m_index = ~0;
-        muda::TripletMatrixView<Float, 3, 3> m_hessians;
+        cuda_tool::TripletMatrixView<Float, 3, 3> m_hessians;
         bool                                 m_gradient_only = false;
     };
 
@@ -136,12 +136,12 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
         OffsetCountCollection<IndexT> reporter_hessian_offsets_counts;
 
-        muda::DeviceDoubletVector<Float, 3> kinetic_gradients;
-        muda::DeviceDoubletVector<Float, 3> reporter_gradients;
-        muda::DeviceBuffer<Float>           diag_blocks_norm;
-        muda::DeviceVar<Float>              reduced_diag_norm;
+        cuda_tool::DeviceDoubletVector<Float, 3> kinetic_gradients;
+        cuda_tool::DeviceDoubletVector<Float, 3> reporter_gradients;
+        cuda_tool::DeviceBuffer<Float>           diag_blocks_norm;
+        cuda_tool::DeviceVar<Float>              reduced_diag_norm;
 
-        void loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v, SizeT size);
+        void loose_resize_entries(cuda_tool::DeviceDoubletVector<Float, 3>& v, SizeT size);
     };
 
   private:

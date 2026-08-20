@@ -22,7 +22,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
     virtual void do_compute_energy(EnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_simplex_contact;
 
         // Compute Point-Triangle energy
@@ -30,13 +30,13 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PT_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PTs = info.PTs().viewer().name("PTs"),
-                    Es  = info.PT_energies().viewer().name("Es"),
-                    Ps  = info.positions().viewer().name("Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PTs = info.PTs().viewer(),
+                    Es  = info.PT_energies().viewer(),
+                    Ps  = info.positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector4i PT = PTs(i);
@@ -71,7 +71,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(is_active_D(range, D),
+                           UIPC_KERNEL_ASSERT(is_active_D(range, D),
                                        "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PT(0),
                                        PT(1),
@@ -90,14 +90,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(EE_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    EEs = info.EEs().viewer().name("EEs"),
-                    Es  = info.EE_energies().viewer().name("Es"),
-                    Ps  = info.positions().viewer().name("Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
-                    d_hats  = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    EEs = info.EEs().viewer(),
+                    Es  = info.EE_energies().viewer(),
+                    Ps  = info.positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    rest_Ps = info.rest_positions().viewer(),
+                    d_hats  = info.d_hats().viewer(),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        Vector4i EE = EEs(i);
@@ -133,7 +133,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                            Float D;
                            distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
                            Vector2 range = D_range(thickness, d_hat);
-                           MUDA_ASSERT(is_active_D(range, D),
+                           UIPC_KERNEL_ASSERT(is_active_D(range, D),
                                        "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        EE(0),
                                        EE(1),
@@ -166,15 +166,15 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PE_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PEs     = info.PEs().viewer().name("PEs"),
-                    Es      = info.PE_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PEs     = info.PEs().viewer(),
+                    Es      = info.PE_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    rest_Ps = info.rest_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
                     eps_v  = info.eps_velocity(),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    d_hats = info.d_hats().viewer(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector3i PE = PEs(i);
@@ -204,7 +204,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(is_active_D(range, D),
+                           UIPC_KERNEL_ASSERT(is_active_D(range, D),
                                        "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PE(0),
                                        PE(1),
@@ -222,14 +222,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PP_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PPs     = info.PPs().viewer().name("PPs"),
-                    Es      = info.PP_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PPs     = info.PPs().viewer(),
+                    Es      = info.PP_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    rest_Ps = info.rest_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector2i PP = PPs(i);
@@ -254,7 +254,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(is_active_D(range, D),
+                           UIPC_KERNEL_ASSERT(is_active_D(range, D),
                                        "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PP(0),
                                        PP(1),
@@ -269,7 +269,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
     virtual void do_assemble(ContactInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_simplex_contact;
 
         // Fused kernel: PT + EE + PE + PP in one launch using offset-based dispatch.
@@ -293,29 +293,29 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .apply(
                 total,
                 [gradient_only = info.gradient_only(),
-                 table = info.contact_tabular().viewer().name("contact_tabular"),
-                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                 Ps          = info.positions().viewer().name("Ps"),
-                 rest_Ps     = info.rest_positions().viewer().name("rest_Ps"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 d_hats      = info.d_hats().viewer().name("d_hats"),
+                 table = info.contact_tabular().viewer(),
+                 contact_ids = info.contact_element_ids().viewer(),
+                 Ps          = info.positions().viewer(),
+                 rest_Ps     = info.rest_positions().viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 d_hats      = info.d_hats().viewer(),
                  dt          = info.dt(),
                  // PT
-                 PTs   = info.PTs().viewer().name("PTs"),
-                 PT_Gs = info.PT_gradients().viewer().name("PT_Gs"),
-                 PT_Hs = info.PT_hessians().viewer().name("PT_Hs"),
+                 PTs   = info.PTs().viewer(),
+                 PT_Gs = info.PT_gradients().viewer(),
+                 PT_Hs = info.PT_hessians().viewer(),
                  // EE
-                 EEs   = info.EEs().viewer().name("EEs"),
-                 EE_Gs = info.EE_gradients().viewer().name("EE_Gs"),
-                 EE_Hs = info.EE_hessians().viewer().name("EE_Hs"),
+                 EEs   = info.EEs().viewer(),
+                 EE_Gs = info.EE_gradients().viewer(),
+                 EE_Hs = info.EE_hessians().viewer(),
                  // PE
-                 PEs   = info.PEs().viewer().name("PEs"),
-                 PE_Gs = info.PE_gradients().viewer().name("PE_Gs"),
-                 PE_Hs = info.PE_hessians().viewer().name("PE_Hs"),
+                 PEs   = info.PEs().viewer(),
+                 PE_Gs = info.PE_gradients().viewer(),
+                 PE_Hs = info.PE_hessians().viewer(),
                  // PP
-                 PPs   = info.PPs().viewer().name("PPs"),
-                 PP_Gs = info.PP_gradients().viewer().name("PP_Gs"),
-                 PP_Hs = info.PP_hessians().viewer().name("PP_Hs"),
+                 PPs   = info.PPs().viewer(),
+                 PP_Gs = info.PP_gradients().viewer(),
+                 PP_Hs = info.PP_hessians().viewer(),
                  // offsets
                  ee_offset,
                  pe_offset,

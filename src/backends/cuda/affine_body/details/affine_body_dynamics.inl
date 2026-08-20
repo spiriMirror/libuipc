@@ -99,7 +99,7 @@ void AffineBodyDynamics::Impl::for_each(span<S<geometry::GeometrySlot>> geo_slot
 }
 
 template <typename T>
-muda::BufferView<T> AffineBodyDynamics::Impl::subview(DeviceBuffer<T>& buffer,
+cuda_tool::BufferView<T> AffineBodyDynamics::Impl::subview(DeviceBuffer<T>& buffer,
                                                       SizeT constitution_index) const noexcept
 {
     auto& constitution_info = constitution_infos[constitution_index];

@@ -21,12 +21,12 @@ void HalfPlaneBodyReporter::Impl::report_count(BodyCountInfo& info)
 
 void HalfPlaneBodyReporter::Impl::report_attributes(BodyAttributeInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.coindices().size(),
-               [coindices = info.coindices().viewer().name("coindices")] __device__(int i)
+               [coindices = info.coindices().viewer()] __device__(int i)
                {
                    coindices(i) = i;  // just iota
                });

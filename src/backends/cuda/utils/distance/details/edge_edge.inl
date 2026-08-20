@@ -1,7 +1,7 @@
 namespace uipc::backend::cuda::distance::details
 {
 template <typename T>
-MUDA_GENERIC void g_EE(
+UIPC_GENERIC void g_EE(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T g[12])
 {
     T t11;
@@ -82,7 +82,7 @@ MUDA_GENERIC void g_EE(
 }
 
 template <typename T>
-MUDA_GENERIC void H_EE(
+UIPC_GENERIC void H_EE(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T H[144])
 {
     T t11;
@@ -703,7 +703,7 @@ MUDA_GENERIC void H_EE(
 namespace uipc::backend::cuda::distance
 {
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC void edge_edge_distance2(const Eigen::Vector<T, 3>& ea0,
                                       const Eigen::Vector<T, 3>& ea1,
                                       const Eigen::Vector<T, 3>& eb0,
                                       const Eigen::Vector<T, 3>& eb1,
@@ -715,7 +715,7 @@ MUDA_GENERIC void edge_edge_distance2(const Eigen::Vector<T, 3>& ea0,
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2_gradient(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC void edge_edge_distance2_gradient(const Eigen::Vector<T, 3>& ea0,
                                                const Eigen::Vector<T, 3>& ea1,
                                                const Eigen::Vector<T, 3>& eb0,
                                                const Eigen::Vector<T, 3>& eb1,
@@ -737,7 +737,7 @@ MUDA_GENERIC void edge_edge_distance2_gradient(const Eigen::Vector<T, 3>& ea0,
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2_hessian(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC void edge_edge_distance2_hessian(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
                                               const Eigen::Vector<T, 3>& eb0,
                                               const Eigen::Vector<T, 3>& eb1,

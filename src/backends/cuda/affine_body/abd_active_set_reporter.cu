@@ -15,12 +15,12 @@ namespace uipc::backend::cuda {
     void ABDActiveSetReporter::Impl::advance_non_penetrate(Float alpha) {
         auto qs = affine_body_dynamics->qs();
         UIPC_ASSERT(qs.size() == non_penetrate_q.size(), "non_penetrate_q's size not matched");
-        muda::ParallelFor()
+        cuda_tool::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(non_penetrate_q.size(), [
                 alpha,
-                q = qs.cviewer().name("q"),
-                non_penetrate_q = non_penetrate_q.viewer().name("non_penetrate_q")
+                q = qs.cviewer(),
+                non_penetrate_q = non_penetrate_q.viewer()
             ] __device__ (int i) mutable {
                 non_penetrate_q(i) += alpha * (q(i) - non_penetrate_q(i));
             });

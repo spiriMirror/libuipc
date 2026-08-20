@@ -19,16 +19,16 @@ class FiniteElementBDF2Kinetic final : public FiniteElementKinetic
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [is_fixed = info.is_fixed().cviewer().name("is_fixed"),
-                    xs       = info.xs().cviewer().name("xs"),
-                    x_tildes = info.x_tildes().cviewer().name("x_tildes"),
-                    masses   = info.masses().cviewer().name("masses"),
-                    Ks       = info.energies().viewer().name("kinetic_energy"),
+                   [is_fixed = info.is_fixed().cviewer(),
+                    xs       = info.xs().cviewer(),
+                    x_tildes = info.x_tildes().cviewer(),
+                    masses   = info.masses().cviewer(),
+                    Ks       = info.energies().viewer(),
                     inv_beta = inv_beta] __device__(int i) mutable
                    {
                        auto& K = Ks(i);
@@ -51,17 +51,17 @@ class FiniteElementBDF2Kinetic final : public FiniteElementKinetic
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
-                   [is_fixed      = info.is_fixed().cviewer().name("is_fixed"),
-                    xs            = info.xs().cviewer().name("xs"),
-                    x_tildes      = info.x_tildes().viewer().name("x_tildes"),
-                    masses        = info.masses().cviewer().name("masses"),
-                    G3s           = info.gradients().viewer().name("G3s"),
-                    H3x3s         = info.hessians().viewer().name("H3x3s"),
+                   [is_fixed      = info.is_fixed().cviewer(),
+                    xs            = info.xs().cviewer(),
+                    x_tildes      = info.x_tildes().viewer(),
+                    masses        = info.masses().cviewer(),
+                    G3s           = info.gradients().viewer(),
+                    H3x3s         = info.hessians().viewer(),
                     gradient_only = info.gradient_only(),
                     inv_beta      = inv_beta] __device__(int i) mutable
                    {

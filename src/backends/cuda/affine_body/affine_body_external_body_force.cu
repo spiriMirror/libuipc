@@ -1,7 +1,7 @@
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <affine_body/constraints/affine_body_external_body_force_constraint.h>
 #include <affine_body/affine_body_dynamics.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -40,14 +40,13 @@ class AffineBodyExternalBodyForce final : public AffineBodyExternalForceReporter
     {
         SizeT force_count = constraint->forces().size();
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(force_count,
-                   [forces   = info.external_forces().viewer().name("forces"),
-                    body_ids = constraint->body_ids().viewer().name("body_ids"),
-                    body_forces = constraint->forces().viewer().name(
-                        "body_forces")] __device__(int i) mutable
+                   [forces   = info.external_forces().viewer(),
+                    body_ids = constraint->body_ids().viewer(),
+                    body_forces = constraint->forces().viewer()] __device__(int i) mutable
                    {
                        // Scatter add the external forces to the corresponding bodies
                        auto body_id = body_ids(i);

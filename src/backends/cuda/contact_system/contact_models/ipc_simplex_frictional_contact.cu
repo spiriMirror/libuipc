@@ -22,7 +22,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
     virtual void do_compute_energy(EnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_contact;
 
         // Compute Point-Triangle energy
@@ -30,14 +30,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PT_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PTs     = info.friction_PTs().viewer().name("PTs"),
-                    Es      = info.friction_PT_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PTs     = info.friction_PTs().viewer(),
+                    Es      = info.friction_PT_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    prev_Ps = info.prev_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     eps_v  = info.eps_velocity(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
@@ -93,16 +93,16 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(EE_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    EEs     = info.friction_EEs().viewer().name("EEs"),
-                    Es      = info.friction_EE_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    EEs     = info.friction_EEs().viewer(),
+                    Es      = info.friction_EE_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    prev_Ps = info.prev_positions().viewer(),
+                    rest_Ps = info.rest_positions().viewer(),
                     eps_v   = info.eps_velocity(),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& EE = EEs(i);
@@ -172,14 +172,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PE_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PEs     = info.friction_PEs().viewer().name("PEs"),
-                    Es      = info.friction_PE_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PEs     = info.friction_PEs().viewer(),
+                    Es      = info.friction_PE_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    prev_Ps = info.prev_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     eps_v  = info.eps_velocity(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
@@ -228,14 +228,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PP_count,
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PPs     = info.friction_PPs().viewer().name("PPs"),
-                    Es      = info.friction_PP_energies().viewer().name("Es"),
-                    Ps      = info.positions().viewer().name("Ps"),
-                    prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [table = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    PPs     = info.friction_PPs().viewer(),
+                    Es      = info.friction_PP_energies().viewer(),
+                    Ps      = info.positions().viewer(),
+                    prev_Ps = info.prev_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     eps_v  = info.eps_velocity(),
                     dt     = info.dt()] __device__(int i) mutable
                    {
@@ -273,7 +273,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
     virtual void do_assemble(ContactInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_contact;
 
         // Fused kernel: PT + EE + PE + PP friction in one launch
@@ -294,31 +294,31 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
             .file_line(__FILE__, __LINE__)
             .apply(total,
                    [gradient_only = info.gradient_only(),
-                    table       = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    Ps          = info.positions().viewer().name("Ps"),
-                    prev_Ps     = info.prev_positions().viewer().name("prev_Ps"),
-                    rest_Ps     = info.rest_positions().viewer().name("rest_Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats      = info.d_hats().viewer().name("d_hats"),
+                    table       = info.contact_tabular().viewer(),
+                    contact_ids = info.contact_element_ids().viewer(),
+                    Ps          = info.positions().viewer(),
+                    prev_Ps     = info.prev_positions().viewer(),
+                    rest_Ps     = info.rest_positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats      = info.d_hats().viewer(),
                     eps_v       = info.eps_velocity(),
                     dt          = info.dt(),
                     // PT
-                    PTs    = info.friction_PTs().viewer().name("PTs"),
-                    PT_Gs  = info.friction_PT_gradients().viewer().name("PT_Gs"),
-                    PT_Hs  = info.friction_PT_hessians().viewer().name("PT_Hs"),
+                    PTs    = info.friction_PTs().viewer(),
+                    PT_Gs  = info.friction_PT_gradients().viewer(),
+                    PT_Hs  = info.friction_PT_hessians().viewer(),
                     // EE
-                    EEs    = info.friction_EEs().viewer().name("EEs"),
-                    EE_Gs  = info.friction_EE_gradients().viewer().name("EE_Gs"),
-                    EE_Hs  = info.friction_EE_hessians().viewer().name("EE_Hs"),
+                    EEs    = info.friction_EEs().viewer(),
+                    EE_Gs  = info.friction_EE_gradients().viewer(),
+                    EE_Hs  = info.friction_EE_hessians().viewer(),
                     // PE
-                    PEs    = info.friction_PEs().viewer().name("PEs"),
-                    PE_Gs  = info.friction_PE_gradients().viewer().name("PE_Gs"),
-                    PE_Hs  = info.friction_PE_hessians().viewer().name("PE_Hs"),
+                    PEs    = info.friction_PEs().viewer(),
+                    PE_Gs  = info.friction_PE_gradients().viewer(),
+                    PE_Hs  = info.friction_PE_hessians().viewer(),
                     // PP
-                    PPs    = info.friction_PPs().viewer().name("PPs"),
-                    PP_Gs  = info.friction_PP_gradients().viewer().name("PP_Gs"),
-                    PP_Hs  = info.friction_PP_hessians().viewer().name("PP_Hs"),
+                    PPs    = info.friction_PPs().viewer(),
+                    PP_Gs  = info.friction_PP_gradients().viewer(),
+                    PP_Hs  = info.friction_PP_hessians().viewer(),
                     // offsets
                     ee_offset, pe_offset, pp_offset] __device__(IndexT idx) mutable
                    {

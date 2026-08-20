@@ -12,7 +12,7 @@
 #include <affine_body/utils.h>
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <joint_dof_system/joint_dof_reporter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <numbers>
 
 namespace uipc::backend::cuda
@@ -28,12 +28,12 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
     // [    body0   |   body1    ]
-    muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector6>  rest_cs;  // c_bar
-    muda::DeviceBuffer<Vector6>  rest_ts;  // t_bar
-    muda::DeviceBuffer<Vector6>  rest_ns;  // n_bar
-    muda::DeviceBuffer<Vector6>  rest_bs;  // b_bar
-    muda::DeviceBuffer<Float>    strength_ratios;
+    cuda_tool::DeviceBuffer<Vector2i> body_ids;
+    cuda_tool::DeviceBuffer<Vector6>  rest_cs;  // c_bar
+    cuda_tool::DeviceBuffer<Vector6>  rest_ts;  // t_bar
+    cuda_tool::DeviceBuffer<Vector6>  rest_ns;  // n_bar
+    cuda_tool::DeviceBuffer<Vector6>  rest_bs;  // b_bar
+    cuda_tool::DeviceBuffer<Float>    strength_ratios;
 
     vector<Vector2i> h_body_ids;
     vector<Vector6>  h_rest_cs;
@@ -47,8 +47,8 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
     vector<Float>                 h_init_distances;
     vector<Float>                 h_current_distances;
 
-    muda::DeviceBuffer<Float> init_distances;
-    muda::DeviceBuffer<Float> current_distances;
+    cuda_tool::DeviceBuffer<Float> init_distances;
+    cuda_tool::DeviceBuffer<Float> current_distances;
 
     BufferDump curr_distances_dump;
 
@@ -245,17 +245,17 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
     void compute_current_distances()
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    rest_ts  = rest_ts.cviewer().name("rest_ts"),
-                    qs       = affine_body_dynamics->qs().cviewer().name("qs"),
-                    current_distances = current_distances.viewer().name("current_distances"),
-                    init_distances = init_distances.cviewer().name("init_distances")] __device__(int I)
+                   [body_ids = body_ids.cviewer(),
+                    rest_cs  = rest_cs.cviewer(),
+                    rest_ts  = rest_ts.cviewer(),
+                    qs       = affine_body_dynamics->qs().cviewer(),
+                    current_distances = current_distances.viewer(),
+                    init_distances = init_distances.cviewer()] __device__(int I)
                    {
                        Vector2i bids = body_ids(I);
 
@@ -313,20 +313,20 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace PJ = sym::affine_body_prismatic_joint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    rest_ts  = rest_ts.cviewer().name("rest_ts"),
-                    rest_ns  = rest_ns.cviewer().name("rest_ns"),
-                    rest_bs  = rest_bs.cviewer().name("rest_bs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs = info.qs().viewer().name("qs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = body_ids.cviewer(),
+                    rest_cs  = rest_cs.cviewer(),
+                    rest_ts  = rest_ts.cviewer(),
+                    rest_ns  = rest_ns.cviewer(),
+                    rest_bs  = rest_bs.cviewer(),
+                    strength_ratio = strength_ratios.cviewer(),
+                    body_masses = info.body_masses().cviewer(),
+                    qs = info.qs().viewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bids = body_ids(I);
 
@@ -383,22 +383,22 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace PJ       = sym::affine_body_prismatic_joint;
         auto gradient_only = info.gradient_only();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    rest_ts  = rest_ts.cviewer().name("rest_ts"),
-                    rest_ns  = rest_ns.cviewer().name("rest_ns"),
-                    rest_bs  = rest_bs.cviewer().name("rest_bs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs      = info.qs().viewer().name("qs"),
-                    G12s    = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s"),
+                   [body_ids = body_ids.cviewer(),
+                    rest_cs  = rest_cs.cviewer(),
+                    rest_ts  = rest_ts.cviewer(),
+                    rest_ns  = rest_ns.cviewer(),
+                    rest_bs  = rest_bs.cviewer(),
+                    strength_ratio = strength_ratios.cviewer(),
+                    body_masses = info.body_masses().cviewer(),
+                    qs      = info.qs().viewer(),
+                    G12s    = info.gradients().viewer(),
+                    H12x12s = info.hessians().viewer(),
                     gradient_only] __device__(int I) mutable
                    {
                        Vector2i bids = body_ids(I);
@@ -592,10 +592,10 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
     vector<Float>  h_aim_distances;
 
     // Device
-    muda::DeviceBuffer<IndexT> is_constrained;
-    muda::DeviceBuffer<Float>  strength_ratios;
-    muda::DeviceBuffer<IndexT> is_passive;
-    muda::DeviceBuffer<Float>  aim_distances;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT> is_passive;
+    cuda_tool::DeviceBuffer<Float>  aim_distances;
 
     void do_build(BuildInfo& info) override
     {
@@ -770,26 +770,26 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
 
     void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DPJ = sym::affine_body_driving_prismatic_joint;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
                 is_constrained.size(),
-                [body_ids = prismatic_joint->body_ids.cviewer().name("body_ids"),
-                 is_constrained = is_constrained.cviewer().name("is_constrained"),
-                 is_passive = is_passive.cviewer().name("is_passive"),
-                 strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                 rest_positions = prismatic_joint->rest_cs.cviewer().name("rest_positions"),
-                 rest_tangents = prismatic_joint->rest_ts.cviewer().name("rest_tangents"),
-                 init_distances = prismatic_joint->init_distances.cviewer().name("init_distances"),
-                 curr_distances = prismatic_joint->current_distances.cviewer().name("current_distances"),
-                 aim_distances = aim_distances.cviewer().name("aim_distances"),
-                 qs            = info.qs().cviewer().name("qs"),
-                 body_masses = info.body_masses().cviewer().name("body_masses"),
-                 is_fixed    = info.is_fixed().cviewer().name("is_fixed"),
-                 Es = info.energies().viewer().name("Es")] __device__(int I)
+                [body_ids = prismatic_joint->body_ids.cviewer(),
+                 is_constrained = is_constrained.cviewer(),
+                 is_passive = is_passive.cviewer(),
+                 strength_ratios = strength_ratios.cviewer(),
+                 rest_positions = prismatic_joint->rest_cs.cviewer(),
+                 rest_tangents = prismatic_joint->rest_ts.cviewer(),
+                 init_distances = prismatic_joint->init_distances.cviewer(),
+                 curr_distances = prismatic_joint->current_distances.cviewer(),
+                 aim_distances = aim_distances.cviewer(),
+                 qs            = info.qs().cviewer(),
+                 body_masses = info.body_masses().cviewer(),
+                 is_fixed    = info.is_fixed().cviewer(),
+                 Es = info.energies().viewer()] __device__(int I)
                 {
                     Vector2i bids        = body_ids(I);
                     auto     constrained = is_constrained(I);
@@ -835,7 +835,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
 
     void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DPJ = sym::affine_body_driving_prismatic_joint;
 
         using Vector24    = Vector<Float, 24>;
@@ -845,20 +845,20 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
             .file_line(__FILE__, __LINE__)
             .apply(
                 is_constrained.size(),
-                [body_ids = prismatic_joint->body_ids.cviewer().name("body_ids"),
-                 is_constrained = is_constrained.cviewer().name("is_constrained"),
-                 is_passive = is_passive.cviewer().name("is_passive"),
-                 strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                 rest_positions = prismatic_joint->rest_cs.cviewer().name("rest_positions"),
-                 rest_tangents = prismatic_joint->rest_ts.cviewer().name("rest_tangents"),
-                 init_distances = prismatic_joint->init_distances.cviewer().name("init_distances"),
-                 curr_distances = prismatic_joint->current_distances.cviewer().name("current_distances"),
-                 aim_distances = aim_distances.cviewer().name("aim_distances"),
-                 qs            = info.qs().cviewer().name("qs"),
-                 body_masses = info.body_masses().cviewer().name("body_masses"),
-                 is_fixed    = info.is_fixed().cviewer().name("is_fixed"),
-                 G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
+                [body_ids = prismatic_joint->body_ids.cviewer(),
+                 is_constrained = is_constrained.cviewer(),
+                 is_passive = is_passive.cviewer(),
+                 strength_ratios = strength_ratios.cviewer(),
+                 rest_positions = prismatic_joint->rest_cs.cviewer(),
+                 rest_tangents = prismatic_joint->rest_ts.cviewer(),
+                 init_distances = prismatic_joint->init_distances.cviewer(),
+                 curr_distances = prismatic_joint->current_distances.cviewer(),
+                 aim_distances = aim_distances.cviewer(),
+                 qs            = info.qs().cviewer(),
+                 body_masses = info.body_masses().cviewer(),
+                 is_fixed    = info.is_fixed().cviewer(),
+                 G12s        = info.gradients().viewer(),
+                 H12x12s = info.hessians().viewer()] __device__(int I)
                 {
                     Vector2i bids = body_ids(I);
 
@@ -952,8 +952,8 @@ class AffineBodyPrismaticJointExternalForceConstraint final : public InterAffine
     vector<Float>  h_forces;
     vector<IndexT> h_is_constrained;
 
-    muda::DeviceBuffer<Float>  forces;
-    muda::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  forces;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
 
     void do_build(BuildInfo& info) override
     {
@@ -1082,17 +1082,17 @@ class AffineBodyPrismaticJointExternalForce final : public AffineBodyExternalFor
 
         auto abd = constraint->prismatic_joint->affine_body_dynamics;
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(force_count,
-                   [external_forces = info.external_forces().viewer().name("external_forces"),
-                    body_ids = constraint->prismatic_joint->body_ids.cviewer().name("body_ids"),
-                    forces = constraint->forces.cviewer().name("forces"),
+                   [external_forces = info.external_forces().viewer(),
+                    body_ids = constraint->prismatic_joint->body_ids.cviewer(),
+                    forces = constraint->forces.cviewer(),
                     rest_tangents =
-                        constraint->prismatic_joint->rest_ts.cviewer().name("rest_tangents"),
-                    constrained_flags = constraint->is_constrained.cviewer().name("constrained_flags"),
-                    qs = abd->qs().cviewer().name("qs")] __device__(int i) mutable
+                        constraint->prismatic_joint->rest_ts.cviewer(),
+                    constrained_flags = constraint->is_constrained.cviewer(),
+                    qs = abd->qs().cviewer()] __device__(int i) mutable
                    {
                        if(constrained_flags(i) == 0)
                            return;
@@ -1155,10 +1155,10 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
     vector<Float>    h_uppers;
     vector<Float>    h_strengths;
 
-    muda::DeviceBuffer<Vector24> ref_qs;
-    muda::DeviceBuffer<Float>    lowers;
-    muda::DeviceBuffer<Float>    uppers;
-    muda::DeviceBuffer<Float>    strengths;
+    cuda_tool::DeviceBuffer<Vector24> ref_qs;
+    cuda_tool::DeviceBuffer<Float>    lowers;
+    cuda_tool::DeviceBuffer<Float>    uppers;
+    cuda_tool::DeviceBuffer<Float>    strengths;
 
     void do_build(BuildInfo& info) override
     {
@@ -1276,21 +1276,21 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(ref_qs.size(),
-                   [body_ids = prismatic_joint->body_ids.cviewer().name("body_ids"),
-                    rest_cs = prismatic_joint->rest_cs.cviewer().name("rest_cs"),
-                    rest_ts = prismatic_joint->rest_ts.cviewer().name("rest_ts"),
-                    init_distances = prismatic_joint->init_distances.cviewer().name("init_distances"),
-                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = prismatic_joint->body_ids.cviewer(),
+                    rest_cs = prismatic_joint->rest_cs.cviewer(),
+                    rest_ts = prismatic_joint->rest_ts.cviewer(),
+                    init_distances = prismatic_joint->init_distances.cviewer(),
+                    ref_qs    = ref_qs.cviewer(),
+                    lowers    = lowers.cviewer(),
+                    uppers    = uppers.cviewer(),
+                    strengths = strengths.cviewer(),
+                    qs        = info.qs().cviewer(),
+                    q_prevs   = info.q_prevs().cviewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bid = body_ids(I);
 
@@ -1323,24 +1323,24 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(ref_qs.size(),
-                   [body_ids = prismatic_joint->body_ids.cviewer().name("body_ids"),
-                    rest_cs = prismatic_joint->rest_cs.cviewer().name("rest_cs"),
-                    rest_ts = prismatic_joint->rest_ts.cviewer().name("rest_ts"),
-                    init_distances = prismatic_joint->init_distances.cviewer().name("init_distances"),
-                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    G12s      = info.gradients().viewer().name("G12s"),
-                    H12x12s   = info.hessians().viewer().name("H12x12s"),
+                   [body_ids = prismatic_joint->body_ids.cviewer(),
+                    rest_cs = prismatic_joint->rest_cs.cviewer(),
+                    rest_ts = prismatic_joint->rest_ts.cviewer(),
+                    init_distances = prismatic_joint->init_distances.cviewer(),
+                    ref_qs    = ref_qs.cviewer(),
+                    lowers    = lowers.cviewer(),
+                    uppers    = uppers.cviewer(),
+                    strengths = strengths.cviewer(),
+                    qs        = info.qs().cviewer(),
+                    q_prevs   = info.q_prevs().cviewer(),
+                    G12s      = info.gradients().viewer(),
+                    H12x12s   = info.hessians().viewer(),
                     gradient_only] __device__(int I) mutable
                    {
                        Vector2i bid = body_ids(I);

@@ -1,6 +1,6 @@
 #include <affine_body/utils.h>
 #include <Eigen/Geometry>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -198,7 +198,7 @@ UIPC_GENERIC Vector12 torque_to_F(Float tau, const Vector3& e, const Vector12& q
     Float det           = A.determinant();
     if(!(row_norm_prod > 0 && ::fabs(det) >= 1e-6 * row_norm_prod))
     {
-        MUDA_KERNEL_WARN(
+        UIPC_KERNEL_WARN(
             "torque_to_F: affine matrix is near-singular "
             "(det=%f, row_norm_prod=%f); dropping joint torque",
             det,

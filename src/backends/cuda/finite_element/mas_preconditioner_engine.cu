@@ -1,5 +1,5 @@
 #include <finite_element/mas_preconditioner_engine.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 #include <uipc/common/log.h>
@@ -26,13 +26,13 @@ using LevelTable        = MASPreconditionerEngine::LevelTable;
 using Int2              = MASPreconditionerEngine::Int2;
 
 // Device helper: bitmask with bits [0, lane_id) set
-MUDA_GENERIC unsigned int lanemask_lt(int lane_id)
+UIPC_GENERIC unsigned int lanemask_lt(int lane_id)
 {
     return (1U << lane_id) - 1;
 }
 
 // Symmetric upper-triangle index for a BANKSIZE x BANKSIZE block
-MUDA_GENERIC int sym_index(int row, int col)
+UIPC_GENERIC int sym_index(int row, int col)
 {
     return BANKSIZE * row - row * (row + 1) / 2 + col;
 }
@@ -174,7 +174,7 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_connect_mask_L0()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_map_nodes;
     if(N < 1)
         return;
@@ -182,12 +182,12 @@ void MASPreconditionerEngine::build_connect_mask_L0()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [neighbor_start = neighbor_starts.cviewer().name("neighbor_starts"),
-                neighbor_num  = neighbor_nums.viewer().name("neighbor_nums"),
-                neighbor_list = neighbor_lists.viewer().name("neighbor_lists"),
-                fine_connect_mask = fine_connect_masks.viewer().name("fine_connect_masks"),
-                part_to_real = part_to_real.cviewer().name("part_to_real"),
-                real_to_part = real_to_part.cviewer().name("real_to_part")] __device__(int tid) mutable
+               [neighbor_start = neighbor_starts.cviewer(),
+                neighbor_num  = neighbor_nums.viewer(),
+                neighbor_list = neighbor_lists.viewer(),
+                fine_connect_mask = fine_connect_masks.viewer(),
+                part_to_real = part_to_real.cviewer(),
+                real_to_part = real_to_part.cviewer()] __device__(int tid) mutable
                {
                    int bank_id = tid / BANKSIZE;
                    int lane_id = tid % BANKSIZE;
@@ -231,7 +231,7 @@ void MASPreconditionerEngine::build_connect_mask_L0()
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::prepare_prefix_sum_L0()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_map_nodes;
     if(N < 1)
         return;
@@ -241,9 +241,9 @@ void MASPreconditionerEngine::prepare_prefix_sum_L0()
 
     Launch(num_blocks, block_size)
         .apply(
-            [fine_connect_mask = fine_connect_masks.viewer().name("fine_connect_masks"),
-             prefix_orig  = prefix_original.viewer().name("prefix_original"),
-             part_to_real = part_to_real.cviewer().name("part_to_real"),
+            [fine_connect_mask = fine_connect_masks.viewer(),
+             prefix_orig  = prefix_original.viewer(),
+             part_to_real = part_to_real.cviewer(),
              N] __device__() mutable
             {
                 int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -295,7 +295,7 @@ void MASPreconditionerEngine::prepare_prefix_sum_L0()
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_level1()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_map_nodes;
     if(N < 1)
         return;
@@ -332,13 +332,13 @@ void MASPreconditionerEngine::build_level1()
 
     Launch(num_blocks, block_size)
         .apply(
-            [level_size = level_sizes.viewer().name("level_sizes"),
-             coarse_table = coarse_space_tables.viewer().name("coarse_space_tables"),
-             going_next_L0 = going_next.view(0, level1_begin).viewer().name("going_next_L0"),
-             fine_connect_mask = fine_connect_masks.cviewer().name("fine_connect_masks"),
-             prefix_sum_orig = prefix_sum_original.cviewer().name("prefix_sum_original"),
-             prefix_orig  = prefix_original.cviewer().name("prefix_original"),
-             part_to_real = part_to_real.cviewer().name("part_to_real"),
+            [level_size = level_sizes.viewer(),
+             coarse_table = coarse_space_tables.viewer(),
+             going_next_L0 = going_next.view(0, level1_begin).viewer(),
+             fine_connect_mask = fine_connect_masks.cviewer(),
+             prefix_sum_orig = prefix_sum_original.cviewer(),
+             prefix_orig  = prefix_original.cviewer(),
+             part_to_real = part_to_real.cviewer(),
              N,
              level1_begin] __device__() mutable
             {
@@ -391,7 +391,7 @@ void MASPreconditionerEngine::build_level1()
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_map_nodes;
     if(N < 1)
         return;
@@ -401,13 +401,13 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 
     Launch(num_blocks, block_size)
         .apply(
-            [neighbor_start = neighbor_starts.cviewer().name("neighbor_starts"),
-             neighbor_num   = neighbor_nums.viewer().name("neighbor_nums"),
-             neighbor_list  = neighbor_lists.viewer().name("neighbor_lists"),
-             coarse_table = coarse_space_tables.cviewer().name("coarse_space_tables"),
-             next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
-             fine_connect_mask = fine_connect_masks.cviewer().name("fine_connect_masks"),
-             part_to_real = part_to_real.cviewer().name("part_to_real"),
+            [neighbor_start = neighbor_starts.cviewer(),
+             neighbor_num   = neighbor_nums.viewer(),
+             neighbor_list  = neighbor_lists.viewer(),
+             coarse_table = coarse_space_tables.cviewer(),
+             next_connect_mask = next_connect_masks.viewer(),
+             fine_connect_mask = fine_connect_masks.cviewer(),
+             part_to_real = part_to_real.cviewer(),
              level,
              vert_num = m_total_nodes,
              N] __device__() mutable
@@ -485,7 +485,7 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::next_level_cluster(int level)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_h_level_size.x;
     if(N < 1)
         return;
@@ -495,8 +495,8 @@ void MASPreconditionerEngine::next_level_cluster(int level)
 
     Launch(num_blocks, block_size)
         .apply(
-            [next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
-             next_prefix = next_prefixes.viewer().name("next_prefixes"),
+            [next_connect_mask = next_connect_masks.viewer(),
+             next_prefix = next_prefixes.viewer(),
              N] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -542,7 +542,7 @@ void MASPreconditionerEngine::next_level_cluster(int level)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::prefix_sum_Lx(int level)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_h_level_size.x;
     if(N < 1)
         return;
@@ -560,11 +560,11 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
 
     Launch(num_blocks, block_size)
         .apply(
-            [level_size_ptr = level_sizes.viewer().name("level_sizes"),
-             next_prefix    = next_prefixes.cviewer().name("next_prefixes"),
-             next_prefix_sum = next_prefix_sums.cviewer().name("next_prefix_sums"),
-             next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
-             going_next_level = going_next.view(level_begin, level_region_size).viewer().name("going_next_Lx"),
+            [level_size_ptr = level_sizes.viewer(),
+             next_prefix    = next_prefixes.cviewer(),
+             next_prefix_sum = next_prefix_sums.cviewer(),
+             next_connect_mask = next_connect_masks.viewer(),
+             going_next_level = going_next.view(level_begin, level_region_size).viewer(),
              level,
              next_level_begin,
              N] __device__() mutable
@@ -615,7 +615,7 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::compute_next_level(int level)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_nodes;
     if(N < 1)
         return;
@@ -623,8 +623,8 @@ void MASPreconditionerEngine::compute_next_level(int level)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coarse_table = coarse_space_tables.viewer().name("coarse_space_tables"),
-                next_connect_mask = next_connect_masks.cviewer().name("next_connect_masks"),
+               [coarse_table = coarse_space_tables.viewer(),
+                next_connect_mask = next_connect_masks.cviewer(),
                 level,
                 N] __device__(int idx) mutable
                {
@@ -643,7 +643,7 @@ void MASPreconditionerEngine::compute_next_level(int level)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::aggregation_kernel()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_nodes;
     if(N < 1 || m_total_num_clusters < 1)
         return;
@@ -652,9 +652,9 @@ void MASPreconditionerEngine::aggregation_kernel()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coarse_table = coarse_tables.viewer().name("coarse_table"),
-                going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
-                level_size   = level_sizes.cviewer().name("level_sizes"),
+               [coarse_table = coarse_tables.viewer(),
+                going_next   = going_next.view(0, m_total_num_clusters).cviewer(),
+                level_size   = level_sizes.cviewer(),
                 level_num] __device__(int idx) mutable
                {
                    int        current_id = idx;
@@ -663,7 +663,7 @@ void MASPreconditionerEngine::aggregation_kernel()
                    int first = going_next(current_id);
                    if(first >= 0)
                    {
-                       MUDA_ASSERT(first >= level_size(1).y
+                       UIPC_KERNEL_ASSERT(first >= level_size(1).y
                                        && first < level_size(2).y,
                                    "aggregation: going_next[%d]=%d not in level 1 [%d, %d)",
                                    current_id, first,
@@ -676,12 +676,12 @@ void MASPreconditionerEngine::aggregation_kernel()
                        {
                            int next = going_next(current_id);
 
-                           MUDA_ASSERT(next >= 0,
+                           UIPC_KERNEL_ASSERT(next >= 0,
                                        "aggregation: partitioned vertex %d has "
                                        "going_next=%d at level %d (expected >= 0)",
                                        idx, next, l + 1);
 
-                           MUDA_ASSERT(next >= level_size(l + 1).y
+                           UIPC_KERNEL_ASSERT(next >= level_size(l + 1).y
                                            && next < level_size(l + 2).y,
                                        "aggregation: going_next[%d]=%d not in level %d [%d, %d)",
                                        current_id, next, l + 1,
@@ -700,10 +700,10 @@ void MASPreconditionerEngine::aggregation_kernel()
 // Phase 2: Assemble preconditioner
 // ============================================================================
 
-void MASPreconditionerEngine::set_preconditioner(muda::CBufferView<Eigen::Matrix3d> triplet_values,
-                                                 muda::CBufferView<int>             row_ids,
-                                                 muda::CBufferView<int>             col_ids,
-                                                 muda::CBufferView<uint32_t>        indices,
+void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
+                                                 cuda_tool::CBufferView<int>             row_ids,
+                                                 cuda_tool::CBufferView<int>             col_ids,
+                                                 cuda_tool::CBufferView<uint32_t>        indices,
                                                  int                                dof_offset,
                                                  int                                cp_num)
 {
@@ -747,13 +747,13 @@ void MASPreconditionerEngine::set_preconditioner(muda::CBufferView<Eigen::Matrix
 // ---------------------------------------------------------------------------
 // Scatter BCOO Hessian entries into cluster-level dense matrices
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eigen::Matrix3d> triplet_values,
-                                                          muda::CBufferView<int>             row_ids,
-                                                          muda::CBufferView<int>             col_ids,
-                                                          muda::CBufferView<uint32_t>        indices,
+void MASPreconditionerEngine::scatter_hessian_to_clusters(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
+                                                          cuda_tool::CBufferView<int>             row_ids,
+                                                          cuda_tool::CBufferView<int>             col_ids,
+                                                          cuda_tool::CBufferView<uint32_t>        indices,
                                                           int dof_offset)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     int triplet_num = static_cast<int>(indices.size());
 
@@ -766,14 +766,14 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
             triplet_num,
             [offset          = dof_offset,
              level_num       = m_level_num,
-             going_next      = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
-             level_size      = level_sizes.cviewer().name("level_sizes"),
-             cluster_hess    = cluster_hessians.viewer().name("cluster_hessians"),
-             real_to_part    = real_to_part.cviewer().name("real_to_part"),
-             indices         = indices.cviewer().name("indices"),
-             triplet_values  = triplet_values.cviewer().name("triplet_values"),
-             row_ids         = row_ids.cviewer().name("row_ids"),
-             col_ids         = col_ids.cviewer().name("col_ids"),
+             going_next      = going_next.view(0, m_total_num_clusters).cviewer(),
+             level_size      = level_sizes.cviewer(),
+             cluster_hess    = cluster_hessians.viewer(),
+             real_to_part    = real_to_part.cviewer(),
+             indices         = indices.cviewer(),
+             triplet_values  = triplet_values.cviewer(),
+             row_ids         = row_ids.cviewer(),
+             col_ids         = col_ids.cviewer(),
              total_nodes     = m_total_nodes] __device__(int I) mutable
             {
                 int  index    = indices(I);
@@ -796,13 +796,13 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                     if(vert_col >= vert_row)
                     {
                         int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
-                        muda::eigen::atomic_add(cluster_hess(cluster_id).M[si], H);
+                        cuda_tool::eigen::atomic_add(cluster_hess(cluster_id).M[si], H);
                     }
                     else
                     {
                         Eigen::Matrix3d Ht = H.transpose();
                         int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
-                        muda::eigen::atomic_add(cluster_hess(cluster_id).M[si], Ht);
+                        cuda_tool::eigen::atomic_add(cluster_hess(cluster_id).M[si], Ht);
                     }
                 }
                 else
@@ -828,11 +828,11 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                         if(vert_col < 0 || vert_row < 0)
                             return;
 
-                        MUDA_ASSERT(vert_col >= level_size(level).y
+                        UIPC_KERNEL_ASSERT(vert_col >= level_size(level).y
                                         && vert_col < level_size(level + 1).y,
                                     "scatter P1: vert_col=%d not in level %d [%d, %d)",
                                     vert_col, level, level_size(level).y, level_size(level + 1).y);
-                        MUDA_ASSERT(vert_row >= level_size(level).y
+                        UIPC_KERNEL_ASSERT(vert_row >= level_size(level).y
                                         && vert_row < level_size(level + 1).y,
                                     "scatter P1: vert_row=%d not in level %d [%d, %d)",
                                     vert_row, level, level_size(level).y, level_size(level + 1).y);
@@ -882,12 +882,12 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
         .file_line(__FILE__, __LINE__)
         .apply(total_entries,
                [level_num    = m_level_num,
-                going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
-                level_size   = level_sizes.cviewer().name("level_sizes"),
-                cluster_hess = cluster_hessians.viewer().name("cluster_hessians"),
-                part_to_real = part_to_real.cviewer().name("part_to_real"),
-                fine_connect = fine_connect_masks.cviewer().name("fine_connect_masks"),
-                prefix_orig  = prefix_original.cviewer().name("prefix_original"),
+                going_next   = going_next.view(0, m_total_num_clusters).cviewer(),
+                level_size   = level_sizes.cviewer(),
+                cluster_hess = cluster_hessians.viewer(),
+                part_to_real = part_to_real.cviewer(),
+                fine_connect = fine_connect_masks.cviewer(),
+                prefix_orig  = prefix_original.cviewer(),
                 map_nodes    = m_total_map_nodes] __device__(int idx) mutable
                {
                    int cluster_stride = BANKSIZE * BANKSIZE;
@@ -951,7 +951,7 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                            {
                                level++;
 
-                               MUDA_ASSERT(next_id >= level_size(level).y
+                               UIPC_KERNEL_ASSERT(next_id >= level_size(level).y
                                                && next_id < level_size(level + 1).y,
                                            "scatter P2 diag: next_id=%d not in level %d [%d, %d)",
                                            next_id, level, level_size(level).y, level_size(level + 1).y);
@@ -981,11 +981,11 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                            if(rdx < 0 || cdx < 0)
                                return;
 
-                           MUDA_ASSERT(rdx >= level_size(level).y
+                           UIPC_KERNEL_ASSERT(rdx >= level_size(level).y
                                            && rdx < level_size(level + 1).y,
                                        "scatter P2: rdx=%d not in level %d [%d, %d)",
                                        rdx, level, level_size(level).y, level_size(level + 1).y);
-                           MUDA_ASSERT(cdx >= level_size(level).y
+                           UIPC_KERNEL_ASSERT(cdx >= level_size(level).y
                                            && cdx < level_size(level + 1).y,
                                        "scatter P2: cdx=%d not in level %d [%d, %d)",
                                        cdx, level, level_size(level).y, level_size(level + 1).y);
@@ -1013,7 +1013,7 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::invert_cluster_matrices()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int total_threads = m_total_num_clusters * 3;  // 48 threads per cluster
     if(total_threads < 1)
         return;
@@ -1023,8 +1023,8 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 
     Launch(num_blocks, block_size)
         .apply(
-            [cluster_inv  = cluster_inverses.viewer().name("cluster_inverses"),
-             cluster_hess = cluster_hessians.cviewer().name("cluster_hessians"),
+            [cluster_inv  = cluster_inverses.viewer(),
+             cluster_hess = cluster_hessians.cviewer(),
              total_threads] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1112,10 +1112,10 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 // ---------------------------------------------------------------------------
 // Restrict: accumulate residual R from fine to all coarser levels
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> R,
-                                                  muda::CVarView<IndexT> converged)
+void MASPreconditionerEngine::build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
+                                                  cuda_tool::CVarView<IndexT> converged)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_map_nodes;
     if(N < 1)
         return;
@@ -1125,14 +1125,14 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
 
     Launch(num_blocks, block_size)
         .apply(
-            [R_view       = R.cviewer().name("R"),
-             multi_lr     = multi_level_R.viewer().name("multi_level_R"),
-             going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
-             level_size   = level_sizes.cviewer().name("level_sizes"),
-             prefix_orig  = prefix_original.cviewer().name("prefix_original"),
-             fine_conn    = fine_connect_masks.cviewer().name("fine_connect_masks"),
-             part_to_real = part_to_real.cviewer().name("part_to_real"),
-             converged    = converged.cviewer().name("converged"),
+            [R_view       = R.cviewer(),
+             multi_lr     = multi_level_R.viewer(),
+             going_next   = going_next.view(0, m_total_num_clusters).cviewer(),
+             level_size   = level_sizes.cviewer(),
+             prefix_orig  = prefix_original.cviewer(),
+             fine_conn    = fine_connect_masks.cviewer(),
+             part_to_real = part_to_real.cviewer(),
+             converged    = converged.cviewer(),
              level_num    = m_level_num,
              N] __device__() mutable
             {
@@ -1186,7 +1186,7 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
                         {
                             cur = going_next(cur);
 
-                            MUDA_ASSERT(cur >= level_size(l + 1).y
+                            UIPC_KERNEL_ASSERT(cur >= level_size(l + 1).y
                                             && cur < level_size(l + 2).y,
                                         "build_R: cur=%d not in level %d [%d, %d)",
                                         cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
@@ -1222,7 +1222,7 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
                         {
                             cur = going_next(cur);
 
-                            MUDA_ASSERT(cur >= level_size(l + 1).y
+                            UIPC_KERNEL_ASSERT(cur >= level_size(l + 1).y
                                             && cur < level_size(l + 2).y,
                                         "build_R: cur=%d not in level %d [%d, %d)",
                                         cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
@@ -1242,9 +1242,9 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
 // ---------------------------------------------------------------------------
 // Local solve: Z = cluster_inverse * R at each level
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converged)
+void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> converged)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
     if(N < 1)
         return;
@@ -1254,10 +1254,10 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
 
     Launch(num_blocks, block_size)
         .apply(
-            [cluster_inv = cluster_inverses.cviewer().name("cluster_inverses"),
-             multi_lr    = multi_level_R.cviewer().name("multi_level_R"),
-             multi_lz    = multi_level_Z.viewer().name("multi_level_Z"),
-             converged   = converged.cviewer().name("converged"),
+            [cluster_inv = cluster_inverses.cviewer(),
+             multi_lr    = multi_level_R.cviewer(),
+             multi_lz    = multi_level_Z.viewer(),
+             converged   = converged.cviewer(),
              N] __device__() mutable
             {
                 if(*converged != 0)
@@ -1313,10 +1313,10 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
 // ---------------------------------------------------------------------------
 // Prolongate: sum Z contributions from all levels for each fine node
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::collect_final_Z(muda::DenseVectorView<Float> Z,
-                                              muda::CVarView<IndexT> converged)
+void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
+                                              cuda_tool::CVarView<IndexT> converged)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     int N = m_total_nodes;
     if(N < 1)
         return;
@@ -1325,11 +1325,11 @@ void MASPreconditionerEngine::collect_final_Z(muda::DenseVectorView<Float> Z,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [Z_view       = Z.viewer().name("Z"),
-                multi_lz     = multi_level_Z.cviewer().name("multi_level_Z"),
-                coarse_table = coarse_tables.cviewer().name("coarse_table"),
-                real_to_part = real_to_part.cviewer().name("real_to_part"),
-                converged    = converged.cviewer().name("converged"),
+               [Z_view       = Z.viewer(),
+                multi_lz     = multi_level_Z.cviewer(),
+                coarse_table = coarse_tables.cviewer(),
+                real_to_part = real_to_part.cviewer(),
+                converged    = converged.cviewer(),
                 level_num] __device__(int idx) mutable
                {
                    if(*converged != 0)
@@ -1368,9 +1368,9 @@ void MASPreconditionerEngine::collect_final_Z(muda::DenseVectorView<Float> Z,
 // Apply: full preconditioning pipeline  z = M^{-1} r
 // ============================================================================
 
-void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
-                                    muda::DenseVectorView<Float>  z,
-                                    muda::CVarView<IndexT>        converged)
+void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
+                                    cuda_tool::DenseVectorView<Float>  z,
+                                    cuda_tool::CVarView<IndexT>        converged)
 {
     if(m_total_nodes < 1)
         return;
@@ -1408,7 +1408,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view outpu
     if(!m_initialized || cluster_hessians.size() == 0)
         return;
 
-    muda::wait_device();
+    cuda_tool::wait_device();
 
     // Materialize the path once for the lambdas / std::ofstream consumers below.
     const std::filesystem::path output_dir_path{output_dir};

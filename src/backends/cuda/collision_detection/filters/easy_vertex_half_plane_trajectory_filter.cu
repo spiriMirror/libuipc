@@ -1,5 +1,5 @@
 #include <collision_detection/filters/easy_vertex_half_plane_trajectory_filter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
 #include <pipeline/ipc_pipeline_flag.h>
@@ -15,12 +15,12 @@ void EasyVertexHalfPlaneTrajectoryFilter::do_build(BuildInfo& info)
     require<IPCPipelineFlag>();
 }
 
-muda::CBufferView<Vector2i> EasyVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
+cuda_tool::CBufferView<Vector2i> EasyVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
 {
     return m_impl.PHs;
 }
 
-muda::CBufferView<Float> EasyVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept
+cuda_tool::CBufferView<Float> EasyVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept
 {
     return m_impl.tois;
 }
@@ -42,7 +42,7 @@ void EasyVertexHalfPlaneTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto query = [&]
     {
@@ -51,20 +51,20 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.surf_vertices().size(),
-                   [num = num_collisions.viewer().name("num_collisions"),
+                   [num = num_collisions.viewer(),
                     plane_vertex_offset = info.half_plane_vertex_offset(),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    positions = info.positions().viewer().name("positions"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    subscene_element_ids = info.subscene_element_ids().viewer().name("contact_element_ids"),
-                    contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                    surf_vertices = info.surf_vertices().viewer(),
+                    positions = info.positions().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    contact_element_ids = info.contact_element_ids().viewer(),
+                    subscene_element_ids = info.subscene_element_ids().viewer(),
+                    contact_mask_tabular = info.contact_mask_tabular().viewer(),
                     subscene_mask_tabular =
-                        info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-                    half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
-                    half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
-                    PHs       = PHs.viewer().name("PHs"),
-                    d_hats    = info.d_hats().viewer().name("d_hats"),
+                        info.subscene_mask_tabular().viewer(),
+                    half_plane_positions = info.plane_positions().viewer(),
+                    half_plane_normals = info.plane_normals().viewer(),
+                    PHs       = PHs.viewer(),
+                    d_hats    = info.d_hats().viewer(),
                     max_count = PHs.size()] __device__(int i) mutable
                    {
                        for(int j = 0; j < half_plane_positions.total_size(); ++j)
@@ -139,7 +139,7 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     info.toi().fill(1.1f);
     tois.resize(info.surf_vertices().size());
@@ -150,18 +150,18 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.surf_vertices().size(),
-               [surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
+               [surf_vertices = info.surf_vertices().viewer(),
                 plane_vertex_offset = info.half_plane_vertex_offset(),
-                positions   = info.positions().viewer().name("positions"),
-                thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                subscene_element_ids = info.subscene_element_ids().viewer().name("contact_element_ids"),
-                subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-                contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-                displacements = info.displacements().viewer().name("displacements"),
-                half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
-                half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
-                tois  = tois.viewer().name("tois"),
+                positions   = info.positions().viewer(),
+                thicknesses = info.thicknesses().viewer(),
+                contact_element_ids = info.contact_element_ids().viewer(),
+                subscene_element_ids = info.subscene_element_ids().viewer(),
+                subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+                contact_mask_tabular = info.contact_mask_tabular().viewer(),
+                displacements = info.displacements().viewer(),
+                half_plane_positions = info.plane_positions().viewer(),
+                half_plane_normals = info.plane_normals().viewer(),
+                tois  = tois.viewer(),
                 alpha = info.alpha(),
                 eta] __device__(int i) mutable
                {

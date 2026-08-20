@@ -1,6 +1,6 @@
 #include <sim_engine.h>
 #include <uipc/common/log.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
@@ -13,7 +13,7 @@ namespace uipc::backend::cuda
 {
 void say_hello_from_cuda()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     Launch()
         .apply([cout = KernelCout::viewer()] __device__() mutable
                { cout << "CUDA Backend Kernel Console Init Success!\n"; })
@@ -25,7 +25,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 {
     try
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         logger::info("Initializing Cuda Backend...");
 
@@ -33,7 +33,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 
         // get gpu device count
         int device_count;
-        checkCudaErrors(cudaGetDeviceCount(&device_count));
+        CUDA_TOOL_CHECK(cudaGetDeviceCount(&device_count));
         if(device_id >= device_count)
         {
             UIPC_WARN_WITH_LOCATION("Cannot find device with id {}. Using device 0 instead.",
@@ -43,18 +43,18 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         }
 
         cudaDeviceProp prop;
-        checkCudaErrors(cudaGetDeviceProperties(&prop, device_id));
+        CUDA_TOOL_CHECK(cudaGetDeviceProperties(&prop, device_id));
         logger::info("Device: [{}] {}", device_id, prop.name);
         logger::info("Compute Capability: {}.{}", prop.major, prop.minor);
         logger::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
 
-        Timer::set_sync_func([] { muda::wait_device(); });
+        Timer::set_sync_func([] { cuda_tool::wait_device(); });
 
         say_hello_from_cuda();
 
 #ifndef NDEBUG
         // if in debug mode, sync all the time to check for errors
-        muda::Debug::debug_sync_all(true);
+        cuda_tool::Debug::debug_sync_all(true);
 #endif
         logger::info("Cuda Backend Init Success.");
     }
@@ -67,10 +67,10 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 
 SimEngine::~SimEngine()
 {
-    muda::wait_device();
+    cuda_tool::wait_device();
 
     // remove the sync callback
-    muda::Debug::set_sync_callback(nullptr);
+    cuda_tool::Debug::set_sync_callback(nullptr);
 
     logger::info("Cuda Backend Shutdown Success.");
 }

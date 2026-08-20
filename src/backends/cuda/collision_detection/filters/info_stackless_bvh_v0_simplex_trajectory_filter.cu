@@ -1,5 +1,5 @@
 #include <collision_detection/filters/info_stackless_bvh_v0_simplex_trajectory_filter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>
 #include <utils/distance/distance_flagged.h>
@@ -42,19 +42,19 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& inf
     m_impl.filter_toi(info);
 }
 
-muda::CBufferView<Vector2i>
+cuda_tool::CBufferView<Vector2i>
 InfoStacklessBVHV0SimplexTrajectoryFilter::candidate_PTs() const noexcept
 {
     return m_impl.candidate_AllP_AllT_pairs.view();
 }
 
-muda::CBufferView<Vector2i>
+cuda_tool::CBufferView<Vector2i>
 InfoStacklessBVHV0SimplexTrajectoryFilter::candidate_EEs() const noexcept
 {
     return m_impl.candidate_AllE_AllE_pairs.view();
 }
 
-muda::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_PTs() const noexcept
+cuda_tool::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_PTs() const noexcept
 {
     auto pp_size = m_impl.candidate_AllP_CodimP_pairs.size();
     auto pe_size = m_impl.candidate_CodimP_AllE_pairs.size();
@@ -62,7 +62,7 @@ muda::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_PTs() co
     return m_impl.tois.view(pp_size + pe_size, pt_size);
 }
 
-muda::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_EEs() const noexcept
+cuda_tool::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_EEs() const noexcept
 {
     auto pp_size = m_impl.candidate_AllP_CodimP_pairs.size();
     auto pe_size = m_impl.candidate_CodimP_AllE_pairs.size();
@@ -73,7 +73,7 @@ muda::CBufferView<Float> InfoStacklessBVHV0SimplexTrajectoryFilter::toi_EEs() co
 
 void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto alpha   = info.alpha();
     auto Ps      = info.positions();
@@ -107,16 +107,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(codimVs.size(),
-                   [codimVs = codimVs.viewer().name("codimVs"),
-                    Ps      = Ps.viewer().name("Ps"),
-                    dxs     = dxs.viewer().name("dxs"),
-                    aabbs   = codim_point_aabbs.viewer().name("aabbs"),
-                    v2bs    = v2bs.viewer().name("v2bs"),
-                    contact_ids = contact_element_ids.viewer().name("contact_ids"),
-                    bids = codim_point_bids.viewer().name("bids"),
-                    cids = codim_point_cids.viewer().name("cids"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [codimVs = codimVs.viewer(),
+                    Ps      = Ps.viewer(),
+                    dxs     = dxs.viewer(),
+                    aabbs   = codim_point_aabbs.viewer(),
+                    v2bs    = v2bs.viewer(),
+                    contact_ids = contact_element_ids.viewer(),
+                    bids = codim_point_bids.viewer(),
+                    cids = codim_point_cids.viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     alpha  = alpha] __device__(int i) mutable
                    {
                        auto vI = codimVs(i);
@@ -144,16 +144,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(Vs.size(),
-               [Vs          = Vs.viewer().name("V"),
-                dxs         = dxs.viewer().name("dx"),
-                Ps          = Ps.viewer().name("Ps"),
-                aabbs       = point_aabbs.viewer().name("aabbs"),
-                v2bs        = v2bs.viewer().name("v2bs"),
-                contact_ids = contact_element_ids.viewer().name("contact_ids"),
-                bids        = point_bids.viewer().name("bids"),
-                cids        = point_cids.viewer().name("cids"),
-                thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                d_hats      = info.d_hats().viewer().name("d_hats"),
+               [Vs          = Vs.viewer(),
+                dxs         = dxs.viewer(),
+                Ps          = Ps.viewer(),
+                aabbs       = point_aabbs.viewer(),
+                v2bs        = v2bs.viewer(),
+                contact_ids = contact_element_ids.viewer(),
+                bids        = point_bids.viewer(),
+                cids        = point_cids.viewer(),
+                thicknesses = info.thicknesses().viewer(),
+                d_hats      = info.d_hats().viewer(),
                 alpha       = alpha] __device__(int i) mutable
                {
                    auto vI = Vs(i);
@@ -180,16 +180,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(Es.size(),
-               [Es          = Es.viewer().name("E"),
-                Ps          = Ps.viewer().name("Ps"),
-                aabbs       = edge_aabbs.viewer().name("aabbs"),
-                v2bs        = v2bs.viewer().name("v2bs"),
-                contact_ids = contact_element_ids.viewer().name("contact_ids"),
-                bids        = edge_bids.viewer().name("bids"),
-                cids        = edge_cids.viewer().name("cids"),
-                dxs         = dxs.viewer().name("dx"),
-                thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                d_hats      = info.d_hats().viewer().name("d_hats"),
+               [Es          = Es.viewer(),
+                Ps          = Ps.viewer(),
+                aabbs       = edge_aabbs.viewer(),
+                v2bs        = v2bs.viewer(),
+                contact_ids = contact_element_ids.viewer(),
+                bids        = edge_bids.viewer(),
+                cids        = edge_cids.viewer(),
+                dxs         = dxs.viewer(),
+                thicknesses = info.thicknesses().viewer(),
+                d_hats      = info.d_hats().viewer(),
                 alpha       = alpha] __device__(int i) mutable
                {
                    auto eI = Es(i);
@@ -224,16 +224,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(Fs.size(),
-               [Fs          = Fs.viewer().name("F"),
-                Ps          = Ps.viewer().name("Ps"),
-                aabbs       = triangle_aabbs.viewer().name("aabbs"),
-                v2bs        = v2bs.viewer().name("v2bs"),
-                contact_ids = contact_element_ids.viewer().name("contact_ids"),
-                bids        = triangle_bids.viewer().name("bids"),
-                cids        = triangle_cids.viewer().name("cids"),
-                dxs         = dxs.viewer().name("dx"),
-                thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                d_hats      = info.d_hats().viewer().name("d_hats"),
+               [Fs          = Fs.viewer(),
+                Ps          = Ps.viewer(),
+                aabbs       = triangle_aabbs.viewer(),
+                v2bs        = v2bs.viewer(),
+                contact_ids = contact_element_ids.viewer(),
+                bids        = triangle_bids.viewer(),
+                cids        = triangle_cids.viewer(),
+                dxs         = dxs.viewer(),
+                thicknesses = info.thicknesses().viewer(),
+                d_hats      = info.d_hats().viewer(),
                 alpha       = alpha] __device__(int i) mutable
                {
                    auto fI = Fs(i);
@@ -278,16 +278,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         {
             lbvh_CodimP.build(codim_point_aabbs, codim_point_bids, codim_point_cids);
 
-            muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+            cuda_tool::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
             lbvh_CodimP.query(
                 point_aabbs,
                 point_bids,
                 point_cids,
                 cmts,
-                [query_bids = point_bids.viewer().name("query_bids"),
-                 query_cids = point_cids.viewer().name("query_cids"),
-                 body_self_collision = body_self_collisions.viewer().name("body_self_collision"),
-                 cmts = cmts.viewer().name("cmts")] __device__(InfoStacklessBVHV0::NodePredInfo info)
+                [query_bids = point_bids.viewer(),
+                 query_cids = point_cids.viewer(),
+                 body_self_collision = body_self_collisions.viewer(),
+                 cmts = cmts.viewer()] __device__(InfoStacklessBVHV0::NodePredInfo info)
                 {
                     constexpr IndexT invalid = static_cast<IndexT>(-1);
                     auto qbid = query_bids(info.query_id);
@@ -299,20 +299,20 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                     && !cmts(qcid, info.node_cid);
                     return !(bid_cull || cid_cull);
                 },
-                [Vs      = Vs.viewer().name("Vs"),
-                 codimVs = codimVs.viewer().name("codimVs"),
+                [Vs      = Vs.viewer(),
+                 codimVs = codimVs.viewer(),
 
-                 Ps          = Ps.viewer().name("Ps"),
-                 dxs         = dxs.viewer().name("dxs"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 dimensions  = info.dimensions().viewer().name("dimensions"),
-                 contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                 contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-                 subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
-                 subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-                 v2b = info.v2b().viewer().name("v2b"),
-                 body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-                 d_hats = info.d_hats().viewer().name("d_hats"),
+                 Ps          = Ps.viewer(),
+                 dxs         = dxs.viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 dimensions  = info.dimensions().viewer(),
+                 contact_element_ids = info.contact_element_ids().viewer(),
+                 contact_mask_tabular = info.contact_mask_tabular().viewer(),
+                 subscene_element_ids = info.subscene_element_ids().viewer(),
+                 subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+                 v2b = info.v2b().viewer(),
+                 body_self_collision = info.body_self_collision().viewer(),
+                 d_hats = info.d_hats().viewer(),
                  alpha  = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& V      = Vs(i);
@@ -357,16 +357,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
         // Use CodimP to query AllE
         {
-            muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+            cuda_tool::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
             lbvh_E.query(
                 codim_point_aabbs,
                 codim_point_bids,
                 codim_point_cids,
                 cmts,
-                [query_bids = codim_point_bids.viewer().name("query_bids"),
-                 query_cids = codim_point_cids.viewer().name("query_cids"),
-                 body_self_collision = body_self_collisions.viewer().name("body_self_collision"),
-                 cmts = cmts.viewer().name("cmts")] __device__(InfoStacklessBVHV0::NodePredInfo info)
+                [query_bids = codim_point_bids.viewer(),
+                 query_cids = codim_point_cids.viewer(),
+                 body_self_collision = body_self_collisions.viewer(),
+                 cmts = cmts.viewer()] __device__(InfoStacklessBVHV0::NodePredInfo info)
                 {
                     constexpr IndexT invalid = static_cast<IndexT>(-1);
                     auto qbid = query_bids(info.query_id);
@@ -378,18 +378,18 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                     && !cmts(qcid, info.node_cid);
                     return !(bid_cull || cid_cull);
                 },
-                [codimVs     = codimVs.viewer().name("Vs"),
-                 Es          = Es.viewer().name("Es"),
-                 Ps          = Ps.viewer().name("Ps"),
-                 dxs         = dxs.viewer().name("dxs"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                 contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-                 subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
-                 subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-                 v2b = info.v2b().viewer().name("v2b"),
-                 body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-                 d_hats = info.d_hats().viewer().name("d_hats"),
+                [codimVs     = codimVs.viewer(),
+                 Es          = Es.viewer(),
+                 Ps          = Ps.viewer(),
+                 dxs         = dxs.viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 contact_element_ids = info.contact_element_ids().viewer(),
+                 contact_mask_tabular = info.contact_mask_tabular().viewer(),
+                 subscene_element_ids = info.subscene_element_ids().viewer(),
+                 subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+                 v2b = info.v2b().viewer(),
+                 body_self_collision = info.body_self_collision().viewer(),
+                 d_hats = info.d_hats().viewer(),
                  alpha  = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& codimV = codimVs(i);
@@ -443,13 +443,13 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     // Use AllE to query AllE
     if(Es.size() > 0)
     {
-        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+        cuda_tool::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_E.detect(
             cmts,
-            [query_bids = edge_bids.viewer().name("query_bids"),
-             query_cids = edge_cids.viewer().name("query_cids"),
-             body_self_collision = body_self_collisions.viewer().name("body_self_collision"),
-             cmts = cmts.viewer().name("cmts")] __device__(InfoStacklessBVHV0::NodePredInfo info)
+            [query_bids = edge_bids.viewer(),
+             query_cids = edge_cids.viewer(),
+             body_self_collision = body_self_collisions.viewer(),
+             cmts = cmts.viewer()] __device__(InfoStacklessBVHV0::NodePredInfo info)
             {
                 constexpr IndexT invalid = static_cast<IndexT>(-1);
                 auto qbid = query_bids(info.query_id);
@@ -461,17 +461,17 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                 && !cmts(qcid, info.node_cid);
                 return !(bid_cull || cid_cull);
             },
-            [Es          = Es.viewer().name("Es"),
-             Ps          = Ps.viewer().name("Ps"),
-             dxs         = dxs.viewer().name("dxs"),
-             thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-             contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-             subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
-             subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-             v2b = info.v2b().viewer().name("v2b"),
-             body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-             d_hats = info.d_hats().viewer().name("d_hats"),
+            [Es          = Es.viewer(),
+             Ps          = Ps.viewer(),
+             dxs         = dxs.viewer(),
+             thicknesses = info.thicknesses().viewer(),
+             contact_element_ids = info.contact_element_ids().viewer(),
+             contact_mask_tabular = info.contact_mask_tabular().viewer(),
+             subscene_element_ids = info.subscene_element_ids().viewer(),
+             subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+             v2b = info.v2b().viewer(),
+             body_self_collision = info.body_self_collision().viewer(),
+             d_hats = info.d_hats().viewer(),
              alpha  = alpha] __device__(IndexT i, IndexT j)
             {
                 const auto& E0 = Es(i);
@@ -532,16 +532,16 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     // Use AllP to query AllT
     if(Fs.size() > 0)
     {
-        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+        cuda_tool::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_T.query(
             point_aabbs,
             point_bids,
             point_cids,
             cmts,
-            [query_bids = point_bids.viewer().name("query_bids"),
-             query_cids = point_cids.viewer().name("query_cids"),
-             body_self_collision = body_self_collisions.viewer().name("body_self_collision"),
-             cmts = cmts.viewer().name("cmts")] __device__(InfoStacklessBVHV0::NodePredInfo info)
+            [query_bids = point_bids.viewer(),
+             query_cids = point_cids.viewer(),
+             body_self_collision = body_self_collisions.viewer(),
+             cmts = cmts.viewer()] __device__(InfoStacklessBVHV0::NodePredInfo info)
             {
                 constexpr IndexT invalid = static_cast<IndexT>(-1);
                 auto qbid = query_bids(info.query_id);
@@ -553,18 +553,18 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                 && !cmts(qcid, info.node_cid);
                 return !(bid_cull || cid_cull);
             },
-            [Vs          = Vs.viewer().name("Vs"),
-             Fs          = Fs.viewer().name("Fs"),
-             Ps          = Ps.viewer().name("Ps"),
-             dxs         = dxs.viewer().name("dxs"),
-             thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-             contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-             subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
-             subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-             v2b = info.v2b().viewer().name("v2b"),
-             body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-             d_hats = info.d_hats().viewer().name("d_hats"),
+            [Vs          = Vs.viewer(),
+             Fs          = Fs.viewer(),
+             Ps          = Ps.viewer(),
+             dxs         = dxs.viewer(),
+             thicknesses = info.thicknesses().viewer(),
+             contact_element_ids = info.contact_element_ids().viewer(),
+             contact_mask_tabular = info.contact_mask_tabular().viewer(),
+             subscene_element_ids = info.subscene_element_ids().viewer(),
+             subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+             v2b = info.v2b().viewer(),
+             body_self_collision = info.body_self_collision().viewer(),
+             d_hats = info.d_hats().viewer(),
              alpha  = alpha] __device__(IndexT i, IndexT j)
             {
                 auto V = Vs(i);
@@ -625,7 +625,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
 void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto positions = info.positions();
 
@@ -651,13 +651,13 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(candidate_AllP_CodimP_pairs.size(),
-                   [positions = positions.viewer().name("positions"),
-                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer().name("PP_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    temp_PPs = PP_view.viewer().name("temp_PPs"),
-                    d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
+                   [positions = positions.viewer(),
+                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer(),
+                    surf_vertices = info.surf_vertices().viewer(),
+                    codim_vertices = info.codim_vertices().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    temp_PPs = PP_view.viewer(),
+                    d_hats = info.d_hats().viewer()] __device__(int i) mutable
                    {
                        auto& PP = temp_PPs(i);
                        PP.setConstant(-1);
@@ -688,7 +688,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                            }
                        }
 
-                       MUDA_ASSERT(D > range.x(),
+                       UIPC_KERNEL_ASSERT(D > range.x(),
                                    "Thickness Violated! D(%f) should be > D_range.x(%f), "
                                    "P=(%d,%d), thickness=%f, d_hat=%f",
                                    D, range.x(), P0, P1, thickness, d_hat);
@@ -710,14 +710,14 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
             .file_line(__FILE__, __LINE__)
             .apply(
                 candidate_CodimP_AllE_pairs.size(),
-                [positions = positions.viewer().name("positions"),
-                 CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
-                 codim_veritces = info.codim_vertices().viewer().name("codim_vertices"),
-                 surf_edges  = info.surf_edges().viewer().name("surf_edges"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
-                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
-                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
+                [positions = positions.viewer(),
+                 CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer(),
+                 codim_veritces = info.codim_vertices().viewer(),
+                 surf_edges  = info.surf_edges().viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 temp_PPs    = PP_view.viewer(),
+                 temp_PEs    = PE_view.viewer(),
+                 d_hats = info.d_hats().viewer()] __device__(int i) mutable
                 {
                     auto& PP = temp_PPs(i);
                     PP.setConstant(-1);
@@ -755,7 +755,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                         }
                     }
 
-                    MUDA_ASSERT(D > range.x(),
+                    UIPC_KERNEL_ASSERT(D > range.x(),
                                 "Thickness Violated! D(%f) should be > D_range.x(%f), "
                                 "V-E=(%d,%d,%d), flag=(%d,%d,%d), thickness=%f, d_hat=%f",
                                 D, range.x(), vIs(0), vIs(1), vIs(2),
@@ -781,7 +781,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                         }
                         break;
                         default: {
-                            MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                            UIPC_KERNEL_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
                         }
                         break;
                     }
@@ -800,15 +800,15 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
             .file_line(__FILE__, __LINE__)
             .apply(
                 candidate_AllP_AllT_pairs.size(),
-                [positions = positions.viewer().name("Ps"),
-                 PT_pairs = candidate_AllP_AllT_pairs.viewer().name("PT_pairs"),
-                 surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                 surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
-                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
-                 temp_PTs    = temp_PTs.viewer().name("temp_PTs"),
-                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
+                [positions = positions.viewer(),
+                 PT_pairs = candidate_AllP_AllT_pairs.viewer(),
+                 surf_vertices = info.surf_vertices().viewer(),
+                 surf_triangles = info.surf_triangles().viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 temp_PPs    = PP_view.viewer(),
+                 temp_PEs    = PE_view.viewer(),
+                 temp_PTs    = temp_PTs.viewer(),
+                 d_hats = info.d_hats().viewer()] __device__(int i) mutable
                 {
                     auto& PP = temp_PPs(i);
                     PP.setConstant(-1);
@@ -855,10 +855,10 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                         }
                     }
 
-                    MUDA_ASSERT(
+                    UIPC_KERNEL_ASSERT(
                         D > 0.0, "D=%f, V F = (%d,%d,%d,%d)", D, vIs(0), vIs(1), vIs(2), vIs(3));
 
-                    MUDA_ASSERT(D > range.x(),
+                    UIPC_KERNEL_ASSERT(D > range.x(),
                                 "Thickness Violated! D(%f) should be > D_range.x(%f), "
                                 "V-F=(%d,%d,%d,%d), flag=(%d,%d,%d,%d), thickness=%f, d_hat=%f",
                                 D, range.x(), vIs(0), vIs(1), vIs(2), vIs(3),
@@ -892,7 +892,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                         }
                         break;
                         default: {
-                            MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                            UIPC_KERNEL_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
                         }
                         break;
                     }
@@ -910,15 +910,15 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
             .file_line(__FILE__, __LINE__)
             .apply(
                 candidate_AllE_AllE_pairs.size(),
-                [positions = positions.viewer().name("Ps"),
-                 rest_positions = info.rest_positions().viewer().name("rest_positions"),
-                 EE_pairs = candidate_AllE_AllE_pairs.viewer().name("EE_pairs"),
-                 surf_edges  = info.surf_edges().viewer().name("surf_edges"),
-                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
-                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
-                 temp_EEs    = temp_EEs.viewer().name("temp_EEs"),
-                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
+                [positions = positions.viewer(),
+                 rest_positions = info.rest_positions().viewer(),
+                 EE_pairs = candidate_AllE_AllE_pairs.viewer(),
+                 surf_edges  = info.surf_edges().viewer(),
+                 thicknesses = info.thicknesses().viewer(),
+                 temp_PPs    = PP_view.viewer(),
+                 temp_PEs    = PE_view.viewer(),
+                 temp_EEs    = temp_EEs.viewer(),
+                 d_hats = info.d_hats().viewer()] __device__(int i) mutable
                 {
                     auto& PP = temp_PPs(i);
                     PP.setConstant(-1);
@@ -1013,7 +1013,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
                             }
                             break;
                             default: {
-                                MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                                UIPC_KERNEL_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
                             }
                             break;
                         }
@@ -1124,7 +1124,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
 
 void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto toi_size =
         candidate_AllP_CodimP_pairs.size() + candidate_CodimP_AllE_pairs.size()
@@ -1155,14 +1155,14 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(candidate_AllP_CodimP_pairs.size(),
-                   [PP_tois = PP_tois.viewer().name("PP_tois"),
-                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer().name("PP_pairs"),
-                    codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    positions = info.positions().viewer().name("Ps"),
-                    dxs       = info.displacements().viewer().name("dxs"),
-                    d_hats    = info.d_hats().viewer().name("d_hats"),
+                   [PP_tois = PP_tois.viewer(),
+                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer(),
+                    codim_vertices = info.codim_vertices().viewer(),
+                    surf_vertices = info.surf_vertices().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    positions = info.positions().viewer(),
+                    dxs       = info.displacements().viewer(),
+                    d_hats    = info.d_hats().viewer(),
                     alpha     = info.alpha(),
 
                     eta,
@@ -1207,14 +1207,14 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(candidate_CodimP_AllE_pairs.size(),
-                   [PE_tois = PE_tois.viewer().name("PE_tois"),
-                    CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
-                    codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    Ps         = info.positions().viewer().name("Ps"),
-                    dxs        = info.displacements().viewer().name("dxs"),
-                    d_hats     = info.d_hats().viewer().name("d_hats"),
+                   [PE_tois = PE_tois.viewer(),
+                    CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer(),
+                    codim_vertices = info.codim_vertices().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    surf_edges = info.surf_edges().viewer(),
+                    Ps         = info.positions().viewer(),
+                    dxs        = info.displacements().viewer(),
+                    d_hats     = info.d_hats().viewer(),
                     alpha      = info.alpha(),
                     eta,
                     max_iter,
@@ -1262,14 +1262,14 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(candidate_AllP_AllT_pairs.size(),
-                   [PT_tois = PT_tois.viewer().name("PT_tois"),
-                    PT_pairs = candidate_AllP_AllT_pairs.viewer().name("PT_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    Ps     = info.positions().viewer().name("Ps"),
-                    dxs    = info.displacements().viewer().name("dxs"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [PT_tois = PT_tois.viewer(),
+                    PT_pairs = candidate_AllP_AllT_pairs.viewer(),
+                    surf_vertices = info.surf_vertices().viewer(),
+                    surf_triangles = info.surf_triangles().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    Ps     = info.positions().viewer(),
+                    dxs    = info.displacements().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     alpha  = info.alpha(),
                     eta,
                     max_iter,
@@ -1323,13 +1323,13 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(candidate_AllE_AllE_pairs.size(),
-                   [EE_tois = EE_tois.viewer().name("EE_tois"),
-                    EE_pairs = candidate_AllE_AllE_pairs.viewer().name("EE_pairs"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    Ps     = info.positions().viewer().name("Ps"),
-                    dxs    = info.displacements().viewer().name("dxs"),
-                    d_hats = info.d_hats().viewer().name("d_hats"),
+                   [EE_tois = EE_tois.viewer(),
+                    EE_pairs = candidate_AllE_AllE_pairs.viewer(),
+                    surf_edges = info.surf_edges().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    Ps     = info.positions().viewer(),
+                    dxs    = info.displacements().viewer(),
+                    d_hats = info.d_hats().viewer(),
                     alpha  = info.alpha(),
                     eta,
                     max_iter,

@@ -1,18 +1,18 @@
 #pragma once
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <cmath>
 
 //ref: https://github.com/ipc-sim/Codim-IPC/tree/main/Library/Math/Distance
 namespace uipc::backend::cuda::distance
 {
 template <typename T>
-MUDA_GENERIC bool point_edge_cd_broadphase(const Eigen::Vector<T, 3>& x0,
+UIPC_GENERIC bool point_edge_cd_broadphase(const Eigen::Vector<T, 3>& x0,
                                            const Eigen::Vector<T, 3>& x1,
                                            const Eigen::Vector<T, 3>& x2,
                                            T                          dist);
 
 template <typename T>
-MUDA_GENERIC bool point_edge_ccd_broadphase(const Eigen::Matrix<T, 2, 1>& p,
+UIPC_GENERIC bool point_edge_ccd_broadphase(const Eigen::Matrix<T, 2, 1>& p,
                                             const Eigen::Matrix<T, 2, 1>& e0,
                                             const Eigen::Matrix<T, 2, 1>& e1,
                                             const Eigen::Matrix<T, 2, 1>& dp,
@@ -21,20 +21,20 @@ MUDA_GENERIC bool point_edge_ccd_broadphase(const Eigen::Matrix<T, 2, 1>& p,
                                             T                             dist);
 
 template <typename T>
-MUDA_GENERIC bool point_triangle_cd_broadphase(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC bool point_triangle_cd_broadphase(const Eigen::Vector<T, 3>& p,
                                                const Eigen::Vector<T, 3>& t0,
                                                const Eigen::Vector<T, 3>& t1,
                                                const Eigen::Vector<T, 3>& t2,
                                                T                          dist);
 template <typename T>
-MUDA_GENERIC bool edge_edge_cd_broadphase(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC bool edge_edge_cd_broadphase(const Eigen::Vector<T, 3>& ea0,
                                           const Eigen::Vector<T, 3>& ea1,
                                           const Eigen::Vector<T, 3>& eb0,
                                           const Eigen::Vector<T, 3>& eb1,
                                           T                          dist);
 
 template <typename T>
-MUDA_GENERIC bool point_triangle_ccd_broadphase(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC bool point_triangle_ccd_broadphase(const Eigen::Vector<T, 3>& p,
                                                 const Eigen::Vector<T, 3>& t0,
                                                 const Eigen::Vector<T, 3>& t1,
                                                 const Eigen::Vector<T, 3>& t2,
@@ -45,7 +45,7 @@ MUDA_GENERIC bool point_triangle_ccd_broadphase(const Eigen::Vector<T, 3>& p,
                                                 T dist);
 
 template <typename T>
-MUDA_GENERIC bool edge_edge_ccd_broadphase(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC bool edge_edge_ccd_broadphase(const Eigen::Vector<T, 3>& ea0,
                                            const Eigen::Vector<T, 3>& ea1,
                                            const Eigen::Vector<T, 3>& eb0,
                                            const Eigen::Vector<T, 3>& eb1,
@@ -56,7 +56,7 @@ MUDA_GENERIC bool edge_edge_ccd_broadphase(const Eigen::Vector<T, 3>& ea0,
                                            T                          dist);
 
 template <typename T>
-MUDA_GENERIC bool point_edge_ccd_broadphase(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC bool point_edge_ccd_broadphase(const Eigen::Vector<T, 3>& p,
                                             const Eigen::Vector<T, 3>& e0,
                                             const Eigen::Vector<T, 3>& e1,
                                             const Eigen::Vector<T, 3>& dp,
@@ -64,14 +64,14 @@ MUDA_GENERIC bool point_edge_ccd_broadphase(const Eigen::Vector<T, 3>& p,
                                             const Eigen::Vector<T, 3>& de1,
                                             T                          dist);
 template <typename T>
-MUDA_GENERIC bool point_point_ccd_broadphase(const Eigen::Vector<T, 3>& p0,
+UIPC_GENERIC bool point_point_ccd_broadphase(const Eigen::Vector<T, 3>& p0,
                                              const Eigen::Vector<T, 3>& p1,
                                              const Eigen::Vector<T, 3>& dp0,
                                              const Eigen::Vector<T, 3>& dp1,
                                              T                          dist);
 
 template <typename T>
-MUDA_GENERIC bool point_triangle_ccd(Eigen::Vector<T, 3> p,
+UIPC_GENERIC bool point_triangle_ccd(Eigen::Vector<T, 3> p,
                                      Eigen::Vector<T, 3> t0,
                                      Eigen::Vector<T, 3> t1,
                                      Eigen::Vector<T, 3> t2,
@@ -85,7 +85,7 @@ MUDA_GENERIC bool point_triangle_ccd(Eigen::Vector<T, 3> p,
                                      T&                  toc);
 
 template <typename T>
-MUDA_GENERIC bool edge_edge_ccd(Eigen::Vector<T, 3> ea0,
+UIPC_GENERIC bool edge_edge_ccd(Eigen::Vector<T, 3> ea0,
                                 Eigen::Vector<T, 3> ea1,
                                 Eigen::Vector<T, 3> eb0,
                                 Eigen::Vector<T, 3> eb1,
@@ -99,7 +99,7 @@ MUDA_GENERIC bool edge_edge_ccd(Eigen::Vector<T, 3> ea0,
                                 T&                  toc);
 
 template <typename T>
-MUDA_GENERIC bool point_edge_ccd(Eigen::Vector<T, 3> p,
+UIPC_GENERIC bool point_edge_ccd(Eigen::Vector<T, 3> p,
                                  Eigen::Vector<T, 3> e0,
                                  Eigen::Vector<T, 3> e1,
                                  Eigen::Vector<T, 3> dp,
@@ -110,7 +110,7 @@ MUDA_GENERIC bool point_edge_ccd(Eigen::Vector<T, 3> p,
                                  int                 max_iter,
                                  T&                  toc);
 template <typename T>
-MUDA_GENERIC bool point_point_ccd(Eigen::Vector<T, 3> p0,
+UIPC_GENERIC bool point_point_ccd(Eigen::Vector<T, 3> p0,
                                   Eigen::Vector<T, 3> p1,
                                   Eigen::Vector<T, 3> dp0,
                                   Eigen::Vector<T, 3> dp1,

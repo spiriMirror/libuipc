@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
@@ -29,8 +29,8 @@ class GlobalBodyManager final : public SimSystem
     class BodyAttributeInfo
     {
       public:
-        muda::BufferView<IndexT> coindices() const noexcept;
-        muda::BufferView<IndexT> self_collision() const noexcept;
+        cuda_tool::BufferView<IndexT> coindices() const noexcept;
+        cuda_tool::BufferView<IndexT> self_collision() const noexcept;
 
       private:
         BodyAttributeInfo(Impl* impl, SizeT index) noexcept;
@@ -46,7 +46,7 @@ class GlobalBodyManager final : public SimSystem
      * 1) the local index of the body
      * 2) or any other information that is needed to be stored.
      */
-    muda::CBufferView<IndexT> coindices() const noexcept;
+    cuda_tool::CBufferView<IndexT> coindices() const noexcept;
 
 
     /*
@@ -54,7 +54,7 @@ class GlobalBodyManager final : public SimSystem
      * 
      * Indexed by body index, 1 for self-collision, 0 for no self-collision.
      */
-    muda::CBufferView<IndexT> self_collision() const noexcept;
+    cuda_tool::CBufferView<IndexT> self_collision() const noexcept;
 
   public:
     class Impl
@@ -64,10 +64,10 @@ class GlobalBodyManager final : public SimSystem
         void rebuild();
 
         template <typename T>
-        muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
+        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
 
-        muda::DeviceBuffer<IndexT> coindices;
-        muda::DeviceBuffer<IndexT> self_collision;
+        cuda_tool::DeviceBuffer<IndexT> coindices;
+        cuda_tool::DeviceBuffer<IndexT> self_collision;
 
         OffsetCountCollection<IndexT> reporter_body_offsets_counts;
 

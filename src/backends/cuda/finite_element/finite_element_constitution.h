@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/finite_element_elastics.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {

@@ -16,7 +16,7 @@
 #include <uipc/common/timer.h>
 #include <chrono>
 
-using namespace muda;
+using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
@@ -66,7 +66,7 @@ SizeT cpu_intersection_check(span<const Vector3> Vs, span<const Vector2i> Es, sp
 // ============================================================
 struct NodePredAllow
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const
     {
         return true;
     }
@@ -95,11 +95,11 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Fs.size(),
-               [Fs    = d_Fs.viewer().name("Fs"),
-                Ps    = d_Ps.viewer().name("Ps"),
-                aabbs = tri_aabbs.viewer().name("aabbs"),
-                bids  = tri_bids.viewer().name("bids"),
-                cids = tri_cids.viewer().name("cids")] __device__(int i) mutable
+               [Fs    = d_Fs.viewer(),
+                Ps    = d_Ps.viewer(),
+                aabbs = tri_aabbs.viewer(),
+                bids  = tri_bids.viewer(),
+                cids = tri_cids.viewer()] __device__(int i) mutable
                {
                    auto F = Fs(i);
                    AABB aabb;
@@ -119,11 +119,11 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Es.size(),
-               [Es    = d_Es.viewer().name("Es"),
-                Ps    = d_Ps.viewer().name("Ps"),
-                aabbs = edge_aabbs.viewer().name("aabbs"),
-                bids  = edge_bids.viewer().name("bids"),
-                cids = edge_cids.viewer().name("cids")] __device__(int i) mutable
+               [Es    = d_Es.viewer(),
+                Ps    = d_Ps.viewer(),
+                aabbs = edge_aabbs.viewer(),
+                bids  = edge_bids.viewer(),
+                cids = edge_cids.viewer()] __device__(int i) mutable
                {
                    auto E = Es(i);
                    AABB aabb;
@@ -151,9 +151,9 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
         edge_cids.view(),
         d_cmts.view(),
         NodePredAllow{},
-        [Es = d_Es.viewer().name("Es"),
-         Fs = d_Fs.viewer().name("Fs"),
-         Ps = d_Ps.viewer().name("Ps")] __device__(InfoStacklessBVH::LeafPredInfo leaf)
+        [Es = d_Es.viewer(),
+         Fs = d_Fs.viewer(),
+         Ps = d_Ps.viewer()] __device__(InfoStacklessBVH::LeafPredInfo leaf)
         {
             auto E = Es(leaf.i);
             auto F = Fs(leaf.j);
@@ -269,11 +269,11 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Fs.size(),
-               [Fs     = d_Fs.viewer().name("Fs"),
-                Ps     = d_Ps.viewer().name("Ps"),
-                aabbs  = tri_aabbs.viewer().name("aabbs"),
-                bids   = tri_bids.viewer().name("bids"),
-                cids   = tri_cids.viewer().name("cids"),
+               [Fs     = d_Fs.viewer(),
+                Ps     = d_Ps.viewer(),
+                aabbs  = tri_aabbs.viewer(),
+                bids   = tri_bids.viewer(),
+                cids   = tri_cids.viewer(),
                 expand = static_cast<float>(expand_f)] __device__(int i) mutable
                {
                    auto F = Fs(i);
@@ -296,10 +296,10 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Ps.size(),
-               [Ps     = d_Ps.viewer().name("Ps"),
-                aabbs  = point_aabbs.viewer().name("aabbs"),
-                bids   = point_bids.viewer().name("bids"),
-                cids   = point_cids.viewer().name("cids"),
+               [Ps     = d_Ps.viewer(),
+                aabbs  = point_aabbs.viewer(),
+                bids   = point_bids.viewer(),
+                cids   = point_cids.viewer(),
                 expand = static_cast<float>(expand_f)] __device__(int i) mutable
                {
                    AABB aabb;
@@ -330,9 +330,9 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
         point_cids.view(),
         d_cmts.view(),
         NodePredAllow{},
-        [Fs        = d_Fs.viewer().name("Fs"),
-         Ps        = d_Ps.viewer().name("Ps"),
-         violation = violation_count.viewer().name("violation"),
+        [Fs        = d_Fs.viewer(),
+         Ps        = d_Ps.viewer(),
+         violation = violation_count.viewer(),
          thickness2] __device__(InfoStacklessBVH::LeafPredInfo leaf)
         {
             auto P = leaf.i;
@@ -387,8 +387,8 @@ SizeT gpu_halfplane_check(span<const Vector3> h_Ps,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Ps.size(),
-               [Ps        = d_Ps.viewer().name("Ps"),
-                violation = violation_count.viewer().name("violation"),
+               [Ps        = d_Ps.viewer(),
+                violation = violation_count.viewer(),
                 plane_P,
                 plane_N,
                 thickness] __device__(int i) mutable
@@ -437,9 +437,9 @@ SizeT gpu_volume_check(span<const Vector3> h_Ps, span<const Vector4i> h_Ts)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(h_Ts.size(),
-               [Ts = d_Ts.viewer().name("Ts"),
-                Ps = d_Ps.viewer().name("Ps"),
-                violation = violation_count.viewer().name("violation")] __device__(int i) mutable
+               [Ts = d_Ts.viewer(),
+                Ps = d_Ps.viewer(),
+                violation = violation_count.viewer()] __device__(int i) mutable
                {
                    auto    T   = Ts(i);
                    Vector3 e1  = Ps(T[1]) - Ps(T[0]);

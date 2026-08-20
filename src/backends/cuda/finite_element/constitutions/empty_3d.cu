@@ -1,9 +1,9 @@
 #include <finite_element/fem_3d_constitution.h>
 #include <finite_element/constitutions/hookean_spring_1d_function.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <numbers>
 
 namespace uipc::backend::cuda

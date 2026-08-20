@@ -19,17 +19,17 @@ class AffineBodyBDF2Kinetic final : public AffineBodyKinetic
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed    = info.is_fixed().cviewer().name("is_fixed"),
-                    ext_kinetic = info.external_kinetic().cviewer().name("ext_kinetic"),
-                    qs          = info.qs().cviewer().name("qs"),
-                    q_tildes    = info.q_tildes().cviewer().name("q_tildes"),
-                    masses      = info.masses().cviewer().name("masses"),
-                    Ks          = info.energies().viewer().name("kinetic_energy"),
+                   [is_fixed    = info.is_fixed().cviewer(),
+                    ext_kinetic = info.external_kinetic().cviewer(),
+                    qs          = info.qs().cviewer(),
+                    q_tildes    = info.q_tildes().cviewer(),
+                    masses      = info.masses().cviewer(),
+                    Ks          = info.energies().viewer(),
                     inv_beta    = inv_beta] __device__(int i) mutable
                    {
                        auto& K = Ks(i);
@@ -50,17 +50,17 @@ class AffineBodyBDF2Kinetic final : public AffineBodyKinetic
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed      = info.is_fixed().cviewer().name("is_fixed"),
-                    qs            = info.qs().cviewer().name("qs"),
-                    q_tildes      = info.q_tildes().cviewer().name("q_tildes"),
-                    masses        = info.masses().cviewer().name("masses"),
-                    hessians      = info.hessians().viewer().name("hessians"),
-                    gradients     = info.gradients().viewer().name("gradients"),
+                   [is_fixed      = info.is_fixed().cviewer(),
+                    qs            = info.qs().cviewer(),
+                    q_tildes      = info.q_tildes().cviewer(),
+                    masses        = info.masses().cviewer(),
+                    hessians      = info.hessians().viewer(),
+                    gradients     = info.gradients().viewer(),
                     gradient_only = info.gradient_only(),
                     inv_beta      = inv_beta] __device__(int i) mutable
                    {

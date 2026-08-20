@@ -3,7 +3,7 @@
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <finite_element/finite_element_kinetic.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
 #include <finite_element/fem_dytopo_effect_receiver.h>
@@ -157,7 +157,7 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // 0) record dof info
     auto frame = sim_engine->frame();
@@ -198,8 +198,8 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                gradients = info.gradients().viewer().name("gradients")] __device__(int i) mutable
+               [is_fixed = fem().is_fixed.cviewer(),
+                gradients = info.gradients().viewer()] __device__(int i) mutable
                {
                    if(is_fixed(i))
                    {
@@ -214,8 +214,8 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.hessians().triplet_count(),
-               [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                hessians = info.hessians().viewer().name("hessians")] __device__(int I) mutable
+               [is_fixed = fem().is_fixed.cviewer(),
+                hessians = info.hessians().viewer()] __device__(int I) mutable
                {
                    auto&& [i, j, H3] = hessians(I).read();
 
@@ -233,7 +233,7 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
                                                  GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     IndexT hess_count = info.gradient_only() ? 0 : fem().xs.size();
     IndexT grad_count = fem().xs.size();
@@ -248,9 +248,9 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(kinetic_gradients.doublet_count(),
-               [dst = info.gradients().viewer().name("dst_gradient"),
-                src = kinetic_gradients.cviewer().name("src_gradient"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               [dst = info.gradients().viewer(),
+                src = kinetic_gradients.cviewer(),
+                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
                {
                    auto&& [i, G3] = src(I);
                    if(is_fixed(i))
@@ -264,7 +264,7 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
 void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
                                                    GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto grad_count = reporter_gradient_offsets_counts.total_count();
     auto hess_count =
         info.gradient_only() ? 0 : reporter_hessian_offsets_counts.total_count();
@@ -281,9 +281,9 @@ void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(reporter_gradients.doublet_count(),
-               [dst = info.gradients().viewer().name("dst_gradient"),
-                src = reporter_gradients.cviewer().name("src_gradient"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               [dst = info.gradients().viewer(),
+                src = reporter_gradients.cviewer(),
+                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
                {
                    auto&& [i, G3] = src(I);
                    if(is_fixed(i))
@@ -298,7 +298,7 @@ void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
 void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
                                                        GlobalLinearSystem::DiagInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // No need to add to grad_offset, the grad buffer is not from reporter_gradients
     auto grad_count = dytopo_effect_receiver->gradients().doublet_count();
@@ -310,10 +310,10 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
             .file_line(__FILE__, __LINE__)
             .apply(grad_count,
                    [dytopo_effect_gradient =
-                        dytopo_effect_receiver->gradients().cviewer().name("dytopo_effect_gradient"),
-                    gradients = info.gradients().viewer().name("gradients"),
+                        dytopo_effect_receiver->gradients().cviewer(),
+                    gradients = info.gradients().viewer(),
                     vertex_offset = finite_element_vertex_reporter->vertex_offset(),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
                    {
                        const auto& [g_i, G3] = dytopo_effect_gradient(I);
                        auto i = g_i - vertex_offset;  // from global to local
@@ -342,8 +342,8 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
             .file_line(__FILE__, __LINE__)
             .apply(hess_count,
                    [dytopo_effect_hessian =
-                        dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
-                    hessians = dst_H3x3s.viewer().name("hessians"),
+                        dytopo_effect_receiver->hessians().cviewer(),
+                    hessians = dst_H3x3s.viewer(),
                     vertex_offset =
                         finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
                    {
@@ -364,14 +364,14 @@ void FEMLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& 
 
 void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto dxs = fem().dxs.view();
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [dxs = dxs.viewer().name("dxs"),
-                result = info.solution().viewer().name("result")] __device__(int i) mutable
+               [dxs = dxs.viewer(),
+                result = info.solution().viewer()] __device__(int i) mutable
                { dxs(i) = -result.segment<3>(i * 3).as_eigen(); });
 }
 
@@ -379,14 +379,14 @@ Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info
 {
     diag_blocks_norm.resize(finite_element_method->xs().size());
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.A().triplet_count(),
-               [triplet = info.A().cviewer().name("triplet"),
-                diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
+               [triplet = info.A().cviewer(),
+                diag_blocks_norm = diag_blocks_norm.viewer(),
                 fem_segment_offset = info.dof_offset() / 3,
                 fem_segment_count  = info.dof_count() / 3,
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
                {
                    auto&& [g_i, g_j, H3x3] = triplet(I);
 
@@ -404,7 +404,7 @@ Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info
                    }
                });
 
-    muda::DeviceReduce().Max(diag_blocks_norm.data(),
+    cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
                              reduced_diag_norm.data(),
                              diag_blocks_norm.size());
 
@@ -416,22 +416,22 @@ Float FEMLinearSubsystem::Impl::mass_norm(GlobalLinearSystem::DiagNormInfo& info
     diag_blocks_norm.resize(fem().xs.size());
     UIPC_ASSERT(fem().xs.size() == fem().masses.size(), "size not matched");
 
-    muda::ParallelFor()
+    cuda_tool::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [mass = fem().masses.cviewer().name("mass"),
-                diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               [mass = fem().masses.cviewer(),
+                diag_blocks_norm = diag_blocks_norm.viewer(),
+                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
                { diag_blocks_norm(I) = is_fixed(I) ? 0 : mass(I); });
 
-    muda::DeviceReduce().Max(diag_blocks_norm.data(),
+    cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
                              reduced_diag_norm.data(),
                              diag_blocks_norm.size());
 
     return reduced_diag_norm;
 }
 
-void FEMLinearSubsystem::Impl::loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v,
+void FEMLinearSubsystem::Impl::loose_resize_entries(cuda_tool::DeviceDoubletVector<Float, 3>& v,
                                                     SizeT size)
 {
     if(size > v.doublet_capacity())
@@ -481,13 +481,13 @@ Float FEMLinearSubsystem::do_mass_norm(GlobalLinearSystem::DiagNormInfo& info)
     return m_impl.mass_norm(info);
 }
 
-muda::DoubletVectorView<Float, 3> FEMLinearSubsystem::AssembleInfo::gradients() const
+cuda_tool::DoubletVectorView<Float, 3> FEMLinearSubsystem::AssembleInfo::gradients() const
 {
     auto [offset, count] = m_impl->reporter_gradient_offsets_counts[m_index];
     return m_impl->reporter_gradients.view().subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 3, 3> FEMLinearSubsystem::AssembleInfo::hessians() const
+cuda_tool::TripletMatrixView<Float, 3, 3> FEMLinearSubsystem::AssembleInfo::hessians() const
 {
     auto [offset, count] = m_impl->reporter_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);

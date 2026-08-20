@@ -15,7 +15,7 @@ class FEMABDDyTopoEffectReceiver final : public DyTopoEffectReceiver
       public:
         AffineBodyVertexReporter*    affine_body_vertex_reporter    = nullptr;
         FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
-        muda::CTripletMatrixView<Float, 3> hessians;
+        cuda_tool::CTripletMatrixView<Float, 3> hessians;
     };
 
     auto hessians() const noexcept { return m_impl.hessians; }

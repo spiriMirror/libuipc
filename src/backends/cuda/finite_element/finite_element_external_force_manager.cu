@@ -22,11 +22,11 @@ void FEMExternalForceManager::Impl::clear()
     auto external_forces =
         finite_element_method->m_impl.vertex_external_forces.view();
 
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(external_forces.size(),
-               [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
+               [forces = external_forces.viewer()] __device__(int i) mutable
                { forces(i).setZero(); });
 }
 
@@ -38,7 +38,7 @@ void FEMExternalForceManager::Impl::step()
         reporter->step(info);
     }
 
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto& fem = finite_element_method->m_impl;
 
@@ -51,9 +51,9 @@ void FEMExternalForceManager::Impl::step()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(vertex_count,
-               [forces     = forces.cviewer().name("forces"),
-                force_accs = force_accs.viewer().name("force_accs"),
-                masses     = masses.cviewer().name("masses")] __device__(int i)
+               [forces     = forces.cviewer(),
+                force_accs = force_accs.viewer(),
+                masses     = masses.cviewer()] __device__(int i)
                {
                    const Vector3& F = forces(i);
                    Float          m = masses(i);
@@ -84,7 +84,7 @@ void FEMExternalForceManager::do_step()
     m_impl.step();
 }
 
-muda::BufferView<Vector3> FEMExternalForceManager::ExternalForceInfo::external_forces() noexcept
+cuda_tool::BufferView<Vector3> FEMExternalForceManager::ExternalForceInfo::external_forces() noexcept
 {
     return m_impl->finite_element_method->m_impl.vertex_external_forces.view();
 }

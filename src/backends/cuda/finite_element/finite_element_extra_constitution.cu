@@ -109,17 +109,17 @@ Float FiniteElementExtraConstitution::BaseInfo::dt() const noexcept
     return m_dt;
 }
 
-muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
+cuda_tool::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
 {
     return m_impl->finite_element_method->xs();
 }
 
-muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
+cuda_tool::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
 {
     return m_impl->finite_element_method->x_bars();
 }
 
-muda::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
+cuda_tool::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
 {
     return m_impl->finite_element_method->thicknesses();
 }

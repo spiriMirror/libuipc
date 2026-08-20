@@ -29,13 +29,13 @@ void VertexHalfPlaneTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectIn
 void VertexHalfPlaneTrajectoryFilter::Impl::label_active_vertices(
     GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PHs.size(),
-               [PHs = PHs.viewer().name("PHs"),
-                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               [PHs = PHs.viewer(),
+                is_active = info.vert_is_active().viewer()] __device__(int i)
                {
                    auto PH = PHs(i);
                    auto P  = PH[0];
@@ -79,12 +79,12 @@ void VertexHalfPlaneTrajectoryFilter::do_label_active_vertices(GlobalTrajectoryF
     m_impl.label_active_vertices(info);
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::PHs() noexcept
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::PHs() noexcept
 {
     return m_impl.PHs;
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::friction_PHs() noexcept
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::friction_PHs() noexcept
 {
     return m_impl.friction_PHs;
 }
@@ -94,7 +94,7 @@ Float VertexHalfPlaneTrajectoryFilter::BaseInfo::d_hat() const noexcept
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::d_hats() const noexcept
+cuda_tool::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::d_hats() const noexcept
 {
     return m_impl->global_vertex_manager->d_hats();
 }
@@ -110,62 +110,62 @@ IndexT VertexHalfPlaneTrajectoryFilter::BaseInfo::half_plane_vertex_offset() con
     return m_impl->half_plane_vertex_reporter->vertex_offset();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_normals() const noexcept
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_normals() const noexcept
 {
     return m_impl->half_plane->normals();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_positions() const noexcept
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_positions() const noexcept
 {
     return m_impl->half_plane->positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::positions() const noexcept
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
     return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
-muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
 {
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
     return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept
+cuda_tool::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_vertices();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::DetectInfo::displacements() const noexcept
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::DetectInfo::displacements() const noexcept
 {
     return m_impl->global_vertex_manager->displacements();
 }
 
-void VertexHalfPlaneTrajectoryFilter::FilterActiveInfo::PHs(muda::CBufferView<Vector2i> PHs) noexcept
+void VertexHalfPlaneTrajectoryFilter::FilterActiveInfo::PHs(cuda_tool::CBufferView<Vector2i> PHs) noexcept
 {
     m_impl->PHs = PHs;
 }
 
-muda::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexcept
+cuda_tool::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
 }

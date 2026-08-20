@@ -2,7 +2,7 @@
 #include <sim_system.h>
 #include <energy_component_flags.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <dytopo_effect_system/dytopo_classify_info.h>
@@ -39,11 +39,11 @@ class GlobalDyTopoEffectManager final : public SimSystem
     {
       public:
         bool gradient_only() const noexcept { return m_gradient_only; }
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept
+        cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept
         {
             return m_gradients;
         }
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept
+        cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept
         {
             return m_hessians;
         }
@@ -52,8 +52,8 @@ class GlobalDyTopoEffectManager final : public SimSystem
       private:
         friend class Impl;
         bool                              m_gradient_only = false;
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
     };
 
     class EnergyExtentInfo
@@ -70,12 +70,12 @@ class GlobalDyTopoEffectManager final : public SimSystem
     class EnergyInfo
     {
       public:
-        muda::BufferView<Float> energies() const { return m_energies; }
+        cuda_tool::BufferView<Float> energies() const { return m_energies; }
         bool                    is_initial() const { return m_is_initial; }
 
       private:
         friend class DyTopoEffectLineSearchReporter;
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
         bool                    m_is_initial = false;
     };
 
@@ -84,19 +84,19 @@ class GlobalDyTopoEffectManager final : public SimSystem
     class ClassifiedDyTopoEffectInfo
     {
       public:
-        muda::CDoubletVectorView<Float, 3> gradients() const noexcept
+        cuda_tool::CDoubletVectorView<Float, 3> gradients() const noexcept
         {
             return m_gradients;
         }
-        muda::CTripletMatrixView<Float, 3> hessians() const noexcept
+        cuda_tool::CTripletMatrixView<Float, 3> hessians() const noexcept
         {
             return m_hessians;
         }
 
       private:
         friend class Impl;
-        muda::CDoubletVectorView<Float, 3> m_gradients;
-        muda::CTripletMatrixView<Float, 3> m_hessians;
+        cuda_tool::CDoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> m_hessians;
     };
 
     class ComputeDyTopoEffectInfo
@@ -140,12 +140,12 @@ class GlobalDyTopoEffectManager final : public SimSystem
         OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
         OffsetCountCollection<IndexT> reporter_hessian_offsets_counts;
 
-        muda::DeviceTripletMatrix<Float, 3> collected_dytopo_effect_hessian;
-        muda::DeviceDoubletVector<Float, 3> collected_dytopo_effect_gradient;
+        cuda_tool::DeviceTripletMatrix<Float, 3> collected_dytopo_effect_hessian;
+        cuda_tool::DeviceDoubletVector<Float, 3> collected_dytopo_effect_gradient;
 
         MatrixConverter<Float, 3>        matrix_converter;
-        muda::DeviceBCOOMatrix<Float, 3> sorted_dytopo_effect_hessian;
-        muda::DeviceBCOOVector<Float, 3> sorted_dytopo_effect_gradient;
+        cuda_tool::DeviceBCOOMatrix<Float, 3> sorted_dytopo_effect_hessian;
+        cuda_tool::DeviceBCOOVector<Float, 3> sorted_dytopo_effect_gradient;
 
         /***********************************************************************
         *                               Receiver                               *
@@ -153,17 +153,17 @@ class GlobalDyTopoEffectManager final : public SimSystem
 
         SimSystemSlotCollection<DyTopoEffectReceiver> dytopo_effect_receivers;
 
-        muda::DeviceVar<Vector2i>  gradient_range;
-        muda::DeviceBuffer<IndexT> selected_hessian;
-        muda::DeviceBuffer<IndexT> selected_hessian_offsets;
+        cuda_tool::DeviceVar<Vector2i>  gradient_range;
+        cuda_tool::DeviceBuffer<IndexT> selected_hessian;
+        cuda_tool::DeviceBuffer<IndexT> selected_hessian_offsets;
 
-        vector<muda::DeviceTripletMatrix<Float, 3>> classified_dytopo_effect_hessians;
-        vector<muda::DeviceDoubletVector<Float, 3>> classified_dytopo_effect_gradients;
+        vector<cuda_tool::DeviceTripletMatrix<Float, 3>> classified_dytopo_effect_hessians;
+        vector<cuda_tool::DeviceDoubletVector<Float, 3>> classified_dytopo_effect_gradients;
 
-        void loose_resize_entries(muda::DeviceTripletMatrix<Float, 3>& m, SizeT size);
-        void loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v, SizeT size);
+        void loose_resize_entries(cuda_tool::DeviceTripletMatrix<Float, 3>& m, SizeT size);
+        void loose_resize_entries(cuda_tool::DeviceDoubletVector<Float, 3>& v, SizeT size);
         template <typename T>
-        void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
+        void loose_resize(cuda_tool::DeviceBuffer<T>& buffer, SizeT size)
         {
             if(size > buffer.capacity())
             {
@@ -173,8 +173,8 @@ class GlobalDyTopoEffectManager final : public SimSystem
         }
     };
 
-    muda::CBCOOVectorView<Float, 3> gradients() const noexcept;
-    muda::CBCOOMatrixView<Float, 3> hessians() const noexcept;
+    cuda_tool::CBCOOVectorView<Float, 3> gradients() const noexcept;
+    cuda_tool::CBCOOMatrixView<Float, 3> hessians() const noexcept;
 
     void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
 

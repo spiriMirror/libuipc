@@ -52,7 +52,7 @@ class FEMTimeIntegrator : public TimeIntegrator
 
         auto vs() const noexcept { return m_impl->finite_element_method->vs(); }
 
-        muda::BufferView<Vector3> x_tildes() const noexcept
+        cuda_tool::BufferView<Vector3> x_tildes() const noexcept
         {
             return m_impl->finite_element_method->m_impl.x_tildes.view();
         }

@@ -6,7 +6,7 @@ namespace uipc::backend::cuda::analyticalBarrier
 
 
 template <class T>
-MUDA_GENERIC void analytical_parallel_edge_edge_pFpx(const Eigen::Vector<T, 3>& e0,
+UIPC_GENERIC void analytical_parallel_edge_edge_pFpx(const Eigen::Vector<T, 3>& e0,
                                                      const Eigen::Vector<T, 3>& e1,
                                                      const Eigen::Vector<T, 3>& e2,
                                                      const Eigen::Vector<T, 3>& e3,

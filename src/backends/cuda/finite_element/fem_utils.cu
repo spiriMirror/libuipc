@@ -1,5 +1,5 @@
 #include <finite_element/fem_utils.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Geometry>
 
 namespace uipc::backend::cuda::fem
@@ -56,7 +56,7 @@ UIPC_GENERIC Matrix3x3 dJdF(const Matrix3x3& F)
 UIPC_GENERIC Matrix3x3 Dm_inv(const Vector3& X0, const Vector3& X1, const Vector3& X2, const Vector3& X3)
 {
     Matrix3x3 Dm = Ds(X0, X1, X2, X3);
-    return muda::eigen::inverse(Dm);
+    return cuda_tool::eigen::inverse(Dm);
 }
 
 UIPC_GENERIC Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x2, const Vector3& x3)

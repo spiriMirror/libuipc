@@ -6,7 +6,7 @@
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::backend::cuda
@@ -20,7 +20,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    muda::DeviceBuffer<Matrix3x3> diag_inv;
+    cuda_tool::DeviceBuffer<Matrix3x3> diag_inv;
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -56,7 +56,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
 
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         diag_inv.resize(finite_element_method->xs().size());
 
@@ -64,8 +64,8 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.A().triplet_count(),
-                   [triplet            = info.A().cviewer().name("triplet"),
-                    diag_inv           = diag_inv.viewer().name("diag_inv"),
+                   [triplet            = info.A().cviewer(),
+                    diag_inv           = diag_inv.viewer(),
                     fem_segment_offset = info.dof_offset() / 3,
                     fem_segment_count = info.dof_count() / 3] __device__(int I) mutable
                    {
@@ -88,16 +88,16 @@ class FEMDiagPreconditioner : public LocalPreconditioner
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         auto converged = info.converged();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
-                   [r = info.r().viewer().name("r"),
-                    z = info.z().viewer().name("z"),
-                    converged = converged.cviewer().name("converged"),
-                    diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
+                   [r = info.r().viewer(),
+                    z = info.z().viewer(),
+                    converged = converged.cviewer(),
+                    diag_inv = diag_inv.viewer()] __device__(int i) mutable
                    {
                        if(*converged != 0)
                            return;

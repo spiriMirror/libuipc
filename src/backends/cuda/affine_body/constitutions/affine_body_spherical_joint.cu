@@ -15,9 +15,9 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
-    muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector6> rest_cs;  // anchor in each body's local frame [ci_bar | cj_bar]
-    muda::DeviceBuffer<Float> strength_ratios;
+    cuda_tool::DeviceBuffer<Vector2i> body_ids;
+    cuda_tool::DeviceBuffer<Vector6> rest_cs;  // anchor in each body's local frame [ci_bar | cj_bar]
+    cuda_tool::DeviceBuffer<Float> strength_ratios;
 
     vector<Vector2i> h_body_ids;
     vector<Vector6>  h_rest_cs;
@@ -118,17 +118,17 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace SJ = sym::affine_body_spherical_joint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs = info.qs().viewer().name("qs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = body_ids.cviewer(),
+                    rest_cs  = rest_cs.cviewer(),
+                    strength_ratio = strength_ratios.cviewer(),
+                    body_masses = info.body_masses().cviewer(),
+                    qs = info.qs().viewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bids  = body_ids(I);
                        Float    kappa = strength_ratio(I)
@@ -159,19 +159,19 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace SJ       = sym::affine_body_spherical_joint;
         auto gradient_only = info.gradient_only();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs      = info.qs().viewer().name("qs"),
-                    G12s    = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s"),
+                   [body_ids = body_ids.cviewer(),
+                    rest_cs  = rest_cs.cviewer(),
+                    strength_ratio = strength_ratios.cviewer(),
+                    body_masses = info.body_masses().cviewer(),
+                    qs      = info.qs().viewer(),
+                    G12s    = info.gradients().viewer(),
+                    H12x12s = info.hessians().viewer(),
                     gradient_only] __device__(int I)
                    {
                        Vector2i bids  = body_ids(I);

@@ -14,7 +14,7 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     Float s_r = rotation_strength;
     Float m   = mass.mass();
 
-    MUDA_ASSERT(m > 0.0, "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.", m);
+    UIPC_KERNEL_ASSERT(m > 0.0, "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.", m);
 
     Matrix12x12 M = mass.to_mat();
 
@@ -44,9 +44,9 @@ class SoftTransformConstraint final : public AffineBodyConstraint
     vector<Vector12> h_aim_transforms;
     vector<Vector2>  h_strength_ratios;
 
-    muda::DeviceBuffer<IndexT>   constrained_bodies;
-    muda::DeviceBuffer<Vector12> aim_transforms;
-    muda::DeviceBuffer<Vector2>  strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT>   constrained_bodies;
+    cuda_tool::DeviceBuffer<Vector12> aim_transforms;
+    cuda_tool::DeviceBuffer<Vector2>  strength_ratios;
 
     virtual void do_build(BuildInfo& info) override {}
 
@@ -128,20 +128,20 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_bodies.size(),
                    [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer().name("indices"),
-                    qs            = info.qs().viewer().name("qs"),
-                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
-                    aim_transforms = aim_transforms.viewer().name("aim_transforms"),
-                    strength_ratios = strength_ratios.viewer().name("strength_ratios"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    energies = info.energies().viewer().name("energies"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I)
+                    indices       = constrained_bodies.viewer(),
+                    qs            = info.qs().viewer(),
+                    q_prevs       = info.q_prevs().viewer(),
+                    aim_transforms = aim_transforms.viewer(),
+                    strength_ratios = strength_ratios.viewer(),
+                    body_masses = info.body_masses().viewer(),
+                    energies = info.energies().viewer(),
+                    is_fixed = info.is_fixed().viewer()] __device__(int I)
                    {
                        auto  i = indices(I);
                        auto& E = energies(I);
@@ -168,21 +168,21 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_bodies.size(),
                    [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer().name("indices"),
-                    qs            = info.qs().viewer().name("qs"),
-                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
-                    aim_transforms = aim_transforms.viewer().name("aim_transforms"),
-                    strength_ratios = strength_ratios.viewer().name("strength_ratios"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
+                    indices       = constrained_bodies.viewer(),
+                    qs            = info.qs().viewer(),
+                    q_prevs       = info.q_prevs().viewer(),
+                    aim_transforms = aim_transforms.viewer(),
+                    strength_ratios = strength_ratios.viewer(),
+                    body_masses = info.body_masses().viewer(),
+                    gradients = info.gradients().viewer(),
+                    hessians  = info.hessians().viewer(),
+                    is_fixed  = info.is_fixed().viewer(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        auto i = indices(I);

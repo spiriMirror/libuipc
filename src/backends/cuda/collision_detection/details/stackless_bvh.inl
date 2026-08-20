@@ -1,5 +1,5 @@
 #include <cuda_device/builtin.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::culbvh
 {
@@ -35,7 +35,7 @@ struct PlainAABB
     float3 _min, _max;
 };
 
-MUDA_GENERIC MUDA_INLINE PlainAABB toPlainAABB(const aabb& box)
+UIPC_GENERIC UIPC_INLINE PlainAABB toPlainAABB(const aabb& box)
 {
     PlainAABB res;
     res._min = make_float3(box.min().x(), box.min().y(), box.min().z());
@@ -43,7 +43,7 @@ MUDA_GENERIC MUDA_INLINE PlainAABB toPlainAABB(const aabb& box)
     return res;
 }
 
-MUDA_GENERIC MUDA_INLINE aabb fromPlainAABB(const PlainAABB& box)
+UIPC_GENERIC UIPC_INLINE aabb fromPlainAABB(const PlainAABB& box)
 {
     aabb aabb;
     aabb.min() = Vector<float, 3>(box._min.x, box._min.y, box._min.z);
@@ -55,7 +55,7 @@ struct intAABB
 {
     int3 _min, _max;
 
-    MUDA_GENERIC MUDA_INLINE void convertFrom(const aabb& other, float3& origin, float3& delta)
+    UIPC_GENERIC UIPC_INLINE void convertFrom(const aabb& other, float3& origin, float3& delta)
     {
         _min.x = static_cast<int>((other.min().x() - origin.x) / delta.x);
         _min.y = static_cast<int>((other.min().y() - origin.y) / delta.y);
@@ -67,18 +67,18 @@ struct intAABB
 };
 
 template <typename T>
-MUDA_GENERIC MUDA_INLINE T __mm_min(T a, T b)
+UIPC_GENERIC UIPC_INLINE T __mm_min(T a, T b)
 {
     return a > b ? b : a;
 }
 
 template <typename T>
-MUDA_GENERIC MUDA_INLINE T __mm_max(T a, T b)
+UIPC_GENERIC UIPC_INLINE T __mm_max(T a, T b)
 {
     return a > b ? a : b;
 }
 
-MUDA_DEVICE MUDA_INLINE float atomicMinf(float* addr, float value)
+UIPC_DEVICE UIPC_INLINE float atomicMinf(float* addr, float value)
 {
     float old;
     old = (value >= 0) ?
@@ -87,7 +87,7 @@ MUDA_DEVICE MUDA_INLINE float atomicMinf(float* addr, float value)
     return old;
 }
 
-MUDA_DEVICE MUDA_INLINE float atomicMaxf(float* addr, float value)
+UIPC_DEVICE UIPC_INLINE float atomicMaxf(float* addr, float value)
 {
     float old;
     old = (value >= 0) ?
@@ -96,7 +96,7 @@ MUDA_DEVICE MUDA_INLINE float atomicMaxf(float* addr, float value)
     return old;
 }
 
-MUDA_GENERIC MUDA_INLINE uint expandBits(uint v)
+UIPC_GENERIC UIPC_INLINE uint expandBits(uint v)
 {  ///< Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
@@ -105,7 +105,7 @@ MUDA_GENERIC MUDA_INLINE uint expandBits(uint v)
     return v;
 }
 
-MUDA_GENERIC MUDA_INLINE uint morton3D(float x, float y, float z)
+UIPC_GENERIC UIPC_INLINE uint morton3D(float x, float y, float z)
 {  ///< Calculates a 30-bit Morton code for the given 3D point located within the unit cube [0,1].
     x       = ::fmin(::fmax(x * 1024.0f, 0.0f), 1023.0f);
     y       = ::fmin(::fmax(y * 1024.0f, 0.0f), 1023.0f);
@@ -117,7 +117,7 @@ MUDA_GENERIC MUDA_INLINE uint morton3D(float x, float y, float z)
 }
 
 // Custom comparison for int3 based on lexicographical ordering
-MUDA_GENERIC MUDA_INLINE bool lessThan(const int3& a, const int3& b)
+UIPC_GENERIC UIPC_INLINE bool lessThan(const int3& a, const int3& b)
 {
     if(a.x != b.x)
         return a.x < b.x;
@@ -126,12 +126,12 @@ MUDA_GENERIC MUDA_INLINE bool lessThan(const int3& a, const int3& b)
     return a.z < b.z;
 }
 
-MUDA_GENERIC MUDA_INLINE Vector2i to_eigen(int2 v)
+UIPC_GENERIC UIPC_INLINE Vector2i to_eigen(int2 v)
 {
     return Vector2i{v.x, v.y};
 }
 
-MUDA_GENERIC MUDA_INLINE int2 make_ordered_pair(int a, int b)
+UIPC_GENERIC UIPC_INLINE int2 make_ordered_pair(int a, int b)
 {
     if(a < b)
         return int2{a, b};
@@ -139,12 +139,12 @@ MUDA_GENERIC MUDA_INLINE int2 make_ordered_pair(int a, int b)
         return int2{b, a};
 }
 
-MUDA_GENERIC MUDA_INLINE float3 operator-(const float3& v0, const float3& v1)
+UIPC_GENERIC UIPC_INLINE float3 operator-(const float3& v0, const float3& v1)
 {
     return make_float3(v0.x - v1.x, v0.y - v1.y, v0.z - v1.z);
 }
 
-MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
+UIPC_GENERIC UIPC_INLINE void SafeCopyTo(int2* sharedRes,
                                          int   totalResInBlock,
 
                                          Vector2i* globalRes,
@@ -176,8 +176,8 @@ MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
 
 namespace uipc::backend::cuda
 {
-MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aabbs,
-                                                      muda::VarView<AABB> scene_box)
+UIPC_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
+                                                      cuda_tool::VarView<AABB> scene_box)
 {
     using namespace culbvh;
 
@@ -185,14 +185,14 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
     auto BlockDim = K_THREADS;
     auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
-    using namespace muda;
+    using namespace cuda_tool;
 
     Launch(GridDim, BlockDim)
         .file_line(__FILE__, __LINE__)
         .apply(
             [size = aabbs.size(),
-             box  = aabbs.viewer().name("box"),
-             _bv  = scene_box.viewer().name("_bv")] __device__()
+             box  = aabbs.viewer(),
+             _bv  = scene_box.viewer()] __device__()
             {
                 int idx     = blockIdx.x * blockDim.x + threadIdx.x;
                 int warpTid = threadIdx.x % 32;
@@ -292,19 +292,19 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
             });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabbs,
-                                                    muda::CVarView<AABB> scene_box,
-                                                    muda::BufferView<uint32_t> codes)
+UIPC_INLINE void StacklessBVH::Impl::calcMCsFromBox(cuda_tool::CBufferView<AABB> aabbs,
+                                                    cuda_tool::CVarView<AABB> scene_box,
+                                                    cuda_tool::BufferView<uint32_t> codes)
 {
     using namespace culbvh;
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(aabbs.size(),
-               [box   = aabbs.viewer().name("box"),
-                scene = scene_box.viewer().name("scene"),
-                codes = codes.viewer().name("codes")] __device__(int idx)
+               [box   = aabbs.viewer(),
+                scene = scene_box.viewer(),
+                codes = codes.viewer()] __device__(int idx)
                {
                    AABB bv = box(idx);
 
@@ -327,29 +327,29 @@ MUDA_INLINE void StacklessBVH::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabb
 }
 
 /// incoherent access, thus poor performance
-MUDA_INLINE void StacklessBVH::Impl::calcInverseMapping()
+UIPC_INLINE void StacklessBVH::Impl::calcInverseMapping()
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(sorted_id.size(),
-               [map    = sorted_id.viewer().name("map"),
-                invMap = primMap.viewer().name("invMap")] __device__(int idx)
+               [map    = sorted_id.viewer(),
+                invMap = primMap.viewer()] __device__(int idx)
                {
                    //
                    invMap(map(idx)) = idx;
                });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::buildPrimitivesFromBox(muda::CBufferView<AABB> aabbs)
+UIPC_INLINE void StacklessBVH::Impl::buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs)
 {  ///< update idx-th _bxs to idx-th leaf
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor().apply(aabbs.size(),
-                        [_primIdx = ext_idx.viewer().name("primIdx"),
-                         _primBox = ext_aabb.viewer().name("primBox"),
-                         _primMap = primMap.viewer().name("primMap"),
-                         box = aabbs.viewer().name("box")] __device__(int idx)
+                        [_primIdx = ext_idx.viewer(),
+                         _primBox = ext_aabb.viewer(),
+                         _primMap = primMap.viewer(),
+                         box = aabbs.viewer()] __device__(int idx)
                         {
                             int  newIdx      = _primMap(idx);
                             AABB bv          = box(idx);
@@ -359,15 +359,15 @@ MUDA_INLINE void StacklessBVH::Impl::buildPrimitivesFromBox(muda::CBufferView<AA
 }
 
 
-MUDA_INLINE void StacklessBVH::Impl::calcExtNodeSplitMetrics()
+UIPC_INLINE void StacklessBVH::Impl::calcExtNodeSplitMetrics()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(mtcode.size(),
                [extsize  = mtcode.size(),
-                _codes   = mtcode.viewer().name("_codes"),
-                _metrics = metric.viewer().name("_metrics")] __device__(int idx)
+                _codes   = mtcode.viewer(),
+                _metrics = metric.viewer()] __device__(int idx)
                {
                    _metrics(idx) = idx != extsize - 1 ?
                                        32 - __clz(_codes(idx) ^ _codes(idx + 1)) :
@@ -375,9 +375,9 @@ MUDA_INLINE void StacklessBVH::Impl::calcExtNodeSplitMetrics()
                });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
+UIPC_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     auto GridDim  = (size + 255) / 256;
     auto BlockDim = 256;
@@ -387,21 +387,21 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
         .apply(
             [size = size,
              // leaf nodes
-             _depths     = count.viewer().name("_depths"),
-             _lvs_lca    = ext_lca.viewer().name("_lvs_lca"),
-             _lvs_metric = metric.viewer().name("_lvs_metric"),
-             _lvs_par    = ext_par.viewer().name("_lvs_par"),
-             _lvs_mark   = ext_mark.viewer().name("_lvs_mark"),
-             _lvs_box    = ext_aabb.viewer().name("_lvs_box"),
+             _depths     = count.viewer(),
+             _lvs_lca    = ext_lca.viewer(),
+             _lvs_metric = metric.viewer(),
+             _lvs_par    = ext_par.viewer(),
+             _lvs_mark   = ext_mark.viewer(),
+             _lvs_box    = ext_aabb.viewer(),
              // internal nodes
-             _tks_rc      = int_rc.viewer().name("_tks_rc"),
-             _tks_lc      = int_lc.viewer().name("_tks_lc"),
-             _tks_range_y = int_range_y.viewer().name("_tks_range_y"),
-             _tks_range_x = int_range_x.viewer().name("_tks_range_x"),
-             _tks_mark    = int_mark.viewer().name("_tks_mark"),
-             _tks_box     = int_aabb.viewer().name("_tks_box"),
-             _flag        = flags.viewer().name("_flag"),
-             _tks_par     = int_par.viewer().name("_tks_par")] __device__()
+             _tks_rc      = int_rc.viewer(),
+             _tks_lc      = int_lc.viewer(),
+             _tks_range_y = int_range_y.viewer(),
+             _tks_range_x = int_range_x.viewer(),
+             _tks_mark    = int_mark.viewer(),
+             _tks_box     = int_aabb.viewer(),
+             _flag        = flags.viewer(),
+             _tks_par     = int_par.viewer()] __device__()
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(idx >= size)
@@ -508,18 +508,18 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
             });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::calcIntNodeOrders(int size)
+UIPC_INLINE void StacklessBVH::Impl::calcIntNodeOrders(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
-               [_tks_lc  = int_lc.viewer().name("_tks_lc"),
-                _lcas    = ext_lca.viewer().name("_lcas"),
-                _depths  = count.viewer().name("_depths"),
-                _offsets = offsetTable.viewer().name("_offsets"),
-                _tkMap   = tkMap.viewer().name("_tkMap")] __device__(int idx)
+               [_tks_lc  = int_lc.viewer(),
+                _lcas    = ext_lca.viewer(),
+                _depths  = count.viewer(),
+                _offsets = offsetTable.viewer(),
+                _tkMap   = tkMap.viewer()] __device__(int idx)
                {
                    int node  = _lcas(idx);
                    int depth = _depths(idx);
@@ -535,9 +535,9 @@ MUDA_INLINE void StacklessBVH::Impl::calcIntNodeOrders(int size)
                });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
+UIPC_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     if(flags.size() == 0)  // no internal nodes, thus no need to update
         return;
@@ -545,9 +545,9 @@ MUDA_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
-               [_mapTable = tkMap.viewer().name("_mapTable"),
-                _lcas     = ext_lca.viewer().name("_lcas"),
-                _pars     = ext_par.viewer().name("_pars")] __device__(int idx)
+               [_mapTable = tkMap.viewer(),
+                _lcas     = ext_lca.viewer(),
+                _pars     = ext_par.viewer()] __device__(int idx)
                {
                    int ori;
                    _pars(idx) = _mapTable(_pars(idx));
@@ -558,26 +558,26 @@ MUDA_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
                });
 }
 
-MUDA_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
+UIPC_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
 {
     using namespace culbvh;
-    using namespace muda;
+    using namespace cuda_tool;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(intSize + 1,
                [intSize,
                 // leaf nodes
-                _lvs_lca = ext_lca.viewer().name("_lvs_lca"),
-                _lvs_box = ext_aabb.viewer().name("_lvs_box"),
+                _lvs_lca = ext_lca.viewer(),
+                _lvs_box = ext_aabb.viewer(),
                 // internal nodes
-                _tkMap           = tkMap.viewer().name("_tkMap"),
-                _unorderedTks_lc = int_lc.viewer().name("_unorderedTks_lc"),
-                _unorderedTks_mark = int_mark.viewer().name("_unorderedTks_mark"),
-                _unorderedTks_rangey = int_range_y.viewer().name("_unorderedTks_rangey"),
-                _unorderedTks_box = int_aabb.viewer().name("_unorderedTks_box"),
+                _tkMap           = tkMap.viewer(),
+                _unorderedTks_lc = int_lc.viewer(),
+                _unorderedTks_mark = int_mark.viewer(),
+                _unorderedTks_rangey = int_range_y.viewer(),
+                _unorderedTks_box = int_aabb.viewer(),
                 // total nodes
-                _nodes = nodes.viewer().name("_nodes")] __device__(int idx)
+                _nodes = nodes.viewer()] __device__(int idx)
                {
                    stacklessnode Node;
                    Node.lc    = -1;
@@ -625,7 +625,7 @@ MUDA_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
                });
 }
 
-inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
+inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     objs         = aabbs;
     auto numObjs = aabbs.size();
@@ -700,10 +700,10 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
 
 template <typename Pred>
 void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
-                                               muda::VarView<int> cpNum,
-                                               muda::BufferView<Vector2i> buffer)
+                                               cuda_tool::VarView<int> cpNum,
+                                               cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace culbvh;
 
     auto numQuery = static_cast<int>(ext_aabb.size());
@@ -714,13 +714,13 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
     Launch(GridDim, BlockDim)
         .apply(
             [Size       = numQuery,
-             _box       = objs.viewer().name("_box"),
+             _box       = objs.viewer(),
              intSize    = numObjs - 1,
              numObjs    = numObjs,
-             _lvs_idx   = ext_idx.viewer().name("_lvs_idx"),
-             _nodes     = nodes.viewer().name("_nodes"),
-             resCounter = cpNum.viewer().name("resCounter"),
-             res        = buffer.viewer().name("res"),
+             _lvs_idx   = ext_idx.viewer(),
+             _nodes     = nodes.viewer(),
+             resCounter = cpNum.viewer(),
+             res        = buffer.viewer(),
              pred] __device__()
             {
                 int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
@@ -791,7 +791,7 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
                             }
                         }
 
-                        MUDA_ASSERT(inner_I < MaxIter,
+                        UIPC_KERNEL_ASSERT(inner_I < MaxIter,
                                     "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
                                     inner_I,
                                     MaxIter,
@@ -834,12 +834,12 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
 
 template <typename Pred>
 void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
-                                                muda::CBufferView<AABB> query_aabbs,
-                                                muda::CBufferView<int> query_sorted_id,
-                                                muda::VarView<int> cpNum,
-                                                muda::BufferView<Vector2i> buffer)
+                                                cuda_tool::CBufferView<AABB> query_aabbs,
+                                                cuda_tool::CBufferView<int> query_sorted_id,
+                                                cuda_tool::VarView<int> cpNum,
+                                                cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace culbvh;
 
     auto numQuery = static_cast<int>(query_aabbs.size());
@@ -851,14 +851,14 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
     Launch(GridDim, BlockDim)
         .apply(
             [Size       = numQuery,
-             _box       = query_aabbs.viewer().name("_box"),
-             sortedIdx  = query_sorted_id.viewer().name("sortedIdx"),
+             _box       = query_aabbs.viewer(),
+             sortedIdx  = query_sorted_id.viewer(),
              intSize    = numObjs - 1,
              numObjs    = numObjs,
-             _lvs_idx   = ext_idx.viewer().name("_lvs_idx"),
-             _nodes     = nodes.viewer().name("_nodes"),
-             resCounter = cpNum.viewer().name("resCounter"),
-             res        = buffer.viewer().name("res"),
+             _lvs_idx   = ext_idx.viewer(),
+             _nodes     = nodes.viewer(),
+             resCounter = cpNum.viewer(),
+             res        = buffer.viewer(),
              pred] __device__()
             {
                 int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
@@ -929,7 +929,7 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
                             }
                         }
 
-                        MUDA_ASSERT(inner_I < MaxIter,
+                        UIPC_KERNEL_ASSERT(inner_I < MaxIter,
                                     "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
                                     inner_I,
                                     MaxIter,
@@ -973,7 +973,7 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
             });
 }
 
-inline void StacklessBVH::build(muda::CBufferView<AABB> aabbs)
+inline void StacklessBVH::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     m_impl.build(aabbs);
 }
@@ -981,7 +981,7 @@ inline void StacklessBVH::build(muda::CBufferView<AABB> aabbs)
 template <std::invocable<IndexT, IndexT> Pred>
 void StacklessBVH::detect(Pred callback, QueryBuffer& qbuffer)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     // Query the LBVH
 
     if(m_impl.objs.size() == 0)
@@ -1014,7 +1014,7 @@ void StacklessBVH::detect(Pred callback, QueryBuffer& qbuffer)
     qbuffer.m_size = h_cp_num;
 }
 
-inline void StacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
+inline void StacklessBVH::QueryBuffer::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     auto size = aabbs.size();
     m_queryMtCode.resize(size);
@@ -1035,7 +1035,7 @@ inline void StacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
 }
 
 template <std::invocable<IndexT, IndexT> Pred>
-void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuffer& qbuffer)
+void StacklessBVH::query(cuda_tool::CBufferView<AABB> aabbs, Pred callback, QueryBuffer& qbuffer)
 {
     if(aabbs.size() == 0 || m_impl.objs.size() == 0)
     {
@@ -1043,7 +1043,7 @@ void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuff
         return;
     }
 
-    using namespace muda;
+    using namespace cuda_tool;
     qbuffer.build(aabbs);
 
     auto do_query = [&]

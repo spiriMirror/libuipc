@@ -11,7 +11,7 @@
 #include <affine_body/utils.h>
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <joint_dof_system/joint_dof_reporter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 
 namespace uipc::backend::cuda
@@ -42,14 +42,14 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
     vector<Float>                 h_current_angles;
     vector<Float>                 h_adopted_angles;
 
-    muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector12> rest_positions;
-    muda::DeviceBuffer<Float>    strength_ratio;
+    cuda_tool::DeviceBuffer<Vector2i> body_ids;
+    cuda_tool::DeviceBuffer<Vector12> rest_positions;
+    cuda_tool::DeviceBuffer<Float>    strength_ratio;
 
-    muda::DeviceBuffer<Vector6> l_basis;  // [n_L, b_L] per joint
-    muda::DeviceBuffer<Vector6> r_basis;  // [n_R, b_R] per joint
-    muda::DeviceBuffer<Float>   init_angles;
-    muda::DeviceBuffer<Float>   current_angles;
+    cuda_tool::DeviceBuffer<Vector6> l_basis;  // [n_L, b_L] per joint
+    cuda_tool::DeviceBuffer<Vector6> r_basis;  // [n_R, b_R] per joint
+    cuda_tool::DeviceBuffer<Float>   init_angles;
+    cuda_tool::DeviceBuffer<Float>   current_angles;
 
     BufferDump curr_angles_dump;
 
@@ -254,17 +254,17 @@ Edge             = ({}, {}))",
 
     void compute_current_angles()
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    l_basis  = l_basis.cviewer().name("l_basis"),
-                    r_basis  = r_basis.cviewer().name("r_basis"),
-                    qs       = affine_body_dynamics->qs().cviewer().name("qs"),
-                    current_angles = current_angles.viewer().name("current_angles"),
-                    init_angles = init_angles.cviewer().name("init_angles"),
+                   [body_ids = body_ids.cviewer(),
+                    l_basis  = l_basis.cviewer(),
+                    r_basis  = r_basis.cviewer(),
+                    qs       = affine_body_dynamics->qs().cviewer(),
+                    current_angles = current_angles.viewer(),
+                    init_angles = init_angles.cviewer(),
                     PI          = std::numbers::pi] __device__(int I)
                    {
                        Vector2i bids = body_ids(I);
@@ -283,7 +283,7 @@ Edge             = ({}, {}))",
                        // Wrong winding is silent and never self-corrects; warn near the pi aliasing limit.
                        if(::fabs(rel - prev_rel) > 0.9 * PI)
                        {
-                           MUDA_KERNEL_WARN_WITH_LOCATION(
+                           UIPC_KERNEL_WARN_WITH_LOCATION(
                                "revolute joint %d: per-frame rotation %f rad is "
                                "close to the pi unwrap limit; current_angle may "
                                "alias onto a wrong turn",
@@ -291,7 +291,7 @@ Edge             = ({}, {}))",
                                rel - prev_rel);
                        }
                        current_angles(I) = rel + init_angles(I);
-                       MUDA_ASSERT(::isfinite(current_angles(I)),
+                       UIPC_KERNEL_ASSERT(::isfinite(current_angles(I)),
                                    "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
                                    current_angles(I),
                                    theta,
@@ -306,17 +306,17 @@ Edge             = ({}, {}))",
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace RJ = sym::affine_body_revolute_joint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_positions = rest_positions.cviewer().name("rest_positions"),
-                    strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    qs = info.qs().viewer().name("qs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = body_ids.cviewer(),
+                    rest_positions = rest_positions.cviewer(),
+                    strength_ratio = strength_ratio.cviewer(),
+                    body_masses = info.body_masses().viewer(),
+                    qs = info.qs().viewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bids = body_ids(I);
 
@@ -357,7 +357,7 @@ Edge             = ({}, {}))",
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using Vector24    = Vector<Float, 24>;
         using Matrix24x24 = Matrix<Float, 24, 24>;
         using Matrix6x6   = Matrix<Float, 6, 6>;
@@ -368,13 +368,13 @@ Edge             = ({}, {}))",
             .file_line(__FILE__, __LINE__)
             .apply(
                 body_ids.size(),
-                [body_ids = body_ids.cviewer().name("body_ids"),
-                 rest_positions = rest_positions.cviewer().name("rest_positions"),
-                 strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                 body_masses = info.body_masses().viewer().name("body_masses"),
-                 qs          = info.qs().viewer().name("qs"),
-                 G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s     = info.hessians().viewer().name("H12x12s"),
+                [body_ids = body_ids.cviewer(),
+                 rest_positions = rest_positions.cviewer(),
+                 strength_ratio = strength_ratio.cviewer(),
+                 body_masses = info.body_masses().viewer(),
+                 qs          = info.qs().viewer(),
+                 G12s        = info.gradients().viewer(),
+                 H12x12s     = info.hessians().viewer(),
                  gradient_only] __device__(int I)
                 {
                     Vector2i        bids  = body_ids(I);
@@ -613,10 +613,10 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
     vector<Float>  h_aim_angles;
 
     // Device
-    muda::DeviceBuffer<IndexT> is_constrained;
-    muda::DeviceBuffer<Float>  strength_ratios;
-    muda::DeviceBuffer<IndexT> is_passive;
-    muda::DeviceBuffer<Float>  aim_angles;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT> is_passive;
+    cuda_tool::DeviceBuffer<Float>  aim_angles;
 
     void do_build(BuildInfo& info) override
     {
@@ -792,24 +792,24 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
 
     void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DRJ = sym::affine_body_driving_revolute_joint;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(is_constrained.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    is_constrained = is_constrained.cviewer().name("is_constrained"),
-                    strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                    is_passive = is_passive.cviewer().name("is_passive"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    aim_angles = aim_angles.cviewer().name("aim_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    qs = info.qs().cviewer().name("qs"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = revolute_joint->body_ids.cviewer(),
+                    l_basis = revolute_joint->l_basis.cviewer(),
+                    r_basis = revolute_joint->r_basis.cviewer(),
+                    is_constrained = is_constrained.cviewer(),
+                    strength_ratios = strength_ratios.cviewer(),
+                    is_passive = is_passive.cviewer(),
+                    init_angles = revolute_joint->init_angles.cviewer(),
+                    aim_angles = aim_angles.cviewer(),
+                    current_angles = revolute_joint->current_angles.cviewer(),
+                    qs = info.qs().cviewer(),
+                    body_masses = info.body_masses().cviewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bids        = body_ids(I);
                        auto     constrained = is_constrained(I);
@@ -861,25 +861,25 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         using Vector24    = Vector<Float, 24>;
         using Matrix24x24 = Matrix<Float, 24, 24>;
 
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DRJ = sym::affine_body_driving_revolute_joint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
                 is_constrained.size(),
-                [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                 l_basis  = revolute_joint->l_basis.cviewer().name("l_basis"),
-                 r_basis  = revolute_joint->r_basis.cviewer().name("r_basis"),
-                 is_constrained = is_constrained.cviewer().name("is_constrained"),
-                 strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                 is_passive = is_passive.cviewer().name("is_passive"),
-                 init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                 aim_angles = aim_angles.cviewer().name("aim_angles"),
-                 current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                 qs          = info.qs().cviewer().name("qs"),
-                 body_masses = info.body_masses().cviewer().name("body_masses"),
-                 G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s     = info.hessians().viewer().name("H12x12s"),
+                [body_ids = revolute_joint->body_ids.cviewer(),
+                 l_basis  = revolute_joint->l_basis.cviewer(),
+                 r_basis  = revolute_joint->r_basis.cviewer(),
+                 is_constrained = is_constrained.cviewer(),
+                 strength_ratios = strength_ratios.cviewer(),
+                 is_passive = is_passive.cviewer(),
+                 init_angles = revolute_joint->init_angles.cviewer(),
+                 aim_angles = aim_angles.cviewer(),
+                 current_angles = revolute_joint->current_angles.cviewer(),
+                 qs          = info.qs().cviewer(),
+                 body_masses = info.body_masses().cviewer(),
+                 G12s        = info.gradients().viewer(),
+                 H12x12s     = info.hessians().viewer(),
                  gradient_only = info.gradient_only()] __device__(int I)
                 {
                     Vector2i bids        = body_ids(I);
@@ -982,8 +982,8 @@ class AffineBodyRevoluteJointExternalForceConstraint final : public InterAffineB
     vector<Float>  h_torques;
     vector<IndexT> h_is_constrained;
 
-    muda::DeviceBuffer<Float>  torques;
-    muda::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  torques;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
 
     void do_build(BuildInfo& info) override
     {
@@ -1112,17 +1112,17 @@ class AffineBodyRevoluteJointExternalForce final : public AffineBodyExternalForc
 
         auto abd = constraint->revolute_joint->affine_body_dynamics;
 
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(torque_count,
-                   [external_forces = info.external_forces().viewer().name("external_forces"),
-                    body_ids = constraint->revolute_joint->body_ids.cviewer().name("body_ids"),
-                    torques = constraint->torques.cviewer().name("torques"),
+                   [external_forces = info.external_forces().viewer(),
+                    body_ids = constraint->revolute_joint->body_ids.cviewer(),
+                    torques = constraint->torques.cviewer(),
                     rest_positions =
-                        constraint->revolute_joint->rest_positions.cviewer().name("rest_positions"),
-                    constrained_flags = constraint->is_constrained.cviewer().name("constrained_flags"),
-                    qs = abd->qs().cviewer().name("qs")] __device__(int i) mutable
+                        constraint->revolute_joint->rest_positions.cviewer(),
+                    constrained_flags = constraint->is_constrained.cviewer(),
+                    qs = abd->qs().cviewer()] __device__(int i) mutable
                    {
                        if(constrained_flags(i) == 0)
                            return;
@@ -1186,9 +1186,9 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     vector<Float> h_uppers;
     vector<Float> h_strengths;
 
-    muda::DeviceBuffer<Float> lowers;
-    muda::DeviceBuffer<Float> uppers;
-    muda::DeviceBuffer<Float> strengths;
+    cuda_tool::DeviceBuffer<Float> lowers;
+    cuda_tool::DeviceBuffer<Float> uppers;
+    cuda_tool::DeviceBuffer<Float> strengths;
 
     void do_build(BuildInfo& info) override
     {
@@ -1262,22 +1262,22 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ = sym::affine_body_revolute_joint_limit;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(lowers.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   [body_ids = revolute_joint->body_ids.cviewer(),
+                    l_basis = revolute_joint->l_basis.cviewer(),
+                    r_basis = revolute_joint->r_basis.cviewer(),
+                    init_angles = revolute_joint->init_angles.cviewer(),
+                    current_angles = revolute_joint->current_angles.cviewer(),
+                    lowers    = lowers.cviewer(),
+                    uppers    = uppers.cviewer(),
+                    strengths = strengths.cviewer(),
+                    qs        = info.qs().cviewer(),
+                    q_prevs   = info.q_prevs().cviewer(),
+                    Es = info.energies().viewer()] __device__(int I)
                    {
                        Vector2i bid = body_ids(I);
 
@@ -1319,25 +1319,25 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ      = sym::affine_body_revolute_joint_limit;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(lowers.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    G12s      = info.gradients().viewer().name("G12s"),
-                    H12x12s   = info.hessians().viewer().name("H12x12s"),
+                   [body_ids = revolute_joint->body_ids.cviewer(),
+                    l_basis = revolute_joint->l_basis.cviewer(),
+                    r_basis = revolute_joint->r_basis.cviewer(),
+                    init_angles = revolute_joint->init_angles.cviewer(),
+                    current_angles = revolute_joint->current_angles.cviewer(),
+                    lowers    = lowers.cviewer(),
+                    uppers    = uppers.cviewer(),
+                    strengths = strengths.cviewer(),
+                    qs        = info.qs().cviewer(),
+                    q_prevs   = info.q_prevs().cviewer(),
+                    G12s      = info.gradients().viewer(),
+                    H12x12s   = info.hessians().viewer(),
                     gradient_only] __device__(int I) mutable
                    {
                        Vector2i bid = body_ids(I);

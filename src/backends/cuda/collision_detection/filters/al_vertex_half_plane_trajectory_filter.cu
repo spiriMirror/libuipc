@@ -1,5 +1,5 @@
 #include <collision_detection/filters/al_vertex_half_plane_trajectory_filter.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
 #include <pipeline/al_ipc_pipeline_flag.h>
@@ -15,12 +15,12 @@ void ALVertexHalfPlaneTrajectoryFilter::do_build(BuildInfo& info)
     require<ALIPCPipelineFlag>();
 }
 
-muda::CBufferView<Vector2i> ALVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
+cuda_tool::CBufferView<Vector2i> ALVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
 {
     return m_impl.PHs;
 }
 
-muda::CBufferView<Float> ALVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept
+cuda_tool::CBufferView<Float> ALVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept
 {
     return m_impl.tois;
 }
@@ -47,7 +47,7 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& in
 
 void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     info.toi().fill(1.1f);
     tois.resize(info.surf_vertices().size() * info.plane_positions().size());
@@ -61,19 +61,19 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
         .file_line(__FILE__, __LINE__)
         .apply(
             info.surf_vertices().size(),
-            [surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
+            [surf_vertices = info.surf_vertices().viewer(),
              plane_vertex_offset = info.half_plane_vertex_offset(),
-             positions           = info.positions().viewer().name("positions"),
-             thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-             subscene_element_ids = info.subscene_element_ids().viewer().name("contact_element_ids"),
-             subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
-             contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
-             displacements = info.displacements().viewer().name("displacements"),
-             half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
-             half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
-             PHs   = PHs.viewer().name("PHs"),
-             tois  = tois.viewer().name("tois"),
+             positions           = info.positions().viewer(),
+             thicknesses = info.thicknesses().viewer(),
+             contact_element_ids = info.contact_element_ids().viewer(),
+             subscene_element_ids = info.subscene_element_ids().viewer(),
+             subscene_mask_tabular = info.subscene_mask_tabular().viewer(),
+             contact_mask_tabular = info.contact_mask_tabular().viewer(),
+             displacements = info.displacements().viewer(),
+             half_plane_positions = info.plane_positions().viewer(),
+             half_plane_normals = info.plane_normals().viewer(),
+             PHs   = PHs.viewer(),
+             tois  = tois.viewer(),
              alpha = info.alpha(),
              eta] __device__(int i) mutable
             {

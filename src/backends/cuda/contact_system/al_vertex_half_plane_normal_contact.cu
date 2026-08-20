@@ -45,7 +45,7 @@ void ALVertexHalfPlaneNormalContact::do_report_gradient_hessian_extent(
 
 void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_vertex_half_plane_contact;
     auto& active_set = global_active_set_manager;
 
@@ -64,14 +64,14 @@ void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManage
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                PHs    = PHs.cviewer().name("PHs"),
-                cnt    = PH_cnt.cviewer().name("cnt"),
-                d0     = PH_d0.cviewer().name("d0"),
-                d_grad = PH_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Es = PH_energies.viewer().name("Es")] __device__(int idx) mutable
+                PHs    = PHs.cviewer(),
+                cnt    = PH_cnt.cviewer(),
+                d0     = PH_d0.cviewer(),
+                d_grad = PH_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Es = PH_energies.viewer()] __device__(int idx) mutable
                {
                    auto vI = PHs(idx);
                    auto mu = mu_v(vI);
@@ -83,7 +83,7 @@ void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManage
 
 void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     using namespace sym::al_vertex_half_plane_contact;
     auto& active_set = global_active_set_manager;
 
@@ -103,15 +103,15 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
+               [mu_v   = active_set->mu_vertices().cviewer(),
                 decay  = active_set->decay_factor(),
-                PHs    = PHs.cviewer().name("PHs"),
-                cnt    = PH_cnt.cviewer().name("cnt"),
-                d0     = PH_d0.cviewer().name("d0"),
-                d_grad = PH_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = PH_grad.viewer().name("Gs"),
-                Hs = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
+                PHs    = PHs.cviewer(),
+                cnt    = PH_cnt.cviewer(),
+                d0     = PH_d0.cviewer(),
+                d_grad = PH_d_grad.cviewer(),
+                x      = x.cviewer(),
+                Gs     = PH_grad.viewer(),
+                Hs = PH_hess.viewer()] __device__(int idx) mutable
                {
                    auto      vI = PHs(idx);
                    auto      mu = mu_v(vI);

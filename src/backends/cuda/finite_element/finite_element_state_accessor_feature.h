@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/core/finite_element_state_accessor_feature.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {

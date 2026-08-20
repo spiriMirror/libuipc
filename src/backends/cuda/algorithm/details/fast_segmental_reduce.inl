@@ -1,7 +1,7 @@
 #include <cub/warp/warp_reduce.cuh>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
-namespace muda
+namespace uipc::backend::cuda_tool
 {
 namespace details::fast_segmental_reduce
 {
@@ -33,7 +33,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     Launch(block_count, block_dim, 0, this->stream())
         .file_line(__FILE__, __LINE__)
         .apply(
-            [out          = out.viewer().name("out"),
+            [out          = out.viewer(),
              in_size      = size,
              get_key_op   = get_key_op,
              get_value_op = get_value_op,
@@ -132,9 +132,9 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     return reduce(
         in.size(),
         out,
-        [offset = offset.cviewer().name("offset")] __device__(int i) mutable
+        [offset = offset.cviewer()] __device__(int i) mutable
         { return offset(i); },
-        [in = in.cviewer().name("in")] __device__(int i) mutable
+        [in = in.cviewer()] __device__(int i) mutable
         { return in(i); },
         op);
 }
@@ -162,7 +162,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     Launch(block_count, block_dim, 0, this->stream())
         .kernel_name("segmental_reduce")
         .apply(
-            [out          = out.viewer().name("out"),
+            [out          = out.viewer(),
              in_size      = size,
              get_key_op   = get_key_op,
              get_value_op = get_value_op,
@@ -269,10 +269,10 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     return reduce(
         in.size(),
         out,
-        [offset = offset.cviewer().name("offset")] __device__(int i) mutable
+        [offset = offset.cviewer()] __device__(int i) mutable
         { return offset(i); },
-        [in = in.cviewer().name("in")] __device__(int i) mutable
+        [in = in.cviewer()] __device__(int i) mutable
         { return in(i); },
         op);
 }
-}  // namespace muda
+}  // namespace uipc::backend::cuda_tool

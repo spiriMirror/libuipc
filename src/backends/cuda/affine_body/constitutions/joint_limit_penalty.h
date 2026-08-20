@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/common/config.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda::joint_limit
 {
@@ -23,7 +23,7 @@ UIPC_GENERIC void eval_penalty_impl(const T& x,
 
     if constexpr(RUNTIME_CHECK)
     {
-        MUDA_ASSERT(lower <= upper,
+        UIPC_KERNEL_ASSERT(lower <= upper,
                     "joint_limit::eval_penalty requires lower <= upper, but got lower=%f, upper=%f",
                     static_cast<double>(lower),
                     static_cast<double>(upper));

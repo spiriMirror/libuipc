@@ -18,18 +18,18 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
 
     virtual void do_predict_dof(PredictDofInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
-                    is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    qs         = info.qs().cviewer().name("qs"),
-                    q_prevs    = info.q_prevs().viewer().name("q_prev"),
-                    q_vs       = info.q_vs().cviewer().name("q_velocities"),
-                    q_tildes   = info.q_tildes().viewer().name("q_tilde"),
-                    affine_gravity = info.gravities().cviewer().name("affine_gravity"),
-                    external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
+                   [is_fixed   = info.is_fixed().cviewer(),
+                    is_dynamic = info.is_dynamic().cviewer(),
+                    qs         = info.qs().cviewer(),
+                    q_prevs    = info.q_prevs().viewer(),
+                    q_vs       = info.q_vs().cviewer(),
+                    q_tildes   = info.q_tildes().viewer(),
+                    affine_gravity = info.gravities().cviewer(),
+                    external_force_accs = info.external_force_accs().cviewer(),
                     dt = info.dt()] __device__(int i) mutable
                    {
                        // record previous q
@@ -61,13 +61,13 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
 
     virtual void do_update_state(UpdateVelocityInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.qs().size(),
-                   [qs      = info.qs().cviewer().name("qs"),
-                    q_vs    = info.q_vs().viewer().name("q_vs"),
-                    q_prevs = info.q_prevs().cviewer().name("q_prevs"),
+                   [qs      = info.qs().cviewer(),
+                    q_vs    = info.q_vs().viewer(),
+                    q_prevs = info.q_prevs().cviewer(),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        auto& q_v    = q_vs(i);

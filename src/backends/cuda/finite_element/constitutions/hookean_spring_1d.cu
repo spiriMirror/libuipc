@@ -2,9 +2,9 @@
 #include <finite_element/codim_1d_constitution_diff_parm_reporter.h>
 #include <finite_element/constitutions/hookean_spring_1d_function.h>
 #include <kernel_cout.h>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <cuda_tool/muda_compat.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/codim_thickness.h>
 #include <utils/matrix_assembler.h>
 #include <numbers>
@@ -23,7 +23,7 @@ class HookeanSpring1D final : public Codim1DConstitution
     using Codim1DConstitution::Codim1DConstitution;
 
     vector<Float>             h_kappas;
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
@@ -70,19 +70,19 @@ class HookeanSpring1D final : public Codim1DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NS = sym::hookean_spring_1d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [kappas = kappas.cviewer().name("kappas"),
-                    rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                   [kappas = kappas.cviewer(),
+                    rest_lengths = info.rest_lengths().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    energies = info.energies().viewer(),
+                    indices  = info.indices().viewer(),
+                    xs       = info.xs().viewer(),
+                    x_bars   = info.x_bars().viewer(),
                     dt       = info.dt(),
                     Pi       = std::numbers::pi] __device__(int I)
                    {
@@ -106,21 +106,21 @@ class HookeanSpring1D final : public Codim1DConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace NS       = sym::hookean_spring_1d;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [G3s    = info.gradients().viewer().name("gradients"),
-                    H3x3s  = info.hessians().viewer().name("hessians"),
-                    kappas = kappas.cviewer().name("kappas"),
-                    rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
+                   [G3s    = info.gradients().viewer(),
+                    H3x3s  = info.hessians().viewer(),
+                    kappas = kappas.cviewer(),
+                    rest_lengths = info.rest_lengths().viewer(),
+                    thicknesses = info.thicknesses().viewer(),
+                    indices = info.indices().viewer(),
+                    xs      = info.xs().viewer(),
+                    x_bars  = info.x_bars().viewer(),
                     dt      = info.dt(),
                     Pi      = std::numbers::pi,
                     gradient_only] __device__(int I) mutable
