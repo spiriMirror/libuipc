@@ -222,12 +222,21 @@ void GlobalLinearSystem::Impl::build_linear_system()
         return;
     }
 
-    _assemble_linear_system();
+    {
+        Timer t{"Assemble Subsystems"};
+        _assemble_linear_system();
+    }
 
-    converter.ge2sym(triplet_A);
-    converter.convert(triplet_A, bcoo_A);
+    {
+        Timer t{"Convert To BCOO"};
+        converter.ge2sym(triplet_A);
+        converter.convert(triplet_A, bcoo_A);
+    }
 
-    _assemble_preconditioner();
+    {
+        Timer t{"Assemble Preconditioner"};
+        _assemble_preconditioner();
+    }
 
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
                  b.size(),

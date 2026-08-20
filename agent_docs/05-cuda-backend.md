@@ -96,7 +96,7 @@ FEMLineSearchReporter_step_forward_kernel
 | `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`、`Dense/CDense`（标量 viewer）、`ViewerBase`、`Extent2D`、`Buffer2DView`、`Dense1D/Dense2D`（含 `make_dense_1d/2d`） |
 | `launch.h` | `best_block_dim/best_grid_dim`（占用率自选块大小/grid 计算） |
 | `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`、`BufferLaunch`（fill/copy/resize，内部命名模板 kernel） |
-| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装（指针形态）+ warp 级 cub 头 |
+| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装（指针形态）+ warp 级 cub 头；**临时存储走 stream 级 workspace 缓存**（`details::cub_temp_storage`，按需 2× 增长、跨调用复用——逐次 cudaMalloc/cudaFree 每次 ~10-100µs 且与设备隐式同步，曾在 6_wrecking_balls 场景造成 ~15%/帧 的性能回退） |
 | `linear_system.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + 全套 view（Triplet/Doublet/DenseVector/BCOO）+ `LinearSystemContext`（cublas dot/norm） |
 | `eigen.h` + `eigen/` | 设备端小矩阵数学（`eigen::evd/svd/pd/inverse/atomic_add`，自 muda ext/eigen 逐字移植，比特级一致） |
 | `debug.h` | `debug_sync_all/check_finite` + `UIPC_KERNEL_ASSERT/ERROR/WARN` 宏族（随 `uipc::RUNTIME_CHECK`） |

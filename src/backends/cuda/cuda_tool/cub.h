@@ -2,6 +2,8 @@
 #include <cuda_tool/stream.h>
 #include <cuda_tool/buffer.h>
 #include <cuda_runtime.h>
+#include <cstddef>
+#include <unordered_map>
 // cub is a header-only CUDA algorithm library that ships with the CUDA toolkit.
 #include <cub/device/device_reduce.cuh>
 #include <cub/device/device_scan.cuh>
@@ -21,18 +23,28 @@ namespace uipc::backend::cuda_tool
 {
 namespace details
 {
-    // allocate temporary storage for a cub call, run, and free.
+    // Per-stream cached scratch for cub temp storage (muda Stream::workspace
+    // parity): grows on demand and is reused across calls. Plain
+    // cudaMalloc/cudaFree per call not only costs ~10-100us each, it also
+    // serializes with the device -- measurable per frame with dozens of cub
+    // calls (trajectory filters, matrix conversion).
+    inline std::byte* cub_temp_storage(size_t bytes, cudaStream_t stream)
+    {
+        static thread_local std::unordered_map<cudaStream_t, DeviceVector<std::byte>> workspaces;
+        auto& buf = workspaces[stream];
+        if(buf.capacity() < bytes)
+            buf.reserve(bytes * 2, stream);
+        return reinterpret_cast<std::byte*>(buf.data());
+    }
+
+    // query temp storage size, serve it from the per-stream workspace, run.
     template <typename Fn>
     void run_with_temp_storage(Fn&& fn, cudaStream_t stream)
     {
         size_t temp_bytes = 0;
         fn(nullptr, temp_bytes, stream);  // query
-        void* temp = nullptr;
-        if(temp_bytes)
-            CUDA_TOOL_CHECK(cudaMalloc(&temp, temp_bytes));
+        std::byte* temp = temp_bytes ? cub_temp_storage(temp_bytes, stream) : nullptr;
         fn(temp, temp_bytes, stream);  // run
-        if(temp)
-            cudaFree(temp);
     }
 }  // namespace details
 

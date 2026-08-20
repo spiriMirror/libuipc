@@ -101,6 +101,19 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
 5. **两轮 cuda_tool 精简** (`f6fd6bb3`, `2a8f78d7`) — 删零引用原语与
    helper。
 
+- **性能排查教训（6_wrecking_balls，619a5412 基线 A/B）**：
+  1. 真正的回归根因：cuda_tool 初版 cub 封装逐次 `cudaMalloc/cudaFree`
+     临时存储（每次 ~10-100µs 且隐式设备同步；每帧几十次 cub 调用）
+     → 已修为 stream 级 workspace 缓存（`cub.h` details），帧耗时
+     73.9→66.7ms，前 8 帧（接触前）中位数与基线持平。
+  2. 排查陷阱 a：**构建争用会彻底污染计时**（sanity_check 曾被误判为
+     ~112ms/帧元凶，实际空闲机上仅 ~2-5ms/帧）——计时实验必须空机。
+  3. 排查陷阱 b：接触激活后的帧间相位对比无意义——两套二进制块大小
+     不同→ULP 级差异→轨迹发散，后程帧已不在同一物理状态。
+  4. 该场景 ~65ms/帧的下限构成：dump ~5-10ms + 每帧 Timer.report/日志
+     打印 ~10-30ms + sanity_check ~2-5ms + 真管线 20-45ms（基线同样
+     如此）——"感觉慢"主要是固有结构，不是回归。
+
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 
 - 布料刚度公式与 mas-pncg 对齐，膜元权重为三角形 **area**（非 volume，
