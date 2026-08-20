@@ -5,7 +5,6 @@
 #include <algorithm/matrix_converter.h>
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
-#include <sim_engine.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend

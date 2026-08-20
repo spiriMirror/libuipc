@@ -5,7 +5,6 @@
 #include <uipc/geometry.h>
 #include <cuda_tool/cuda_tool.h>
 #include <uipc/common/enumerate.h>
-#include <cuda_tool/cuda_tool.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 #include <algorithm>

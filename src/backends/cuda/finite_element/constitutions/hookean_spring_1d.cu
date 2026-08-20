@@ -4,7 +4,6 @@
 #include <kernel_cout.h>
 #include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <cuda_tool/cuda_tool.h>
 #include <utils/codim_thickness.h>
 #include <utils/matrix_assembler.h>
 #include <numbers>

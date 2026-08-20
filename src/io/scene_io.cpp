@@ -12,7 +12,6 @@
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/merge.h>
 #include <uipc/io/simplicial_complex_io.h>
-#include <uipc/core/scene_factory.h>
 
 
 namespace uipc::core

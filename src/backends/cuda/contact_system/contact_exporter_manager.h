@@ -6,7 +6,6 @@
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 #include <contact_system/simplex_normal_contact.h>
-#include <contact_system/simplex_frictional_contact.h>
 #include <contact_system/vertex_half_plane_normal_contact.h>
 #include <contact_system/vertex_half_plane_frictional_contact.h>
 

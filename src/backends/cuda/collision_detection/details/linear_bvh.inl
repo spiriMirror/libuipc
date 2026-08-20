@@ -3,7 +3,6 @@
 
 #include <cub/util_ptx.cuh>
 #include <cuda/atomic>
-#include <cuda_tool/cuda_tool.h>
 
 #include <uipc/common/log.h>
 

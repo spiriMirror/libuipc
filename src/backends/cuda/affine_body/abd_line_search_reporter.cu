@@ -3,7 +3,6 @@
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/cuda_tool.h>
 #include <affine_body/abd_line_search_subreporter.h>
 #include <affine_body/affine_body_kinetic.h>
 

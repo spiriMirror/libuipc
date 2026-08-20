@@ -14,11 +14,8 @@
 #include <uipc/common/zip.h>
 #include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/cuda_tool.h>
 #include <sim_engine.h>
 #include <uipc/builtin/constitution_type.h>
-#include <cuda_tool/cuda_tool.h>
-#include <uipc/builtin/attribute_name.h>
 
 #include <utils/offset_count_collection.h>
 #include <affine_body/affine_body_kinetic.h>

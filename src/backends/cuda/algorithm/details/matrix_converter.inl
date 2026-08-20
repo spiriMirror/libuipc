@@ -1,10 +1,8 @@
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
-#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/timer.h>
 #include <algorithm/fast_segmental_reduce.h>
-#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {

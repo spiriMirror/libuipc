@@ -6,7 +6,6 @@
 #include <uipc/geometry.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <cuda_tool/cuda_tool.h>
-#include <cuda_tool/cuda_tool.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 

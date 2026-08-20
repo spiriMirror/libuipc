@@ -3,7 +3,6 @@
 #include <cuda_tool/cuda_tool.h>
 #include <utils/distance.h>
 #include <utils/distance/distance_flagged.h>
-#include <cuda_tool/cuda_tool.h>
 #include <utils/friction_utils.h>
 
 namespace uipc::backend::cuda

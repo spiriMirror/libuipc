@@ -6,7 +6,6 @@
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
