@@ -1,5 +1,3 @@
-add_requires("muda 09f8a0beca898b5325c7b0c1e4cf67ea4781f3b9",{system = false,configs = {with_check = true}})
-
 target("cuda")
     add_rules("backend")
     if has_config("dev") then
@@ -8,6 +6,8 @@ target("cuda")
     add_files("**.cpp", "**.cu")
     add_headerfiles("**.h", "**.inl")
     add_includedirs(os.scriptdir(), {public = true})
+    -- cuda_tool (self-written device utilities) on the include path for <cuda_tool/...>
+    add_includedirs(path.join(os.scriptdir(), "cuda_tool"), {public = true})
     if has_config("github_actions") then
         add_cugencodes("sm_89")
     else
@@ -36,4 +36,3 @@ target("cuda")
         end
         target:set('toolchains', 'cuda')
     end)
-    add_packages("muda")

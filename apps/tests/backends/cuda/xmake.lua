@@ -12,4 +12,3 @@ target("backend_cuda")
         add_cugencodes("native")
     end
     add_cuflags("/wd4819", {tools = "cl"})
-    add_packages("muda")
