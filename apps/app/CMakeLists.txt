@@ -7,6 +7,6 @@ target_include_directories(app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../")
 
 set_property(TARGET app PROPERTY FOLDER "apps")
 
-file(GLOB SOURCE "*.cpp" "*.h")
+file(GLOB SOURCE CONFIGURE_DEPENDS "*.cpp" "*.h")
 target_sources(app PRIVATE ${SOURCE})
 uipc_target_set_relative_source_file(app)

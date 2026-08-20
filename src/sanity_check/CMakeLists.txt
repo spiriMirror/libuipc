@@ -1,6 +1,6 @@
 add_library(uipc_sanity_check SHARED)
 add_library(uipc::sanity_check ALIAS uipc_sanity_check)
-file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_sanity_check PRIVATE ${SOURCES})
 uipc_target_set_relative_source_file(uipc_sanity_check)
 
@@ -13,7 +13,7 @@ uipc_target_set_rpath(uipc_sanity_check)
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 # ------------------------------------------------------------------------------

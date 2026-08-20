@@ -15,7 +15,7 @@ target_link_libraries(uipc_io PRIVATE
     urdfdom::urdfdom_world 
     urdfdom::urdfdom_sensor)
 
-file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_io PRIVATE ${SOURCES})
 uipc_target_set_relative_source_file(uipc_io)
 
@@ -25,7 +25,7 @@ uipc_target_set_rpath(uipc_io)
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 # ------------------------------------------------------------------------------

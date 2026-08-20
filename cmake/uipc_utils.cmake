@@ -198,7 +198,7 @@ endfunction()
 function(uipc_target_add_include_files target_name)
     set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
     target_include_directories(${target_name} PUBLIC ${INCLUDE_DIR})
-    file(GLOB_RECURSE INCLUDE_FILES "${INCLUDE_DIR}/*.h" "${INCLUDE_DIR}/*.inl")
+    file(GLOB_RECURSE INCLUDE_FILES CONFIGURE_DEPENDS "${INCLUDE_DIR}/*.h" "${INCLUDE_DIR}/*.inl")
     target_sources(${target_name} PRIVATE ${INCLUDE_FILES})
 
     # setup source group for the IDE
