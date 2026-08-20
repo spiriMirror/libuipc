@@ -11,13 +11,19 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void say_hello_from_cuda_kernel(cuda_tool::LoggerViewer cout)
+    {
+        cout << "CUDA Backend Kernel Console Init Success!\n";
+    }
+}  // namespace
+
 void say_hello_from_cuda()
 {
-    using namespace cuda_tool;
-    Launch()
-        .apply([cout = KernelCout::viewer()] __device__() mutable
-               { cout << "CUDA Backend Kernel Console Init Success!\n"; })
-        .wait();
+    // muda Launch() defaults to a 1x1 launch on the default stream
+    say_hello_from_cuda_kernel<<<1, 1, 0, nullptr>>>(KernelCout::viewer());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
 }
 
 SimEngine::SimEngine(EngineCreateInfo* info)

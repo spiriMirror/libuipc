@@ -9,6 +9,9 @@ class FastSegmentalReduce : public LaunchBase<FastSegmentalReduce<BlockSize, War
 {
     using Base = LaunchBase<FastSegmentalReduce<BlockSize, WarpSize>>;
 
+  public:
+    // public on purpose: NVCC requires template argument types of __global__
+    // kernels to be publicly accessible (the reduce kernels take FlagsT).
     struct Flags
     {
         union

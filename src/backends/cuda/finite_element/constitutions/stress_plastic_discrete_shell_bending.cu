@@ -40,6 +40,144 @@ bool stencil_less(const Vector4i& a, const Vector4i& b)
 
     return false;
 }
+
+namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
+
+constexpr SizeT StencilSize     = 4;
+constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
+__global__ void StressPlasticDiscreteShellBending_do_compute_energy_kernel(
+    cuda_tool::BufferView<Vector4i> stencils,
+    cuda_tool::BufferView<Float>    bending_stiffnesses,
+    cuda_tool::BufferView<Float>    theta_bars,
+    cuda_tool::BufferView<Float>    yield_stresses,
+    cuda_tool::BufferView<Float>    h_bars,
+    cuda_tool::BufferView<Float>    V_bars,
+    cuda_tool::BufferView<Float>    L0s,
+    cuda_tool::CBufferView<Vector3> xs,
+    cuda_tool::BufferView<Float>    energies,
+    Float                           dt,
+    int                             n)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= n)
+        return;
+    Vector4i stencil      = stencils(I);
+    Float    kappa        = bending_stiffnesses(I);
+    Float    L0           = L0s(I);
+    Float    h_bar        = h_bars(I);
+    Float    theta_bar    = theta_bars(I);
+    Float    yield_stress = yield_stresses(I);
+    Float    V_bar        = V_bars(I);
+
+    Vector3 x0 = xs(stencil[0]);
+    Vector3 x1 = xs(stencil[1]);
+    Vector3 x2 = xs(stencil[2]);
+    Vector3 x3 = xs(stencil[3]);
+
+    Float E =
+        SPDSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
+    energies(I) = E * V_bar * dt * dt;
+}
+
+__global__ void StressPlasticDiscreteShellBending_do_compute_gradient_hessian_kernel(
+    cuda_tool::BufferView<Vector4i>          stencils,
+    cuda_tool::BufferView<Float>             bending_stiffnesses,
+    cuda_tool::BufferView<Float>             theta_bars,
+    cuda_tool::BufferView<Float>             yield_stresses,
+    cuda_tool::BufferView<Float>             h_bars,
+    cuda_tool::BufferView<Float>             V_bars,
+    cuda_tool::BufferView<Float>             L0s,
+    cuda_tool::CBufferView<Vector3>          xs,
+    cuda_tool::DoubletVectorView<Float, 3>   G3s,
+    cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
+    Float                                    dt,
+    bool                                     gradient_only,
+    int                                      n)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= n)
+        return;
+    Vector4i stencil      = stencils(I);
+    Float    kappa        = bending_stiffnesses(I);
+    Float    L0           = L0s(I);
+    Float    h_bar        = h_bars(I);
+    Float    theta_bar    = theta_bars(I);
+    Float    yield_stress = yield_stresses(I);
+    Float    V_bar        = V_bars(I);
+
+    Vector3 x0 = xs(stencil[0]);
+    Vector3 x1 = xs(stencil[1]);
+    Vector3 x2 = xs(stencil[2]);
+    Vector3 x3 = xs(stencil[3]);
+
+    Float Vdt2 = V_bar * dt * dt;
+
+    Vector12    G12;
+    Matrix12x12 H12x12;
+
+    SPDSB::dEdx(
+        G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
+    G12 *= Vdt2;
+    DoubletVectorAssembler DVA{G3s};
+    DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
+
+    if(gradient_only)
+        return;
+
+    SPDSB::ddEddx(
+        H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
+    H12x12 *= Vdt2;
+    make_spd(H12x12);
+
+    TripletMatrixAssembler TMA{H3x3s};
+    TMA.half_block<StencilSize>(I * HalfHessianSize).write(stencil, H12x12);
+}
+
+__global__ void StressPlasticDiscreteShellBendingTimeIntegrator_do_update_state_kernel(
+    cuda_tool::CBufferView<Vector4i> stencils,
+    cuda_tool::BufferView<Float>     theta_bars,
+    cuda_tool::BufferView<Float>     yield_stresses,
+    cuda_tool::CBufferView<Float>    hardening_moduli,
+    cuda_tool::CBufferView<Float>    bending_stiffnesses,
+    cuda_tool::CBufferView<Float>    rest_lengths,
+    cuda_tool::CBufferView<Float>    h_bars,
+    cuda_tool::CBufferView<Vector3>  xs,
+    int                              n)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= n)
+        return;
+    Vector4i stencil = stencils(I);
+
+    Vector3 x0 = xs(stencil[0]);
+    Vector3 x1 = xs(stencil[1]);
+    Vector3 x2 = xs(stencil[2]);
+    Vector3 x3 = xs(stencil[3]);
+
+    Float theta = 0.0;
+    if(!SPDSB::safe_dihedral_angle(x0, x1, x2, x3, theta))
+        return;
+
+    Float theta_bar         = theta_bars(I);
+    Float yield_stress      = yield_stresses(I);
+    Float hardening         = hardening_moduli(I);
+    Float bending_stiffness = bending_stiffnesses(I);
+    Float L0                = rest_lengths(I);
+    Float h_bar             = h_bars(I);
+
+    if(SPDSB::update_plastic_state<Float>(theta,
+                                          theta_bar,
+                                          yield_stress,
+                                          hardening,
+                                          bending_stiffness,
+                                          L0,
+                                          h_bar))
+    {
+        theta_bars(I)     = theta_bar;
+        yield_stresses(I) = yield_stress;
+    }
+}
 }  // namespace
 
 class StressPlasticDiscreteShellBending final : public FiniteElementExtraConstitution
@@ -246,98 +384,46 @@ class StressPlasticDiscreteShellBending final : public FiniteElementExtraConstit
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.energies().size(),
-                   [stencils = stencils.viewer(),
-                    bending_stiffnesses = bending_stiffnesses.viewer(),
-                    theta_bars = theta_bars.viewer(),
-                    yield_stresses = yield_stresses.viewer(),
-                    h_bars   = h_bars.viewer(),
-                    V_bars   = V_bars.viewer(),
-                    L0s      = rest_lengths.viewer(),
-                    xs       = info.xs().viewer(),
-                    energies = info.energies().viewer(),
-                    dt       = info.dt()] __device__(int I)
-                   {
-                       Vector4i stencil      = stencils(I);
-                       Float    kappa        = bending_stiffnesses(I);
-                       Float    L0           = L0s(I);
-                       Float    h_bar        = h_bars(I);
-                       Float    theta_bar    = theta_bars(I);
-                       Float    yield_stress = yield_stresses(I);
-                       Float    V_bar        = V_bars(I);
-
-                       Vector3 x0 = xs(stencil[0]);
-                       Vector3 x1 = xs(stencil[1]);
-                       Vector3 x2 = xs(stencil[2]);
-                       Vector3 x3 = xs(stencil[3]);
-
-                       Float E =
-                           SPDSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
-                       energies(I) = E * V_bar * dt * dt;
-                   });
+        auto k = StressPlasticDiscreteShellBending_do_compute_energy_kernel;
+        int  n = (int)info.energies().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                stencils.view(),
+                bending_stiffnesses.view(),
+                theta_bars.view(),
+                yield_stresses.view(),
+                h_bars.view(),
+                V_bars.view(),
+                rest_lengths.view(),
+                info.xs(),
+                info.energies(),
+                info.dt(),
+                n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(stencils.size(),
-                   [stencils = stencils.viewer(),
-                    bending_stiffnesses = bending_stiffnesses.viewer(),
-                    theta_bars = theta_bars.viewer(),
-                    yield_stresses = yield_stresses.viewer(),
-                    h_bars = h_bars.viewer(),
-                    V_bars = V_bars.viewer(),
-                    L0s    = rest_lengths.viewer(),
-                    xs     = info.xs().viewer(),
-                    G3s    = info.gradients().viewer(),
-                    H3x3s  = info.hessians().viewer(),
-                    dt     = info.dt(),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       Vector4i stencil      = stencils(I);
-                       Float    kappa        = bending_stiffnesses(I);
-                       Float    L0           = L0s(I);
-                       Float    h_bar        = h_bars(I);
-                       Float    theta_bar    = theta_bars(I);
-                       Float    yield_stress = yield_stresses(I);
-                       Float    V_bar        = V_bars(I);
-
-                       Vector3 x0 = xs(stencil[0]);
-                       Vector3 x1 = xs(stencil[1]);
-                       Vector3 x2 = xs(stencil[2]);
-                       Vector3 x3 = xs(stencil[3]);
-
-                       Float Vdt2 = V_bar * dt * dt;
-
-                       Vector12    G12;
-                       Matrix12x12 H12x12;
-
-                       SPDSB::dEdx(
-                           G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
-                       G12 *= Vdt2;
-                       DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
-
-                       if(gradient_only)
-                           return;
-
-                       SPDSB::ddEddx(
-                           H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
-                       H12x12 *= Vdt2;
-                       make_spd(H12x12);
-
-                       TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(stencil, H12x12);
-                   });
+        auto k = StressPlasticDiscreteShellBending_do_compute_gradient_hessian_kernel;
+        int  n = (int)stencils.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                stencils.view(),
+                bending_stiffnesses.view(),
+                theta_bars.view(),
+                yield_stresses.view(),
+                h_bars.view(),
+                V_bars.view(),
+                rest_lengths.view(),
+                info.xs(),
+                info.gradients(),
+                info.hessians(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 REGISTER_SIM_SYSTEM(StressPlasticDiscreteShellBending);
@@ -364,51 +450,21 @@ class StressPlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegra
 
     void do_update_state(TimeIntegrator::UpdateVelocityInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(spdsb->stencils.size(),
-                   [stencils = spdsb->stencils.cviewer(),
-                    theta_bars = spdsb->theta_bars.viewer(),
-                    yield_stresses = spdsb->yield_stresses.viewer(),
-                    hardening_moduli = spdsb->hardening_moduli.cviewer(),
-                    bending_stiffnesses = spdsb->bending_stiffnesses.cviewer(),
-                    rest_lengths = spdsb->rest_lengths.cviewer(),
-                    h_bars = spdsb->h_bars.cviewer(),
-                    xs = fem->xs().cviewer()] __device__(int I) mutable
-                   {
-                       Vector4i stencil = stencils(I);
-
-                       Vector3 x0 = xs(stencil[0]);
-                       Vector3 x1 = xs(stencil[1]);
-                       Vector3 x2 = xs(stencil[2]);
-                       Vector3 x3 = xs(stencil[3]);
-
-                       Float theta = 0.0;
-                       if(!SPDSB::safe_dihedral_angle(x0, x1, x2, x3, theta))
-                           return;
-
-                       Float theta_bar         = theta_bars(I);
-                       Float yield_stress      = yield_stresses(I);
-                       Float hardening         = hardening_moduli(I);
-                       Float bending_stiffness = bending_stiffnesses(I);
-                       Float L0                = rest_lengths(I);
-                       Float h_bar             = h_bars(I);
-
-                       if(SPDSB::update_plastic_state<Float>(theta,
-                                                             theta_bar,
-                                                             yield_stress,
-                                                             hardening,
-                                                             bending_stiffness,
-                                                             L0,
-                                                             h_bar))
-                       {
-                           theta_bars(I)     = theta_bar;
-                           yield_stresses(I) = yield_stress;
-                       }
-                   });
+        auto k = StressPlasticDiscreteShellBendingTimeIntegrator_do_update_state_kernel;
+        int  n = (int)spdsb->stencils.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                spdsb->stencils.cview(),
+                spdsb->theta_bars.view(),
+                spdsb->yield_stresses.view(),
+                spdsb->hardening_moduli.cview(),
+                spdsb->bending_stiffnesses.cview(),
+                spdsb->rest_lengths.cview(),
+                spdsb->h_bars.cview(),
+                fem->xs().cview(),
+                n);
+        }
     }
 
     bool do_dump(DumpInfo& info) override

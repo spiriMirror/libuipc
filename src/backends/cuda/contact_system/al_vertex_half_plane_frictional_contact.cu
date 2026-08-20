@@ -7,6 +7,79 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void do_compute_energy_kernel(cuda_tool::CDense2D<ContactCoeff> table,
+                                             cuda_tool::CBufferView<IndexT> contact_ids,
+                                             IndexT half_plane_vertex_offset,
+                                             Float eps_v,
+                                             Float dt,
+                                             cuda_tool::CBufferView<Vector2i> PHs,
+                                             cuda_tool::CBufferView<Float> lambda,
+                                             cuda_tool::CBufferView<Vector3> x,
+                                             cuda_tool::CBufferView<Vector3> prev_x,
+                                             cuda_tool::CBufferView<Vector3> plane_normals,
+                                             cuda_tool::BufferView<Float> Es,
+                                             int   n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+
+        using namespace sym::al_vertex_half_plane_contact;
+
+        auto vI = PHs(idx)(0), HI = PHs(idx)(1);
+
+        ContactCoeff coeff =
+            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
+        Float mu = coeff.mu;
+
+        const auto& N            = plane_normals(HI);
+        auto        normal_force = lambda(idx);
+
+        Es(idx) = half_plane_frictional_energy(
+            mu, eps_v * dt, normal_force, x(vI), prev_x(vI), N);
+    }
+
+    __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
+                                       cuda_tool::CBufferView<IndexT> contact_ids,
+                                       IndexT half_plane_vertex_offset,
+                                       Float eps_v,
+                                       Float dt,
+                                       cuda_tool::CBufferView<Vector2i> PHs,
+                                       cuda_tool::CBufferView<Float> lambda,
+                                       cuda_tool::CBufferView<Vector3> x,
+                                       cuda_tool::CBufferView<Vector3> prev_x,
+                                       cuda_tool::CBufferView<Vector3> plane_normals,
+                                       cuda_tool::DoubletVectorView<Float, 3> Gs,
+                                       cuda_tool::TripletMatrixView<Float, 3> Hs,
+                                       int   n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+
+        using namespace sym::al_vertex_half_plane_contact;
+
+        auto vI = PHs(idx)(0), HI = PHs(idx)(1);
+
+        ContactCoeff coeff =
+            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
+        Float mu = coeff.mu;
+
+        const auto& N            = plane_normals(HI);
+        auto        normal_force = lambda(idx);
+
+        Vector3   G;
+        Matrix3x3 H;
+        half_plane_frictional_gradient_hessian(
+            G, H, mu, eps_v * dt, normal_force, x(vI), prev_x(vI), N);
+
+        Gs(idx).write(vI, G);
+        Hs(idx).write(vI, vI, H);
+    }
+}  // namespace
+
 void ALVertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info)
 {
     require<ALIPCPipelineFlag>();
@@ -67,35 +140,23 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactMa
     auto PHs       = active_set->PHs_friction();
     auto PH_lambda = active_set->PH_lambda_friction();
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PH_size,
-               [table = global_contact_manager->contact_tabular().cviewer(),
-                contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer(),
-                half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
-                eps_v  = global_contact_manager->eps_velocity(),
-                dt     = dt_attr->view()[0],
-                PHs    = PHs.cviewer(),
-                lambda = PH_lambda.cviewer(),
-                x      = x.cviewer(),
-                prev_x = prev_x.cviewer(),
-                plane_positions = half_plane->positions().viewer(),
-                plane_normals = half_plane->normals().viewer(),
-                Es = PH_energies.viewer()] __device__(int idx) mutable
-               {
-                   auto vI = PHs(idx)(0), HI = PHs(idx)(1);
-
-                   ContactCoeff coeff =
-                       table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
-                   Float mu = coeff.mu;
-
-                   const auto& N            = plane_normals(HI);
-                   auto        normal_force = lambda(idx);
-
-                   Es(idx) = half_plane_frictional_energy(
-                       mu, eps_v * dt, normal_force, x(vI), prev_x(vI), N);
-               });
+    if(PH_size > 0)
+        do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)PH_size,
+                                                            do_compute_energy_kernel),
+                                   cuda_tool::best_block_dim(do_compute_energy_kernel),
+                                   0,
+                                   nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
+                                              global_vertex_manager->contact_element_ids().cviewer(),
+                                              half_plane_vertex_reporter->vertex_offset(),
+                                              global_contact_manager->eps_velocity(),
+                                              dt_attr->view()[0],
+                                              PHs.cviewer(),
+                                              PH_lambda.cviewer(),
+                                              x.cviewer(),
+                                              prev_x.cviewer(),
+                                              half_plane->normals().viewer(),
+                                              PH_energies.viewer(),
+                                              (int)PH_size);
 }
 
 void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
@@ -116,41 +177,23 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
     auto PHs       = active_set->PHs_friction();
     auto PH_lambda = active_set->PH_lambda_friction();
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PH_size,
-               [table = global_contact_manager->contact_tabular().cviewer(),
-                contact_ids =
-                    global_vertex_manager->contact_element_ids().cviewer(),
-                half_plane_vertex_offset = half_plane_vertex_reporter->vertex_offset(),
-                eps_v  = global_contact_manager->eps_velocity(),
-                dt     = dt_attr->view()[0],
-                PHs    = PHs.cviewer(),
-                lambda = PH_lambda.cviewer(),
-                x      = x.cviewer(),
-                prev_x = prev_x.cviewer(),
-                plane_positions = half_plane->positions().viewer(),
-                plane_normals = half_plane->normals().viewer(),
-                Gs = PH_grad.viewer(),
-                Hs = PH_hess.viewer()] __device__(int idx) mutable
-               {
-                   auto vI = PHs(idx)(0), HI = PHs(idx)(1);
-
-                   ContactCoeff coeff =
-                       table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
-                   Float mu = coeff.mu;
-
-                   const auto& N            = plane_normals(HI);
-                   auto        normal_force = lambda(idx);
-
-                   Vector3   G;
-                   Matrix3x3 H;
-                   half_plane_frictional_gradient_hessian(
-                       G, H, mu, eps_v * dt, normal_force, x(vI), prev_x(vI), N);
-
-                   Gs(idx).write(vI, G);
-                   Hs(idx).write(vI, vI, H);
-               });
+    if(PH_size > 0)
+        do_assemble_kernel<<<cuda_tool::best_grid_dim((int)PH_size, do_assemble_kernel),
+                             cuda_tool::best_block_dim(do_assemble_kernel),
+                             0,
+                             nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
+                                        global_vertex_manager->contact_element_ids().cviewer(),
+                                        half_plane_vertex_reporter->vertex_offset(),
+                                        global_contact_manager->eps_velocity(),
+                                        dt_attr->view()[0],
+                                        PHs.cviewer(),
+                                        PH_lambda.cviewer(),
+                                        x.cviewer(),
+                                        prev_x.cviewer(),
+                                        half_plane->normals().viewer(),
+                                        PH_grad.viewer(),
+                                        PH_hess.viewer(),
+                                        (int)PH_size);
 }
 
 void ALVertexHalfPlaneFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)

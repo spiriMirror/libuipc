@@ -6,6 +6,7 @@
 
 #include <uipc/common/log.h>
 
+
 /*****************************************************************************************
  * Viewer Core Implementation
  *****************************************************************************************/
@@ -159,6 +160,79 @@ UIPC_INLINE bool LinearBVHNode::is_internal() const noexcept
 * LinearBVH Core Implementation
 *********************************************************************************/
 
+
+namespace uipc::backend::cuda
+{
+namespace
+{
+    using namespace cuda_tool;
+
+    __global__ void linear_bvh_build_internal_aabbs_kernel(cuda_tool::CBufferView<LinearBVHNode> nodes,
+                                                           cuda_tool::BufferView<LinearBVHAABB> aabbs,
+                                                           cuda_tool::BufferView<int> flags,
+                                                           int leaf_start,
+                                                           int n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto leaf_idx = I + leaf_start;
+        auto parent   = nodes(leaf_idx).parent_idx;
+
+        while(parent != 0xFFFFFFFF)  // means idx == 0
+        {
+            const int old = cuda_tool::atomic_add(&flags(parent), 1);
+
+            // the memory fence is necessary to disable reordering of the memory access.
+            // we need to ensure that this thread can get the updated value of AABB.
+            ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
+                                        ::cuda::thread_scope_system);
+
+            if(old == 0)
+            {
+                // this is the first thread entered here.
+                // wait the other thread from the other child node.
+                return;
+            }
+            UIPC_KERNEL_ASSERT(old == 1, "old=%d", old);
+            //here, the flag has already been 1. it means that this
+            //thread is the 2nd thread. merge AABB of both childlen.
+
+            const auto lidx = nodes(parent).left_idx;
+            const auto ridx = nodes(parent).right_idx;
+            auto&      lbox = aabbs(lidx);
+            auto&      rbox = aabbs(ridx);
+
+            // to avoid cache coherency problem, we must use atomic operation.
+            auto atomic_fetch = [](LinearBVHAABB& aabb) -> LinearBVHAABB
+            {
+                Eigen::Vector3f zero  = Eigen::Vector3f::Zero();
+                LinearBVHAABB   aabb_ = aabb;
+
+                // without atomic_thread_fence, this loop may be infinite.
+                while(aabb_.isEmpty())
+                {
+                    auto min_ = eigen::atomic_add(aabb.min(), zero);
+                    auto max_ = eigen::atomic_add(aabb.max(), zero);
+                    aabb_     = LinearBVHAABB{min_, max_};
+                };
+
+                return aabb_;
+            };
+
+            auto L = atomic_fetch(lbox);
+            auto R = atomic_fetch(rbox);
+
+            aabbs(parent) = L.merged(R);
+
+            // look the next parent...
+            parent = nodes(parent).parent_idx;
+        }
+    }
+
+}  // namespace
+}  // namespace uipc::backend::cuda
+
 namespace uipc::backend::cuda::detail
 {
 UIPC_INLINE UIPC_DEVICE int common_upper_bits(const unsigned long long int lhs,
@@ -290,6 +364,7 @@ UIPC_INLINE UIPC_DEVICE uint32_t find_split(cuda_tool::Dense1D<LinearBVHMortonIn
 }
 
 
+
 UIPC_INLINE void build_internal_aabbs(size_t num_objects,
                                       cuda_tool::CBufferView<LinearBVHNode> nodes,
                                       cuda_tool::BufferView<LinearBVHAABB> sorted_aabbs,
@@ -302,66 +377,13 @@ UIPC_INLINE void build_internal_aabbs(size_t num_objects,
     auto leaf_start         = num_internal_nodes;
 
     auto internal_aabbs = sorted_aabbs.subview(0, num_internal_nodes);
-    ParallelFor(0, s)
-        .apply(num_objects,
-               [nodes = nodes.cviewer(),
-                aabbs = sorted_aabbs.viewer(),
-                flags = flags.viewer(),
-                leaf_start] __device__(int I) mutable
-               {
-                   auto leaf_idx = I + leaf_start;
-                   auto parent   = nodes(leaf_idx).parent_idx;
-
-                   while(parent != 0xFFFFFFFF)  // means idx == 0
-                   {
-                       const int old = cuda_tool::atomic_add(&flags(parent), 1);
-
-                       // the memory fence is necessary to disable reordering of the memory access.
-                       // we need to ensure that this thread can get the updated value of AABB.
-                       ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
-                                                   ::cuda::thread_scope_system);
-
-                       if(old == 0)
-                       {
-                           // this is the first thread entered here.
-                           // wait the other thread from the other child node.
-                           return;
-                       }
-                       UIPC_KERNEL_ASSERT(old == 1, "old=%d", old);
-                       //here, the flag has already been 1. it means that this
-                       //thread is the 2nd thread. merge AABB of both childlen.
-
-                       const auto lidx = nodes(parent).left_idx;
-                       const auto ridx = nodes(parent).right_idx;
-                       auto&      lbox = aabbs(lidx);
-                       auto&      rbox = aabbs(ridx);
-
-                       // to avoid cache coherency problem, we must use atomic operation.
-                       auto atomic_fetch = [](LinearBVHAABB& aabb) -> LinearBVHAABB
-                       {
-                           Eigen::Vector3f zero  = Eigen::Vector3f::Zero();
-                           LinearBVHAABB   aabb_ = aabb;
-
-                           // without atomic_thread_fence, this loop may be infinite.
-                           while(aabb_.isEmpty())
-                           {
-                               auto min_ = eigen::atomic_add(aabb.min(), zero);
-                               auto max_ = eigen::atomic_add(aabb.max(), zero);
-                               aabb_     = LinearBVHAABB{min_, max_};
-                           };
-
-                           return aabb_;
-                       };
-
-                       auto L = atomic_fetch(lbox);
-                       auto R = atomic_fetch(rbox);
-
-                       aabbs(parent) = L.merged(R);
-
-                       // look the next parent...
-                       parent = nodes(parent).parent_idx;
-                   }
-               });
+    int n = (int)num_objects;
+    if(n > 0)
+    {
+        auto k = linear_bvh_build_internal_aabbs_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+            nodes.cviewer(), sorted_aabbs.viewer(), flags.viewer(), (int)leaf_start, n);
+    }
 }
 
 
@@ -369,6 +391,116 @@ UIPC_INLINE void build_internal_aabbs(size_t num_objects,
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    using namespace cuda_tool;
+
+    __global__ void linear_bvh_build_morton_code_kernel(cuda_tool::Dense<LinearBVHAABB> max_aabb,
+                                                        cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                                        cuda_tool::BufferView<uint32_t> mortons,
+                                                        int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto&           aabb = aabbs(i);
+        Eigen::Vector3f p    = aabb.center();
+
+        UIPC_KERNEL_ASSERT(aabbs(i).volume() >= 0,
+                    "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
+
+                    i,
+                    aabb.max().x(),
+                    aabb.max().y(),
+                    aabb.max().z(),
+                    aabb.min().x(),
+                    aabb.min().y(),
+                    aabb.min().z());
+
+        p -= max_aabb->min();
+        p.array() /= max_aabb->sizes().array();
+        mortons(i) = detail::morton_code(p);
+    }
+
+    __global__ void linear_bvh_build_init_indices_kernel(cuda_tool::BufferView<uint32_t> indices, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        indices(i) = i;
+    }
+
+    __global__ void linear_bvh_build_expand_morton64_kernel(cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton64s,
+                                                            cuda_tool::CBufferView<uint32_t> mortons,
+                                                            cuda_tool::CBufferView<uint32_t> indices,
+                                                            int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        uint32_t    idx = i;
+        detail::LinearBVHMortonIndex morton{mortons(i), idx};
+        morton64s(i) = morton;
+    }
+
+    __global__ void linear_bvh_build_leaf_nodes_kernel(cuda_tool::BufferView<LinearBVHNode> leaf_nodes,
+                                                       cuda_tool::CBufferView<uint32_t> indices,
+                                                       cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                                       cuda_tool::BufferView<LinearBVHAABB> sorted_aabbs,
+                                                       int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        LinearBVHNode node;
+        node.parent_idx = 0xFFFFFFFF;
+        node.left_idx   = 0xFFFFFFFF;
+        node.right_idx  = 0xFFFFFFFF;
+        node.object_idx = indices(i);
+        leaf_nodes(i)   = node;
+        sorted_aabbs(i) = aabbs(node.object_idx);
+    }
+
+    __global__ void linear_bvh_build_internal_nodes_kernel(cuda_tool::BufferView<LinearBVHNode> nodes,
+                                                           cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton_idx,
+                                                           int num_objects,
+                                                           int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
+
+        const uint2 ij = detail::determine_range(morton_idx, num_objects, idx);
+        const int gamma =
+            detail::find_split(morton_idx, num_objects, ij.x, ij.y);
+
+        nodes(idx).left_idx  = gamma;
+        nodes(idx).right_idx = gamma + 1;
+        if(((ij.x < ij.y) ? ij.x : ij.y) == gamma)
+        {
+            nodes(idx).left_idx += num_objects - 1;
+        }
+        if(((ij.x > ij.y) ? ij.x : ij.y) == gamma + 1)
+        {
+            nodes(idx).right_idx += num_objects - 1;
+        }
+        nodes(nodes(idx).left_idx).parent_idx  = idx;
+        nodes(nodes(idx).right_idx).parent_idx = idx;
+    }
+
+    __global__ void linear_bvh_update_leaf_aabbs_kernel(cuda_tool::CBufferView<uint32_t> indices,
+                                                        cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                                        cuda_tool::BufferView<LinearBVHAABB> leaf_aabbs,
+                                                        int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        leaf_aabbs(i) = aabbs(indices(i));
+    }
+}  // namespace
+
 UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, cuda_tool::Stream& s)
 {
     using namespace cuda_tool;
@@ -407,36 +539,26 @@ UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, c
         default_aabb);
 
     // 2) calculate m_morton_index code
-    ParallelFor(0, s)
-        .apply(num_objects,
-               [max_aabb = m_max_aabb.viewer(),
-                aabbs    = aabbs.viewer(),
-                mortons = m_mortons.viewer()] __device__(int i) mutable
-               {
-                   auto&           aabb = aabbs(i);
-                   Eigen::Vector3f p    = aabb.center();
-
-                   UIPC_KERNEL_ASSERT(aabbs(i).volume() >= 0,
-                               "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
-
-                               i,
-                               aabb.max().x(),
-                               aabb.max().y(),
-                               aabb.max().z(),
-                               aabb.min().x(),
-                               aabb.min().y(),
-                               aabb.min().z());
-
-                   p -= max_aabb->min();
-                   p.array() /= max_aabb->sizes().array();
-                   mortons(i) = detail::morton_code(p);
-               });
+    {
+        int n = (int)num_objects;
+        if(n > 0)
+        {
+            auto k = linear_bvh_build_morton_code_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_max_aabb.viewer(), aabbs.viewer(), m_mortons.viewer(), n);
+        }
+    }
 
     // 3) sort m_morton_index code
-    ParallelFor(0, s)
-        .apply(m_indices.size(),
-               [indices = m_indices.viewer()] __device__(int i) mutable
-               { indices(i) = i; });
+    {
+        int n = (int)m_indices.size();
+        if(n > 0)
+        {
+            auto k = linear_bvh_build_init_indices_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_indices.viewer(), n);
+        }
+    }
 
     // 4) sort m_morton_index code
     DeviceRadixSort(s).SortPairs(m_mortons.data(),
@@ -446,62 +568,39 @@ UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, c
                                  num_objects);
 
     // 5) expand m_morton_index code to 64bit, the last 32bit is the index
-    ParallelFor(0, s)
-        .apply(m_mortons.size(),
-               [morton64s = m_morton_idx.viewer(),
-                mortons   = m_sorted_mortons.viewer(),
-                indices = m_new_to_old.viewer()] __device__(int i) mutable
-               {
-                   uint32_t    idx = i;
-                   MortonIndex morton{mortons(i), idx};
-                   morton64s(i) = morton;
-               });
+    {
+        int n = (int)m_mortons.size();
+        if(n > 0)
+        {
+            auto k = linear_bvh_build_expand_morton64_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_morton_idx.viewer(), m_sorted_mortons.viewer(), m_new_to_old.viewer(), n);
+        }
+    }
 
     // 6) setup leaf nodes
     auto leaf_aabbs = m_aabbs.view(leaf_start);  // offset = leaf_start
     auto leaf_nodes = m_nodes.view(leaf_start);  // offset = leaf_start
-    ParallelFor(0, s)
-        .apply(num_objects,
-               [leaf_nodes = leaf_nodes.viewer(),
-                indices    = m_new_to_old.viewer(),
-                aabbs      = aabbs.viewer(),
-                sorted_aabbs = leaf_aabbs.viewer()] __device__(int i) mutable
-               {
-                   LinearBVHNode node;
-                   node.parent_idx = 0xFFFFFFFF;
-                   node.left_idx   = 0xFFFFFFFF;
-                   node.right_idx  = 0xFFFFFFFF;
-                   node.object_idx = indices(i);
-                   leaf_nodes(i)   = node;
-                   sorted_aabbs(i) = aabbs(node.object_idx);
-               });
+    {
+        int n = (int)num_objects;
+        if(n > 0)
+        {
+            auto k = linear_bvh_build_leaf_nodes_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                leaf_nodes.viewer(), m_new_to_old.viewer(), aabbs.viewer(), leaf_aabbs.viewer(), n);
+        }
+    }
 
     // 7) construct internal nodes
-    ParallelFor(0, s)
-        .apply(num_internal_nodes,
-               [nodes      = m_nodes.viewer(),
-                morton_idx = m_morton_idx.viewer(),
-                num_objects] __device__(int idx) mutable
-               {
-                   nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
-
-                   const uint2 ij = detail::determine_range(morton_idx, num_objects, idx);
-                   const int gamma =
-                       detail::find_split(morton_idx, num_objects, ij.x, ij.y);
-
-                   nodes(idx).left_idx  = gamma;
-                   nodes(idx).right_idx = gamma + 1;
-                   if(((ij.x < ij.y) ? ij.x : ij.y) == gamma)
-                   {
-                       nodes(idx).left_idx += num_objects - 1;
-                   }
-                   if(((ij.x > ij.y) ? ij.x : ij.y) == gamma + 1)
-                   {
-                       nodes(idx).right_idx += num_objects - 1;
-                   }
-                   nodes(nodes(idx).left_idx).parent_idx  = idx;
-                   nodes(nodes(idx).right_idx).parent_idx = idx;
-               });
+    {
+        int n = (int)num_internal_nodes;
+        if(n > 0)
+        {
+            auto k = linear_bvh_build_internal_nodes_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_nodes.viewer(), m_morton_idx.viewer(), (int)num_objects, n);
+        }
+    }
 
     // 8) calculate the AABB of internal nodes
     build_internal_aabbs(s);
@@ -518,12 +617,15 @@ UIPC_INLINE void LinearBVH::update(cuda_tool::CBufferView<LinearBVHAABB> aabbs, 
 
     // 1) update leaf aabbs
     auto leaf_aabbs = m_aabbs.view(m_nodes.size() - aabbs.size());
-    ParallelFor()
-        .apply(aabbs.size(),
-               [indices = m_new_to_old.viewer(),
-                aabbs   = aabbs.viewer(),
-                leaf_aabbs = leaf_aabbs.viewer()] __device__(int i) mutable
-               { leaf_aabbs(i) = aabbs(indices(i)); });
+    {
+        int n = (int)aabbs.size();
+        if(n > 0)
+        {
+            auto k = linear_bvh_update_leaf_aabbs_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                m_new_to_old.viewer(), aabbs.viewer(), leaf_aabbs.viewer(), n);
+        }
+    }
 
     // 2) update internal aabbs
     build_internal_aabbs(s);

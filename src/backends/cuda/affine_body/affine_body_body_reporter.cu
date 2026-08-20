@@ -3,6 +3,18 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void affine_body_body_reporter_report_attributes_kernel(
+        cuda_tool::BufferView<IndexT> coindices, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i) = i;  // just iota
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(AffineBodyBodyReporter);
 
 void AffineBodyBodyReporter::do_build(BuildInfo& info)
@@ -34,15 +46,13 @@ void AffineBodyBodyReporter::Impl::report_count(BodyCountInfo& info)
 
 void AffineBodyBodyReporter::Impl::report_attributes(BodyAttributeInfo& info)
 {
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(info.coindices().size(),
-               [coindices = info.coindices().viewer()] __device__(int i)
-               {
-                   coindices(i) = i;  // just iota
-               });
+    int n = (int)info.coindices().size();
+    if(n > 0)
+    {
+        auto k = affine_body_body_reporter_report_attributes_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.coindices(), n);
+    }
 
     span<const IndexT> self_collision = affine_body_dynamics->m_impl.h_body_id_to_self_collision;
 

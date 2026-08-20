@@ -147,6 +147,30 @@ void parallel_for(int n, F&& f, cudaStream_t stream = default_stream())
     details::launch_parallel_for(n, std::forward<F>(f), 0, default_block_dim, stream);
 }
 
+// Best occupancy block size for a kernel (cached per kernel symbol), matching
+// what ParallelFor's automatic selection would pick. Named-kernel launch sites
+// use this to keep the same FP behavior as the lambda ParallelFor they replace.
+template <typename Kernel>
+int best_block_dim(Kernel kernel, size_t shared_mem_size = 0)
+{
+    static thread_local int cached_block_size = -1;
+    if(cached_block_size <= 0)
+    {
+        int min_grid_size = -1;
+        CUDA_TOOL_CHECK(cudaOccupancyMaxPotentialBlockSize(
+            &min_grid_size, &cached_block_size, kernel, shared_mem_size));
+    }
+    return cached_block_size;
+}
+
+// grid dim for launching `kernel` over n items with best_block_dim(kernel)
+template <typename Kernel>
+int best_grid_dim(int n, Kernel kernel, size_t shared_mem_size = 0)
+{
+    int bd = best_block_dim(kernel, shared_mem_size);
+    return (n + bd - 1) / bd;
+}
+
 // Simple kernel launch helper for raw kernels.
 struct Launch
 {
@@ -155,7 +179,12 @@ struct Launch
     int          block_dim       = default_block_dim;
     size_t       shared_mem_size = 0;
 
-    Launch() = default;
+    // default: 1 block x 1 thread (muda parity)
+    Launch()
+        : grid_dim(1)
+        , block_dim(1)
+    {
+    }
     Launch(int grid, int block, cudaStream_t s = default_stream())
         : stream(s)
         , grid_dim(grid)

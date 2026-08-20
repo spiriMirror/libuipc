@@ -12,6 +12,90 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace NS = sym::hookean_spring_1d;
+
+    constexpr SizeT StencilSize     = 2;
+    constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
+    __global__ void HookeanSpring1D_do_compute_energy_kernel(
+        cuda_tool::CBufferView<Float>    kappas,
+        cuda_tool::CBufferView<Float>    rest_lengths,
+        cuda_tool::CBufferView<Float>    thicknesses,
+        cuda_tool::BufferView<Float>     energies,
+        cuda_tool::CBufferView<Vector2i> indices,
+        cuda_tool::CBufferView<Vector3>  xs,
+        Float                            dt,
+        double                           Pi,
+        int                              n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector6  X;
+        Vector2i idx = indices(I);
+        for(int i = 0; i < 2; ++i)
+            X.segment<3>(3 * i) = xs(idx(i));
+
+        Float L0 = rest_lengths(I);
+        Float r =
+            edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
+        Float kappa = kappas(I);
+
+        Float Vdt2 = L0 * r * r * Pi * dt * dt;
+
+        Float E;
+        NS::E(E, kappa, X, L0);
+        energies(I) = E * Vdt2;
+    }
+
+    __global__ void HookeanSpring1D_do_compute_gradient_hessian_kernel(
+        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
+        cuda_tool::CBufferView<Float>            kappas,
+        cuda_tool::CBufferView<Float>            rest_lengths,
+        cuda_tool::CBufferView<Float>            thicknesses,
+        cuda_tool::CBufferView<Vector2i>         indices,
+        cuda_tool::CBufferView<Vector3>          xs,
+        Float                                    dt,
+        double                                   Pi,
+        bool                                     gradient_only,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector6  X;
+        Vector2i idx = indices(I);
+        for(int i = 0; i < 2; ++i)
+            X.segment<3>(3 * i) = xs(idx(i));
+
+        Float L0 = rest_lengths(I);
+        Float r =
+            edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
+        Float kappa = kappas(I);
+
+        Float Vdt2 = L0 * r * r * Pi * dt * dt;
+
+        Vector6 G;
+        NS::dEdX(G, kappa, X, L0);
+        G *= Vdt2;
+        DoubletVectorAssembler VA{G3s};
+        VA.segment<StencilSize>(I * StencilSize).write(idx, G);
+
+        if(!gradient_only)
+        {
+            Matrix6x6 H;
+            NS::ddEddX(H, kappa, X, L0);
+            H *= Vdt2;
+            make_spd(H);
+            TripletMatrixAssembler MA{H3x3s};
+            MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
+        }
+    }
+}  // namespace
+
 class HookeanSpring1D final : public Codim1DConstitution
 {
   public:
@@ -70,89 +154,42 @@ class HookeanSpring1D final : public Codim1DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace NS = sym::hookean_spring_1d;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [kappas = kappas.cviewer(),
-                    rest_lengths = info.rest_lengths().viewer(),
-                    thicknesses = info.thicknesses().viewer(),
-                    energies = info.energies().viewer(),
-                    indices  = info.indices().viewer(),
-                    xs       = info.xs().viewer(),
-                    x_bars   = info.x_bars().viewer(),
-                    dt       = info.dt(),
-                    Pi       = std::numbers::pi] __device__(int I)
-                   {
-                       Vector6  X;
-                       Vector2i idx = indices(I);
-                       for(int i = 0; i < 2; ++i)
-                           X.segment<3>(3 * i) = xs(idx(i));
-
-                       Float L0 = rest_lengths(I);
-                       Float r =
-                           edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
-                       Float kappa = kappas(I);
-
-                       Float Vdt2 = L0 * r * r * Pi * dt * dt;
-
-                       Float E;
-                       NS::E(E, kappa, X, L0);
-                       energies(I) = E * Vdt2;
-                   });
+        auto k = HookeanSpring1D_do_compute_energy_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                kappas.cview(),
+                info.rest_lengths(),
+                info.thicknesses(),
+                info.energies(),
+                info.indices(),
+                info.xs(),
+                info.dt(),
+                std::numbers::pi,
+                n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace NS       = sym::hookean_spring_1d;
-        auto gradient_only = info.gradient_only();
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [G3s    = info.gradients().viewer(),
-                    H3x3s  = info.hessians().viewer(),
-                    kappas = kappas.cviewer(),
-                    rest_lengths = info.rest_lengths().viewer(),
-                    thicknesses = info.thicknesses().viewer(),
-                    indices = info.indices().viewer(),
-                    xs      = info.xs().viewer(),
-                    x_bars  = info.x_bars().viewer(),
-                    dt      = info.dt(),
-                    Pi      = std::numbers::pi,
-                    gradient_only] __device__(int I) mutable
-                   {
-                       Vector6  X;
-                       Vector2i idx = indices(I);
-                       for(int i = 0; i < 2; ++i)
-                           X.segment<3>(3 * i) = xs(idx(i));
-
-                       Float L0 = rest_lengths(I);
-                       Float r =
-                           edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
-                       Float kappa = kappas(I);
-
-                       Float Vdt2 = L0 * r * r * Pi * dt * dt;
-
-                       Vector6 G;
-                       NS::dEdX(G, kappa, X, L0);
-                       G *= Vdt2;
-                       DoubletVectorAssembler VA{G3s};
-                       VA.segment<StencilSize>(I * StencilSize).write(idx, G);
-
-                       if(!gradient_only)
-                       {
-                           Matrix6x6 H;
-                           NS::ddEddX(H, kappa, X, L0);
-                           H *= Vdt2;
-                           make_spd(H);
-                           TripletMatrixAssembler MA{H3x3s};
-                           MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
-                       }
-                   });
+        auto k = HookeanSpring1D_do_compute_gradient_hessian_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.gradients(),
+                info.hessians(),
+                kappas.cview(),
+                info.rest_lengths(),
+                info.thicknesses(),
+                info.indices(),
+                info.xs(),
+                info.dt(),
+                std::numbers::pi,
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

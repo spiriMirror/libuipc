@@ -32,6 +32,33 @@ namespace uipc::backend::cuda
 {
 namespace detail
 {
+    namespace
+    {
+        __global__ void GlobalDiffSimManager_build_coo_matrix_k1_kernel(
+            cuda_tool::CTripletMatrixView<Float, 1, 1> total_coo,
+            cuda_tool::TripletMatrixView<Float, 1, 1>  total_triplet,
+            int                                        n)
+        {
+            int I = blockIdx.x * blockDim.x + threadIdx.x;
+            if(I >= n)
+                return;
+            auto&& [i, j, V] = total_coo(I);
+            total_triplet(I).write(i, j, V);
+        }
+
+        __global__ void GlobalDiffSimManager_build_coo_matrix_k2_kernel(
+            cuda_tool::CTripletMatrixView<Float, 1, 1> local_triplet,
+            cuda_tool::TripletMatrixView<Float, 1, 1>  total_triplet,
+            int                                        n)
+        {
+            int I = blockIdx.x * blockDim.x + threadIdx.x;
+            if(I >= n)
+                return;
+            auto&& [i, j, V] = local_triplet(I);
+            total_triplet(I).write(i, j, V);
+        }
+    }  // namespace
+
     void build_coo_matrix(cuda_tool::LinearSystemContext&           ctx,
                           cuda_tool::DeviceCOOMatrix<Float>&        total_coo,
                           cuda_tool::DeviceTripletMatrix<Float, 1>& total_triplet,
@@ -50,30 +77,34 @@ namespace detail
         auto new_triplet_count = total_coo.non_zeros() + local_triplet.triplet_count();
         total_triplet.resize_triplets(new_triplet_count);
         auto total_triplet_view = total_triplet.view();
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(total_coo.non_zeros(),
-                   [total_coo     = total_coo.cviewer(),
-                    total_triplet = total_triplet_view
-                                        .subview(0, total_coo.non_zeros())  // front
-                                        .viewer()] __device__(int I) mutable
-                   {
-                       auto&& [i, j, V] = total_coo(I);
-                       total_triplet(I).write(i, j, V);
-                   });
+        {
+            auto k = GlobalDiffSimManager_build_coo_matrix_k1_kernel;
+            int  n = (int)total_coo.non_zeros();
+            if(n > 0)
+            {
+                k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                    total_coo.cviewer(),
+                    total_triplet_view
+                        .subview(0, total_coo.non_zeros())  // front
+                        .viewer(),
+                    n);
+            }
+        }
         //  2.2) append the local_triplet to the total_triplet
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(local_triplet.triplet_count(),
-                   [local_triplet = local_triplet.cviewer(),
-                    total_triplet = total_triplet_view
-                                        .subview(total_coo.non_zeros(),
-                                                 local_triplet.triplet_count())  // back
-                                        .viewer()] __device__(int I) mutable
-                   {
-                       auto&& [i, j, V] = local_triplet(I);
-                       total_triplet(I).write(i, j, V);
-                   });
+        {
+            auto k = GlobalDiffSimManager_build_coo_matrix_k2_kernel;
+            int  n = (int)local_triplet.triplet_count();
+            if(n > 0)
+            {
+                k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                    local_triplet.cviewer(),
+                    total_triplet_view
+                        .subview(total_coo.non_zeros(),
+                                 local_triplet.triplet_count())  // back
+                        .viewer(),
+                    n);
+            }
+        }
 
         // 3) convert the total_triplet to total_coo
         MatrixConverter<Float, 1>{}.convert(total_triplet, total_coo);

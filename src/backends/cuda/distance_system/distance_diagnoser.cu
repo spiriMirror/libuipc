@@ -278,6 +278,342 @@ namespace detail
     }
 }  // namespace detail
 
+namespace
+{
+    __global__ void DistanceDiagnoser_compute_point_triangle_distance_kernel(
+        cuda_tool::BufferView<Vector3>     point_pos,
+        cuda_tool::BufferView<Vector3>     tri_pos,
+        cuda_tool::BufferView<Vector3i>    tri_topo,
+        cuda_tool::CBufferView<Float>      dhat_p,
+        cuda_tool::CBufferView<Float>      dhat_t,
+        cuda_tool::CBufferView<Float>      thickness_p,
+        cuda_tool::CBufferView<Float>      thickness_t,
+        cuda_tool::BufferView<Float>       dist2,
+        cuda_tool::BufferView<Vector12>    dist2_grad,
+        cuda_tool::BufferView<Matrix12x12> dist2_hess,
+        cuda_tool::BufferView<Vector4i>    flags,
+        cuda_tool::BufferView<Vector4>     coords,
+        cuda_tool::BufferView<Float>       barrier,
+        cuda_tool::BufferView<Vector12>    barrier_grad,
+        cuda_tool::BufferView<Matrix12x12> barrier_hess,
+        SizeT                              M,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        IndexT pi = i / M;
+        IndexT ti = i % M;
+
+        const Vector3& P  = point_pos(pi);
+        Vector3i       TI = tri_topo(ti);
+        const Vector3& T0 = tri_pos(TI[0]);
+        const Vector3& T1 = tri_pos(TI[1]);
+        const Vector3& T2 = tri_pos(TI[2]);
+
+        Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
+
+        Float D;
+        distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
+
+        Vector12 GradD;
+        distance::point_triangle_distance2_gradient(flag, P, T0, T1, T2, GradD);
+
+        Matrix12x12 HessD;
+        distance::point_triangle_distance2_hessian(flag, P, T0, T1, T2, HessD);
+
+        Vector4 coord;
+        detail::point_triangle_closest_point_coord(flag, P, T0, T1, T2, coord);
+
+        Float d_hat_pair = PT_d_hat(dhat_p(pi), dhat_t(TI[0]), dhat_t(TI[1]), dhat_t(TI[2]));
+        Float xi         = PT_thickness(thickness_p(pi), thickness_t(TI[0]), thickness_t(TI[1]), thickness_t(TI[2]));
+        Vector2 dr = D_range(xi, d_hat_pair);
+
+        Float B = Float(0);
+        Vector12 GradB = Vector12::Zero();
+        Matrix12x12 HessB = Matrix12x12::Zero();
+
+        if(is_active_D(dr, D))
+        {
+            Float kappa = Float(1);
+            sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
+            Float dBdD;
+            sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
+            Float ddBddD;
+            sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
+            GradB = dBdD * GradD;
+            HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+        }
+
+        dist2(i)        = D;
+        dist2_grad(i)   = GradD;
+        dist2_hess(i)   = HessD;
+        flags(i)        = flag;
+        coords(i)       = coord;
+        barrier(i)      = B;
+        barrier_grad(i) = GradB;
+        barrier_hess(i) = HessB;
+    }
+
+    __global__ void DistanceDiagnoser_compute_edge_edge_distance_kernel(
+        cuda_tool::BufferView<Vector3>     pos_a,
+        cuda_tool::BufferView<Vector3>     pos_b,
+        cuda_tool::BufferView<Vector2i>    topo_a,
+        cuda_tool::BufferView<Vector2i>    topo_b,
+        cuda_tool::BufferView<Vector3>     rest_pos_a,
+        cuda_tool::BufferView<Vector3>     rest_pos_b,
+        cuda_tool::CBufferView<Float>      dhat_a,
+        cuda_tool::CBufferView<Float>      dhat_b,
+        cuda_tool::CBufferView<Float>      thickness_a,
+        cuda_tool::CBufferView<Float>      thickness_b,
+        cuda_tool::BufferView<Float>       dist2,
+        cuda_tool::BufferView<Vector12>    dist2_grad,
+        cuda_tool::BufferView<Matrix12x12> dist2_hess,
+        cuda_tool::BufferView<Vector4i>    flags,
+        cuda_tool::BufferView<Vector4>     coords,
+        cuda_tool::BufferView<Float>       eps_xs,
+        cuda_tool::BufferView<Float>       e_ks,
+        cuda_tool::BufferView<Vector12>    ek_grad,
+        cuda_tool::BufferView<Matrix12x12> ek_hess,
+        cuda_tool::BufferView<Float>       barrier,
+        cuda_tool::BufferView<Vector12>    barrier_grad,
+        cuda_tool::BufferView<Matrix12x12> barrier_hess,
+        SizeT                              M,
+        Float                              coeff,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        IndexT ai = i / M;
+        IndexT bi = i % M;
+
+        Vector2i EA = topo_a(ai);
+        Vector2i EB = topo_b(bi);
+
+        const Vector3& ea0 = pos_a(EA[0]);
+        const Vector3& ea1 = pos_a(EA[1]);
+        const Vector3& eb0 = pos_b(EB[0]);
+        const Vector3& eb1 = pos_b(EB[1]);
+
+        const Vector3& ea0_rest = rest_pos_a(EA[0]);
+        const Vector3& ea1_rest = rest_pos_a(EA[1]);
+        const Vector3& eb0_rest = rest_pos_b(EB[0]);
+        const Vector3& eb1_rest = rest_pos_b(EB[1]);
+
+        Vector4i flag = distance::edge_edge_distance_flag(ea0, ea1, eb0, eb1);
+
+        Float D;
+        distance::edge_edge_distance2(flag, ea0, ea1, eb0, eb1, D);
+
+        Vector12 GradD;
+        distance::edge_edge_distance2_gradient(flag, ea0, ea1, eb0, eb1, GradD);
+
+        Matrix12x12 HessD;
+        distance::edge_edge_distance2_hessian(flag, ea0, ea1, eb0, eb1, HessD);
+
+        Float eps_x;
+        distance::edge_edge_mollifier_threshold(
+            ea0_rest, ea1_rest, eb0_rest, eb1_rest, coeff, eps_x);
+
+        Float ek;
+        distance::edge_edge_mollifier(ea0, ea1, eb0, eb1, eps_x, ek);
+
+        Vector12 Gradek;
+        distance::edge_edge_mollifier_gradient(ea0, ea1, eb0, eb1, eps_x, Gradek);
+
+        Matrix12x12 Hessek;
+        distance::edge_edge_mollifier_hessian(ea0, ea1, eb0, eb1, eps_x, Hessek);
+
+        IndexT dim = distance::detail::active_count(flag);
+        if(dim < 4)
+        {
+            Gradek.setZero();
+            Hessek.setZero();
+        }
+
+        Vector4 coord;
+        detail::edge_edge_closest_point_coord(flag, ea0, ea1, eb0, eb1, coord);
+
+        // Barrier: E = e_k * B(D)
+        Float d_hat_pair = EE_d_hat(dhat_a(EA[0]), dhat_a(EA[1]),
+                                    dhat_b(EB[0]), dhat_b(EB[1]));
+        Float xi = EE_thickness(thickness_a(EA[0]), thickness_a(EA[1]),
+                                thickness_b(EB[0]), thickness_b(EB[1]));
+        Vector2 dr = D_range(xi, d_hat_pair);
+
+        Float E = Float(0);
+        Vector12 GradE = Vector12::Zero();
+        Matrix12x12 HessE = Matrix12x12::Zero();
+
+        if(is_active_D(dr, D))
+        {
+            Float kappa = Float(1);
+            Float B;
+            sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
+            Float dBdD;
+            sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
+            Float ddBddD;
+            sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
+
+            E = ek * B;
+            GradE = ek * dBdD * GradD + B * Gradek;
+            HessE = ek * (ddBddD * GradD * GradD.transpose() + dBdD * HessD)
+                  + dBdD * (GradD * Gradek.transpose() + Gradek * GradD.transpose())
+                  + B * Hessek;
+        }
+
+        dist2(i)        = D;
+        dist2_grad(i)   = GradD;
+        dist2_hess(i)   = HessD;
+        flags(i)        = flag;
+        coords(i)       = coord;
+        eps_xs(i)       = eps_x;
+        e_ks(i)         = ek;
+        ek_grad(i)      = Gradek;
+        ek_hess(i)      = Hessek;
+        barrier(i)      = E;
+        barrier_grad(i) = GradE;
+        barrier_hess(i) = HessE;
+    }
+
+    __global__ void DistanceDiagnoser_compute_point_edge_distance_kernel(
+        cuda_tool::BufferView<Vector3>    point_pos,
+        cuda_tool::BufferView<Vector3>    edge_pos,
+        cuda_tool::BufferView<Vector2i>   edge_topo,
+        cuda_tool::CBufferView<Float>     dhat_p,
+        cuda_tool::CBufferView<Float>     dhat_e,
+        cuda_tool::CBufferView<Float>     thickness_p,
+        cuda_tool::CBufferView<Float>     thickness_e,
+        cuda_tool::BufferView<Float>      dist2,
+        cuda_tool::BufferView<Vector9>    dist2_grad,
+        cuda_tool::BufferView<Matrix9x9>  dist2_hess,
+        cuda_tool::BufferView<Vector3i>   flags,
+        cuda_tool::BufferView<Vector3>    coords,
+        cuda_tool::BufferView<Float>      barrier,
+        cuda_tool::BufferView<Vector9>    barrier_grad,
+        cuda_tool::BufferView<Matrix9x9>  barrier_hess,
+        SizeT                             M,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        IndexT pi = i / M;
+        IndexT ei = i % M;
+
+        const Vector3& P = point_pos(pi);
+        Vector2i EI = edge_topo(ei);
+        const Vector3& E0 = edge_pos(EI[0]);
+        const Vector3& E1 = edge_pos(EI[1]);
+
+        Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
+
+        Float D;
+        distance::point_edge_distance2(flag, P, E0, E1, D);
+
+        Vector9 GradD;
+        distance::point_edge_distance2_gradient(flag, P, E0, E1, GradD);
+
+        Matrix9x9 HessD;
+        distance::point_edge_distance2_hessian(flag, P, E0, E1, HessD);
+
+        Vector3 coord;
+        detail::point_edge_closest_point_coord(flag, P, E0, E1, coord);
+
+        Float d_hat_pair = PE_d_hat(dhat_p(pi), dhat_e(EI[0]), dhat_e(EI[1]));
+        Float xi         = PE_thickness(thickness_p(pi), thickness_e(EI[0]), thickness_e(EI[1]));
+        Vector2 dr = D_range(xi, d_hat_pair);
+
+        Float B = Float(0);
+        Vector9 GradB = Vector9::Zero();
+        Matrix9x9 HessB = Matrix9x9::Zero();
+
+        if(is_active_D(dr, D))
+        {
+            Float kappa = Float(1);
+            sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
+            Float dBdD;
+            sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
+            Float ddBddD;
+            sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
+            GradB = dBdD * GradD;
+            HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+        }
+
+        dist2(i)        = D;
+        dist2_grad(i)   = GradD;
+        dist2_hess(i)   = HessD;
+        flags(i)        = flag;
+        coords(i)       = coord;
+        barrier(i)      = B;
+        barrier_grad(i) = GradB;
+        barrier_hess(i) = HessB;
+    }
+
+    __global__ void DistanceDiagnoser_compute_point_point_distance_kernel(
+        cuda_tool::BufferView<Vector3>    pos_a,
+        cuda_tool::BufferView<Vector3>    pos_b,
+        cuda_tool::CBufferView<Float>     dhat_a,
+        cuda_tool::CBufferView<Float>     dhat_b,
+        cuda_tool::CBufferView<Float>     thickness_a,
+        cuda_tool::CBufferView<Float>     thickness_b,
+        cuda_tool::BufferView<Float>      dist2,
+        cuda_tool::BufferView<Vector6>    dist2_grad,
+        cuda_tool::BufferView<Matrix6x6>  dist2_hess,
+        cuda_tool::BufferView<Float>      barrier,
+        cuda_tool::BufferView<Vector6>    barrier_grad,
+        cuda_tool::BufferView<Matrix6x6>  barrier_hess,
+        SizeT                             M,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        IndexT ai = i / M;
+        IndexT bi = i % M;
+
+        const Vector3& A = pos_a(ai);
+        const Vector3& B = pos_b(bi);
+
+        Float D;
+        distance::point_point_distance2(A, B, D);
+
+        Vector6 GradD;
+        distance::point_point_distance2_gradient(A, B, GradD);
+
+        Matrix6x6 HessD;
+        distance::point_point_distance2_hessian(A, B, HessD);
+
+        Float d_hat_pair = PP_d_hat(dhat_a(ai), dhat_b(bi));
+        Float xi         = PP_thickness(thickness_a(ai), thickness_b(bi));
+        Vector2 dr = D_range(xi, d_hat_pair);
+
+        Float Bv = Float(0);
+        Vector6 GradB = Vector6::Zero();
+        Matrix6x6 HessB = Matrix6x6::Zero();
+
+        if(is_active_D(dr, D))
+        {
+            Float kappa = Float(1);
+            sym::codim_ipc_contact::KappaBarrier(Bv, kappa, D, d_hat_pair, xi);
+            Float dBdD;
+            sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
+            Float ddBddD;
+            sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
+            GradB = dBdD * GradD;
+            HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+        }
+
+        dist2(i)        = D;
+        dist2_grad(i)   = GradD;
+        dist2_hess(i)   = HessD;
+        barrier(i)      = Bv;
+        barrier_grad(i) = GradB;
+        barrier_hess(i) = HessB;
+    }
+}  // namespace
+
 // =====================================================================
 // Point-Triangle Distance (+ Barrier)
 // =====================================================================
@@ -328,78 +664,31 @@ void DistanceDiagnoser::compute_point_triangle_distance(
     DeviceBuffer<Matrix12x12>  barrier_hess(num_pairs);
 
     SizeT M = num_triangles;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(num_pairs,
-               [point_pos    = point_pos.viewer(),
-                tri_pos      = tri_pos.viewer(),
-                tri_topo     = tri_topo.viewer(),
-                dhat_p       = dhat_p.cviewer(),
-                dhat_t       = dhat_t.cviewer(),
-                thickness_p         = thickness_p.cviewer(),
-                thickness_t         = thickness_t.cviewer(),
-                dist2        = dist2.viewer(),
-                dist2_grad   = dist2_grad.viewer(),
-                dist2_hess   = dist2_hess.viewer(),
-                flags        = flags.viewer(),
-                coords       = coords.viewer(),
-                barrier      = barrier.viewer(),
-                barrier_grad = barrier_grad.viewer(),
-                barrier_hess = barrier_hess.viewer(),
-                M] __device__(int i) mutable
-               {
-                   IndexT pi = i / M;
-                   IndexT ti = i % M;
-
-                   const Vector3& P  = point_pos(pi);
-                   Vector3i       TI = tri_topo(ti);
-                   const Vector3& T0 = tri_pos(TI[0]);
-                   const Vector3& T1 = tri_pos(TI[1]);
-                   const Vector3& T2 = tri_pos(TI[2]);
-
-                   Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
-
-                   Float D;
-                   distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
-
-                   Vector12 GradD;
-                   distance::point_triangle_distance2_gradient(flag, P, T0, T1, T2, GradD);
-
-                   Matrix12x12 HessD;
-                   distance::point_triangle_distance2_hessian(flag, P, T0, T1, T2, HessD);
-
-                   Vector4 coord;
-                   detail::point_triangle_closest_point_coord(flag, P, T0, T1, T2, coord);
-
-                   Float d_hat_pair = PT_d_hat(dhat_p(pi), dhat_t(TI[0]), dhat_t(TI[1]), dhat_t(TI[2]));
-                   Float xi         = PT_thickness(thickness_p(pi), thickness_t(TI[0]), thickness_t(TI[1]), thickness_t(TI[2]));
-                   Vector2 dr = D_range(xi, d_hat_pair);
-
-                   Float B = Float(0);
-                   Vector12 GradB = Vector12::Zero();
-                   Matrix12x12 HessB = Matrix12x12::Zero();
-
-                   if(is_active_D(dr, D))
-                   {
-                       Float kappa = Float(1);
-                       sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
-                       Float dBdD;
-                       sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
-                       Float ddBddD;
-                       sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-                       GradB = dBdD * GradD;
-                       HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
-                   }
-
-                   dist2(i)        = D;
-                   dist2_grad(i)   = GradD;
-                   dist2_hess(i)   = HessD;
-                   flags(i)        = flag;
-                   coords(i)       = coord;
-                   barrier(i)      = B;
-                   barrier_grad(i) = GradB;
-                   barrier_hess(i) = HessB;
-               });
+    {
+        auto k = DistanceDiagnoser_compute_point_triangle_distance_kernel;
+        int  n = (int)num_pairs;
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                point_pos.view(),
+                tri_pos.view(),
+                tri_topo.view(),
+                dhat_p.cview(),
+                dhat_t.cview(),
+                thickness_p.cview(),
+                thickness_t.cview(),
+                dist2.view(),
+                dist2_grad.view(),
+                dist2_hess.view(),
+                flags.view(),
+                coords.view(),
+                barrier.view(),
+                barrier_grad.view(),
+                barrier_hess.view(),
+                M,
+                n);
+        }
+    }
 
     R.instances().resize(num_pairs);
 
@@ -489,124 +778,39 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     SizeT M = num_eb;
     Float coeff = mollifier_coeff_val;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(num_pairs,
-               [pos_a        = pos_a.viewer(),
-                pos_b        = pos_b.viewer(),
-                topo_a       = topo_a.viewer(),
-                topo_b       = topo_b.viewer(),
-                rest_pos_a   = rest_pos_a.viewer(),
-                rest_pos_b   = rest_pos_b.viewer(),
-                dhat_a       = dhat_a.cviewer(),
-                dhat_b       = dhat_b.cviewer(),
-                thickness_a         = thickness_a.cviewer(),
-                thickness_b         = thickness_b.cviewer(),
-                dist2        = dist2.viewer(),
-                dist2_grad   = dist2_grad.viewer(),
-                dist2_hess   = dist2_hess.viewer(),
-                flags        = flags.viewer(),
-                coords       = coords.viewer(),
-                eps_xs       = eps_xs.viewer(),
-                e_ks         = e_ks.viewer(),
-                ek_grad      = ek_grad.viewer(),
-                ek_hess      = ek_hess.viewer(),
-                barrier      = barrier.viewer(),
-                barrier_grad = barrier_grad.viewer(),
-                barrier_hess = barrier_hess.viewer(),
-                M, coeff] __device__(int i) mutable
-               {
-                   IndexT ai = i / M;
-                   IndexT bi = i % M;
-
-                   Vector2i EA = topo_a(ai);
-                   Vector2i EB = topo_b(bi);
-
-                   const Vector3& ea0 = pos_a(EA[0]);
-                   const Vector3& ea1 = pos_a(EA[1]);
-                   const Vector3& eb0 = pos_b(EB[0]);
-                   const Vector3& eb1 = pos_b(EB[1]);
-
-                   const Vector3& ea0_rest = rest_pos_a(EA[0]);
-                   const Vector3& ea1_rest = rest_pos_a(EA[1]);
-                   const Vector3& eb0_rest = rest_pos_b(EB[0]);
-                   const Vector3& eb1_rest = rest_pos_b(EB[1]);
-
-                   Vector4i flag = distance::edge_edge_distance_flag(ea0, ea1, eb0, eb1);
-
-                   Float D;
-                   distance::edge_edge_distance2(flag, ea0, ea1, eb0, eb1, D);
-
-                   Vector12 GradD;
-                   distance::edge_edge_distance2_gradient(flag, ea0, ea1, eb0, eb1, GradD);
-
-                   Matrix12x12 HessD;
-                   distance::edge_edge_distance2_hessian(flag, ea0, ea1, eb0, eb1, HessD);
-
-                   Float eps_x;
-                   distance::edge_edge_mollifier_threshold(
-                       ea0_rest, ea1_rest, eb0_rest, eb1_rest, coeff, eps_x);
-
-                   Float ek;
-                   distance::edge_edge_mollifier(ea0, ea1, eb0, eb1, eps_x, ek);
-
-                   Vector12 Gradek;
-                   distance::edge_edge_mollifier_gradient(ea0, ea1, eb0, eb1, eps_x, Gradek);
-
-                   Matrix12x12 Hessek;
-                   distance::edge_edge_mollifier_hessian(ea0, ea1, eb0, eb1, eps_x, Hessek);
-
-                   IndexT dim = distance::detail::active_count(flag);
-                   if(dim < 4)
-                   {
-                       Gradek.setZero();
-                       Hessek.setZero();
-                   }
-
-                   Vector4 coord;
-                   detail::edge_edge_closest_point_coord(flag, ea0, ea1, eb0, eb1, coord);
-
-                   // Barrier: E = e_k * B(D)
-                   Float d_hat_pair = EE_d_hat(dhat_a(EA[0]), dhat_a(EA[1]),
-                                               dhat_b(EB[0]), dhat_b(EB[1]));
-                   Float xi = EE_thickness(thickness_a(EA[0]), thickness_a(EA[1]),
-                                           thickness_b(EB[0]), thickness_b(EB[1]));
-                   Vector2 dr = D_range(xi, d_hat_pair);
-
-                   Float E = Float(0);
-                   Vector12 GradE = Vector12::Zero();
-                   Matrix12x12 HessE = Matrix12x12::Zero();
-
-                   if(is_active_D(dr, D))
-                   {
-                       Float kappa = Float(1);
-                       Float B;
-                       sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
-                       Float dBdD;
-                       sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
-                       Float ddBddD;
-                       sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-
-                       E = ek * B;
-                       GradE = ek * dBdD * GradD + B * Gradek;
-                       HessE = ek * (ddBddD * GradD * GradD.transpose() + dBdD * HessD)
-                             + dBdD * (GradD * Gradek.transpose() + Gradek * GradD.transpose())
-                             + B * Hessek;
-                   }
-
-                   dist2(i)        = D;
-                   dist2_grad(i)   = GradD;
-                   dist2_hess(i)   = HessD;
-                   flags(i)        = flag;
-                   coords(i)       = coord;
-                   eps_xs(i)       = eps_x;
-                   e_ks(i)         = ek;
-                   ek_grad(i)      = Gradek;
-                   ek_hess(i)      = Hessek;
-                   barrier(i)      = E;
-                   barrier_grad(i) = GradE;
-                   barrier_hess(i) = HessE;
-               });
+    {
+        auto k = DistanceDiagnoser_compute_edge_edge_distance_kernel;
+        int  n = (int)num_pairs;
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                pos_a.view(),
+                pos_b.view(),
+                topo_a.view(),
+                topo_b.view(),
+                rest_pos_a.view(),
+                rest_pos_b.view(),
+                dhat_a.cview(),
+                dhat_b.cview(),
+                thickness_a.cview(),
+                thickness_b.cview(),
+                dist2.view(),
+                dist2_grad.view(),
+                dist2_hess.view(),
+                flags.view(),
+                coords.view(),
+                eps_xs.view(),
+                e_ks.view(),
+                ek_grad.view(),
+                ek_hess.view(),
+                barrier.view(),
+                barrier_grad.view(),
+                barrier_hess.view(),
+                M,
+                coeff,
+                n);
+        }
+    }
 
     R.instances().resize(num_pairs);
 
@@ -677,77 +881,31 @@ void DistanceDiagnoser::compute_point_edge_distance(
     DeviceBuffer<Matrix9x9> barrier_hess(num_pairs);
 
     SizeT M = num_edges;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(num_pairs,
-               [point_pos    = point_pos.viewer(),
-                edge_pos     = edge_pos.viewer(),
-                edge_topo    = edge_topo.viewer(),
-                dhat_p       = dhat_p.cviewer(),
-                dhat_e       = dhat_e.cviewer(),
-                thickness_p         = thickness_p.cviewer(),
-                thickness_e         = thickness_e.cviewer(),
-                dist2        = dist2.viewer(),
-                dist2_grad   = dist2_grad.viewer(),
-                dist2_hess   = dist2_hess.viewer(),
-                flags        = flags.viewer(),
-                coords       = coords.viewer(),
-                barrier      = barrier.viewer(),
-                barrier_grad = barrier_grad.viewer(),
-                barrier_hess = barrier_hess.viewer(),
-                M] __device__(int i) mutable
-               {
-                   IndexT pi = i / M;
-                   IndexT ei = i % M;
-
-                   const Vector3& P = point_pos(pi);
-                   Vector2i EI = edge_topo(ei);
-                   const Vector3& E0 = edge_pos(EI[0]);
-                   const Vector3& E1 = edge_pos(EI[1]);
-
-                   Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
-
-                   Float D;
-                   distance::point_edge_distance2(flag, P, E0, E1, D);
-
-                   Vector9 GradD;
-                   distance::point_edge_distance2_gradient(flag, P, E0, E1, GradD);
-
-                   Matrix9x9 HessD;
-                   distance::point_edge_distance2_hessian(flag, P, E0, E1, HessD);
-
-                   Vector3 coord;
-                   detail::point_edge_closest_point_coord(flag, P, E0, E1, coord);
-
-                   Float d_hat_pair = PE_d_hat(dhat_p(pi), dhat_e(EI[0]), dhat_e(EI[1]));
-                   Float xi         = PE_thickness(thickness_p(pi), thickness_e(EI[0]), thickness_e(EI[1]));
-                   Vector2 dr = D_range(xi, d_hat_pair);
-
-                   Float B = Float(0);
-                   Vector9 GradB = Vector9::Zero();
-                   Matrix9x9 HessB = Matrix9x9::Zero();
-
-                   if(is_active_D(dr, D))
-                   {
-                       Float kappa = Float(1);
-                       sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
-                       Float dBdD;
-                       sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
-                       Float ddBddD;
-                       sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-                       GradB = dBdD * GradD;
-                       HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
-                   }
-
-                   dist2(i)        = D;
-                   dist2_grad(i)   = GradD;
-                   dist2_hess(i)   = HessD;
-                   flags(i)        = flag;
-                   coords(i)       = coord;
-                   barrier(i)      = B;
-                   barrier_grad(i) = GradB;
-                   barrier_hess(i) = HessB;
-               });
+    {
+        auto k = DistanceDiagnoser_compute_point_edge_distance_kernel;
+        int  n = (int)num_pairs;
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                point_pos.view(),
+                edge_pos.view(),
+                edge_topo.view(),
+                dhat_p.cview(),
+                dhat_e.cview(),
+                thickness_p.cview(),
+                thickness_e.cview(),
+                dist2.view(),
+                dist2_grad.view(),
+                dist2_hess.view(),
+                flags.view(),
+                coords.view(),
+                barrier.view(),
+                barrier_grad.view(),
+                barrier_hess.view(),
+                M,
+                n);
+        }
+    }
 
     R.instances().resize(num_pairs);
 
@@ -806,65 +964,28 @@ void DistanceDiagnoser::compute_point_point_distance(
     DeviceBuffer<Matrix6x6> barrier_hess(num_pairs);
 
     SizeT M = num_b;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(num_pairs,
-               [pos_a        = pos_a.viewer(),
-                pos_b        = pos_b.viewer(),
-                dhat_a       = dhat_a.cviewer(),
-                dhat_b       = dhat_b.cviewer(),
-                thickness_a         = thickness_a.cviewer(),
-                thickness_b         = thickness_b.cviewer(),
-                dist2        = dist2.viewer(),
-                dist2_grad   = dist2_grad.viewer(),
-                dist2_hess   = dist2_hess.viewer(),
-                barrier      = barrier.viewer(),
-                barrier_grad = barrier_grad.viewer(),
-                barrier_hess = barrier_hess.viewer(),
-                M] __device__(int i) mutable
-               {
-                   IndexT ai = i / M;
-                   IndexT bi = i % M;
-
-                   const Vector3& A = pos_a(ai);
-                   const Vector3& B = pos_b(bi);
-
-                   Float D;
-                   distance::point_point_distance2(A, B, D);
-
-                   Vector6 GradD;
-                   distance::point_point_distance2_gradient(A, B, GradD);
-
-                   Matrix6x6 HessD;
-                   distance::point_point_distance2_hessian(A, B, HessD);
-
-                   Float d_hat_pair = PP_d_hat(dhat_a(ai), dhat_b(bi));
-                   Float xi         = PP_thickness(thickness_a(ai), thickness_b(bi));
-                   Vector2 dr = D_range(xi, d_hat_pair);
-
-                   Float Bv = Float(0);
-                   Vector6 GradB = Vector6::Zero();
-                   Matrix6x6 HessB = Matrix6x6::Zero();
-
-                   if(is_active_D(dr, D))
-                   {
-                       Float kappa = Float(1);
-                       sym::codim_ipc_contact::KappaBarrier(Bv, kappa, D, d_hat_pair, xi);
-                       Float dBdD;
-                       sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
-                       Float ddBddD;
-                       sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-                       GradB = dBdD * GradD;
-                       HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
-                   }
-
-                   dist2(i)        = D;
-                   dist2_grad(i)   = GradD;
-                   dist2_hess(i)   = HessD;
-                   barrier(i)      = Bv;
-                   barrier_grad(i) = GradB;
-                   barrier_hess(i) = HessB;
-               });
+    {
+        auto k = DistanceDiagnoser_compute_point_point_distance_kernel;
+        int  n = (int)num_pairs;
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                pos_a.view(),
+                pos_b.view(),
+                dhat_a.cview(),
+                dhat_b.cview(),
+                thickness_a.cview(),
+                thickness_b.cview(),
+                dist2.view(),
+                dist2_grad.view(),
+                dist2_hess.view(),
+                barrier.view(),
+                barrier_grad.view(),
+                barrier_hess.view(),
+                M,
+                n);
+        }
+    }
 
     R.instances().resize(num_pairs);
 

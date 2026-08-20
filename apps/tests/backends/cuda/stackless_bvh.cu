@@ -167,12 +167,12 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
     qbuffer.reserve(1024);
     {
         Timer timer("unlucky detect cp");
-        bvh.detect([] __device__(int i, int j) { return true; }, qbuffer);
+        bvh.detect(StacklessBVH::DefaultQueryCallback{}, qbuffer);
     }
 
     {
         Timer timer("lucky detect cp");
-        bvh.detect([] __device__(int i, int j) { return true; }, qbuffer);
+        bvh.detect(StacklessBVH::DefaultQueryCallback{}, qbuffer);
     }
 
     cps.resize(qbuffer.size());
@@ -215,12 +215,12 @@ std::vector<Vector2i> stackless_bvh_query_cp(span<const AABB> aabbs)
     StacklessBVH::QueryBuffer qbuffer;
     {
         Timer timer("unlucky query cp");
-        bvh.query(d_aabbs, [] __device__(int i, int j) { return true; }, qbuffer);
+        bvh.query(d_aabbs, StacklessBVH::DefaultQueryCallback{}, qbuffer);
     }
 
     {
         Timer timer("lucky query cp");
-        bvh.query(d_aabbs, [] __device__(int i, int j) { return true; }, qbuffer);
+        bvh.query(d_aabbs, StacklessBVH::DefaultQueryCallback{}, qbuffer);
     }
 
     cps.resize(qbuffer.size());

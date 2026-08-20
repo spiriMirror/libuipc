@@ -8,6 +8,31 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void affine_body_state_accessor_feature_copy_transform_to_kernel(
+        cuda_tool::CBufferView<Vector12> q_in,
+        cuda_tool::BufferView<Matrix4x4> dst,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        dst(i) = q_to_transform(q_in(i));
+    }
+
+    __global__ void affine_body_state_accessor_feature_copy_velocity_to_kernel(
+        cuda_tool::CBufferView<Vector12> q_in,
+        cuda_tool::BufferView<Matrix4x4> dst,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        dst(i) = q_v_to_transform_v(q_in(i));
+    }
+}  // namespace
+
 AffineBodyStateAccessorFeatureOverrider::AffineBodyStateAccessorFeatureOverrider(
     AffineBodyDynamics& abd, AffineBodyVertexReporter& vertex_reporter, GlobalJointDofManager& joint_dof_manager)
     : m_abd{abd}
@@ -96,12 +121,13 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_transform_to(
         reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
     cuda_tool::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
 
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(body_count,
-               [q_in = q_subview.cviewer(),
-                dst  = dst_view.viewer()] __device__(int i) mutable
-               { dst(i) = q_to_transform(q_in(i)); });
+    int n = (int)body_count;
+    if(n > 0)
+    {
+        auto k = affine_body_state_accessor_feature_copy_transform_to_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            q_subview.cview(), dst_view, n);
+    }
 }
 
 void AffineBodyStateAccessorFeatureOverrider::do_copy_velocity_to(backend::BufferView buffer_view,
@@ -115,11 +141,12 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_velocity_to(backend::Buffe
         reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
     cuda_tool::BufferView<Matrix4x4> dst_view{dst_ptr, body_count};
 
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(body_count,
-               [q_in = q_v_subview.cviewer(),
-                dst  = dst_view.viewer()] __device__(int i) mutable
-               { dst(i) = q_v_to_transform_v(q_in(i)); });
+    int n = (int)body_count;
+    if(n > 0)
+    {
+        auto k = affine_body_state_accessor_feature_copy_velocity_to_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            q_v_subview.cview(), dst_view, n);
+    }
 }
 }  // namespace uipc::backend::cuda

@@ -5,6 +5,27 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void HalfPlaneVertexReporter_report_attributes_kernel(
+        cuda_tool::BufferView<IndexT>  coindices,
+        cuda_tool::BufferView<Vector3> dst_pos,
+        cuda_tool::BufferView<Vector3> src_pos,
+        cuda_tool::BufferView<IndexT>  dst_vertex_body_ids,
+        IndexT                         body_offset,
+        int                            n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i) = i;
+        dst_pos(i)   = src_pos(i);
+        // each vertex corresponds to a body
+        // so we can use the body offset + i to get global body id
+        dst_vertex_body_ids(i) = body_offset + i;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(HalfPlaneVertexReporter);
 
 constexpr U64 HalfPlaneVertexReporterUID = 2;
@@ -26,21 +47,18 @@ void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::Verte
     // fill the coindices for later use
     auto N = info.coindices().size();
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(N,
-               [coindices = info.coindices().viewer(),
-                dst_pos   = info.positions().viewer(),
-                src_pos = half_plane->m_impl.positions.viewer(),
-                dst_vertex_body_ids = info.body_ids().viewer(),
-                body_offset = body_reporter->body_offset()] __device__(int i) mutable
-               {
-                   coindices(i) = i;
-                   dst_pos(i)   = src_pos(i);
-                   // each vertex corresponds to a body
-                   // so we can use the body offset + i to get global body id
-                   dst_vertex_body_ids(i) = body_offset + i;
-               });
+    auto k = HalfPlaneVertexReporter_report_attributes_kernel;
+    int  n = (int)N;
+    if(n > 0)
+    {
+        k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+            info.coindices().viewer(),
+            info.positions().viewer(),
+            half_plane->m_impl.positions.viewer(),
+            info.body_ids().viewer(),
+            body_reporter->body_offset(),
+            n);
+    }
 
     info.contact_element_ids().copy_from(half_plane->m_impl.h_contact_ids.data());
     info.subscene_element_ids().copy_from(half_plane->m_impl.h_subscene_ids.data());

@@ -9,6 +9,91 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SoftVertexTriangleStitch_do_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector4i>  topos,
+        cuda_tool::CBufferView<Vector3>   xs,
+        cuda_tool::CBufferView<Float>     mus,
+        cuda_tool::CBufferView<Float>     lambdas,
+        cuda_tool::CBufferView<Matrix3x3> Dm_invs,
+        cuda_tool::CBufferView<Float>     rest_vols,
+        cuda_tool::BufferView<Float>      Es,
+        Float                             dt,
+        int                               n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        namespace SVTS = sym::soft_vertex_triangle_stitch;
+
+        const Vector4i& tet = topos(I);
+        Vector3         x0  = xs(tet(0));
+        Vector3         x1  = xs(tet(1));
+        Vector3         x2  = xs(tet(2));
+        Vector3         x3  = xs(tet(3));
+
+        Matrix3x3 F    = fem::F(x0, x1, x2, x3, Dm_invs(I));
+        Vector9   VecF = flatten(F);
+
+        Float E_val;
+        SVTS::E(E_val, mus(I), lambdas(I), VecF);
+        Es(I) = E_val * dt * dt * rest_vols(I);
+    }
+
+    template <SizeT StencilSize, SizeT HalfHessianSize>
+    __global__ void SoftVertexTriangleStitch_do_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector4i>         topos,
+        cuda_tool::CBufferView<Vector3>          xs,
+        cuda_tool::CBufferView<Float>            mus,
+        cuda_tool::CBufferView<Float>            lambdas,
+        cuda_tool::CBufferView<Matrix3x3>        Dm_invs,
+        cuda_tool::CBufferView<Float>            rest_vols,
+        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
+        Float                                    dt,
+        bool                                     gradient_only,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        namespace SVTS = sym::soft_vertex_triangle_stitch;
+
+        const Vector4i& tet = topos(I);
+        Vector3         x0  = xs(tet(0));
+        Vector3         x1  = xs(tet(1));
+        Vector3         x2  = xs(tet(2));
+        Vector3         x3  = xs(tet(3));
+
+        Matrix3x3 F    = fem::F(x0, x1, x2, x3, Dm_invs(I));
+        Vector9   VecF = flatten(F);
+
+        Float Vdt2 = rest_vols(I) * dt * dt;
+
+        Vector9 dEdVecF;
+        SVTS::dEdVecF(dEdVecF, mus(I), lambdas(I), VecF);
+        dEdVecF *= Vdt2;
+
+        Matrix9x12 dFdx = fem::dFdx(Dm_invs(I));
+        Vector12   G    = dFdx.transpose() * dEdVecF;
+
+        DoubletVectorAssembler VA{G3s};
+        VA.segment<StencilSize>(I * StencilSize).write(tet, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 ddEddVecF;
+        SVTS::ddEddVecF(ddEddVecF, mus(I), lambdas(I), VecF);
+        ddEddVecF *= Vdt2;
+        make_spd(ddEddVecF);
+        Matrix12x12 H = dFdx.transpose() * ddEddVecF * dFdx;
+        TripletMatrixAssembler MA{H3x3s};
+        MA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
+    }
+}  // namespace
+
 class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 {
   public:
@@ -186,31 +271,21 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 
         energies = info.energies();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos     = topos.cviewer(),
-                    xs        = info.positions().cviewer(),
-                    mus       = mus.cviewer(),
-                    lambdas   = lambdas.cviewer(),
-                    Dm_invs   = Dm_invs.cviewer(),
-                    rest_vols = rest_volumes.cviewer(),
-                    Es        = info.energies().viewer(),
-                    dt        = info.dt()] __device__(int I)
-                   {
-                       const Vector4i& tet = topos(I);
-                       Vector3         x0  = xs(tet(0));
-                       Vector3         x1  = xs(tet(1));
-                       Vector3         x2  = xs(tet(2));
-                       Vector3         x3  = xs(tet(3));
-
-                       Matrix3x3 F    = fem::F(x0, x1, x2, x3, Dm_invs(I));
-                       Vector9   VecF = flatten(F);
-
-                       Float E_val;
-                       SVTS::E(E_val, mus(I), lambdas(I), VecF);
-                       Es(I) = E_val * dt * dt * rest_vols(I);
-                   });
+        auto k = SoftVertexTriangleStitch_do_compute_energy_kernel;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                mus.cview(),
+                lambdas.cview(),
+                Dm_invs.cview(),
+                rest_volumes.cview(),
+                info.energies().viewer(),
+                info.dt(),
+                n);
+        }
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -231,52 +306,24 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos         = topos.cviewer(),
-                    xs            = info.positions().cviewer(),
-                    mus           = mus.cviewer(),
-                    lambdas       = lambdas.cviewer(),
-                    Dm_invs       = Dm_invs.cviewer(),
-                    rest_vols     = rest_volumes.cviewer(),
-                    G3s           = info.gradients().viewer(),
-                    H3x3s         = info.hessians().viewer(),
-                    dt            = info.dt(),
-                    gradient_only = info.gradient_only()] __device__(int I)
-                   {
-                       const Vector4i& tet = topos(I);
-                       Vector3         x0  = xs(tet(0));
-                       Vector3         x1  = xs(tet(1));
-                       Vector3         x2  = xs(tet(2));
-                       Vector3         x3  = xs(tet(3));
-
-                       Matrix3x3 F    = fem::F(x0, x1, x2, x3, Dm_invs(I));
-                       Vector9   VecF = flatten(F);
-
-                       Float Vdt2 = rest_vols(I) * dt * dt;
-
-                       Vector9 dEdVecF;
-                       SVTS::dEdVecF(dEdVecF, mus(I), lambdas(I), VecF);
-                       dEdVecF *= Vdt2;
-
-                       Matrix9x12 dFdx = fem::dFdx(Dm_invs(I));
-                       Vector12   G    = dFdx.transpose() * dEdVecF;
-
-                       DoubletVectorAssembler VA{G3s};
-                       VA.segment<StencilSize>(I * StencilSize).write(tet, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 ddEddVecF;
-                       SVTS::ddEddVecF(ddEddVecF, mus(I), lambdas(I), VecF);
-                       ddEddVecF *= Vdt2;
-                       make_spd(ddEddVecF);
-                       Matrix12x12 H = dFdx.transpose() * ddEddVecF * dFdx;
-                       TripletMatrixAssembler MA{H3x3s};
-                       MA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
-                   });
+        auto k = SoftVertexTriangleStitch_do_compute_gradient_hessian_kernel<StencilSize,
+                                                                             HalfHessianSize>;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                mus.cview(),
+                lambdas.cview(),
+                Dm_invs.cview(),
+                rest_volumes.cview(),
+                info.gradients().viewer(),
+                info.hessians().viewer(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

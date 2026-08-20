@@ -28,6 +28,46 @@ struct less<uipc::Vector2i>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void HalfPlaneVertexDistanceCheck_do_check_kernel(
+        cuda_tool::CBufferView<Vector3> positions,
+        cuda_tool::CBufferView<Float>   thickness,
+        cuda_tool::CBufferView<IndexT>  contact_ids,
+        cuda_tool::CBufferView<IndexT>  subscene_ids,
+        cuda_tool::CDense2D<IndexT>     contact_mask,
+        cuda_tool::CDense2D<IndexT>     subscene_mask,
+        cuda_tool::CBufferView<Vector3> hp_normals,
+        cuda_tool::CBufferView<Vector3> hp_origins,
+        cuda_tool::CBufferView<IndexT>  hp_contact_ids,
+        cuda_tool::CBufferView<IndexT>  hp_subscene_ids,
+        cuda_tool::BufferView<IndexT>   vertex_too_close,
+        cuda_tool::Dense<IndexT>        has_violation,
+        SizeT                           num_hp,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        for(SizeT h = 0; h < num_hp; ++h)
+        {
+            if(!subscene_mask(hp_subscene_ids(h), subscene_ids(i)))
+                continue;
+            if(!contact_mask(hp_contact_ids(h), contact_ids(i)))
+                continue;
+
+            Float d = (positions(i) - hp_origins(h)).dot(hp_normals(h))
+                      - thickness(i);
+            if(d <= 0.0)
+            {
+                vertex_too_close(i) = 1;
+                atomicMax(has_violation.data(), 1);
+                return;
+            }
+        }
+    }
+}  // namespace
+
 class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
 {
   public:
@@ -289,40 +329,26 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
         DeviceVar<IndexT> has_violation;
         BufferLaunch().fill(has_violation.view(), IndexT(0));
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(num_vertices,
-                   [positions       = positions.cviewer(),
-                    thickness       = thickness.cviewer(),
-                    contact_ids     = contact_ids.cviewer(),
-                    subscene_ids    = subscene_ids.cviewer(),
-                    contact_mask    = contact_mask.cviewer(),
-                    subscene_mask   = subscene_mask.cviewer(),
-                    hp_normals      = hp_normals.cviewer(),
-                    hp_origins      = hp_origins.cviewer(),
-                    hp_contact_ids  = hp_contact_ids.cviewer(),
-                    hp_subscene_ids = hp_subscene_ids.cviewer(),
-                    vertex_too_close = vertex_too_close.viewer(),
-                    has_violation    = has_violation.viewer(),
-                    num_hp] __device__(int i) mutable
-                   {
-                       for(SizeT h = 0; h < num_hp; ++h)
-                       {
-                           if(!subscene_mask(hp_subscene_ids(h), subscene_ids(i)))
-                               continue;
-                           if(!contact_mask(hp_contact_ids(h), contact_ids(i)))
-                               continue;
-
-                           Float d = (positions(i) - hp_origins(h)).dot(hp_normals(h))
-                                     - thickness(i);
-                           if(d <= 0.0)
-                           {
-                               vertex_too_close(i) = 1;
-                               atomicMax(has_violation.data(), 1);
-                               return;
-                           }
-                       }
-                   });
+        auto k = HalfPlaneVertexDistanceCheck_do_check_kernel;
+        int  n = (int)num_vertices;
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                positions.cview(),
+                thickness.cview(),
+                contact_ids.cview(),
+                subscene_ids.cview(),
+                contact_mask.cviewer(),
+                subscene_mask.cviewer(),
+                hp_normals.cview(),
+                hp_origins.cview(),
+                hp_contact_ids.cview(),
+                hp_subscene_ids.cview(),
+                vertex_too_close.view(),
+                has_violation.viewer(),
+                num_hp,
+                n);
+        }
 
         IndexT h_has_violation = has_violation;
         if(h_has_violation == 0)

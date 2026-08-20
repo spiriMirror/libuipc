@@ -2,6 +2,23 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void abd_al_stiffness_estimator_estimate_mu_kernel(
+        cuda_tool::BufferView<Float>                mu_vertices,
+        cuda_tool::CBufferView<IndexT>              body_id,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        Float                                       mu_scale_abd,
+        Float                                       dt,
+        int                                         n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        mu_vertices(i) =
+            body_masses(body_id(i)).mass() * mu_scale_abd * dt * dt;
+    }
+}  // namespace
 
 void ABDALStiffnessEstimator::do_build(BuildInfo& info)
 {
@@ -13,23 +30,21 @@ void ABDALStiffnessEstimator::do_build(BuildInfo& info)
 
 void ABDALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
 {
-    using namespace cuda_tool;
     UIPC_ASSERT(vertex_reporter->vertex_count() == affine_body_dynamics->v2b().size(),
                 "vertex count mismatch");
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(vertex_reporter->vertex_count(),
-               [mu_vertices = info.mu_vertices(vertex_reporter->vertex_offset(),
-                                               vertex_reporter->vertex_count())
-                                  .viewer(),
-                body_id = affine_body_dynamics->v2b().cviewer(),
-                body_masses = affine_body_dynamics->body_masses().cviewer(),
-                mu_scale_abd = mu_scale_abd,
-                dt           = info.dt()] __device__(int idx) mutable
-               {
-                   mu_vertices(idx) =
-                       body_masses(body_id(idx)).mass() * mu_scale_abd * dt * dt;
-               });
+    int n = (int)vertex_reporter->vertex_count();
+    if(n > 0)
+    {
+        auto k = abd_al_stiffness_estimator_estimate_mu_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.mu_vertices(vertex_reporter->vertex_offset(),
+                             vertex_reporter->vertex_count()),
+            affine_body_dynamics->v2b().cview(),
+            affine_body_dynamics->body_masses().cview(),
+            mu_scale_abd,
+            info.dt(),
+            n);
+    }
 }
 
 void ABDALStiffnessEstimator::do_estimate_mu(EstimateInfo& info)

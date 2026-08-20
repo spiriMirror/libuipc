@@ -5,6 +5,25 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    using namespace cuda_tool;
+
+    __global__ void affine_body_external_body_force_do_step_kernel(
+        cuda_tool::BufferView<Vector12>  forces,
+        cuda_tool::CBufferView<IndexT>   body_ids,
+        cuda_tool::CBufferView<Vector12> body_forces,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        // Scatter add the external forces to the corresponding bodies
+        auto body_id = body_ids(i);
+        eigen::atomic_add(forces(body_id), body_forces(i));
+    }
+}  // namespace
+
 /**
  * @brief Get external forces from ExternalForceConstraint and apply them to Affine Bodies
  *
@@ -40,18 +59,16 @@ class AffineBodyExternalBodyForce final : public AffineBodyExternalForceReporter
     {
         SizeT force_count = constraint->forces().size();
 
-        using namespace cuda_tool;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(force_count,
-                   [forces   = info.external_forces().viewer(),
-                    body_ids = constraint->body_ids().viewer(),
-                    body_forces = constraint->forces().viewer()] __device__(int i) mutable
-                   {
-                       // Scatter add the external forces to the corresponding bodies
-                       auto body_id = body_ids(i);
-                       eigen::atomic_add(forces(body_id), body_forces(i));
-                   });
+        int n = (int)force_count;
+        if(n > 0)
+        {
+            auto k = affine_body_external_body_force_do_step_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.external_forces(),
+                constraint->body_ids(),
+                constraint->forces(),
+                n);
+        }
     }
 };
 

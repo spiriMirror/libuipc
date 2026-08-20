@@ -68,6 +68,127 @@ UIPC_GENERIC inline bool tri_edge_intersect_device(const Vector3& t0,
     return true;
 }
 
+namespace
+{
+    __global__ void SimplicialSurfaceIntersectionCheck_build_tri_aabbs_kernel(
+        cuda_tool::CBufferView<Vector3>  positions,
+        cuda_tool::CBufferView<Vector3i> triangles,
+        cuda_tool::CBufferView<IndexT>   vert_bids,
+        cuda_tool::CBufferView<IndexT>   vert_cids,
+        cuda_tool::BufferView<AABB>      tri_aabbs,
+        cuda_tool::BufferView<IndexT>    tri_bids,
+        cuda_tool::BufferView<IndexT>    tri_cids,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector3i F = triangles(i);
+        AABB     box;
+        box.extend(positions(F[0]).cast<float>());
+        box.extend(positions(F[1]).cast<float>());
+        box.extend(positions(F[2]).cast<float>());
+        tri_aabbs(i) = box;
+        tri_bids(i)  = vert_bids(F[0]);
+        tri_cids(i)  = vert_cids(F[0]);
+    }
+
+    __global__ void SimplicialSurfaceIntersectionCheck_build_edge_aabbs_kernel(
+        cuda_tool::CBufferView<Vector3>  positions,
+        cuda_tool::CBufferView<Vector2i> edges,
+        cuda_tool::CBufferView<IndexT>   vert_bids,
+        cuda_tool::CBufferView<IndexT>   vert_cids,
+        cuda_tool::BufferView<AABB>      edge_aabbs,
+        cuda_tool::BufferView<IndexT>    edge_bids,
+        cuda_tool::BufferView<IndexT>    edge_cids,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector2i E = edges(i);
+        AABB     box;
+        box.extend(positions(E[0]).cast<float>());
+        box.extend(positions(E[1]).cast<float>());
+        edge_aabbs(i) = box;
+        edge_bids(i)  = vert_bids(E[0]);
+        edge_cids(i)  = vert_cids(E[0]);
+    }
+
+    struct SimplicialSurfaceIntersectionCheck_NodePred
+    {
+        cuda_tool::Dense2D<IndexT> cmts_v;
+
+        __device__ bool operator()(const InfoStacklessBVH::NodePredInfo& info) const
+        {
+            constexpr IndexT invalid = static_cast<IndexT>(-1);
+            bool cid_cull = info.node_cid != invalid && info.query_cid != invalid
+                            && !cmts_v(info.query_cid, info.node_cid);
+            return !cid_cull;
+        }
+    };
+
+    struct SimplicialSurfaceIntersectionCheck_LeafPred
+    {
+        cuda_tool::CBufferView<Vector3>  pos_viewer;
+        cuda_tool::CBufferView<Vector2i> edge_viewer;
+        cuda_tool::CBufferView<Vector3i> tri_viewer;
+        cuda_tool::CBufferView<IndexT>   vert_cids_v;
+        cuda_tool::CBufferView<IndexT>   vert_scids_v;
+        cuda_tool::CBufferView<IndexT>   self_coll_v;
+        cuda_tool::CDense2D<IndexT>      contact_cmts_v;
+        cuda_tool::CDense2D<IndexT>      subscene_cmts_v;
+
+        __device__ bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
+        {
+            Vector2i E = edge_viewer(info.i);
+            Vector3i F = tri_viewer(info.j);
+
+            if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2]
+               || E[1] == F[0] || E[1] == F[1] || E[1] == F[2])
+                return false;
+
+            {
+                bool ok = true;
+                for(int ei = 0; ei < 2 && ok; ++ei)
+                    for(int fi = 0; fi < 3 && ok; ++fi)
+                    {
+                        IndexT scid_e = vert_scids_v(E[ei]);
+                        IndexT scid_f = vert_scids_v(F[fi]);
+                        if(!subscene_cmts_v(scid_e, scid_f))
+                            ok = false;
+                    }
+                if(!ok)
+                    return false;
+            }
+
+            {
+                bool ok = true;
+                for(int ei = 0; ei < 2 && ok; ++ei)
+                    for(int fi = 0; fi < 3 && ok; ++fi)
+                    {
+                        IndexT cid_e = vert_cids_v(E[ei]);
+                        IndexT cid_f = vert_cids_v(F[fi]);
+                        if(!contact_cmts_v(cid_e, cid_f))
+                            ok = false;
+                    }
+                if(!ok)
+                    return false;
+            }
+
+            if(info.bid_i == info.bid_j
+               && info.bid_i != static_cast<IndexT>(-1) && !self_coll_v(E[0]))
+                return false;
+
+            return tri_edge_intersect_device(pos_viewer(F[0]),
+                                             pos_viewer(F[1]),
+                                             pos_viewer(F[2]),
+                                             pos_viewer(E[0]),
+                                             pos_viewer(E[1]));
+        }
+    };
+}  // namespace
+
 class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
 {
   public:
@@ -113,49 +234,42 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
             DeviceBuffer<AABB>   tri_aabbs(num_tris);
             DeviceBuffer<IndexT> tri_bids(num_tris);
             DeviceBuffer<IndexT> tri_cids(num_tris);
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(num_tris,
-                       [positions = positions.cviewer(),
-                        triangles = triangles.cviewer(),
-                        vert_bids = vert_bids.cviewer(),
-                        vert_cids = vert_cids.cviewer(),
-                        tri_aabbs = tri_aabbs.viewer(),
-                        tri_bids  = tri_bids.viewer(),
-                        tri_cids = tri_cids.viewer()] __device__(int i) mutable
-                       {
-                           Vector3i F = triangles(i);
-                           AABB     box;
-                           box.extend(positions(F[0]).cast<float>());
-                           box.extend(positions(F[1]).cast<float>());
-                           box.extend(positions(F[2]).cast<float>());
-                           tri_aabbs(i) = box;
-                           tri_bids(i)  = vert_bids(F[0]);
-                           tri_cids(i)  = vert_cids(F[0]);
-                       });
+            {
+                auto k = SimplicialSurfaceIntersectionCheck_build_tri_aabbs_kernel;
+                int  n = (int)num_tris;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        positions.cview(),
+                        triangles.cview(),
+                        vert_bids.cview(),
+                        vert_cids.cview(),
+                        tri_aabbs.view(),
+                        tri_bids.view(),
+                        tri_cids.view(),
+                        n);
+                }
+            }
 
             DeviceBuffer<AABB>   edge_aabbs(num_edges);
             DeviceBuffer<IndexT> edge_bids(num_edges);
             DeviceBuffer<IndexT> edge_cids(num_edges);
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(num_edges,
-                       [positions  = positions.cviewer(),
-                        edges      = edges.cviewer(),
-                        vert_bids  = vert_bids.cviewer(),
-                        vert_cids  = vert_cids.cviewer(),
-                        edge_aabbs = edge_aabbs.viewer(),
-                        edge_bids  = edge_bids.viewer(),
-                        edge_cids = edge_cids.viewer()] __device__(int i) mutable
-                       {
-                           Vector2i E = edges(i);
-                           AABB     box;
-                           box.extend(positions(E[0]).cast<float>());
-                           box.extend(positions(E[1]).cast<float>());
-                           edge_aabbs(i) = box;
-                           edge_bids(i)  = vert_bids(E[0]);
-                           edge_cids(i)  = vert_cids(E[0]);
-                       });
+            {
+                auto k = SimplicialSurfaceIntersectionCheck_build_edge_aabbs_kernel;
+                int  n = (int)num_edges;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        positions.cview(),
+                        edges.cview(),
+                        vert_bids.cview(),
+                        vert_cids.cview(),
+                        edge_aabbs.view(),
+                        edge_bids.view(),
+                        edge_cids.view(),
+                        n);
+                }
+            }
 
             SizeT                  CN = contact_element_count;
             DeviceBuffer2D<IndexT> cmts;
@@ -184,67 +298,20 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
 
             auto cmts_v = cmts.viewer();
 
-            bvh.query(
-                edge_aabbs.view(),
-                edge_bids.view(),
-                edge_cids.view(),
-                cmts.view(),
-                [cmts_v] __device__(const InfoStacklessBVH::NodePredInfo& info) -> bool
-                {
-                    constexpr IndexT invalid = static_cast<IndexT>(-1);
-                    bool cid_cull = info.node_cid != invalid && info.query_cid != invalid
-                                    && !cmts_v(info.query_cid, info.node_cid);
-                    return !cid_cull;
-                },
-                [pos_viewer, edge_viewer, tri_viewer, vert_cids_v, vert_scids_v, self_coll_v, contact_cmts_v, subscene_cmts_v] __device__(
-                    const InfoStacklessBVH::LeafPredInfo& info) -> bool
-                {
-                    Vector2i E = edge_viewer(info.i);
-                    Vector3i F = tri_viewer(info.j);
-
-                    if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2]
-                       || E[1] == F[0] || E[1] == F[1] || E[1] == F[2])
-                        return false;
-
-                    {
-                        bool ok = true;
-                        for(int ei = 0; ei < 2 && ok; ++ei)
-                            for(int fi = 0; fi < 3 && ok; ++fi)
-                            {
-                                IndexT scid_e = vert_scids_v(E[ei]);
-                                IndexT scid_f = vert_scids_v(F[fi]);
-                                if(!subscene_cmts_v(scid_e, scid_f))
-                                    ok = false;
-                            }
-                        if(!ok)
-                            return false;
-                    }
-
-                    {
-                        bool ok = true;
-                        for(int ei = 0; ei < 2 && ok; ++ei)
-                            for(int fi = 0; fi < 3 && ok; ++fi)
-                            {
-                                IndexT cid_e = vert_cids_v(E[ei]);
-                                IndexT cid_f = vert_cids_v(F[fi]);
-                                if(!contact_cmts_v(cid_e, cid_f))
-                                    ok = false;
-                            }
-                        if(!ok)
-                            return false;
-                    }
-
-                    if(info.bid_i == info.bid_j
-                       && info.bid_i != static_cast<IndexT>(-1) && !self_coll_v(E[0]))
-                        return false;
-
-                    return tri_edge_intersect_device(pos_viewer(F[0]),
-                                                     pos_viewer(F[1]),
-                                                     pos_viewer(F[2]),
-                                                     pos_viewer(E[0]),
-                                                     pos_viewer(E[1]));
-                },
-                qbuffer);
+            bvh.query(edge_aabbs.view(),
+                      edge_bids.view(),
+                      edge_cids.view(),
+                      cmts.view(),
+                      SimplicialSurfaceIntersectionCheck_NodePred{cmts_v},
+                      SimplicialSurfaceIntersectionCheck_LeafPred{pos_viewer,
+                                                                  edge_viewer,
+                                                                  tri_viewer,
+                                                                  vert_cids_v,
+                                                                  vert_scids_v,
+                                                                  self_coll_v,
+                                                                  contact_cmts_v,
+                                                                  subscene_cmts_v},
+                      qbuffer);
 
             vector<Vector2i> h_pairs(qbuffer.size());
             if(!h_pairs.empty())

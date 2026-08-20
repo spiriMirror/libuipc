@@ -33,6 +33,113 @@ class SimSystemCreator<cuda::GlobalDyTopoEffectManager>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void GlobalDyTopoEffectManager_distribute_k1_kernel(
+        cuda_tool::Dense<Vector2i>              gradient_range,
+        cuda_tool::CDoubletVectorView<Float, 3> dytopo_effect_gradient,
+        Vector2i                                range,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto in_range = [](int i, const Vector2i& range)
+        { return i >= range.x() && i < range.y(); };
+
+        auto&& [i, G]      = dytopo_effect_gradient(I);
+        bool this_in_range = in_range(i, range);
+
+        if(!this_in_range)
+        {
+            return;
+        }
+
+        bool prev_in_range = false;
+        if(I > 0)
+        {
+            auto&& [prev_i, prev_G] = dytopo_effect_gradient(I - 1);
+            prev_in_range = in_range(prev_i, range);
+        }
+        bool next_in_range = false;
+        if(I < dytopo_effect_gradient.total_doublet_count() - 1)
+        {
+            auto&& [next_i, next_G] = dytopo_effect_gradient(I + 1);
+            next_in_range = in_range(next_i, range);
+        }
+
+        // if the prev is not in range, then this is the start of the partition
+        if(!prev_in_range)
+        {
+            gradient_range->x() = I;
+        }
+        // if the next is not in range, then this is the end of the partition
+        if(!next_in_range)
+        {
+            gradient_range->y() = I + 1;
+        }
+    }
+
+    __global__ void GlobalDyTopoEffectManager_distribute_k2_kernel(
+        cuda_tool::CDoubletVectorView<Float, 3> dytopo_effect_gradient,
+        cuda_tool::DoubletVectorView<Float, 3>  classified_gradient,
+        Vector2i                                range,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [i, G] = dytopo_effect_gradient(range.x() + I);
+        classified_gradient(I).write(i, G);
+    }
+
+    __global__ void GlobalDyTopoEffectManager_distribute_k3_kernel(
+        cuda_tool::BufferView<IndexT>             selected_hessian,
+        cuda_tool::Dense<IndexT>                  last,
+        cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
+        Vector2i                                  i_range,
+        Vector2i                                  j_range,
+        int                                       n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [i, j, H] = dytopo_effect_hessian(I);
+
+        auto in_range = [](int i, const Vector2i& range)
+        { return i >= range.x() && i < range.y(); };
+
+        selected_hessian(I) =
+            in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
+
+        // fill the last one as 0, so that we can calculate the total count
+        // during the exclusive scan
+        if(I == 0)
+            last = 0;
+    }
+
+    __global__ void GlobalDyTopoEffectManager_distribute_k4_kernel(
+        cuda_tool::CBufferView<IndexT>            selected_hessian,
+        cuda_tool::CBufferView<IndexT>            selected_hessian_offsets,
+        cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
+        cuda_tool::TripletMatrixView<Float, 3, 3> classified_hessian,
+        Vector2i                                  i_range,
+        Vector2i                                  j_range,
+        int                                       n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        if(selected_hessian(I))
+        {
+            auto&& [i, j, H] = dytopo_effect_hessian(I);
+            auto offset = selected_hessian_offsets(I);
+
+            classified_hessian(offset).write(i, j, H);
+        }
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalDyTopoEffectManager);
 
 cuda_tool::CBCOOVectorView<Float, 3> GlobalDyTopoEffectManager::gradients() const noexcept
@@ -195,50 +302,18 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
             gradient_range = Vector2i{0, 0};
 
             // partition
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(
-                    N,
-                    [gradient_range = gradient_range.viewer(),
-                     dytopo_effect_gradient =
-                         std::as_const(sorted_dytopo_effect_gradient).viewer(),
-                     range = classify_info.gradient_i_range()] __device__(int I) mutable
-                    {
-                        auto in_range = [](int i, const Vector2i& range)
-                        { return i >= range.x() && i < range.y(); };
-
-                        auto&& [i, G]      = dytopo_effect_gradient(I);
-                        bool this_in_range = in_range(i, range);
-
-                        if(!this_in_range)
-                        {
-                            return;
-                        }
-
-                        bool prev_in_range = false;
-                        if(I > 0)
-                        {
-                            auto&& [prev_i, prev_G] = dytopo_effect_gradient(I - 1);
-                            prev_in_range = in_range(prev_i, range);
-                        }
-                        bool next_in_range = false;
-                        if(I < dytopo_effect_gradient.total_doublet_count() - 1)
-                        {
-                            auto&& [next_i, next_G] = dytopo_effect_gradient(I + 1);
-                            next_in_range = in_range(next_i, range);
-                        }
-
-                        // if the prev is not in range, then this is the start of the partition
-                        if(!prev_in_range)
-                        {
-                            gradient_range->x() = I;
-                        }
-                        // if the next is not in range, then this is the end of the partition
-                        if(!next_in_range)
-                        {
-                            gradient_range->y() = I + 1;
-                        }
-                    });
+            {
+                auto k = GlobalDyTopoEffectManager_distribute_k1_kernel;
+                int  n = (int)N;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        gradient_range.viewer(),
+                        std::as_const(sorted_dytopo_effect_gradient).viewer(),
+                        classify_info.gradient_i_range(),
+                        n);
+                }
+            }
 
             Vector2i h_range = gradient_range;  // copy back
 
@@ -249,17 +324,16 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
             // fill
             if(count > 0)
             {
-                ParallelFor()
-                    .file_line(__FILE__, __LINE__)
-                    .apply(count,
-                           [dytopo_effect_gradient = std::as_const(sorted_dytopo_effect_gradient)
-                                                         .viewer(),
-                            classified_gradient = classified_gradients.viewer(),
-                            range = h_range] __device__(int I) mutable
-                           {
-                               auto&& [i, G] = dytopo_effect_gradient(range.x() + I);
-                               classified_gradient(I).write(i, G);
-                           });
+                auto k = GlobalDyTopoEffectManager_distribute_k2_kernel;
+                int  n = (int)count;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        std::as_const(sorted_dytopo_effect_gradient).viewer(),
+                        classified_gradients.viewer(),
+                        h_range,
+                        n);
+                }
             }
 
             classified_info.m_gradients = classified_gradients.view();
@@ -275,31 +349,20 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
             loose_resize(selected_hessian_offsets, N + 1);
 
             // select
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(
-                    N,
-                    [selected_hessian = selected_hessian.view(0, N).viewer(),
-                     last =
-                         VarView<IndexT>{selected_hessian.data() + N}.viewer(),
-                     dytopo_effect_hessian =
-                         sorted_dytopo_effect_hessian.cviewer(),
-                     i_range = classify_info.hessian_i_range(),
-                     j_range = classify_info.hessian_j_range()] __device__(int I) mutable
-                    {
-                        auto&& [i, j, H] = dytopo_effect_hessian(I);
-
-                        auto in_range = [](int i, const Vector2i& range)
-                        { return i >= range.x() && i < range.y(); };
-
-                        selected_hessian(I) =
-                            in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
-
-                        // fill the last one as 0, so that we can calculate the total count
-                        // during the exclusive scan
-                        if(I == 0)
-                            last = 0;
-                    });
+            {
+                auto k = GlobalDyTopoEffectManager_distribute_k3_kernel;
+                int  n = (int)N;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        selected_hessian.view(0, N).viewer(),
+                        VarView<IndexT>{selected_hessian.data() + N}.viewer(),
+                        sorted_dytopo_effect_hessian.cviewer(),
+                        classify_info.hessian_i_range(),
+                        classify_info.hessian_j_range(),
+                        n);
+                }
+            }
 
             // scan
             DeviceScan().ExclusiveSum(selected_hessian.data(),
@@ -314,26 +377,19 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
             // fill
             if(h_total_count > 0)
             {
-                ParallelFor()
-                    .file_line(__FILE__, __LINE__)
-                    .apply(N,
-                           [selected_hessian = selected_hessian.cviewer(),
-                            selected_hessian_offsets =
-                                selected_hessian_offsets.cviewer(),
-                            dytopo_effect_hessian =
-                                sorted_dytopo_effect_hessian.cviewer(),
-                            classified_hessian = classified_hessians.viewer(),
-                            i_range = classify_info.hessian_i_range(),
-                            j_range = classify_info.hessian_j_range()] __device__(int I) mutable
-                           {
-                               if(selected_hessian(I))
-                               {
-                                   auto&& [i, j, H] = dytopo_effect_hessian(I);
-                                   auto offset = selected_hessian_offsets(I);
-
-                                   classified_hessian(offset).write(i, j, H);
-                               }
-                           });
+                auto k = GlobalDyTopoEffectManager_distribute_k4_kernel;
+                int  n = (int)N;
+                if(n > 0)
+                {
+                    k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                        selected_hessian.cview(),
+                        selected_hessian_offsets.cview(),
+                        sorted_dytopo_effect_hessian.cviewer(),
+                        classified_hessians.viewer(),
+                        classify_info.hessian_i_range(),
+                        classify_info.hessian_j_range(),
+                        n);
+                }
             }
 
             classified_info.m_hessians = classified_hessians.view();

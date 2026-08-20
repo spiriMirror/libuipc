@@ -74,6 +74,7 @@ class CBufferView
     __host__ __device__ size_t       total_size() const { return m_size; }
     __host__ __device__ CBufferView<T> cviewer() const { return *this; }
     __host__ __device__ CBufferView<T> viewer() const { return *this; }
+    __host__ __device__ CBufferView<T> cview() const { return *this; }
     __host__ __device__ const T&     operator[](size_t i) const { return data()[i]; }
     // parenthesis indexing kept for muda-viewer call-shape parity
     __host__ __device__ const T&     operator()(size_t i) const { return data()[i]; }

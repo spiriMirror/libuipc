@@ -114,168 +114,611 @@ namespace uipc::backend::cuda
 {
 using namespace info_stackless_v0_detail;
 
+namespace
+{
+    __global__ void InfoStacklessBVHV0_calcMaxBVFromBox_kernel(size_t size,
+                                                               cuda_tool::CBufferView<AABB> box,
+                                                               cuda_tool::Dense<AABB> out)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= size)
+            return;
+        if(idx == 0)
+            *out = AABB();
+
+        __shared__ PlainAABB warp_boxes[K_WARPS];
+        auto                 temp     = to_plain(box(idx));
+        int                  warp_tid = threadIdx.x & 31;
+        int                  warp_id  = threadIdx.x >> 5;
+
+        float minx = temp._min.x, miny = temp._min.y, minz = temp._min.z;
+        float maxx = temp._max.x, maxy = temp._max.y, maxz = temp._max.z;
+        for(int i = 1; i < 32; i <<= 1)
+        {
+            minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
+            miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
+            minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
+            maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
+            maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
+            maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
+        }
+        if(warp_tid == 0)
+        {
+            warp_boxes[warp_id]._min = make_float3(minx, miny, minz);
+            warp_boxes[warp_id]._max = make_float3(maxx, maxy, maxz);
+        }
+        __syncthreads();
+
+        int warp_num = (blockIdx.x == gridDim.x - 1) ?
+                           ((size - blockIdx.x * blockDim.x + 31) >> 5) :
+                           (blockDim.x >> 5);
+        if(threadIdx.x >= warp_num)
+            return;
+
+        temp = warp_boxes[threadIdx.x];
+        minx = temp._min.x;
+        miny = temp._min.y;
+        minz = temp._min.z;
+        maxx = temp._max.x;
+        maxy = temp._max.y;
+        maxz = temp._max.z;
+        for(int i = 1; i < warp_num; i <<= 1)
+        {
+            minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
+            miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
+            minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
+            maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
+            maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
+            maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
+        }
+        if(threadIdx.x == 0)
+        {
+            atomic_minf(&out->min().x(), minx);
+            atomic_minf(&out->min().y(), miny);
+            atomic_minf(&out->min().z(), minz);
+            atomic_maxf(&out->max().x(), maxx);
+            atomic_maxf(&out->max().y(), maxy);
+            atomic_maxf(&out->max().z(), maxz);
+        }
+    }
+
+    __global__ void InfoStacklessBVHV0_calcMCsFromBox_kernel(cuda_tool::CBufferView<AABB> box,
+                                                             cuda_tool::CDense<AABB> scene,
+                                                             cuda_tool::BufferView<uint32_t> codes,
+                                                             int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        auto   bv     = box(idx);
+        auto   center = bv.center();
+        float3 c = make_float3(center.x(), center.y(), center.z());
+        auto   scene_min = scene->min();
+        float3 smin =
+            make_float3(scene_min.x(), scene_min.y(), scene_min.z());
+        auto   scene_size = scene->sizes();
+        float3 off        = c - smin;
+        codes(idx)        = morton3D(off.x / scene_size.x(),
+                                     off.y / scene_size.y(),
+                                     off.z / scene_size.z());
+    }
+
+    __global__ void InfoStacklessBVHV0_calcInverseMapping_kernel(cuda_tool::BufferView<int32_t> map,
+                                                                 cuda_tool::BufferView<int32_t> inv,
+                                                                 int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        inv(map(idx)) = idx;
+    }
+
+    __global__ void InfoStacklessBVHV0_buildPrimitivesFromBox_kernel(cuda_tool::BufferView<int> _prim_idx,
+                                                                     cuda_tool::BufferView<AABB> _prim_box,
+                                                                     cuda_tool::BufferView<int32_t> _prim_map,
+                                                                     cuda_tool::BufferView<IndexT> _ext_bid,
+                                                                     cuda_tool::BufferView<IndexT> _ext_cid,
+                                                                     cuda_tool::CBufferView<IndexT> _bids,
+                                                                     cuda_tool::CBufferView<IndexT> _cids,
+                                                                     bool has_info,
+                                                                     cuda_tool::CBufferView<AABB> box,
+                                                                     int n)
+    {
+        constexpr IndexT invalid = static_cast<IndexT>(-1);
+        int              idx     = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        int new_idx        = _prim_map(idx);
+        _prim_idx(new_idx) = idx;
+        _prim_box(new_idx) = box(idx);
+        if(has_info)
+        {
+            _ext_bid(new_idx) = _bids(idx);
+            _ext_cid(new_idx) = _cids(idx);
+        }
+        else
+        {
+            _ext_bid(new_idx) = invalid;
+            _ext_cid(new_idx) = invalid;
+        }
+    }
+
+    __global__ void InfoStacklessBVHV0_calcExtNodeSplitMetrics_kernel(cuda_tool::BufferView<uint32_t> codes,
+                                                                      cuda_tool::BufferView<int> metrics,
+                                                                      int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        metrics(idx) =
+            idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
+    }
+
+    __global__ void InfoStacklessBVHV0_buildIntNodes_kernel(int size,
+                                                            cuda_tool::BufferView<uint32_t> _depths,
+                                                            cuda_tool::BufferView<int> _lvs_lca,
+                                                            cuda_tool::BufferView<int> _lvs_metric,
+                                                            cuda_tool::BufferView<uint32_t> _lvs_par,
+                                                            cuda_tool::BufferView<AABB> _lvs_box,
+                                                            cuda_tool::BufferView<IndexT> _lvs_bid,
+                                                            cuda_tool::BufferView<IndexT> _lvs_cid,
+                                                            cuda_tool::BufferView<int> _tks_lc,
+                                                            cuda_tool::BufferView<int> _tks_rc,
+                                                            cuda_tool::BufferView<int> _tks_range_x,
+                                                            cuda_tool::BufferView<int> _tks_range_y,
+                                                            cuda_tool::BufferView<uint32_t> _tks_mark,
+                                                            cuda_tool::BufferView<AABB> _tks_box,
+                                                            cuda_tool::BufferView<IndexT> _tks_bid,
+                                                            cuda_tool::BufferView<IndexT> _tks_cid,
+                                                            cuda_tool::BufferView<uint32_t> _flag,
+                                                            cuda_tool::BufferView<int> _tks_par)
+    {
+        constexpr IndexT invalid = static_cast<IndexT>(-1);
+        int              idx     = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= size)
+            return;
+
+        _lvs_lca(idx) = -1;
+        _depths(idx)  = 0;
+        int l         = idx - 1;
+        int r         = idx;
+        bool mark = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
+        int cur       = mark ? l : r;
+        _lvs_par(idx) = cur;
+        if(_flag.total_size() == 0)
+            return;
+
+        if(mark)
+        {
+            _tks_rc(cur)      = idx;
+            _tks_range_y(cur) = idx;
+            atomicOr(&_tks_mark(cur), 0x00000002);
+        }
+        else
+        {
+            _tks_lc(cur)      = idx;
+            _tks_range_x(cur) = idx;
+            atomicOr(&_tks_mark(cur), 0x00000001);
+        }
+        __threadfence();
+
+        while(atomicAdd(&_flag(cur), 1) == 1)
+        {
+            int      chl = _tks_lc(cur);
+            int      chr = _tks_rc(cur);
+            uint32_t m   = _tks_mark(cur);
+            if(m & 1)
+                _tks_box(cur) = _lvs_box(chl);
+            else
+                _tks_box(cur) = _tks_box(chl);
+            if(m & 2)
+                _tks_box(cur).extend(_lvs_box(chr));
+            else
+                _tks_box(cur).extend(_tks_box(chr));
+
+            IndexT l_bid  = (m & 1) ? _lvs_bid(chl) : _tks_bid(chl);
+            IndexT r_bid  = (m & 2) ? _lvs_bid(chr) : _tks_bid(chr);
+            IndexT l_cid  = (m & 1) ? _lvs_cid(chl) : _tks_cid(chl);
+            IndexT r_cid  = (m & 2) ? _lvs_cid(chr) : _tks_cid(chr);
+            _tks_bid(cur) = (l_bid == r_bid) ? l_bid : invalid;
+            _tks_cid(cur) = (l_cid == r_cid) ? l_cid : invalid;
+
+            _tks_mark(cur) &= 0x00000007;
+            l               = _tks_range_x(cur) - 1;
+            r               = _tks_range_y(cur);
+            _lvs_lca(l + 1) = cur;
+            _depths(l + 1)++;
+            mark = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
+            if(l + 1 == 0 && r == size - 1)
+            {
+                _tks_par(cur) = -1;
+                _tks_mark(cur) &= 0xFFFFFFFB;
+                break;
+            }
+
+            int par       = mark ? l : r;
+            _tks_par(cur) = par;
+            if(mark)
+            {
+                _tks_rc(par)      = cur;
+                _tks_range_y(par) = r;
+                atomicAnd(&_tks_mark(par), 0xFFFFFFFD);
+                _tks_mark(cur) |= 0x00000004;
+            }
+            else
+            {
+                _tks_lc(par)      = cur;
+                _tks_range_x(par) = l + 1;
+                atomicAnd(&_tks_mark(par), 0xFFFFFFFE);
+                _tks_mark(cur) &= 0xFFFFFFFB;
+            }
+            __threadfence();
+            cur = par;
+        }
+    }
+
+    __global__ void InfoStacklessBVHV0_calcIntNodeOrders_kernel(cuda_tool::BufferView<int> _tks_lc,
+                                                                cuda_tool::BufferView<int> _lcas,
+                                                                cuda_tool::BufferView<uint32_t> _depths,
+                                                                cuda_tool::BufferView<uint32_t> _offsets,
+                                                                cuda_tool::BufferView<int> _tkMap,
+                                                                int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        int node  = _lcas(idx);
+        int depth = _depths(idx);
+        int id    = _offsets(idx);
+        if(node != -1)
+        {
+            for(; depth--; node = _tks_lc(node))
+                _tkMap(node) = id++;
+        }
+    }
+
+    __global__ void InfoStacklessBVHV0_updateBvhExtNodeLinks_kernel(cuda_tool::BufferView<int> _map,
+                                                                    cuda_tool::BufferView<int> _lcas,
+                                                                    cuda_tool::BufferView<uint32_t> _pars,
+                                                                    int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        _pars(idx) = _map(_pars(idx));
+        int ori    = _lcas(idx);
+        _lcas(idx) = (ori != -1) ? (_map(ori) << 1) : (idx << 1 | 1);
+    }
+
+    __global__ void InfoStacklessBVHV0_reorderNode_kernel(int int_size,
+                                                          cuda_tool::BufferView<int> _lvs_lca,
+                                                          cuda_tool::BufferView<AABB> _lvs_box,
+                                                          cuda_tool::BufferView<IndexT> _lvs_bid,
+                                                          cuda_tool::BufferView<IndexT> _lvs_cid,
+                                                          cuda_tool::BufferView<int> _tk_map,
+                                                          cuda_tool::BufferView<int> _int_lc,
+                                                          cuda_tool::BufferView<uint32_t> _int_mark,
+                                                          cuda_tool::BufferView<int> _int_range_y,
+                                                          cuda_tool::BufferView<AABB> _int_box,
+                                                          cuda_tool::BufferView<IndexT> _int_bid,
+                                                          cuda_tool::BufferView<IndexT> _int_cid,
+                                                          cuda_tool::BufferView<InfoStacklessBVHV0::Node> _nodes,
+                                                          int count)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= count)
+            return;
+        InfoStacklessBVHV0::Node leaf;
+        leaf.lc    = -1;
+        int escape = _lvs_lca(idx + 1);
+        if(escape == -1)
+            leaf.escape = -1;
+        else
+        {
+            int b_leaf = escape & 1;
+            escape >>= 1;
+            leaf.escape = escape + (b_leaf ? int_size : 0);
+        }
+        leaf.bound             = _lvs_box(idx);
+        leaf.bid               = _lvs_bid(idx);
+        leaf.cid               = _lvs_cid(idx);
+        _nodes(idx + int_size) = leaf;
+
+        if(idx >= int_size)
+            return;
+
+        InfoStacklessBVHV0::Node n;
+        int      new_id = _tk_map(idx);
+        uint32_t m      = _int_mark(idx);
+        n.lc = (m & 1) ? _int_lc(idx) + int_size : _tk_map(_int_lc(idx));
+        n.bound = _int_box(idx);
+        int ie  = _lvs_lca(_int_range_y(idx) + 1);
+        if(ie == -1)
+            n.escape = -1;
+        else
+        {
+            int b_leaf = ie & 1;
+            ie >>= 1;
+            n.escape = ie + (b_leaf ? int_size : 0);
+        }
+        n.bid          = _int_bid(idx);
+        n.cid          = _int_cid(idx);
+        _nodes(new_id) = n;
+    }
+
+    template <typename NodeCull, typename PairPred>
+    __global__ void InfoStacklessBVHV0_stacklessSelf_kernel(int Size,
+                                                            cuda_tool::CBufferView<AABB> _box,
+                                                            int intSize,
+                                                            int numObjs,
+                                                            cuda_tool::BufferView<int> _lvs_idx,
+                                                            cuda_tool::BufferView<InfoStacklessBVHV0::Node> _nodes,
+                                                            cuda_tool::Dense<int> resCounter,
+                                                            cuda_tool::BufferView<Vector2i> res,
+                                                            NodeCull node_cull,
+                                                            PairPred pair_pred)
+    {
+        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
+        bool active = tid < Size;
+        int  idx    = -1;
+        AABB bv;
+        if(active)
+        {
+            idx = _lvs_idx(tid);
+            bv  = _box(idx);
+        }
+
+        __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
+        __shared__ int  shared_counter;
+        __shared__ int  shared_global_idx;
+        if(threadIdx.x == 0)
+            shared_counter = 0;
+
+        int       st       = 0;
+        const int max_iter = numObjs * 2;
+        while(true)
+        {
+            __syncthreads();
+            if(active)
+            {
+                int inner_i = 0;
+                for(; inner_i < max_iter; ++inner_i)
+                {
+                    if(st == -1)
+                        break;
+                    auto node = _nodes(st);
+                    if(!node.bound.intersects(bv))
+                    {
+                        st = node.escape;
+                        continue;
+                    }
+                    if(!node_cull(idx, node.bid, node.cid))
+                    {
+                        st = node.escape;
+                        continue;
+                    }
+                    if(node.lc == -1)
+                    {
+                        if(tid < st - intSize)
+                        {
+                            auto pair = ordered_pair(idx, _lvs_idx(st - intSize));
+                            if(pair_pred(pair.x, pair.y))
+                            {
+                                int sidx = atomicAdd(&shared_counter, 1);
+                                if(sidx >= MAX_RES_PER_BLOCK)
+                                    break;
+                                shared_res[sidx] = pair;
+                            }
+                        }
+                        st = node.escape;
+                    }
+                    else
+                        st = node.lc;
+                }
+                UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
+            }
+            __syncthreads();
+            int total = min(shared_counter, MAX_RES_PER_BLOCK);
+            if(threadIdx.x == 0)
+                shared_global_idx = atomicAdd(resCounter.data(), total);
+            __syncthreads();
+            int gidx = shared_global_idx;
+            if(threadIdx.x == 0)
+                shared_counter = 0;
+            bool done = total < MAX_RES_PER_BLOCK;
+            safe_copy_to(shared_res,
+                         total,
+                         res.data(),
+                         gidx,
+                         static_cast<int>(res.total_size()));
+            if(done)
+                break;
+        }
+    }
+
+    template <typename NodeCull, typename PairPred>
+    __global__ void InfoStacklessBVHV0_stacklessOther_kernel(int Size,
+                                                             cuda_tool::CBufferView<AABB> _box,
+                                                             cuda_tool::CBufferView<int> sortedIdx,
+                                                             int intSize,
+                                                             int numObjs,
+                                                             cuda_tool::BufferView<int> _lvs_idx,
+                                                             cuda_tool::BufferView<InfoStacklessBVHV0::Node> _nodes,
+                                                             cuda_tool::Dense<int> resCounter,
+                                                             cuda_tool::BufferView<Vector2i> res,
+                                                             NodeCull node_cull,
+                                                             PairPred pair_pred)
+    {
+        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
+        bool active = tid < Size;
+        int  idx    = -1;
+        AABB bv;
+        if(active)
+        {
+            idx = sortedIdx(tid);
+            bv  = _box(idx);
+        }
+
+        __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
+        __shared__ int  shared_counter;
+        __shared__ int  shared_global_idx;
+        if(threadIdx.x == 0)
+            shared_counter = 0;
+
+        int       st       = 0;
+        const int max_iter = numObjs * 2;
+        while(true)
+        {
+            __syncthreads();
+            if(active)
+            {
+                int inner_i = 0;
+                for(; inner_i < max_iter; ++inner_i)
+                {
+                    if(st == -1)
+                        break;
+                    auto node = _nodes(st);
+                    if(!node.bound.intersects(bv))
+                    {
+                        st = node.escape;
+                        continue;
+                    }
+                    if(!node_cull(idx, node.bid, node.cid))
+                    {
+                        st = node.escape;
+                        continue;
+                    }
+                    if(node.lc == -1)
+                    {
+                        auto pair = int2{idx, _lvs_idx(st - intSize)};
+                        if(pair_pred(pair.x, pair.y))
+                        {
+                            int sidx = atomicAdd(&shared_counter, 1);
+                            if(sidx >= MAX_RES_PER_BLOCK)
+                                break;
+                            shared_res[sidx] = pair;
+                        }
+                        st = node.escape;
+                    }
+                    else
+                        st = node.lc;
+                }
+                UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
+            }
+
+            __syncthreads();
+            int total = min(shared_counter, MAX_RES_PER_BLOCK);
+            if(threadIdx.x == 0)
+                shared_global_idx = atomicAdd(resCounter.data(), total);
+            __syncthreads();
+            int gidx = shared_global_idx;
+            if(threadIdx.x == 0)
+                shared_counter = 0;
+            __syncthreads();
+            bool done = total < MAX_RES_PER_BLOCK;
+            safe_copy_to(shared_res,
+                         total,
+                         res.data(),
+                         gidx,
+                         static_cast<int>(res.total_size()));
+            if(done)
+                break;
+        }
+    }
+
+    // Adapters replacing the __device__ predicate lambdas that detect()/query()
+    // used to pass into stacklessSelf()/stacklessOther().
+    template <typename NodePred>
+    struct InfoStacklessBVHV0NodeCullAdapter
+    {
+        NodePred np;
+        __device__ auto operator()(IndexT i, IndexT node_bid, IndexT node_cid) const
+        {
+            InfoStacklessBVHV0::NodePredInfo info{i, node_bid, node_cid};
+            return np(info);
+        }
+    };
+
+    template <typename LeafPred>
+    struct InfoStacklessBVHV0SelfPairPredAdapter
+    {
+        LeafPred lp;
+        __device__ auto operator()(IndexT i, IndexT j) const
+        {
+            if(j <= i)
+                return false;
+            return lp(i, j);
+        }
+    };
+
+    template <typename LeafPred>
+    struct InfoStacklessBVHV0OtherPairPredAdapter
+    {
+        LeafPred lp;
+        __device__ auto operator()(IndexT i, IndexT j) const { return lp(i, j); }
+    };
+}  // namespace
+
 inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
                                                        cuda_tool::VarView<AABB> scene_box)
 {
     if(aabbs.size() == 0)
         return;
 
-    using namespace cuda_tool;
     auto num  = aabbs.size();
     auto grid = (num + K_THREADS - 1) / K_THREADS;
 
-    Launch(grid, K_THREADS)
-        .file_line(__FILE__, __LINE__)
-        .apply(
-            [size = aabbs.size(),
-             box  = aabbs.viewer(),
-             out  = scene_box.viewer()] __device__()
-            {
-                int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= size)
-                    return;
-                if(idx == 0)
-                    *out = AABB();
-
-                __shared__ PlainAABB warp_boxes[K_WARPS];
-                auto                 temp     = to_plain(box(idx));
-                int                  warp_tid = threadIdx.x & 31;
-                int                  warp_id  = threadIdx.x >> 5;
-
-                float minx = temp._min.x, miny = temp._min.y, minz = temp._min.z;
-                float maxx = temp._max.x, maxy = temp._max.y, maxz = temp._max.z;
-                for(int i = 1; i < 32; i <<= 1)
-                {
-                    minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
-                    miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
-                    minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
-                    maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
-                    maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
-                    maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
-                }
-                if(warp_tid == 0)
-                {
-                    warp_boxes[warp_id]._min = make_float3(minx, miny, minz);
-                    warp_boxes[warp_id]._max = make_float3(maxx, maxy, maxz);
-                }
-                __syncthreads();
-
-                int warp_num = (blockIdx.x == gridDim.x - 1) ?
-                                   ((size - blockIdx.x * blockDim.x + 31) >> 5) :
-                                   (blockDim.x >> 5);
-                if(threadIdx.x >= warp_num)
-                    return;
-
-                temp = warp_boxes[threadIdx.x];
-                minx = temp._min.x;
-                miny = temp._min.y;
-                minz = temp._min.z;
-                maxx = temp._max.x;
-                maxy = temp._max.y;
-                maxz = temp._max.z;
-                for(int i = 1; i < warp_num; i <<= 1)
-                {
-                    minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
-                    miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
-                    minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
-                    maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
-                    maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
-                    maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
-                }
-                if(threadIdx.x == 0)
-                {
-                    atomic_minf(&out->min().x(), minx);
-                    atomic_minf(&out->min().y(), miny);
-                    atomic_minf(&out->min().z(), minz);
-                    atomic_maxf(&out->max().x(), maxx);
-                    atomic_maxf(&out->max().y(), maxy);
-                    atomic_maxf(&out->max().z(), maxz);
-                }
-            });
+    if(grid > 0)
+        InfoStacklessBVHV0_calcMaxBVFromBox_kernel<<<grid, K_THREADS, 0, nullptr>>>(
+            aabbs.size(), aabbs, scene_box.viewer());
 }
 
 inline void InfoStacklessBVHV0::Impl::calcMCsFromBox(cuda_tool::CBufferView<AABB> aabbs,
                                                      cuda_tool::CVarView<AABB> scene_box,
                                                      cuda_tool::BufferView<uint32_t> codes)
 {
-    using namespace cuda_tool;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(aabbs.size(),
-               [box   = aabbs.viewer(),
-                scene = scene_box.viewer(),
-                codes = codes.viewer()] __device__(int idx)
-               {
-                   auto   bv     = box(idx);
-                   auto   center = bv.center();
-                   float3 c = make_float3(center.x(), center.y(), center.z());
-                   auto   scene_min = scene->min();
-                   float3 smin =
-                       make_float3(scene_min.x(), scene_min.y(), scene_min.z());
-                   auto   scene_size = scene->sizes();
-                   float3 off        = c - smin;
-                   codes(idx)        = morton3D(off.x / scene_size.x(),
-                                                off.y / scene_size.y(),
-                                                off.z / scene_size.z());
-               });
+    auto k = InfoStacklessBVHV0_calcMCsFromBox_kernel;
+    int  n = static_cast<int>(aabbs.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            aabbs, scene_box.viewer(), codes, n);
 }
 
 inline void InfoStacklessBVHV0::Impl::calcInverseMapping()
 {
-    using namespace cuda_tool;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(sorted_id.size(),
-               [map = sorted_id.viewer(),
-                inv = primMap.viewer()] __device__(int idx)
-               { inv(map(idx)) = idx; });
+    auto k = InfoStacklessBVHV0_calcInverseMapping_kernel;
+    int  n = static_cast<int>(sorted_id.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            sorted_id.view(), primMap.view(), n);
 }
 
 inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs)
 {
-    using namespace cuda_tool;
-    constexpr IndexT invalid = static_cast<IndexT>(-1);
     bool has_info = bids.size() == aabbs.size() && cids.size() == aabbs.size();
-    ParallelFor().apply(aabbs.size(),
-                        [_prim_idx = ext_idx.viewer(),
-                         _prim_box = ext_aabb.viewer(),
-                         _prim_map = primMap.viewer(),
-                         _ext_bid  = ext_bid.viewer(),
-                         _ext_cid  = ext_cid.viewer(),
-                         _bids     = bids.viewer(),
-                         _cids     = cids.viewer(),
-                         has_info,
-                         box = aabbs.viewer()] __device__(int idx)
-                        {
-                            int new_idx        = _prim_map(idx);
-                            _prim_idx(new_idx) = idx;
-                            _prim_box(new_idx) = box(idx);
-                            if(has_info)
-                            {
-                                _ext_bid(new_idx) = _bids(idx);
-                                _ext_cid(new_idx) = _cids(idx);
-                            }
-                            else
-                            {
-                                _ext_bid(new_idx) = invalid;
-                                _ext_cid(new_idx) = invalid;
-                            }
-                        });
+    auto k        = InfoStacklessBVHV0_buildPrimitivesFromBox_kernel;
+    int  n        = static_cast<int>(aabbs.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            ext_idx.view(),
+            ext_aabb.view(),
+            primMap.view(),
+            ext_bid.view(),
+            ext_cid.view(),
+            bids,
+            cids,
+            has_info,
+            aabbs,
+            n);
 }
 
 inline void InfoStacklessBVHV0::Impl::calcExtNodeSplitMetrics()
 {
-    using namespace cuda_tool;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(mtcode.size(),
-               [n       = mtcode.size(),
-                codes   = mtcode.viewer(),
-                metrics = metric.viewer()] __device__(int idx)
-               {
-                   metrics(idx) =
-                       idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
-               });
+    auto k = InfoStacklessBVHV0_calcExtNodeSplitMetrics_kernel;
+    int  n = static_cast<int>(mtcode.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            mtcode.view(), metric.view(), n);
 }
 
 inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
@@ -283,133 +726,39 @@ inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
     using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
     auto             grid    = (size + 255) / 256;
-    Launch(grid, 256)
-        .file_line(__FILE__, __LINE__)
-        .apply(
-            [size,
-             _depths      = count.viewer(),
-             _lvs_lca     = ext_lca.viewer(),
-             _lvs_metric  = metric.viewer(),
-             _lvs_par     = ext_par.viewer(),
-             _lvs_box     = ext_aabb.viewer(),
-             _lvs_bid     = ext_bid.viewer(),
-             _lvs_cid     = ext_cid.viewer(),
-             _tks_lc      = int_lc.viewer(),
-             _tks_rc      = int_rc.viewer(),
-             _tks_range_x = int_range_x.viewer(),
-             _tks_range_y = int_range_y.viewer(),
-             _tks_mark    = int_mark.viewer(),
-             _tks_box     = int_aabb.viewer(),
-             _tks_bid     = int_bid.viewer(),
-             _tks_cid     = int_cid.viewer(),
-             _flag        = flags.viewer(),
-             _tks_par     = int_par.viewer()] __device__()
-            {
-                int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= size)
-                    return;
-
-                _lvs_lca(idx) = -1;
-                _depths(idx)  = 0;
-                int l         = idx - 1;
-                int r         = idx;
-                bool mark = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
-                int cur       = mark ? l : r;
-                _lvs_par(idx) = cur;
-                if(_flag.total_size() == 0)
-                    return;
-
-                if(mark)
-                {
-                    _tks_rc(cur)      = idx;
-                    _tks_range_y(cur) = idx;
-                    atomicOr(&_tks_mark(cur), 0x00000002);
-                }
-                else
-                {
-                    _tks_lc(cur)      = idx;
-                    _tks_range_x(cur) = idx;
-                    atomicOr(&_tks_mark(cur), 0x00000001);
-                }
-                __threadfence();
-
-                while(atomicAdd(&_flag(cur), 1) == 1)
-                {
-                    int      chl = _tks_lc(cur);
-                    int      chr = _tks_rc(cur);
-                    uint32_t m   = _tks_mark(cur);
-                    if(m & 1)
-                        _tks_box(cur) = _lvs_box(chl);
-                    else
-                        _tks_box(cur) = _tks_box(chl);
-                    if(m & 2)
-                        _tks_box(cur).extend(_lvs_box(chr));
-                    else
-                        _tks_box(cur).extend(_tks_box(chr));
-
-                    IndexT l_bid  = (m & 1) ? _lvs_bid(chl) : _tks_bid(chl);
-                    IndexT r_bid  = (m & 2) ? _lvs_bid(chr) : _tks_bid(chr);
-                    IndexT l_cid  = (m & 1) ? _lvs_cid(chl) : _tks_cid(chl);
-                    IndexT r_cid  = (m & 2) ? _lvs_cid(chr) : _tks_cid(chr);
-                    _tks_bid(cur) = (l_bid == r_bid) ? l_bid : invalid;
-                    _tks_cid(cur) = (l_cid == r_cid) ? l_cid : invalid;
-
-                    _tks_mark(cur) &= 0x00000007;
-                    l               = _tks_range_x(cur) - 1;
-                    r               = _tks_range_y(cur);
-                    _lvs_lca(l + 1) = cur;
-                    _depths(l + 1)++;
-                    mark = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
-                    if(l + 1 == 0 && r == size - 1)
-                    {
-                        _tks_par(cur) = -1;
-                        _tks_mark(cur) &= 0xFFFFFFFB;
-                        break;
-                    }
-
-                    int par       = mark ? l : r;
-                    _tks_par(cur) = par;
-                    if(mark)
-                    {
-                        _tks_rc(par)      = cur;
-                        _tks_range_y(par) = r;
-                        atomicAnd(&_tks_mark(par), 0xFFFFFFFD);
-                        _tks_mark(cur) |= 0x00000004;
-                    }
-                    else
-                    {
-                        _tks_lc(par)      = cur;
-                        _tks_range_x(par) = l + 1;
-                        atomicAnd(&_tks_mark(par), 0xFFFFFFFE);
-                        _tks_mark(cur) &= 0xFFFFFFFB;
-                    }
-                    __threadfence();
-                    cur = par;
-                }
-            });
+    if(size > 0)
+    {
+        auto k = InfoStacklessBVHV0_buildIntNodes_kernel;
+        k<<<grid, 256, 0, nullptr>>>(size,
+                                     count.viewer(),
+                                     ext_lca.viewer(),
+                                     metric.viewer(),
+                                     ext_par.viewer(),
+                                     ext_aabb.viewer(),
+                                     ext_bid.viewer(),
+                                     ext_cid.viewer(),
+                                     int_lc.viewer(),
+                                     int_rc.viewer(),
+                                     int_range_x.viewer(),
+                                     int_range_y.viewer(),
+                                     int_mark.viewer(),
+                                     int_aabb.viewer(),
+                                     int_bid.viewer(),
+                                     int_cid.viewer(),
+                                     flags.viewer(),
+                                     int_par.viewer());
+    }
 }
 
 inline void InfoStacklessBVHV0::Impl::calcIntNodeOrders(int size)
 {
     using namespace cuda_tool;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(size,
-               [_tks_lc  = int_lc.viewer(),
-                _lcas    = ext_lca.viewer(),
-                _depths  = count.viewer(),
-                _offsets = offsetTable.viewer(),
-                _tkMap   = tkMap.viewer()] __device__(int idx)
-               {
-                   int node  = _lcas(idx);
-                   int depth = _depths(idx);
-                   int id    = _offsets(idx);
-                   if(node != -1)
-                   {
-                       for(; depth--; node = _tks_lc(node))
-                           _tkMap(node) = id++;
-                   }
-               });
+    if(size > 0)
+    {
+        auto k = InfoStacklessBVHV0_calcIntNodeOrders_kernel;
+        k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            int_lc.viewer(), ext_lca.viewer(), count.viewer(), offsetTable.viewer(), tkMap.viewer(), size);
+    }
 }
 
 inline void InfoStacklessBVHV0::Impl::updateBvhExtNodeLinks(int size)
@@ -417,77 +766,40 @@ inline void InfoStacklessBVHV0::Impl::updateBvhExtNodeLinks(int size)
     using namespace cuda_tool;
     if(flags.size() == 0)
         return;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(size,
-               [_map  = tkMap.viewer(),
-                _lcas = ext_lca.viewer(),
-                _pars = ext_par.viewer()] __device__(int idx)
-               {
-                   _pars(idx) = _map(_pars(idx));
-                   int ori    = _lcas(idx);
-                   _lcas(idx) = (ori != -1) ? (_map(ori) << 1) : (idx << 1 | 1);
-               });
+    if(size > 0)
+    {
+        auto k = InfoStacklessBVHV0_updateBvhExtNodeLinks_kernel;
+        k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            tkMap.viewer(), ext_lca.viewer(), ext_par.viewer(), size);
+    }
 }
 
 inline void InfoStacklessBVHV0::Impl::reorderNode(int int_size)
 {
     using namespace cuda_tool;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(int_size + 1,
-               [int_size,
-                _lvs_lca     = ext_lca.viewer(),
-                _lvs_box     = ext_aabb.viewer(),
-                _lvs_bid     = ext_bid.viewer(),
-                _lvs_cid     = ext_cid.viewer(),
-                _tk_map      = tkMap.viewer(),
-                _int_lc      = int_lc.viewer(),
-                _int_mark    = int_mark.viewer(),
-                _int_range_y = int_range_y.viewer(),
-                _int_box     = int_aabb.viewer(),
-                _int_bid     = int_bid.viewer(),
-                _int_cid     = int_cid.viewer(),
-                _nodes       = nodes.viewer()] __device__(int idx)
-               {
-                   Node leaf;
-                   leaf.lc    = -1;
-                   int escape = _lvs_lca(idx + 1);
-                   if(escape == -1)
-                       leaf.escape = -1;
-                   else
-                   {
-                       int b_leaf = escape & 1;
-                       escape >>= 1;
-                       leaf.escape = escape + (b_leaf ? int_size : 0);
-                   }
-                   leaf.bound             = _lvs_box(idx);
-                   leaf.bid               = _lvs_bid(idx);
-                   leaf.cid               = _lvs_cid(idx);
-                   _nodes(idx + int_size) = leaf;
-
-                   if(idx >= int_size)
-                       return;
-
-                   Node     n;
-                   int      new_id = _tk_map(idx);
-                   uint32_t m      = _int_mark(idx);
-                   n.lc = (m & 1) ? _int_lc(idx) + int_size : _tk_map(_int_lc(idx));
-                   n.bound = _int_box(idx);
-                   int ie  = _lvs_lca(_int_range_y(idx) + 1);
-                   if(ie == -1)
-                       n.escape = -1;
-                   else
-                   {
-                       int b_leaf = ie & 1;
-                       ie >>= 1;
-                       n.escape = ie + (b_leaf ? int_size : 0);
-                   }
-                   n.bid          = _int_bid(idx);
-                   n.cid          = _int_cid(idx);
-                   _nodes(new_id) = n;
-               });
+    {
+        int n = int_size + 1;
+        if(n > 0)
+        {
+            auto k = InfoStacklessBVHV0_reorderNode_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                int_size,
+                ext_lca.viewer(),
+                ext_aabb.viewer(),
+                ext_bid.viewer(),
+                ext_cid.viewer(),
+                tkMap.viewer(),
+                int_lc.viewer(),
+                int_mark.viewer(),
+                int_range_y.viewer(),
+                int_aabb.viewer(),
+                int_bid.viewer(),
+                int_cid.viewer(),
+                nodes.viewer(),
+                n);
+        }
+    }
 }
 
 inline void InfoStacklessBVHV0::Impl::propagateInformativeMetadata(int) {}
@@ -564,96 +876,20 @@ void InfoStacklessBVHV0::Impl::stacklessSelf(NodeCull           node_cull,
     auto num_query = static_cast<int>(ext_aabb.size());
     auto num_objs  = num_query;
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
-    Launch(grid, K_THREADS)
-        .apply(
-            [Size       = num_query,
-             _box       = objs.viewer(),
-             intSize    = num_objs - 1,
-             numObjs    = num_objs,
-             _lvs_idx   = ext_idx.viewer(),
-             _nodes     = nodes.viewer(),
-             resCounter = cpNum.viewer(),
-             res        = buffer.viewer(),
-             node_cull,
-             pair_pred] __device__()
-            {
-                int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active = tid < Size;
-                int  idx    = -1;
-                AABB bv;
-                if(active)
-                {
-                    idx = _lvs_idx(tid);
-                    bv  = _box(idx);
-                }
-
-                __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
-                __shared__ int  shared_counter;
-                __shared__ int  shared_global_idx;
-                if(threadIdx.x == 0)
-                    shared_counter = 0;
-
-                int       st       = 0;
-                const int max_iter = numObjs * 2;
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        int inner_i = 0;
-                        for(; inner_i < max_iter; ++inner_i)
-                        {
-                            if(st == -1)
-                                break;
-                            auto node = _nodes(st);
-                            if(!node.bound.intersects(bv))
-                            {
-                                st = node.escape;
-                                continue;
-                            }
-                            if(!node_cull(idx, node.bid, node.cid))
-                            {
-                                st = node.escape;
-                                continue;
-                            }
-                            if(node.lc == -1)
-                            {
-                                if(tid < st - intSize)
-                                {
-                                    auto pair = ordered_pair(idx, _lvs_idx(st - intSize));
-                                    if(pair_pred(pair.x, pair.y))
-                                    {
-                                        int sidx = atomicAdd(&shared_counter, 1);
-                                        if(sidx >= MAX_RES_PER_BLOCK)
-                                            break;
-                                        shared_res[sidx] = pair;
-                                    }
-                                }
-                                st = node.escape;
-                            }
-                            else
-                                st = node.lc;
-                        }
-                        UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
-                    }
-                    __syncthreads();
-                    int total = min(shared_counter, MAX_RES_PER_BLOCK);
-                    if(threadIdx.x == 0)
-                        shared_global_idx = atomicAdd(resCounter.data(), total);
-                    __syncthreads();
-                    int gidx = shared_global_idx;
-                    if(threadIdx.x == 0)
-                        shared_counter = 0;
-                    bool done = total < MAX_RES_PER_BLOCK;
-                    safe_copy_to(shared_res,
-                                 total,
-                                 res.data(),
-                                 gidx,
-                                 static_cast<int>(res.total_size()));
-                    if(done)
-                        break;
-                }
-            });
+    if(grid > 0)
+    {
+        auto k = InfoStacklessBVHV0_stacklessSelf_kernel<NodeCull, PairPred>;
+        k<<<grid, K_THREADS, 0, nullptr>>>(num_query,
+                                           objs.viewer(),
+                                           num_objs - 1,
+                                           num_objs,
+                                           ext_idx.viewer(),
+                                           nodes.viewer(),
+                                           cpNum.viewer(),
+                                           buffer.viewer(),
+                                           node_cull,
+                                           pair_pred);
+    }
 }
 
 template <typename NodeCull, typename PairPred>
@@ -668,96 +904,21 @@ void InfoStacklessBVHV0::Impl::stacklessOther(NodeCull node_cull,
     auto num_query = static_cast<int>(query_aabbs.size());
     auto num_objs  = static_cast<int>(ext_aabb.size());
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
-    Launch(grid, K_THREADS)
-        .apply(
-            [Size       = num_query,
-             _box       = query_aabbs.viewer(),
-             sortedIdx  = query_sorted_id.viewer(),
-             intSize    = num_objs - 1,
-             numObjs    = num_objs,
-             _lvs_idx   = ext_idx.viewer(),
-             _nodes     = nodes.viewer(),
-             resCounter = cpNum.viewer(),
-             res        = buffer.viewer(),
-             node_cull,
-             pair_pred] __device__()
-            {
-                int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active = tid < Size;
-                int  idx    = -1;
-                AABB bv;
-                if(active)
-                {
-                    idx = sortedIdx(tid);
-                    bv  = _box(idx);
-                }
-
-                __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
-                __shared__ int  shared_counter;
-                __shared__ int  shared_global_idx;
-                if(threadIdx.x == 0)
-                    shared_counter = 0;
-
-                int       st       = 0;
-                const int max_iter = numObjs * 2;
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        int inner_i = 0;
-                        for(; inner_i < max_iter; ++inner_i)
-                        {
-                            if(st == -1)
-                                break;
-                            auto node = _nodes(st);
-                            if(!node.bound.intersects(bv))
-                            {
-                                st = node.escape;
-                                continue;
-                            }
-                            if(!node_cull(idx, node.bid, node.cid))
-                            {
-                                st = node.escape;
-                                continue;
-                            }
-                            if(node.lc == -1)
-                            {
-                                auto pair = int2{idx, _lvs_idx(st - intSize)};
-                                if(pair_pred(pair.x, pair.y))
-                                {
-                                    int sidx = atomicAdd(&shared_counter, 1);
-                                    if(sidx >= MAX_RES_PER_BLOCK)
-                                        break;
-                                    shared_res[sidx] = pair;
-                                }
-                                st = node.escape;
-                            }
-                            else
-                                st = node.lc;
-                        }
-                        UIPC_KERNEL_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
-                    }
-
-                    __syncthreads();
-                    int total = min(shared_counter, MAX_RES_PER_BLOCK);
-                    if(threadIdx.x == 0)
-                        shared_global_idx = atomicAdd(resCounter.data(), total);
-                    __syncthreads();
-                    int gidx = shared_global_idx;
-                    if(threadIdx.x == 0)
-                        shared_counter = 0;
-                    __syncthreads();
-                    bool done = total < MAX_RES_PER_BLOCK;
-                    safe_copy_to(shared_res,
-                                 total,
-                                 res.data(),
-                                 gidx,
-                                 static_cast<int>(res.total_size()));
-                    if(done)
-                        break;
-                }
-            });
+    if(grid > 0)
+    {
+        auto k = InfoStacklessBVHV0_stacklessOther_kernel<NodeCull, PairPred>;
+        k<<<grid, K_THREADS, 0, nullptr>>>(num_query,
+                                           query_aabbs.viewer(),
+                                           query_sorted_id.viewer(),
+                                           num_objs - 1,
+                                           num_objs,
+                                           ext_idx.viewer(),
+                                           nodes.viewer(),
+                                           cpNum.viewer(),
+                                           buffer.viewer(),
+                                           node_cull,
+                                           pair_pred);
+    }
 }
 
 inline InfoStacklessBVHV0::InfoStacklessBVHV0(cuda_tool::Stream& stream) noexcept

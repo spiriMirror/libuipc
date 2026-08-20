@@ -2,6 +2,21 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FEMALStiffnessEstimator_estimate_mu_kernel(
+        cuda_tool::BufferView<Float>  mu_vertices,
+        cuda_tool::CBufferView<Float> masses,
+        Float                         mu_scale_fem,
+        Float                         dt,
+        int                           n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        mu_vertices(idx) = masses(idx) * mu_scale_fem * dt * dt;
+    }
+}  // namespace
 
 void FEMALStiffnessEstimator::do_build(BuildInfo& info)
 {
@@ -13,20 +28,21 @@ void FEMALStiffnessEstimator::do_build(BuildInfo& info)
 
 void FEMALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
 {
-    using namespace cuda_tool;
     UIPC_ASSERT(vertex_reporter->vertex_count()
                     == finite_element_method->masses().size(),
                 "vertex count mismatch");
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(vertex_reporter->vertex_count(),
-               [mu_vertices = info.mu_vertices(vertex_reporter->vertex_offset(),
-                                               vertex_reporter->vertex_count())
-                                  .viewer(),
-                masses = finite_element_method->masses().cviewer(),
-                mu_scale_fem = mu_scale_fem,
-                dt           = info.dt()] __device__(int idx) mutable
-               { mu_vertices(idx) = masses(idx) * mu_scale_fem * dt * dt; });
+    auto k = FEMALStiffnessEstimator_estimate_mu_kernel;
+    int  n = (int)vertex_reporter->vertex_count();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.mu_vertices(vertex_reporter->vertex_offset(),
+                             vertex_reporter->vertex_count()),
+            finite_element_method->masses().cview(),
+            mu_scale_fem,
+            info.dt(),
+            n);
+    }
 }
 
 void FEMALStiffnessEstimator::do_estimate_mu(EstimateInfo& info)

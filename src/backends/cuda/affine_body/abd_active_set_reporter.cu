@@ -1,6 +1,21 @@
 #include <affine_body/abd_active_set_reporter.h>
 
 namespace uipc::backend::cuda {
+namespace
+{
+    __global__ void abd_active_set_reporter_advance_non_penetrate_kernel(
+        Float                           alpha,
+        cuda_tool::CBufferView<Vector12> q,
+        cuda_tool::BufferView<Vector12>  non_penetrate_q,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        non_penetrate_q(i) += alpha * (q(i) - non_penetrate_q(i));
+    }
+}  // namespace
+
     void ABDActiveSetReporter::Impl::recover_non_penetrate(NonPenetratePositionsInfo &info) {
         affine_body_dynamics->overwrite_qs(non_penetrate_q.view());
     }
@@ -15,15 +30,13 @@ namespace uipc::backend::cuda {
     void ABDActiveSetReporter::Impl::advance_non_penetrate(Float alpha) {
         auto qs = affine_body_dynamics->qs();
         UIPC_ASSERT(qs.size() == non_penetrate_q.size(), "non_penetrate_q's size not matched");
-        cuda_tool::ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(non_penetrate_q.size(), [
-                alpha,
-                q = qs.cviewer(),
-                non_penetrate_q = non_penetrate_q.viewer()
-            ] __device__ (int i) mutable {
-                non_penetrate_q(i) += alpha * (q(i) - non_penetrate_q(i));
-            });
+        int n = (int)non_penetrate_q.size();
+        if(n > 0)
+        {
+            auto k = abd_active_set_reporter_advance_non_penetrate_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                alpha, qs.cview(), non_penetrate_q.view(), n);
+        }
     }
 
     void ABDActiveSetReporter::do_build(BuildInfo &info) {

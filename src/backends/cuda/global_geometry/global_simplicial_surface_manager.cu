@@ -7,6 +7,22 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void GlobalSimplicialSurfaceManager_collect_codim_vertices_kernel(
+        cuda_tool::CBufferView<IndexT> dim,
+        cuda_tool::CBufferView<IndexT> surf_vertices,
+        cuda_tool::BufferView<IndexT>  flags,
+        int                            n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto vI = surf_vertices(I);
+        flags(I) = dim(vI) <= 1 ? 1 : 0;  // codim 0D vert and vert from codim 1D edge
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalSimplicialSurfaceManager);
 
 void GlobalSimplicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* reporter) noexcept
@@ -133,16 +149,13 @@ void GlobalSimplicialSurfaceManager::Impl::_collect_codim_vertices()
 
     codim_vertex_flags.resize(surf_vertices.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(surf_vertices.size(),
-               [dim           = dim.cviewer(),
-                surf_vertices = surf_vertices.viewer(),
-                flags = codim_vertex_flags.viewer()] __device__(int I) mutable
-               {
-                   auto vI = surf_vertices(I);
-                   flags(I) = dim(vI) <= 1 ? 1 : 0;  // codim 0D vert and vert from codim 1D edge
-               });
+    auto k = GlobalSimplicialSurfaceManager_collect_codim_vertices_kernel;
+    int  n = (int)surf_vertices.size();
+    if(n > 0)
+    {
+        k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+            dim.cviewer(), surf_vertices.cview(), codim_vertex_flags.view(), n);
+    }
 
     DeviceSelect().Flagged(surf_vertices.data(),
                            codim_vertex_flags.data(),

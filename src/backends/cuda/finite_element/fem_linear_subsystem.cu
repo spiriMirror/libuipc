@@ -13,6 +13,159 @@
 
 namespace uipc::backend::cuda
 {
+// ============================================================================
+// Named kernels (replacements for the former lambda kernel launches)
+// ============================================================================
+namespace
+{
+    __global__ void FEMLinearSubsystem_assemble_k1_kernel(
+        cuda_tool::CBufferView<IndexT>    is_fixed,
+        cuda_tool::DenseVectorView<Float> gradients,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(is_fixed(i))
+        {
+            gradients.segment<3>(i * 3).as_eigen().setZero();
+        }
+    }
+
+    __global__ void FEMLinearSubsystem_assemble_k2_kernel(
+        cuda_tool::CBufferView<IndexT>            is_fixed,
+        cuda_tool::TripletMatrixView<Float, 3, 3> hessians,
+        int                                       n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [i, j, H3] = hessians(I).read();
+
+        if(is_fixed(i) || is_fixed(j))
+        {
+            if(i != j)
+                hessians(I).write(i, j, Matrix3x3::Zero());
+            else
+                hessians(I).write(i, j, Matrix3x3::Identity());
+        }
+    }
+
+    __global__ void FEMLinearSubsystem_assemble_kinetic_kernel(
+        cuda_tool::DenseVectorView<Float>         dst,
+        cuda_tool::CDoubletVectorView<Float, 3>   src,
+        cuda_tool::CBufferView<IndexT>            is_fixed,
+        int                                       n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [i, G3] = src(I);
+        if(is_fixed(i))
+            return;
+        dst.segment<3>(i * 3).atomic_add(G3);
+    }
+
+    __global__ void FEMLinearSubsystem_assemble_reporters_kernel(
+        cuda_tool::DenseVectorView<Float>         dst,
+        cuda_tool::CDoubletVectorView<Float, 3>   src,
+        cuda_tool::CBufferView<IndexT>            is_fixed,
+        int                                       n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [i, G3] = src(I);
+        if(is_fixed(i))
+            return;
+        dst.segment<3>(i * 3).atomic_add(G3);
+    }
+
+    __global__ void FEMLinearSubsystem_assemble_dytopo_effect_k1_kernel(
+        cuda_tool::CDoubletVectorView<Float, 3> dytopo_effect_gradient,
+        cuda_tool::DenseVectorView<Float>       gradients,
+        IndexT                                  vertex_offset,
+        cuda_tool::CBufferView<IndexT>          is_fixed,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const auto& [g_i, G3] = dytopo_effect_gradient(I);
+        auto i = g_i - vertex_offset;  // from global to local
+
+        if(is_fixed(i))
+            return;
+
+        gradients.segment<3>(i * 3).atomic_add(G3);
+    }
+
+    __global__ void FEMLinearSubsystem_assemble_dytopo_effect_k2_kernel(
+        cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
+        cuda_tool::TripletMatrixView<Float, 3, 3>  hessians,
+        IndexT                                     vertex_offset,
+        int                                        n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const auto& [g_i, g_j, H3] = dytopo_effect_hessian(I);
+        auto i                     = g_i - vertex_offset;
+        auto j                     = g_j - vertex_offset;
+        hessians(I).write(i, j, H3);
+    }
+
+    __global__ void FEMLinearSubsystem_retrieve_solution_kernel(
+        cuda_tool::BufferView<Vector3>        dxs,
+        cuda_tool::CDenseVectorView<Float>    result,
+        int                                   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        dxs(i) = -result.segment<3>(i * 3).as_eigen();
+    }
+
+    __global__ void FEMLinearSubsystem_diag_norm_kernel(
+        cuda_tool::CTripletMatrixView<Float, 3, 3> triplet,
+        cuda_tool::BufferView<Float>               diag_blocks_norm,
+        IndexT                                     fem_segment_offset,
+        IndexT                                     fem_segment_count,
+        cuda_tool::CBufferView<IndexT>             is_fixed,
+        int                                        n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [g_i, g_j, H3x3] = triplet(I);
+
+        IndexT i = g_i - fem_segment_offset;
+        IndexT j = g_j - fem_segment_offset;
+
+        if(i >= fem_segment_count || j >= fem_segment_count)
+            return;
+        if(i == j)
+        {
+            auto a = abs(H3x3(0, 0));
+            auto b = abs(H3x3(1, 1));
+            auto c = abs(H3x3(2, 2));
+            diag_blocks_norm(i) = is_fixed(i) ? 0 : max(max(a, b), c);
+        }
+    }
+
+    __global__ void FEMLinearSubsystem_mass_norm_kernel(
+        cuda_tool::CBufferView<Float>  mass,
+        cuda_tool::BufferView<Float>   diag_blocks_norm,
+        cuda_tool::CBufferView<IndexT> is_fixed,
+        int                            n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        diag_blocks_norm(I) = is_fixed(I) ? 0 : mass(I);
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
 
 // ref: https://github.com/spiriMirror/libuipc/issues/271
@@ -195,38 +348,29 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 
 
     // 3) Clear Fixed Vertex gradient (double check)
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(fem().xs.size(),
-               [is_fixed = fem().is_fixed.cviewer(),
-                gradients = info.gradients().viewer()] __device__(int i) mutable
-               {
-                   if(is_fixed(i))
-                   {
-                       gradients.segment<3>(i * 3).as_eigen().setZero();
-                   }
-               });
+    {
+        auto k = FEMLinearSubsystem_assemble_k1_kernel;
+        int  n = (int)fem().xs.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                fem().is_fixed.cview(), info.gradients(), n);
+        }
+    }
 
     if(info.gradient_only())
         return;
 
     // 4) Clear Fixed Vertex hessian
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(info.hessians().triplet_count(),
-               [is_fixed = fem().is_fixed.cviewer(),
-                hessians = info.hessians().viewer()] __device__(int I) mutable
-               {
-                   auto&& [i, j, H3] = hessians(I).read();
-
-                   if(is_fixed(i) || is_fixed(j))
-                   {
-                       if(i != j)
-                           hessians(I).write(i, j, Matrix3x3::Zero());
-                       else
-                           hessians(I).write(i, j, Matrix3x3::Identity());
-                   }
-               });
+    {
+        auto k = FEMLinearSubsystem_assemble_k2_kernel;
+        int  n = (int)info.hessians().triplet_count();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                fem().is_fixed.cview(), info.hessians(), n);
+        }
+    }
 }
 
 
@@ -245,18 +389,15 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
         info.gradient_only(), gradient_view, hessian_view, dt_attr->view()[0]};
     kinetic->compute_gradient_hessian(kinetic_info);
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(kinetic_gradients.doublet_count(),
-               [dst = info.gradients().viewer(),
-                src = kinetic_gradients.cviewer(),
-                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
-               {
-                   auto&& [i, G3] = src(I);
-                   if(is_fixed(i))
-                       return;
-                   dst.segment<3>(i * 3).atomic_add(G3);
-               });
+    {
+        auto k = FEMLinearSubsystem_assemble_kinetic_kernel;
+        int  n = (int)kinetic_gradients.doublet_count();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.gradients(), kinetic_gradients.cview(), fem().is_fixed.cview(), n);
+        }
+    }
 
     hess_offset += hess_count;
 }
@@ -278,18 +419,15 @@ void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
         R->assemble(assemble_info);
     }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(reporter_gradients.doublet_count(),
-               [dst = info.gradients().viewer(),
-                src = reporter_gradients.cviewer(),
-                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
-               {
-                   auto&& [i, G3] = src(I);
-                   if(is_fixed(i))
-                       return;
-                   dst.segment<3>(i * 3).atomic_add(G3);
-               });
+    {
+        auto k = FEMLinearSubsystem_assemble_reporters_kernel;
+        int  n = (int)reporter_gradients.doublet_count();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.gradients(), reporter_gradients.cview(), fem().is_fixed.cview(), n);
+        }
+    }
 
     // offset update
     hess_offset += hess_count;
@@ -306,23 +444,13 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
     // 1) Assemble DyTopoEffect Gradient to Gradient
     if(grad_count)
     {
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(grad_count,
-                   [dytopo_effect_gradient =
-                        dytopo_effect_receiver->gradients().cviewer(),
-                    gradients = info.gradients().viewer(),
-                    vertex_offset = finite_element_vertex_reporter->vertex_offset(),
-                    is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
-                   {
-                       const auto& [g_i, G3] = dytopo_effect_gradient(I);
-                       auto i = g_i - vertex_offset;  // from global to local
-
-                       if(is_fixed(i))
-                           return;
-
-                       gradients.segment<3>(i * 3).atomic_add(G3);
-                   });
+        auto k = FEMLinearSubsystem_assemble_dytopo_effect_k1_kernel;
+        k<<<cuda_tool::best_grid_dim((int)grad_count, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            dytopo_effect_receiver->gradients(),
+            info.gradients(),
+            finite_element_vertex_reporter->vertex_offset(),
+            fem().is_fixed.cview(),
+            (int)grad_count);
     }
 
     if(info.gradient_only())
@@ -338,20 +466,12 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
 
         // NOTE: We don't consider fixed vertex here,
         // because in final phase we willclear the fixed vertex hessian anyway.
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(hess_count,
-                   [dytopo_effect_hessian =
-                        dytopo_effect_receiver->hessians().cviewer(),
-                    hessians = dst_H3x3s.viewer(),
-                    vertex_offset =
-                        finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
-                   {
-                       const auto& [g_i, g_j, H3] = dytopo_effect_hessian(I);
-                       auto i                     = g_i - vertex_offset;
-                       auto j                     = g_j - vertex_offset;
-                       hessians(I).write(i, j, H3);
-                   });
+        auto k = FEMLinearSubsystem_assemble_dytopo_effect_k2_kernel;
+        k<<<cuda_tool::best_grid_dim(hess_count, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            dytopo_effect_receiver->hessians(),
+            dst_H3x3s,
+            finite_element_vertex_reporter->vertex_offset(),
+            hess_count);
     }
 
     hess_offset += hess_count;
@@ -367,42 +487,32 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
     using namespace cuda_tool;
 
     auto dxs = fem().dxs.view();
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(fem().xs.size(),
-               [dxs = dxs.viewer(),
-                result = info.solution().viewer()] __device__(int i) mutable
-               { dxs(i) = -result.segment<3>(i * 3).as_eigen(); });
+
+    auto k = FEMLinearSubsystem_retrieve_solution_kernel;
+    int  n = (int)fem().xs.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            dxs, info.solution(), n);
+    }
 }
 
 Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info)
 {
     diag_blocks_norm.resize(finite_element_method->xs().size());
 
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(info.A().triplet_count(),
-               [triplet = info.A().cviewer(),
-                diag_blocks_norm = diag_blocks_norm.viewer(),
-                fem_segment_offset = info.dof_offset() / 3,
-                fem_segment_count  = info.dof_count() / 3,
-                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
-               {
-                   auto&& [g_i, g_j, H3x3] = triplet(I);
-
-                   IndexT i = g_i - fem_segment_offset;
-                   IndexT j = g_j - fem_segment_offset;
-
-                   if(i >= fem_segment_count || j >= fem_segment_count)
-                       return;
-                   if(i == j)
-                   {
-                       auto a = abs(H3x3(0, 0));
-                       auto b = abs(H3x3(1, 1));
-                       auto c = abs(H3x3(2, 2));
-                       diag_blocks_norm(i) = is_fixed(i) ? 0 : max(max(a, b), c);
-                   }
-               });
+    auto k = FEMLinearSubsystem_diag_norm_kernel;
+    int  n = (int)info.A().triplet_count();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.A(),
+            diag_blocks_norm.view(),
+            info.dof_offset() / 3,
+            info.dof_count() / 3,
+            fem().is_fixed.cview(),
+            n);
+    }
 
     cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
                              reduced_diag_norm.data(),
@@ -416,13 +526,13 @@ Float FEMLinearSubsystem::Impl::mass_norm(GlobalLinearSystem::DiagNormInfo& info
     diag_blocks_norm.resize(fem().xs.size());
     UIPC_ASSERT(fem().xs.size() == fem().masses.size(), "size not matched");
 
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(fem().xs.size(),
-               [mass = fem().masses.cviewer(),
-                diag_blocks_norm = diag_blocks_norm.viewer(),
-                is_fixed = fem().is_fixed.cviewer()] __device__(int I) mutable
-               { diag_blocks_norm(I) = is_fixed(I) ? 0 : mass(I); });
+    auto k = FEMLinearSubsystem_mass_norm_kernel;
+    int  n = (int)fem().xs.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            fem().masses.cview(), diag_blocks_norm.view(), fem().is_fixed.cview(), n);
+    }
 
     cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
                              reduced_diag_norm.data(),

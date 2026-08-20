@@ -1,5 +1,63 @@
 namespace uipc::backend::cuda
 {
+namespace
+{
+    using namespace cuda_tool;
+
+    template <typename Pred>
+    __global__ void atomic_counting_lbvh_detect_kernel(LinearBVHViewer lbvh,
+                                                       cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                                       cuda_tool::Dense<int> cp_num,
+                                                       cuda_tool::BufferView<Vector2i> pairs,
+                                                       Pred p,
+                                                       int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto N = aabbs.total_size();
+
+        auto aabb = aabbs(i);
+        lbvh.query(aabb,
+                   [&](uint32_t id)
+                   {
+                       if(id > i && p(i, id))
+                       {
+                           auto last = cuda_tool::atomic_add(cp_num.data(), 1);
+                           if(last < pairs.total_size())
+                               pairs(last) = Vector2i(i, id);
+                       }
+                   });
+    }
+
+    template <typename Pred>
+    __global__ void atomic_counting_lbvh_query_kernel(LinearBVHViewer lbvh,
+                                                      cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                                      cuda_tool::Dense<int> cp_num,
+                                                      cuda_tool::BufferView<Vector2i> pairs,
+                                                      Pred p,
+                                                      int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto N = aabbs.total_size();
+
+        auto aabb = aabbs(i);
+
+        lbvh.query(aabb,
+                   [&](uint32_t id)
+                   {
+                       if(p(i, id))
+                       {
+                           auto last = cuda_tool::atomic_add(cp_num.data(), 1);
+                           if(last < pairs.total_size())
+                               pairs(last) = Vector2i(i, id);
+                       }
+                   });
+    }
+}  // namespace
+
 template <typename Pred>
 void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
 {
@@ -16,29 +74,18 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
         cudaStream_t s = m_stream;
         BufferLaunch(s).fill(m_cp_num.view(), 0);
 
-        ParallelFor(0, s)
-            .file_line(__FILE__, __LINE__)
-            .apply(m_aabbs.size(),
-                   [lbvh   = m_lbvh.viewer(),
-                    aabbs  = m_aabbs.viewer(),
-                    cp_num = m_cp_num.viewer(),
-                    pairs  = qbuffer.m_pairs.viewer(),
-                    p      = p] __device__(int i) mutable
-                   {
-                       auto N = aabbs.total_size();
-
-                       auto aabb = aabbs(i);
-                       lbvh.query(aabb,
-                                  [&](uint32_t id)
-                                  {
-                                      if(id > i && p(i, id))
-                                      {
-                                          auto last = cuda_tool::atomic_add(cp_num.data(), 1);
-                                          if(last < pairs.total_size())
-                                              pairs(last) = Vector2i(i, id);
-                                      }
-                                  });
-                   });
+        int n = (int)m_aabbs.size();
+        if(n > 0)
+        {
+            auto k = atomic_counting_lbvh_detect_kernel<Pred>;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_lbvh.viewer(),
+                m_aabbs.viewer(),
+                m_cp_num.viewer(),
+                qbuffer.m_pairs.viewer(),
+                p,
+                n);
+        }
     };
 
     do_query();
@@ -71,30 +118,18 @@ void AtomicCountingLBVH::query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs
         cudaStream_t s = m_stream;
         BufferLaunch(s).fill(m_cp_num.view(), 0);
 
-        ParallelFor(0, s)
-            .file_line(__FILE__, __LINE__)
-            .apply(query_aabbs.size(),
-                   [lbvh   = m_lbvh.viewer(),
-                    aabbs  = query_aabbs.viewer(),
-                    cp_num = m_cp_num.viewer(),
-                    pairs  = qbuffer.m_pairs.viewer(),
-                    p      = p] __device__(int i) mutable
-                   {
-                       auto N = aabbs.total_size();
-
-                       auto aabb = aabbs(i);
-
-                       lbvh.query(aabb,
-                                  [&](uint32_t id)
-                                  {
-                                      if(p(i, id))
-                                      {
-                                          auto last = cuda_tool::atomic_add(cp_num.data(), 1);
-                                          if(last < pairs.total_size())
-                                              pairs(last) = Vector2i(i, id);
-                                      }
-                                  });
-                   });
+        int n = (int)query_aabbs.size();
+        if(n > 0)
+        {
+            auto k = atomic_counting_lbvh_query_kernel<Pred>;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
+                m_lbvh.viewer(),
+                query_aabbs.viewer(),
+                m_cp_num.viewer(),
+                qbuffer.m_pairs.viewer(),
+                p,
+                n);
+        }
     };
 
     do_query();

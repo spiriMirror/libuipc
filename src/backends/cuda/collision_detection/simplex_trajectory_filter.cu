@@ -2,6 +2,77 @@
 #include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k1_kernel(
+        cuda_tool::CBufferView<Vector4i> PTs,
+        cuda_tool::BufferView<IndexT>    is_active,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PT = PTs(i);
+        for(int j = 0; j < PT.size(); ++j)
+        {
+            auto P = PT[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k2_kernel(
+        cuda_tool::CBufferView<Vector4i> EEs,
+        cuda_tool::BufferView<IndexT>    is_active,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto EE = EEs(i);
+        for(int j = 0; j < EE.size(); ++j)
+        {
+            auto P = EE[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k3_kernel(
+        cuda_tool::CBufferView<Vector3i> PEs,
+        cuda_tool::BufferView<IndexT>    is_active,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PE = PEs(i);
+        for(int j = 0; j < PE.size(); ++j)
+        {
+            auto P = PE[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k4_kernel(
+        cuda_tool::CBufferView<Vector2i> PPs,
+        cuda_tool::BufferView<IndexT>    is_active,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PP = PPs(i);
+        for(int j = 0; j < PP.size(); ++j)
+        {
+            auto P = PP[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+}  // namespace
+
 void SimplexTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
@@ -27,66 +98,41 @@ void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter
 {
     using namespace cuda_tool;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PTs.size(),
-               [PTs = PTs.viewer(),
-                is_active = info.vert_is_active().viewer()] __device__(int i)
-               {
-                   auto PT = PTs(i);
-                   for(int j = 0; j < PT.size(); ++j)
-                   {
-                       auto P = PT[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(PTs.size() > 0)
+    {
+        auto k1 = SimplexTrajectoryFilter_label_active_vertices_k1_kernel;
+        k1<<<cuda_tool::best_grid_dim((int)PTs.size(), k1),
+             cuda_tool::best_block_dim(k1),
+             0,
+             nullptr>>>(PTs, info.vert_is_active(), (int)PTs.size());
+    }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(EEs.size(),
-               [EEs = EEs.viewer(),
-                is_active = info.vert_is_active().viewer()] __device__(int i)
-               {
-                   auto EE = EEs(i);
-                   for(int j = 0; j < EE.size(); ++j)
-                   {
-                       auto P = EE[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(EEs.size() > 0)
+    {
+        auto k2 = SimplexTrajectoryFilter_label_active_vertices_k2_kernel;
+        k2<<<cuda_tool::best_grid_dim((int)EEs.size(), k2),
+             cuda_tool::best_block_dim(k2),
+             0,
+             nullptr>>>(EEs, info.vert_is_active(), (int)EEs.size());
+    }
 
+    if(PEs.size() > 0)
+    {
+        auto k3 = SimplexTrajectoryFilter_label_active_vertices_k3_kernel;
+        k3<<<cuda_tool::best_grid_dim((int)PEs.size(), k3),
+             cuda_tool::best_block_dim(k3),
+             0,
+             nullptr>>>(PEs, info.vert_is_active(), (int)PEs.size());
+    }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PEs.size(),
-               [PEs = PEs.viewer(),
-                is_active = info.vert_is_active().viewer()] __device__(int i)
-               {
-                   auto PE = PEs(i);
-                   for(int j = 0; j < PE.size(); ++j)
-                   {
-                       auto P = PE[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PPs.size(),
-               [PPs = PPs.viewer(),
-                is_active = info.vert_is_active().viewer()] __device__(int i)
-               {
-                   auto PP = PPs(i);
-                   for(int j = 0; j < PP.size(); ++j)
-                   {
-                       auto P = PP[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(PPs.size() > 0)
+    {
+        auto k4 = SimplexTrajectoryFilter_label_active_vertices_k4_kernel;
+        k4<<<cuda_tool::best_grid_dim((int)PPs.size(), k4),
+             cuda_tool::best_block_dim(k4),
+             0,
+             nullptr>>>(PPs, info.vert_is_active(), (int)PPs.size());
+    }
 }
 
 void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)

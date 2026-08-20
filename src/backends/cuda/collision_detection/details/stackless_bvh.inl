@@ -176,6 +176,647 @@ UIPC_GENERIC UIPC_INLINE void SafeCopyTo(int2* sharedRes,
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void StacklessBVH_calcMaxBVFromBox_kernel(size_t                        size,
+                                                         cuda_tool::CBufferView<AABB> box,
+                                                         cuda_tool::Dense<AABB> _bv)
+    {
+        using namespace culbvh;
+        int idx     = blockIdx.x * blockDim.x + threadIdx.x;
+        int warpTid = threadIdx.x % 32;
+        int warpId  = (threadIdx.x >> 5);
+        int warpNum;
+        if(idx >= size)
+            return;
+        if(idx == 0)
+        {
+            *_bv = AABB();
+        }
+
+        __shared__ PlainAABB aabbData[K_WARPS];
+
+        PlainAABB temp = toPlainAABB(box(idx));
+        __syncthreads();
+
+        // Extract values for warp shuffle
+        float tempMinX = temp._min.x;
+        float tempMinY = temp._min.y;
+        float tempMinZ = temp._min.z;
+        float tempMaxX = temp._max.x;
+        float tempMaxY = temp._max.y;
+        float tempMaxZ = temp._max.z;
+
+        for(int i = 1; i < 32; i = (i << 1))
+        {
+            float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
+            float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
+            float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
+            float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
+            float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
+            float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
+            tempMinX        = __mm_min(tempMinX, otherMinX);
+            tempMinY        = __mm_min(tempMinY, otherMinY);
+            tempMinZ        = __mm_min(tempMinZ, otherMinZ);
+            tempMaxX        = __mm_max(tempMaxX, otherMaxX);
+            tempMaxY        = __mm_max(tempMaxY, otherMaxY);
+            tempMaxZ        = __mm_max(tempMaxZ, otherMaxZ);
+        }
+
+        if(blockIdx.x == gridDim.x - 1)
+        {
+            warpNum = ((size - blockIdx.x * blockDim.x + 31) >> 5);
+        }
+        else
+        {
+            warpNum = ((blockDim.x) >> 5);
+        }
+
+        if(warpTid == 0)
+        {
+            // Reconstruct AABB from reduced values
+            aabbData[warpId]._min = make_float3(tempMinX, tempMinY, tempMinZ);
+            aabbData[warpId]._max = make_float3(tempMaxX, tempMaxY, tempMaxZ);
+        }
+        __syncthreads();
+        if(threadIdx.x >= warpNum)
+            return;
+
+        if(warpNum > 1)
+        {
+            temp     = aabbData[threadIdx.x];
+            tempMinX = temp._min.x;
+            tempMinY = temp._min.y;
+            tempMinZ = temp._min.z;
+            tempMaxX = temp._max.x;
+            tempMaxY = temp._max.y;
+            tempMaxZ = temp._max.z;
+
+            for(int i = 1; i < warpNum; i = (i << 1))
+            {
+                float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
+                float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
+                float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
+                float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
+                float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
+                float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
+                tempMinX = __mm_min(tempMinX, otherMinX);
+                tempMinY = __mm_min(tempMinY, otherMinY);
+                tempMinZ = __mm_min(tempMinZ, otherMinZ);
+                tempMaxX = __mm_max(tempMaxX, otherMaxX);
+                tempMaxY = __mm_max(tempMaxY, otherMaxY);
+                tempMaxZ = __mm_max(tempMaxZ, otherMaxZ);
+            }
+        }
+
+        if(threadIdx.x == 0)
+        {
+            atomicMinf(&_bv->min().x(), tempMinX);
+            atomicMinf(&_bv->min().y(), tempMinY);
+            atomicMinf(&_bv->min().z(), tempMinZ);
+            atomicMaxf(&_bv->max().x(), tempMaxX);
+            atomicMaxf(&_bv->max().y(), tempMaxY);
+            atomicMaxf(&_bv->max().z(), tempMaxZ);
+        }
+    }
+
+    __global__ void StacklessBVH_calcMCsFromBox_kernel(cuda_tool::CBufferView<AABB> box,
+                                                       cuda_tool::CDense<AABB>     scene,
+                                                       cuda_tool::BufferView<uint32_t> codes,
+                                                       int n)
+    {
+        using namespace culbvh;
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        AABB bv = box(idx);
+
+        // Get center using Eigen API
+        auto   center = bv.center();
+        float3 c = make_float3(center.x(), center.y(), center.z());
+
+        // Get scene min
+        auto   sceneMin = scene->min();
+        float3 sceneMinVec =
+            make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
+        const float3 offset = c - sceneMinVec;
+
+        // Get dimensions
+        auto sceneSize = scene->sizes();
+        codes(idx)     = morton3D(offset.x / sceneSize.x(),
+                              offset.y / sceneSize.y(),
+                              offset.z / sceneSize.z());
+    }
+
+    /// incoherent access, thus poor performance
+    __global__ void StacklessBVH_calcInverseMapping_kernel(cuda_tool::BufferView<int32_t> map,
+                                                           cuda_tool::BufferView<int32_t> invMap,
+                                                           int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        //
+        invMap(map(idx)) = idx;
+    }
+
+    __global__ void StacklessBVH_buildPrimitivesFromBox_kernel(cuda_tool::BufferView<int>  _primIdx,
+                                                               cuda_tool::BufferView<AABB> _primBox,
+                                                               cuda_tool::BufferView<int32_t> _primMap,
+                                                               cuda_tool::CBufferView<AABB> box,
+                                                               int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        int  newIdx      = _primMap(idx);
+        AABB bv          = box(idx);
+        _primIdx(newIdx) = idx;
+        _primBox(newIdx) = bv;
+    }
+
+    __global__ void StacklessBVH_calcExtNodeSplitMetrics_kernel(size_t extsize,
+                                                                cuda_tool::BufferView<uint32_t> _codes,
+                                                                cuda_tool::BufferView<int> _metrics,
+                                                                int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        _metrics(idx) = idx != extsize - 1 ?
+                            32 - __clz(_codes(idx) ^ _codes(idx + 1)) :
+                            33;
+    }
+
+    __global__ void StacklessBVH_buildIntNodes_kernel(int size,
+                                                      // leaf nodes
+                                                      cuda_tool::BufferView<uint32_t> _depths,
+                                                      cuda_tool::BufferView<int> _lvs_lca,
+                                                      cuda_tool::BufferView<int> _lvs_metric,
+                                                      cuda_tool::BufferView<uint32_t> _lvs_par,
+                                                      cuda_tool::BufferView<uint32_t> _lvs_mark,
+                                                      cuda_tool::BufferView<AABB> _lvs_box,
+                                                      // internal nodes
+                                                      cuda_tool::BufferView<int> _tks_rc,
+                                                      cuda_tool::BufferView<int> _tks_lc,
+                                                      cuda_tool::BufferView<int> _tks_range_y,
+                                                      cuda_tool::BufferView<int> _tks_range_x,
+                                                      cuda_tool::BufferView<uint32_t> _tks_mark,
+                                                      cuda_tool::BufferView<AABB> _tks_box,
+                                                      cuda_tool::BufferView<uint32_t> _flag,
+                                                      cuda_tool::BufferView<int> _tks_par)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= size)
+            return;
+
+        _lvs_lca(idx) = -1, _depths(idx) = 0;
+        int  l = idx - 1, r = idx;  ///< (l, r]
+        bool mark;
+        if(l >= 0)
+            mark = _lvs_metric(l) < _lvs_metric(r);  //determine direction
+        else
+            mark = false;
+        int cur = mark ? l : r;
+
+        _lvs_par(idx) = cur;
+
+
+        if(_flag.total_size() == 0)
+            // when we only have 1 external node
+            // there is no internal node to build
+            return;
+
+        if(mark)
+        {
+            _tks_rc(cur)      = idx;
+            _tks_range_y(cur) = idx;
+            atomicOr(&_tks_mark(cur), 0x00000002);
+            _lvs_mark(idx) = 0x00000007;
+        }
+        else
+        {
+            _tks_lc(cur)      = idx;
+            _tks_range_x(cur) = idx;
+            atomicOr(&_tks_mark(cur), 0x00000001);
+            _lvs_mark(idx) = 0x00000003;
+        }
+
+        __threadfence();
+        while(atomicAdd(&_flag(cur), 1) == 1)
+        {
+            //_tks.update(cur, _lvs);	/// Update
+            //_tks.refit(cur, _lvs);	/// Refit
+            int      chl       = _tks_lc(cur);
+            int      chr       = _tks_rc(cur);
+            uint32_t temp_mark = _tks_mark(cur);
+            if(temp_mark & 1)
+            {
+                _tks_box(cur) = _lvs_box(chl);
+            }
+            else
+            {
+                _tks_box(cur) = _tks_box(chl);
+            }
+            if(temp_mark & 2)
+            {
+                _tks_box(cur).extend(_lvs_box(chr));
+            }
+            else
+            {
+                _tks_box(cur).extend(_tks_box(chr));
+            }
+
+            _tks_mark(cur) &= 0x00000007;
+
+            l               = _tks_range_x(cur) - 1;
+            r               = _tks_range_y(cur);
+            _lvs_lca(l + 1) = cur;
+            _depths(l + 1)++;
+            if(l >= 0)
+            {
+                mark = _lvs_metric(l) < _lvs_metric(r);  ///< true when right child, false otherwise
+            }
+            else
+            {
+                mark = false;
+            }
+
+            if(l + 1 == 0 && r == size - 1)
+            {
+                _tks_par(cur) = -1;
+                _tks_mark(cur) &= 0xFFFFFFFB;
+                break;
+            }
+
+            int par       = mark ? l : r;
+            _tks_par(cur) = par;
+            if(mark)
+            {
+                _tks_rc(par)      = cur;
+                _tks_range_y(par) = r;
+                atomicAnd(&_tks_mark(par), 0xFFFFFFFD);
+                _tks_mark(cur) |= 0x00000004;
+            }
+            else
+            {
+                _tks_lc(par)      = cur;
+                _tks_range_x(par) = l + 1;
+                atomicAnd(&_tks_mark(par), 0xFFFFFFFE);
+                _tks_mark(cur) &= 0xFFFFFFFB;
+            }
+            __threadfence();
+            cur = par;
+        }
+    }
+
+    __global__ void StacklessBVH_calcIntNodeOrders_kernel(cuda_tool::BufferView<int> _tks_lc,
+                                                          cuda_tool::BufferView<int> _lcas,
+                                                          cuda_tool::BufferView<uint32_t> _depths,
+                                                          cuda_tool::BufferView<uint32_t> _offsets,
+                                                          cuda_tool::BufferView<int> _tkMap,
+                                                          int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        int node  = _lcas(idx);
+        int depth = _depths(idx);
+        int id    = _offsets(idx);
+
+        if(node != -1)
+        {
+            for(; depth--; node = _tks_lc(node))
+            {
+                _tkMap(node) = id++;
+            }
+        }
+    }
+
+    __global__ void StacklessBVH_updateBvhExtNodeLinks_kernel(cuda_tool::BufferView<int> _mapTable,
+                                                              cuda_tool::BufferView<int> _lcas,
+                                                              cuda_tool::BufferView<uint32_t> _pars,
+                                                              int n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        int ori;
+        _pars(idx) = _mapTable(_pars(idx));
+        if((ori = _lcas(idx)) != -1)
+            _lcas(idx) = _mapTable(ori) << 1;
+        else
+            _lcas(idx) = idx << 1 | 1;
+    }
+
+    __global__ void StacklessBVH_reorderNode_kernel(int intSize,
+                                                    // leaf nodes
+                                                    cuda_tool::BufferView<int> _lvs_lca,
+                                                    cuda_tool::BufferView<AABB> _lvs_box,
+                                                    // internal nodes
+                                                    cuda_tool::BufferView<int> _tkMap,
+                                                    cuda_tool::BufferView<int> _unorderedTks_lc,
+                                                    cuda_tool::BufferView<uint32_t> _unorderedTks_mark,
+                                                    cuda_tool::BufferView<int> _unorderedTks_rangey,
+                                                    cuda_tool::BufferView<AABB> _unorderedTks_box,
+                                                    // total nodes
+                                                    cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+                                                    int n)
+    {
+        using namespace culbvh;
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        stacklessnode Node;
+        Node.lc    = -1;
+        int escape = _lvs_lca(idx + 1);
+
+        if(escape == -1)
+        {
+            Node.escape = -1;
+        }
+        else
+        {
+            int bLeaf = escape & 1;
+            escape >>= 1;
+            Node.escape = escape + (bLeaf ? intSize : 0);
+        }
+        Node.bound = _lvs_box(idx);
+
+
+        _nodes(idx + intSize) = Node;
+
+        if(idx >= intSize)
+            return;
+
+        stacklessnode internalNode;
+        int           newId = _tkMap(idx);
+        uint32_t      mark  = _unorderedTks_mark(idx);
+
+        internalNode.lc = mark & 1 ? _unorderedTks_lc(idx) + intSize :
+                                     _tkMap(_unorderedTks_lc(idx));
+        internalNode.bound = _unorderedTks_box(idx);
+
+        int internalEscape = _lvs_lca(_unorderedTks_rangey(idx) + 1);
+
+        if(internalEscape == -1)
+        {
+            internalNode.escape = -1;
+        }
+        else
+        {
+            int bLeaf = internalEscape & 1;
+            internalEscape >>= 1;
+            internalNode.escape = internalEscape + (bLeaf ? intSize : 0);
+        }
+        _nodes(newId) = internalNode;
+    }
+
+    template <typename Pred>
+    __global__ void StacklessBVH_StacklessCDSharedSelf_kernel(int Size,
+                                                              cuda_tool::CBufferView<AABB> _box,
+                                                              int intSize,
+                                                              int numObjs,
+                                                              cuda_tool::BufferView<int> _lvs_idx,
+                                                              cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+                                                              cuda_tool::Dense<int> resCounter,
+                                                              cuda_tool::BufferView<Vector2i> res,
+                                                              Pred pred)
+    {
+        using namespace culbvh;
+        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
+        bool active = tid < Size;
+        int  idx;
+        AABB bv;
+        if(active)
+        {
+            idx = _lvs_idx(tid);
+            bv  = _box(idx);
+        }
+
+        __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
+        __shared__ int sharedCounter;  // How many results are cached in shared memory
+        __shared__ int sharedGlobalIdx;  // Where to write in global memory
+        if(threadIdx.x == 0)
+            sharedCounter = 0;
+
+        int             st = 0;
+        StacklessBVH::Node node;
+        // Upper bound of iterations to avoid infinite loop
+        const int MaxIter = numObjs * 2;
+
+        while(true)
+        {
+            __syncthreads();
+            if(active)
+            {
+                int inner_I = 0;
+                for(; inner_I < MaxIter; inner_I++)
+                {
+                    if(st == -1)
+                        break;
+                    // Load node data - Eigen::AlignedBox stores min and max as Vector3f members
+                    node.lc     = _nodes(st).lc;
+                    node.escape = _nodes(st).escape;
+                    node.bound  = _nodes(st).bound;
+                    //node = _nodes[st];
+                    if(node.bound.intersects(bv))
+                    {
+                        if(node.lc == -1)
+                        {
+                            if(tid < st - intSize)
+                            {
+                                auto pair =
+                                    make_ordered_pair(idx, _lvs_idx(st - intSize));
+                                if(pred(pair.x, pair.y))
+                                {
+                                    int sIdx = atomicAdd(&sharedCounter, 1);
+                                    if(sIdx >= MAX_RES_PER_BLOCK)
+                                    {
+                                        break;
+                                    }
+
+                                    sharedRes[sIdx] = pair;
+                                }
+                            }
+                            st = node.escape;
+                        }
+                        else
+                        {
+                            st = node.lc;
+                        }
+                    }
+                    else
+                    {
+                        st = node.escape;
+                    }
+                }
+
+                UIPC_KERNEL_ASSERT(inner_I < MaxIter,
+                            "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
+                            inner_I,
+                            MaxIter,
+                            numObjs);
+            }
+            // Flush whatever we have
+            __syncthreads();
+
+            int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
+
+            if(threadIdx.x == 0)
+            {
+                // This Block Starts writing at sharedGlobalIdx
+                sharedGlobalIdx = atomicAdd(resCounter.data(), totalResInBlock);
+            }
+
+            __syncthreads();
+
+            // Make sure we dont write out of bounds
+            const int globalIdx = sharedGlobalIdx;
+
+            if(threadIdx.x == 0)
+                sharedCounter = 0;
+
+            // if there is at least one element empty
+            // it means we have found all collisions for this block
+            bool done = totalResInBlock < MAX_RES_PER_BLOCK;
+
+            SafeCopyTo(sharedRes,
+                       totalResInBlock,
+                       res.data(),
+                       globalIdx,
+                       static_cast<int>(res.total_size()));
+
+            if(done)
+                break;
+        }
+    }
+
+    template <typename Pred>
+    __global__ void StacklessBVH_StacklessCDSharedOther_kernel(int Size,
+                                                               cuda_tool::CBufferView<AABB> _box,
+                                                               cuda_tool::CBufferView<int> sortedIdx,
+                                                               int intSize,
+                                                               int numObjs,
+                                                               cuda_tool::BufferView<int> _lvs_idx,
+                                                               cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+                                                               cuda_tool::Dense<int> resCounter,
+                                                               cuda_tool::BufferView<Vector2i> res,
+                                                               Pred pred)
+    {
+        using namespace culbvh;
+        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
+        bool active = tid < Size;
+        int  idx;
+        AABB bv;
+        if(active)
+        {
+            idx = sortedIdx(tid);
+            bv  = _box(idx);
+        }
+
+        __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
+        __shared__ int sharedCounter;  // How many results are cached in shared memory
+        __shared__ int sharedGlobalIdx;  // Where to write in global memory
+        if(threadIdx.x == 0)
+            sharedCounter = 0;
+
+        int             st = 0;
+        StacklessBVH::Node node;
+
+        // Upper bound of iterations to avoid infinite loop
+        const int MaxIter = numObjs * 2;
+
+        while(true)
+        {
+            __syncthreads();
+            if(active)
+            {
+                int inner_I = 0;
+                for(; inner_I < MaxIter; inner_I++)
+                {
+                    if(st == -1)
+                        break;
+
+                    node.lc     = _nodes(st).lc;
+                    node.escape = _nodes(st).escape;
+                    node.bound  = _nodes(st).bound;
+
+                    //node = _nodes[st];
+                    if(node.bound.intersects(bv))
+                    {
+                        if(node.lc == -1)
+                        {
+                            auto pair = int2{idx, _lvs_idx(st - intSize)};
+                            if(pred(pair.x, pair.y))
+                            {
+                                int sIdx = atomicAdd(&sharedCounter, 1);
+
+                                if(sIdx >= MAX_RES_PER_BLOCK)
+                                {
+                                    break;
+                                }
+
+                                sharedRes[sIdx] = pair;
+                            }
+
+                            st = node.escape;
+                        }
+                        else
+                        {
+                            st = node.lc;
+                        }
+                    }
+                    else
+                    {
+                        st = node.escape;
+                    }
+                }
+
+                UIPC_KERNEL_ASSERT(inner_I < MaxIter,
+                            "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
+                            inner_I,
+                            MaxIter,
+                            numObjs);
+            }
+
+
+            // Flush whatever we have
+            __syncthreads();
+            int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
+
+            if(threadIdx.x == 0)
+            {
+                // This Block Starts writing at sharedGlobalIdx
+                sharedGlobalIdx = atomicAdd(resCounter.data(), totalResInBlock);
+            }
+
+            __syncthreads();
+
+            // Make sure we dont write out of bounds
+            const int globalIdx = sharedGlobalIdx;
+
+            if(threadIdx.x == 0)
+                sharedCounter = 0;
+
+            __syncthreads();
+
+            // if there is at least one element empty
+            // it means we have found all collisions for this block
+            bool done = totalResInBlock < MAX_RES_PER_BLOCK;
+
+            SafeCopyTo(sharedRes,
+                       totalResInBlock,
+                       res.data(),
+                       globalIdx,
+                       static_cast<int>(res.total_size()));
+
+            if(done)
+                break;
+        }
+    }
+}  // namespace
+
 UIPC_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
                                                       cuda_tool::VarView<AABB> scene_box)
 {
@@ -185,444 +826,115 @@ UIPC_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AAB
     auto BlockDim = K_THREADS;
     auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
-    using namespace cuda_tool;
-
-    Launch(GridDim, BlockDim)
-        .file_line(__FILE__, __LINE__)
-        .apply(
-            [size = aabbs.size(),
-             box  = aabbs.viewer(),
-             _bv  = scene_box.viewer()] __device__()
-            {
-                int idx     = blockIdx.x * blockDim.x + threadIdx.x;
-                int warpTid = threadIdx.x % 32;
-                int warpId  = (threadIdx.x >> 5);
-                int warpNum;
-                if(idx >= size)
-                    return;
-                if(idx == 0)
-                {
-                    *_bv = AABB();
-                }
-
-                __shared__ PlainAABB aabbData[K_WARPS];
-
-                PlainAABB temp = toPlainAABB(box(idx));
-                __syncthreads();
-
-                // Extract values for warp shuffle
-                float tempMinX = temp._min.x;
-                float tempMinY = temp._min.y;
-                float tempMinZ = temp._min.z;
-                float tempMaxX = temp._max.x;
-                float tempMaxY = temp._max.y;
-                float tempMaxZ = temp._max.z;
-
-                for(int i = 1; i < 32; i = (i << 1))
-                {
-                    float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
-                    float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
-                    float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
-                    float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
-                    float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
-                    float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
-                    tempMinX        = __mm_min(tempMinX, otherMinX);
-                    tempMinY        = __mm_min(tempMinY, otherMinY);
-                    tempMinZ        = __mm_min(tempMinZ, otherMinZ);
-                    tempMaxX        = __mm_max(tempMaxX, otherMaxX);
-                    tempMaxY        = __mm_max(tempMaxY, otherMaxY);
-                    tempMaxZ        = __mm_max(tempMaxZ, otherMaxZ);
-                }
-
-                if(blockIdx.x == gridDim.x - 1)
-                {
-                    warpNum = ((size - blockIdx.x * blockDim.x + 31) >> 5);
-                }
-                else
-                {
-                    warpNum = ((blockDim.x) >> 5);
-                }
-
-                if(warpTid == 0)
-                {
-                    // Reconstruct AABB from reduced values
-                    aabbData[warpId]._min = make_float3(tempMinX, tempMinY, tempMinZ);
-                    aabbData[warpId]._max = make_float3(tempMaxX, tempMaxY, tempMaxZ);
-                }
-                __syncthreads();
-                if(threadIdx.x >= warpNum)
-                    return;
-
-                if(warpNum > 1)
-                {
-                    temp     = aabbData[threadIdx.x];
-                    tempMinX = temp._min.x;
-                    tempMinY = temp._min.y;
-                    tempMinZ = temp._min.z;
-                    tempMaxX = temp._max.x;
-                    tempMaxY = temp._max.y;
-                    tempMaxZ = temp._max.z;
-
-                    for(int i = 1; i < warpNum; i = (i << 1))
-                    {
-                        float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
-                        float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
-                        float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
-                        float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
-                        float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
-                        float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
-                        tempMinX = __mm_min(tempMinX, otherMinX);
-                        tempMinY = __mm_min(tempMinY, otherMinY);
-                        tempMinZ = __mm_min(tempMinZ, otherMinZ);
-                        tempMaxX = __mm_max(tempMaxX, otherMaxX);
-                        tempMaxY = __mm_max(tempMaxY, otherMaxY);
-                        tempMaxZ = __mm_max(tempMaxZ, otherMaxZ);
-                    }
-                }
-
-                if(threadIdx.x == 0)
-                {
-                    atomicMinf(&_bv->min().x(), tempMinX);
-                    atomicMinf(&_bv->min().y(), tempMinY);
-                    atomicMinf(&_bv->min().z(), tempMinZ);
-                    atomicMaxf(&_bv->max().x(), tempMaxX);
-                    atomicMaxf(&_bv->max().y(), tempMaxY);
-                    atomicMaxf(&_bv->max().z(), tempMaxZ);
-                }
-            });
+    if(GridDim > 0)
+        StacklessBVH_calcMaxBVFromBox_kernel<<<GridDim, BlockDim, 0, nullptr>>>(
+            aabbs.size(), aabbs, scene_box.viewer());
 }
 
 UIPC_INLINE void StacklessBVH::Impl::calcMCsFromBox(cuda_tool::CBufferView<AABB> aabbs,
                                                     cuda_tool::CVarView<AABB> scene_box,
                                                     cuda_tool::BufferView<uint32_t> codes)
 {
-    using namespace culbvh;
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(aabbs.size(),
-               [box   = aabbs.viewer(),
-                scene = scene_box.viewer(),
-                codes = codes.viewer()] __device__(int idx)
-               {
-                   AABB bv = box(idx);
-
-                   // Get center using Eigen API
-                   auto   center = bv.center();
-                   float3 c = make_float3(center.x(), center.y(), center.z());
-
-                   // Get scene min
-                   auto   sceneMin = scene->min();
-                   float3 sceneMinVec =
-                       make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
-                   const float3 offset = c - sceneMinVec;
-
-                   // Get dimensions
-                   auto sceneSize = scene->sizes();
-                   codes(idx)     = morton3D(offset.x / sceneSize.x(),
-                                         offset.y / sceneSize.y(),
-                                         offset.z / sceneSize.z());
-               });
+    auto k = StacklessBVH_calcMCsFromBox_kernel;
+    int  n = static_cast<int>(aabbs.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            aabbs, scene_box.viewer(), codes, n);
 }
 
 /// incoherent access, thus poor performance
 UIPC_INLINE void StacklessBVH::Impl::calcInverseMapping()
 {
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(sorted_id.size(),
-               [map    = sorted_id.viewer(),
-                invMap = primMap.viewer()] __device__(int idx)
-               {
-                   //
-                   invMap(map(idx)) = idx;
-               });
+    auto k = StacklessBVH_calcInverseMapping_kernel;
+    int  n = static_cast<int>(sorted_id.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            sorted_id.view(), primMap.view(), n);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs)
 {  ///< update idx-th _bxs to idx-th leaf
-    using namespace cuda_tool;
-    ParallelFor().apply(aabbs.size(),
-                        [_primIdx = ext_idx.viewer(),
-                         _primBox = ext_aabb.viewer(),
-                         _primMap = primMap.viewer(),
-                         box = aabbs.viewer()] __device__(int idx)
-                        {
-                            int  newIdx      = _primMap(idx);
-                            AABB bv          = box(idx);
-                            _primIdx(newIdx) = idx;
-                            _primBox(newIdx) = bv;
-                        });
+    auto k = StacklessBVH_buildPrimitivesFromBox_kernel;
+    int  n = static_cast<int>(aabbs.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            ext_idx.view(), ext_aabb.view(), primMap.view(), aabbs, n);
 }
 
 
 UIPC_INLINE void StacklessBVH::Impl::calcExtNodeSplitMetrics()
 {
-    using namespace cuda_tool;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(mtcode.size(),
-               [extsize  = mtcode.size(),
-                _codes   = mtcode.viewer(),
-                _metrics = metric.viewer()] __device__(int idx)
-               {
-                   _metrics(idx) = idx != extsize - 1 ?
-                                       32 - __clz(_codes(idx) ^ _codes(idx + 1)) :
-                                       33;
-               });
+    auto k = StacklessBVH_calcExtNodeSplitMetrics_kernel;
+    int  n = static_cast<int>(mtcode.size());
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            mtcode.size(), mtcode.view(), metric.view(), n);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
 {
-    using namespace cuda_tool;
-
     auto GridDim  = (size + 255) / 256;
     auto BlockDim = 256;
 
-    Launch(GridDim, BlockDim)
-        .file_line(__FILE__, __LINE__)
-        .apply(
-            [size = size,
-             // leaf nodes
-             _depths     = count.viewer(),
-             _lvs_lca    = ext_lca.viewer(),
-             _lvs_metric = metric.viewer(),
-             _lvs_par    = ext_par.viewer(),
-             _lvs_mark   = ext_mark.viewer(),
-             _lvs_box    = ext_aabb.viewer(),
-             // internal nodes
-             _tks_rc      = int_rc.viewer(),
-             _tks_lc      = int_lc.viewer(),
-             _tks_range_y = int_range_y.viewer(),
-             _tks_range_x = int_range_x.viewer(),
-             _tks_mark    = int_mark.viewer(),
-             _tks_box     = int_aabb.viewer(),
-             _flag        = flags.viewer(),
-             _tks_par     = int_par.viewer()] __device__()
-            {
-                int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= size)
-                    return;
-
-                _lvs_lca(idx) = -1, _depths(idx) = 0;
-                int  l = idx - 1, r = idx;  ///< (l, r]
-                bool mark;
-                if(l >= 0)
-                    mark = _lvs_metric(l) < _lvs_metric(r);  //determine direction
-                else
-                    mark = false;
-                int cur = mark ? l : r;
-
-                _lvs_par(idx) = cur;
-
-
-                if(_flag.total_size() == 0)
-                    // when we only have 1 external node
-                    // there is no internal node to build
-                    return;
-
-                if(mark)
-                {
-                    _tks_rc(cur)      = idx;
-                    _tks_range_y(cur) = idx;
-                    atomicOr(&_tks_mark(cur), 0x00000002);
-                    _lvs_mark(idx) = 0x00000007;
-                }
-                else
-                {
-                    _tks_lc(cur)      = idx;
-                    _tks_range_x(cur) = idx;
-                    atomicOr(&_tks_mark(cur), 0x00000001);
-                    _lvs_mark(idx) = 0x00000003;
-                }
-
-                __threadfence();
-                while(atomicAdd(&_flag(cur), 1) == 1)
-                {
-                    //_tks.update(cur, _lvs);	/// Update
-                    //_tks.refit(cur, _lvs);	/// Refit
-                    int      chl       = _tks_lc(cur);
-                    int      chr       = _tks_rc(cur);
-                    uint32_t temp_mark = _tks_mark(cur);
-                    if(temp_mark & 1)
-                    {
-                        _tks_box(cur) = _lvs_box(chl);
-                    }
-                    else
-                    {
-                        _tks_box(cur) = _tks_box(chl);
-                    }
-                    if(temp_mark & 2)
-                    {
-                        _tks_box(cur).extend(_lvs_box(chr));
-                    }
-                    else
-                    {
-                        _tks_box(cur).extend(_tks_box(chr));
-                    }
-
-                    _tks_mark(cur) &= 0x00000007;
-
-                    l               = _tks_range_x(cur) - 1;
-                    r               = _tks_range_y(cur);
-                    _lvs_lca(l + 1) = cur;
-                    _depths(l + 1)++;
-                    if(l >= 0)
-                    {
-                        mark = _lvs_metric(l) < _lvs_metric(r);  ///< true when right child, false otherwise
-                    }
-                    else
-                    {
-                        mark = false;
-                    }
-
-                    if(l + 1 == 0 && r == size - 1)
-                    {
-                        _tks_par(cur) = -1;
-                        _tks_mark(cur) &= 0xFFFFFFFB;
-                        break;
-                    }
-
-                    int par       = mark ? l : r;
-                    _tks_par(cur) = par;
-                    if(mark)
-                    {
-                        _tks_rc(par)      = cur;
-                        _tks_range_y(par) = r;
-                        atomicAnd(&_tks_mark(par), 0xFFFFFFFD);
-                        _tks_mark(cur) |= 0x00000004;
-                    }
-                    else
-                    {
-                        _tks_lc(par)      = cur;
-                        _tks_range_x(par) = l + 1;
-                        atomicAnd(&_tks_mark(par), 0xFFFFFFFE);
-                        _tks_mark(cur) &= 0xFFFFFFFB;
-                    }
-                    __threadfence();
-                    cur = par;
-                }
-            });
+    if(GridDim > 0)
+        StacklessBVH_buildIntNodes_kernel<<<GridDim, BlockDim, 0, nullptr>>>(
+            size,
+            // leaf nodes
+            count.view(),
+            ext_lca.view(),
+            metric.view(),
+            ext_par.view(),
+            ext_mark.view(),
+            ext_aabb.view(),
+            // internal nodes
+            int_rc.view(),
+            int_lc.view(),
+            int_range_y.view(),
+            int_range_x.view(),
+            int_mark.view(),
+            int_aabb.view(),
+            flags.view(),
+            int_par.view());
 }
 
 UIPC_INLINE void StacklessBVH::Impl::calcIntNodeOrders(int size)
 {
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(size,
-               [_tks_lc  = int_lc.viewer(),
-                _lcas    = ext_lca.viewer(),
-                _depths  = count.viewer(),
-                _offsets = offsetTable.viewer(),
-                _tkMap   = tkMap.viewer()] __device__(int idx)
-               {
-                   int node  = _lcas(idx);
-                   int depth = _depths(idx);
-                   int id    = _offsets(idx);
-
-                   if(node != -1)
-                   {
-                       for(; depth--; node = _tks_lc(node))
-                       {
-                           _tkMap(node) = id++;
-                       }
-                   }
-               });
+    auto k = StacklessBVH_calcIntNodeOrders_kernel;
+    if(size > 0)
+        k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            int_lc.view(), ext_lca.view(), count.view(), offsetTable.view(), tkMap.view(), size);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
 {
-    using namespace cuda_tool;
-
     if(flags.size() == 0)  // no internal nodes, thus no need to update
         return;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(size,
-               [_mapTable = tkMap.viewer(),
-                _lcas     = ext_lca.viewer(),
-                _pars     = ext_par.viewer()] __device__(int idx)
-               {
-                   int ori;
-                   _pars(idx) = _mapTable(_pars(idx));
-                   if((ori = _lcas(idx)) != -1)
-                       _lcas(idx) = _mapTable(ori) << 1;
-                   else
-                       _lcas(idx) = idx << 1 | 1;
-               });
+    auto k = StacklessBVH_updateBvhExtNodeLinks_kernel;
+    if(size > 0)
+        k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            tkMap.view(), ext_lca.view(), ext_par.view(), size);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
 {
-    using namespace culbvh;
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(intSize + 1,
-               [intSize,
-                // leaf nodes
-                _lvs_lca = ext_lca.viewer(),
-                _lvs_box = ext_aabb.viewer(),
-                // internal nodes
-                _tkMap           = tkMap.viewer(),
-                _unorderedTks_lc = int_lc.viewer(),
-                _unorderedTks_mark = int_mark.viewer(),
-                _unorderedTks_rangey = int_range_y.viewer(),
-                _unorderedTks_box = int_aabb.viewer(),
-                // total nodes
-                _nodes = nodes.viewer()] __device__(int idx)
-               {
-                   stacklessnode Node;
-                   Node.lc    = -1;
-                   int escape = _lvs_lca(idx + 1);
-
-                   if(escape == -1)
-                   {
-                       Node.escape = -1;
-                   }
-                   else
-                   {
-                       int bLeaf = escape & 1;
-                       escape >>= 1;
-                       Node.escape = escape + (bLeaf ? intSize : 0);
-                   }
-                   Node.bound = _lvs_box(idx);
-
-
-                   _nodes(idx + intSize) = Node;
-
-                   if(idx >= intSize)
-                       return;
-
-                   stacklessnode internalNode;
-                   int           newId = _tkMap(idx);
-                   uint32_t      mark  = _unorderedTks_mark(idx);
-
-                   internalNode.lc = mark & 1 ? _unorderedTks_lc(idx) + intSize :
-                                                _tkMap(_unorderedTks_lc(idx));
-                   internalNode.bound = _unorderedTks_box(idx);
-
-                   int internalEscape = _lvs_lca(_unorderedTks_rangey(idx) + 1);
-
-                   if(internalEscape == -1)
-                   {
-                       internalNode.escape = -1;
-                   }
-                   else
-                   {
-                       int bLeaf = internalEscape & 1;
-                       internalEscape >>= 1;
-                       internalNode.escape = internalEscape + (bLeaf ? intSize : 0);
-                   }
-                   _nodes(newId) = internalNode;
-               });
+    auto k = StacklessBVH_reorderNode_kernel;
+    int  n = intSize + 1;
+    if(n > 0)
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            intSize,
+            // leaf nodes
+            ext_lca.view(),
+            ext_aabb.view(),
+            // internal nodes
+            tkMap.view(),
+            int_lc.view(),
+            int_mark.view(),
+            int_range_y.view(),
+            int_aabb.view(),
+            // total nodes
+            nodes.view(),
+            n);
 }
 
 inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
@@ -703,7 +1015,6 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
                                                cuda_tool::VarView<int> cpNum,
                                                cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace cuda_tool;
     using namespace culbvh;
 
     auto numQuery = static_cast<int>(ext_aabb.size());
@@ -711,125 +1022,17 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
     auto BlockDim = K_THREADS;
     auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
-    Launch(GridDim, BlockDim)
-        .apply(
-            [Size       = numQuery,
-             _box       = objs.viewer(),
-             intSize    = numObjs - 1,
-             numObjs    = numObjs,
-             _lvs_idx   = ext_idx.viewer(),
-             _nodes     = nodes.viewer(),
-             resCounter = cpNum.viewer(),
-             res        = buffer.viewer(),
-             pred] __device__()
-            {
-                int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active = tid < Size;
-                int  idx;
-                AABB bv;
-                if(active)
-                {
-                    idx = _lvs_idx(tid);
-                    bv  = _box(idx);
-                }
-
-                __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
-                __shared__ int sharedCounter;  // How many results are cached in shared memory
-                __shared__ int sharedGlobalIdx;  // Where to write in global memory
-                if(threadIdx.x == 0)
-                    sharedCounter = 0;
-
-                int  st = 0;
-                Node node;
-                // Upper bound of iterations to avoid infinite loop
-                const int MaxIter = numObjs * 2;
-
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        int inner_I = 0;
-                        for(; inner_I < MaxIter; inner_I++)
-                        {
-                            if(st == -1)
-                                break;
-                            // Load node data - Eigen::AlignedBox stores min and max as Vector3f members
-                            node.lc     = _nodes(st).lc;
-                            node.escape = _nodes(st).escape;
-                            node.bound  = _nodes(st).bound;
-                            //node = _nodes[st];
-                            if(node.bound.intersects(bv))
-                            {
-                                if(node.lc == -1)
-                                {
-                                    if(tid < st - intSize)
-                                    {
-                                        auto pair =
-                                            make_ordered_pair(idx, _lvs_idx(st - intSize));
-                                        if(pred(pair.x, pair.y))
-                                        {
-                                            int sIdx = atomicAdd(&sharedCounter, 1);
-                                            if(sIdx >= MAX_RES_PER_BLOCK)
-                                            {
-                                                break;
-                                            }
-
-                                            sharedRes[sIdx] = pair;
-                                        }
-                                    }
-                                    st = node.escape;
-                                }
-                                else
-                                {
-                                    st = node.lc;
-                                }
-                            }
-                            else
-                            {
-                                st = node.escape;
-                            }
-                        }
-
-                        UIPC_KERNEL_ASSERT(inner_I < MaxIter,
-                                    "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
-                                    inner_I,
-                                    MaxIter,
-                                    numObjs);
-                    }
-                    // Flush whatever we have
-                    __syncthreads();
-
-                    int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
-
-                    if(threadIdx.x == 0)
-                    {
-                        // This Block Starts writing at sharedGlobalIdx
-                        sharedGlobalIdx = atomicAdd(resCounter.data(), totalResInBlock);
-                    }
-
-                    __syncthreads();
-
-                    // Make sure we dont write out of bounds
-                    const int globalIdx = sharedGlobalIdx;
-
-                    if(threadIdx.x == 0)
-                        sharedCounter = 0;
-
-                    // if there is at least one element empty
-                    // it means we have found all collisions for this block
-                    bool done = totalResInBlock < MAX_RES_PER_BLOCK;
-
-                    SafeCopyTo(sharedRes,
-                               totalResInBlock,
-                               res.data(),
-                               globalIdx,
-                               static_cast<int>(res.total_size()));
-
-                    if(done)
-                        break;
-                }
-            });
+    if(GridDim > 0)
+        StacklessBVH_StacklessCDSharedSelf_kernel<Pred>
+            <<<GridDim, BlockDim, 0, nullptr>>>(numQuery,
+                                                objs,
+                                                numObjs - 1,
+                                                numObjs,
+                                                ext_idx.view(),
+                                                nodes.view(),
+                                                cpNum.viewer(),
+                                                buffer,
+                                                pred);
 }
 
 template <typename Pred>
@@ -839,7 +1042,6 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
                                                 cuda_tool::VarView<int> cpNum,
                                                 cuda_tool::BufferView<Vector2i> buffer)
 {
-    using namespace cuda_tool;
     using namespace culbvh;
 
     auto numQuery = static_cast<int>(query_aabbs.size());
@@ -848,129 +1050,18 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
     auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
 
-    Launch(GridDim, BlockDim)
-        .apply(
-            [Size       = numQuery,
-             _box       = query_aabbs.viewer(),
-             sortedIdx  = query_sorted_id.viewer(),
-             intSize    = numObjs - 1,
-             numObjs    = numObjs,
-             _lvs_idx   = ext_idx.viewer(),
-             _nodes     = nodes.viewer(),
-             resCounter = cpNum.viewer(),
-             res        = buffer.viewer(),
-             pred] __device__()
-            {
-                int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active = tid < Size;
-                int  idx;
-                AABB bv;
-                if(active)
-                {
-                    idx = sortedIdx(tid);
-                    bv  = _box(idx);
-                }
-
-                __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
-                __shared__ int sharedCounter;  // How many results are cached in shared memory
-                __shared__ int sharedGlobalIdx;  // Where to write in global memory
-                if(threadIdx.x == 0)
-                    sharedCounter = 0;
-
-                int  st = 0;
-                Node node;
-
-                // Upper bound of iterations to avoid infinite loop
-                const int MaxIter = numObjs * 2;
-
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        int inner_I = 0;
-                        for(; inner_I < MaxIter; inner_I++)
-                        {
-                            if(st == -1)
-                                break;
-
-                            node.lc     = _nodes(st).lc;
-                            node.escape = _nodes(st).escape;
-                            node.bound  = _nodes(st).bound;
-
-                            //node = _nodes[st];
-                            if(node.bound.intersects(bv))
-                            {
-                                if(node.lc == -1)
-                                {
-                                    auto pair = int2{idx, _lvs_idx(st - intSize)};
-                                    if(pred(pair.x, pair.y))
-                                    {
-                                        int sIdx = atomicAdd(&sharedCounter, 1);
-
-                                        if(sIdx >= MAX_RES_PER_BLOCK)
-                                        {
-                                            break;
-                                        }
-
-                                        sharedRes[sIdx] = pair;
-                                    }
-
-                                    st = node.escape;
-                                }
-                                else
-                                {
-                                    st = node.lc;
-                                }
-                            }
-                            else
-                            {
-                                st = node.escape;
-                            }
-                        }
-
-                        UIPC_KERNEL_ASSERT(inner_I < MaxIter,
-                                    "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
-                                    inner_I,
-                                    MaxIter,
-                                    numObjs);
-                    }
-
-
-                    // Flush whatever we have
-                    __syncthreads();
-                    int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
-
-                    if(threadIdx.x == 0)
-                    {
-                        // This Block Starts writing at sharedGlobalIdx
-                        sharedGlobalIdx = atomicAdd(resCounter.data(), totalResInBlock);
-                    }
-
-                    __syncthreads();
-
-                    // Make sure we dont write out of bounds
-                    const int globalIdx = sharedGlobalIdx;
-
-                    if(threadIdx.x == 0)
-                        sharedCounter = 0;
-
-                    __syncthreads();
-
-                    // if there is at least one element empty
-                    // it means we have found all collisions for this block
-                    bool done = totalResInBlock < MAX_RES_PER_BLOCK;
-
-                    SafeCopyTo(sharedRes,
-                               totalResInBlock,
-                               res.data(),
-                               globalIdx,
-                               static_cast<int>(res.total_size()));
-
-                    if(done)
-                        break;
-                }
-            });
+    if(GridDim > 0)
+        StacklessBVH_StacklessCDSharedOther_kernel<Pred>
+            <<<GridDim, BlockDim, 0, nullptr>>>(numQuery,
+                                                query_aabbs,
+                                                query_sorted_id,
+                                                numObjs - 1,
+                                                numObjs,
+                                                ext_idx.view(),
+                                                nodes.view(),
+                                                cpNum.viewer(),
+                                                buffer,
+                                                pred);
 }
 
 inline void StacklessBVH::build(cuda_tool::CBufferView<AABB> aabbs)

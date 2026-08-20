@@ -8,6 +8,104 @@
 #include <kernel_cout.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace KRB = sym::kirchhoff_rod_bending;
+
+    constexpr SizeT StencilSize     = 3;
+    constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
+    __global__ void KirchhoffRodBending_do_compute_energy_kernel(
+        cuda_tool::BufferView<Vector3i>  hinges,
+        cuda_tool::BufferView<Float>     bending_stiffnesses,
+        cuda_tool::CBufferView<Float>    thicknesses,
+        cuda_tool::CBufferView<Vector3>  xs,
+        cuda_tool::CBufferView<Vector3>  x_bars,
+        cuda_tool::BufferView<Float>     energies,
+        Float                            dt,
+        Float                            Pi,
+        int                              n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector3i hinge = hinges(I);
+        Float    k     = bending_stiffnesses(I) * dt * dt;
+        // thicknesses is indexed by global vertex id, not hinge id.
+        Float    r     = thicknesses(hinge[1]);
+
+        Vector9 X;
+        X.segment<3>(0) = xs(hinge[0]);
+        X.segment<3>(3) = xs(hinge[1]);
+        X.segment<3>(6) = xs(hinge[2]);
+
+        Vector3 x0_bar = x_bars(hinge[0]);
+        Vector3 x1_bar = x_bars(hinge[1]);
+        Vector3 x2_bar = x_bars(hinge[2]);
+
+        // Rest length of the two edges
+        Float L0 = (x1_bar - x0_bar).norm() + (x2_bar - x1_bar).norm();
+
+        Float E;
+        KRB::E(E, k, X, L0, r, Pi);
+
+        energies(I) = E;
+    }
+
+    __global__ void KirchhoffRodBending_do_compute_gradient_hessian_kernel(
+        cuda_tool::BufferView<Vector3i>          hinges,
+        cuda_tool::BufferView<Float>             bending_stiffnesses,
+        cuda_tool::CBufferView<Float>            thicknesses,
+        cuda_tool::CBufferView<Vector3>          xs,
+        cuda_tool::CBufferView<Vector3>          x_bars,
+        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
+        Float                                    dt,
+        Float                                    Pi,
+        bool                                     gradient_only,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector3i hinge = hinges(I);
+        Float    k     = bending_stiffnesses(I);
+        // thicknesses is indexed by global vertex id, not hinge id.
+        Float    r     = thicknesses(hinge[1]);
+
+        Vector9 X;
+        X.segment<3>(0) = xs(hinge[0]);
+        X.segment<3>(3) = xs(hinge[1]);
+        X.segment<3>(6) = xs(hinge[2]);
+
+        Vector3 x0_bar = x_bars(hinge[0]);
+        Vector3 x1_bar = x_bars(hinge[1]);
+        Vector3 x2_bar = x_bars(hinge[2]);
+
+        // Rest length of the two edges
+        Float L0 = (x1_bar - x0_bar).norm() + (x2_bar - x1_bar).norm();
+
+        Float dt2 = dt * dt;
+
+        Vector9 G;
+        KRB::dEdX(G, k, X, L0, r, Pi);
+        G *= dt2;
+        DoubletVectorAssembler DVA{G3s};
+        DVA.segment<StencilSize>(I * StencilSize).write(hinge, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 H;
+        KRB::ddEddX(H, k, X, L0, r, Pi);
+
+        H *= dt2;
+        make_spd(H);
+        TripletMatrixAssembler TMA{H3x3s};
+        TMA.half_block<StencilSize>(I * HalfHessianSize).write(hinge, H);
+    }
+}  // namespace
+
 class KirchhoffRodBending final : public FiniteElementExtraConstitution
 {
     static constexpr U64   KirchhoffRodBendingUID = 15;
@@ -112,104 +210,46 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace KRB = sym::kirchhoff_rod_bending;
-
         constexpr Float Pi = std::numbers::pi;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.energies().size(),
-                   [hinges = hinges.viewer(),
-                    bending_stiffnesses = bending_stiffnesses.viewer(),
-                    thicknesses = info.thicknesses().viewer(),
-                    xs          = info.xs().viewer(),
-                    x_bars      = info.x_bars().viewer(),
-                    energies    = info.energies().viewer(),
-                    dt          = info.dt(),
-                    Pi] __device__(int I)
-                   {
-                       Vector3i hinge = hinges(I);
-                       Float    k     = bending_stiffnesses(I) * dt * dt;
-                       // thicknesses is indexed by global vertex id, not hinge id.
-                       Float    r     = thicknesses(hinge[1]);
-
-                       Vector9 X;
-                       X.segment<3>(0) = xs(hinge[0]);
-                       X.segment<3>(3) = xs(hinge[1]);
-                       X.segment<3>(6) = xs(hinge[2]);
-
-                       Vector3 x0_bar = x_bars(hinge[0]);
-                       Vector3 x1_bar = x_bars(hinge[1]);
-                       Vector3 x2_bar = x_bars(hinge[2]);
-
-                       // Rest length of the two edges
-                       Float L0 = (x1_bar - x0_bar).norm() + (x2_bar - x1_bar).norm();
-
-                       Float E;
-                       KRB::E(E, k, X, L0, r, Pi);
-
-                       energies(I) = E;
-                   });
+        auto k = KirchhoffRodBending_do_compute_energy_kernel;
+        int  n = (int)info.energies().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                hinges.view(),
+                bending_stiffnesses.view(),
+                info.thicknesses(),
+                info.xs(),
+                info.x_bars(),
+                info.energies(),
+                info.dt(),
+                Pi,
+                n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace KRB = sym::kirchhoff_rod_bending;
-
         constexpr Float Pi = std::numbers::pi;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(hinges.size(),
-                   [hinges = hinges.viewer(),
-                    bending_stiffnesses = bending_stiffnesses.viewer(),
-                    thicknesses = info.thicknesses().viewer(),
-                    xs          = info.xs().viewer(),
-                    x_bars      = info.x_bars().viewer(),
-                    G3s         = info.gradients().viewer(),
-                    H3x3s       = info.hessians().viewer(),
-                    dt          = info.dt(),
-                    Pi,
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       Vector3i hinge = hinges(I);
-                       Float    k     = bending_stiffnesses(I);
-                       // thicknesses is indexed by global vertex id, not hinge id.
-                       Float    r     = thicknesses(hinge[1]);
-
-                       Vector9 X;
-                       X.segment<3>(0) = xs(hinge[0]);
-                       X.segment<3>(3) = xs(hinge[1]);
-                       X.segment<3>(6) = xs(hinge[2]);
-
-                       Vector3 x0_bar = x_bars(hinge[0]);
-                       Vector3 x1_bar = x_bars(hinge[1]);
-                       Vector3 x2_bar = x_bars(hinge[2]);
-
-                       // Rest length of the two edges
-                       Float L0 = (x1_bar - x0_bar).norm() + (x2_bar - x1_bar).norm();
-
-                       Float dt2 = dt * dt;
-
-                       Vector9 G;
-                       KRB::dEdX(G, k, X, L0, r, Pi);
-                       G *= dt2;
-                       DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<StencilSize>(I * StencilSize).write(hinge, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 H;
-                       KRB::ddEddX(H, k, X, L0, r, Pi);
-
-                       H *= dt2;
-                       make_spd(H);
-                       TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(hinge, H);
-                   });
+        auto k = KirchhoffRodBending_do_compute_gradient_hessian_kernel;
+        int  n = (int)hinges.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                hinges.view(),
+                bending_stiffnesses.view(),
+                info.thicknesses(),
+                info.xs(),
+                info.x_bars(),
+                info.gradients(),
+                info.hessians(),
+                info.dt(),
+                Pi,
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

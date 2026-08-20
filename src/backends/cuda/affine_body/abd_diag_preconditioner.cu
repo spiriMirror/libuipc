@@ -7,6 +7,36 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void abd_diag_preconditioner_do_assemble_kernel(
+        cuda_tool::CBufferView<Matrix12x12> diag_hessian,
+        cuda_tool::BufferView<Matrix12x12>  diag_inv,
+        int                                 n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        diag_inv(i) = cuda_tool::eigen::inverse(diag_hessian(i));
+    }
+
+    __global__ void abd_diag_preconditioner_do_apply_kernel(
+        cuda_tool::CDenseVectorView<Float>  r,
+        cuda_tool::DenseVectorView<Float>   z,
+        cuda_tool::CDense<IndexT>           converged,
+        cuda_tool::BufferView<Matrix12x12>  diag_inv,
+        int                                 n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(*converged != 0)
+            return;
+        z.segment<12>(i * 12).as_eigen() =
+            diag_inv(i) * r.segment<12>(i * 12).as_eigen();
+    }
+}  // namespace
+
 class ABDDiagPreconditioner final : public LocalPreconditioner
 {
   public:
@@ -28,37 +58,29 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
 
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
-        using namespace cuda_tool;
-
         auto diag_hessian = abd_linear_subsystem->diag_hessian();
         diag_inv.resize(diag_hessian.size());
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(diag_inv.size(),
-                   [diag_hessian = diag_hessian.viewer(),
-                    diag_inv = diag_inv.viewer()] __device__(int i) mutable
-                   { diag_inv(i) = cuda_tool::eigen::inverse(diag_hessian(i)); });
+        int n = (int)diag_inv.size();
+        if(n > 0)
+        {
+            auto k = abd_diag_preconditioner_do_assemble_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                diag_hessian, diag_inv.view(), n);
+        }
     }
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
-        using namespace cuda_tool;
         auto converged = info.converged();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(diag_inv.size(),
-                   [r = info.r().viewer(),
-                    z = info.z().viewer(),
-                    converged = converged.cviewer(),
-                    diag_inv = diag_inv.viewer()] __device__(int i) mutable
-                   {
-                       if(*converged != 0)
-                           return;
-                       z.segment<12>(i * 12).as_eigen() =
-                           diag_inv(i) * r.segment<12>(i * 12).as_eigen();
-                   });
+        int n = (int)diag_inv.size();
+        if(n > 0)
+        {
+            auto k = abd_diag_preconditioner_do_apply_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.r(), info.z(), converged.cviewer(), diag_inv.view(), n);
+        }
     }
 };
 

@@ -33,6 +33,93 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     return s_r * M + (s_t - s_r) * M_cm;
 }
 
+namespace
+{
+    __global__ void soft_transform_constraint_compute_energy_kernel(
+        Float                                       substep_ratio,
+        cuda_tool::BufferView<IndexT>               indices,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<Vector12>            q_prevs,
+        cuda_tool::BufferView<Vector12>             aim_transforms,
+        cuda_tool::BufferView<Vector2>              strength_ratios,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::BufferView<Float>                energies,
+        cuda_tool::CBufferView<IndexT>              is_fixed,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto  i = indices(I);
+        auto& E = energies(I);
+
+        if(is_fixed(i))
+        {
+            E = 0.0;
+        }
+        else
+        {
+            Vector12 q      = qs(i);
+            Vector12 q_prev = q_prevs(i);
+            Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq = q - q_aim;
+            Vector2  s  = strength_ratios(I);
+
+            Matrix12x12 M =
+                compute_constraint_mass(body_masses(i), s(0), s(1));
+
+            E = 0.5 * dq.transpose() * M * dq;
+        }
+    }
+
+    __global__ void soft_transform_constraint_compute_gradient_hessian_kernel(
+        Float                                       substep_ratio,
+        cuda_tool::BufferView<IndexT>               indices,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<Vector12>            q_prevs,
+        cuda_tool::BufferView<Vector12>             aim_transforms,
+        cuda_tool::BufferView<Vector2>              strength_ratios,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::DoubletVectorView<Float, 12>     gradients,
+        cuda_tool::TripletMatrixView<Float, 12>     hessians,
+        cuda_tool::CBufferView<IndexT>              is_fixed,
+        bool                                        gradient_only,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto i = indices(I);
+
+        Vector12    G;
+        Matrix12x12 M;
+
+        if(is_fixed(i))
+        {
+            G.setZero();
+            M.setZero();
+        }
+        else
+        {
+            Vector12 q      = qs(i);
+            Vector12 q_prev = q_prevs(i);
+            Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq = q - q_aim;
+            Vector2  s  = strength_ratios(I);
+
+            M = compute_constraint_mass(body_masses(i), s(0), s(1));
+            G = M * dq;
+        }
+
+        gradients(I).write(i, G);
+
+        if(gradient_only)
+            return;
+
+        hessians(I).write(i, i, M);
+    }
+}  // namespace
+
 class SoftTransformConstraint final : public AffineBodyConstraint
 {
     static constexpr U64 SoftTransformConstraintUID = 16ull;
@@ -128,92 +215,44 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace cuda_tool;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_bodies.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer(),
-                    qs            = info.qs().viewer(),
-                    q_prevs       = info.q_prevs().viewer(),
-                    aim_transforms = aim_transforms.viewer(),
-                    strength_ratios = strength_ratios.viewer(),
-                    body_masses = info.body_masses().viewer(),
-                    energies = info.energies().viewer(),
-                    is_fixed = info.is_fixed().viewer()] __device__(int I)
-                   {
-                       auto  i = indices(I);
-                       auto& E = energies(I);
-
-                       if(is_fixed(i))
-                       {
-                           E = 0.0;
-                       }
-                       else
-                       {
-                           Vector12 q      = qs(i);
-                           Vector12 q_prev = q_prevs(i);
-                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-                           Vector12 dq = q - q_aim;
-                           Vector2  s  = strength_ratios(I);
-
-                           Matrix12x12 M =
-                               compute_constraint_mass(body_masses(i), s(0), s(1));
-
-                           E = 0.5 * dq.transpose() * M * dq;
-                       }
-                   });
+        int n = (int)constrained_bodies.size();
+        if(n > 0)
+        {
+            auto k = soft_transform_constraint_compute_energy_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_bodies.view(),
+                info.qs(),
+                info.q_prevs(),
+                aim_transforms.view(),
+                strength_ratios.view(),
+                info.body_masses(),
+                info.energies(),
+                info.is_fixed(),
+                n);
+        }
     }
 
     void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_bodies.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer(),
-                    qs            = info.qs().viewer(),
-                    q_prevs       = info.q_prevs().viewer(),
-                    aim_transforms = aim_transforms.viewer(),
-                    strength_ratios = strength_ratios.viewer(),
-                    body_masses = info.body_masses().viewer(),
-                    gradients = info.gradients().viewer(),
-                    hessians  = info.hessians().viewer(),
-                    is_fixed  = info.is_fixed().viewer(),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       auto i = indices(I);
-
-                       Vector12    G;
-                       Matrix12x12 M;
-
-                       if(is_fixed(i))
-                       {
-                           G.setZero();
-                           M.setZero();
-                       }
-                       else
-                       {
-                           Vector12 q      = qs(i);
-                           Vector12 q_prev = q_prevs(i);
-                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-                           Vector12 dq = q - q_aim;
-                           Vector2  s  = strength_ratios(I);
-
-                           M = compute_constraint_mass(body_masses(i), s(0), s(1));
-                           G = M * dq;
-                       }
-
-                       gradients(I).write(i, G);
-
-                       if(gradient_only)
-                           return;
-
-                       hessians(I).write(i, i, M);
-                   });
+        int n = (int)constrained_bodies.size();
+        if(n > 0)
+        {
+            auto k = soft_transform_constraint_compute_gradient_hessian_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_bodies.view(),
+                info.qs(),
+                info.q_prevs(),
+                aim_transforms.view(),
+                strength_ratios.view(),
+                info.body_masses(),
+                info.gradients(),
+                info.hessians(),
+                info.is_fixed(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

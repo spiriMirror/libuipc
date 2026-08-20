@@ -8,6 +8,85 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SoftVertexEdgeStitch_do_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector3i>  topos,
+        cuda_tool::CBufferView<Vector3>   xs,
+        cuda_tool::CBufferView<Float>     mus,
+        cuda_tool::CBufferView<Float>     lambdas,
+        cuda_tool::CBufferView<Matrix2x2> IBs,
+        cuda_tool::CBufferView<Float>     rest_areas,
+        cuda_tool::CBufferView<Float>     thick,
+        cuda_tool::BufferView<Float>      Es,
+        Float                             dt,
+        int                               n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        namespace NH = sym::soft_vertex_edge_stitch;
+
+        const Vector3i& tri = topos(I);
+        Vector9         X;
+        for(int k = 0; k < 3; ++k)
+            X.segment<3>(3 * k) = xs(tri(k));
+
+        Float E_val;
+        NH::E(E_val, lambdas(I), mus(I), X, IBs(I));
+
+        Float Vdt2 = rest_areas(I) * 2 * thick(I) * dt * dt;
+        Es(I)      = E_val * Vdt2;
+    }
+
+    template <SizeT StencilSize, SizeT HalfHessianSize>
+    __global__ void SoftVertexEdgeStitch_do_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector3i>         topos,
+        cuda_tool::CBufferView<Vector3>          xs,
+        cuda_tool::CBufferView<Float>            mus,
+        cuda_tool::CBufferView<Float>            lambdas,
+        cuda_tool::CBufferView<Matrix2x2>        IBs,
+        cuda_tool::CBufferView<Float>            rest_areas,
+        cuda_tool::CBufferView<Float>            thick,
+        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
+        Float                                    dt,
+        bool                                     gradient_only,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        namespace NH = sym::soft_vertex_edge_stitch;
+
+        const Vector3i& tri = topos(I);
+        Vector9         X;
+        for(int k = 0; k < 3; ++k)
+            X.segment<3>(3 * k) = xs(tri(k));
+
+        Float Vdt2 = rest_areas(I) * 2 * thick(I) * dt * dt;
+
+        Vector9 G;
+        NH::dEdX(G, lambdas(I), mus(I), X, IBs(I));
+        G *= Vdt2;
+
+        DoubletVectorAssembler VA{G3s};
+        VA.segment<StencilSize>(I * StencilSize).write(tri, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 H;
+        NH::ddEddX(H, lambdas(I), mus(I), X, IBs(I));
+        make_spd(H);
+        H *= Vdt2;
+
+        TripletMatrixAssembler MA{H3x3s};
+        MA.half_block<StencilSize>(I * HalfHessianSize)
+            .write(tri, H);
+    }
+}  // namespace
+
 class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 {
   public:
@@ -210,30 +289,22 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
         energies = info.energies();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos       = topos.cviewer(),
-                    xs          = info.positions().cviewer(),
-                    mus         = mus.cviewer(),
-                    lambdas     = lambdas.cviewer(),
-                    IBs         = inv_Bs.cviewer(),
-                    rest_areas  = rest_areas.cviewer(),
-                    thick       = thicknesses.cviewer(),
-                    Es          = info.energies().viewer(),
-                    dt          = info.dt()] __device__(int I)
-                   {
-                       const Vector3i& tri = topos(I);
-                       Vector9         X;
-                       for(int k = 0; k < 3; ++k)
-                           X.segment<3>(3 * k) = xs(tri(k));
-
-                       Float E_val;
-                       NH::E(E_val, lambdas(I), mus(I), X, IBs(I));
-
-                       Float Vdt2 = rest_areas(I) * 2 * thick(I) * dt * dt;
-                       Es(I)      = E_val * Vdt2;
-                   });
+        auto k = SoftVertexEdgeStitch_do_compute_energy_kernel;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                mus.cview(),
+                lambdas.cview(),
+                inv_Bs.cview(),
+                rest_areas.cview(),
+                thicknesses.cview(),
+                info.energies().viewer(),
+                info.dt(),
+                n);
+        }
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -254,47 +325,25 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos         = topos.cviewer(),
-                    xs            = info.positions().cviewer(),
-                    mus           = mus.cviewer(),
-                    lambdas       = lambdas.cviewer(),
-                    IBs           = inv_Bs.cviewer(),
-                    rest_areas    = rest_areas.cviewer(),
-                    thick         = thicknesses.cviewer(),
-                    G3s           = info.gradients().viewer(),
-                    H3x3s        = info.hessians().viewer(),
-                    dt            = info.dt(),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       const Vector3i& tri = topos(I);
-                       Vector9         X;
-                       for(int k = 0; k < 3; ++k)
-                           X.segment<3>(3 * k) = xs(tri(k));
-
-                       Float Vdt2 = rest_areas(I) * 2 * thick(I) * dt * dt;
-
-                       Vector9 G;
-                       NH::dEdX(G, lambdas(I), mus(I), X, IBs(I));
-                       G *= Vdt2;
-
-                       DoubletVectorAssembler VA{G3s};
-                       VA.segment<StencilSize>(I * StencilSize).write(tri, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 H;
-                       NH::ddEddX(H, lambdas(I), mus(I), X, IBs(I));
-                       make_spd(H);
-                       H *= Vdt2;
-
-                       TripletMatrixAssembler MA{H3x3s};
-                       MA.half_block<StencilSize>(I * HalfHessianSize)
-                           .write(tri, H);
-                   });
+        auto k = SoftVertexEdgeStitch_do_compute_gradient_hessian_kernel<StencilSize,
+                                                                         HalfHessianSize>;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                mus.cview(),
+                lambdas.cview(),
+                inv_Bs.cview(),
+                rest_areas.cview(),
+                thicknesses.cview(),
+                info.gradients().viewer(),
+                info.hessians().viewer(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

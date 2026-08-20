@@ -6,6 +6,102 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SoftVertexStitch_do_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i> topos,
+        cuda_tool::CBufferView<Vector3>  xs,
+        cuda_tool::CBufferView<Float>    kappas,
+        cuda_tool::CBufferView<Float>    rest_lengths,
+        cuda_tool::BufferView<Float>     Es,
+        Float                            dt,
+        int                              n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector2i& PP  = topos(I);
+        Float           Kt2 = kappas(I) * dt * dt;
+        Float           L0  = rest_lengths(I);
+        Vector3         dx  = xs(PP[0]) - xs(PP[1]);
+        if(L0 == 0.0)
+        {
+            Es(I) = 0.5 * Kt2 * dx.squaredNorm();
+        }
+        else
+        {
+            Float dist = dx.norm();
+            Float diff = dist - L0;
+            Es(I)     = 0.5 * Kt2 * diff * diff;
+        }
+    }
+
+    template <SizeT StencilSize, SizeT HalfHessianSize>
+    __global__ void SoftVertexStitch_do_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>         topos,
+        cuda_tool::CBufferView<Vector3>          xs,
+        cuda_tool::CBufferView<Float>            kappas,
+        cuda_tool::CBufferView<Float>            rest_lengths,
+        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
+        Float                                    dt,
+        bool                                     gradient_only,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        namespace SVS = sym::soft_vertex_stitch;
+
+        Vector6         X;
+        const Vector2i& PP = topos(I);
+        for(int i = 0; i < 2; ++i)
+            X.segment<3>(3 * i) = xs(PP[i]);
+
+        Float   Kt2 = kappas(I) * dt * dt;
+        Float   L0  = rest_lengths(I);
+        Vector3 dx  = X.head<3>() - X.tail<3>();
+
+        Vector6   G;
+        Matrix6x6 H;
+
+        if(L0 == 0.0)
+        {
+            // Harmonic energy: E = 0.5 * k * ||dx||^2
+            // G = k * [dx; -dx],  H = k * [[I,-I],[-I,I]]
+            G.head<3>() = Kt2 * dx;
+            G.tail<3>() = -Kt2 * dx;
+
+            if(!gradient_only)
+            {
+                Matrix3x3 blk = Kt2 * Matrix3x3::Identity();
+                H.block<3, 3>(0, 0) = blk;
+                H.block<3, 3>(0, 3) = -blk;
+                H.block<3, 3>(3, 0) = -blk;
+                H.block<3, 3>(3, 3) = blk;
+            }
+        }
+        else
+        {
+            SVS::dEdX(G, Kt2, X, L0);
+            if(!gradient_only)
+            {
+                SVS::ddEddX(H, Kt2, X, L0);
+            }
+        }
+
+        DoubletVectorAssembler VA{G3s};
+        VA.segment<StencilSize>(I * StencilSize).write(PP, G);
+
+        if(gradient_only)
+            return;
+
+        make_spd(H);
+        TripletMatrixAssembler MA{H3x3s};
+        MA.half_block<StencilSize>(I * HalfHessianSize).write(PP, H);
+    }
+}  // namespace
+
 class SoftVertexStitch : public InterPrimitiveConstitution
 {
   public:
@@ -124,31 +220,19 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
         energies = info.energies();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos        = topos.cviewer(),
-                    xs           = info.positions().cviewer(),
-                    kappas       = kappas.cviewer(),
-                    rest_lengths = rest_lengths.cviewer(),
-                    Es           = info.energies().viewer(),
-                    dt           = info.dt()] __device__(int I)
-                   {
-                       const Vector2i& PP  = topos(I);
-                       Float           Kt2 = kappas(I) * dt * dt;
-                       Float           L0  = rest_lengths(I);
-                       Vector3         dx  = xs(PP[0]) - xs(PP[1]);
-                       if(L0 == 0.0)
-                       {
-                           Es(I) = 0.5 * Kt2 * dx.squaredNorm();
-                       }
-                       else
-                       {
-                           Float dist = dx.norm();
-                           Float diff = dist - L0;
-                           Es(I)     = 0.5 * Kt2 * diff * diff;
-                       }
-                   });
+        auto k = SoftVertexStitch_do_compute_energy_kernel;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                kappas.cview(),
+                rest_lengths.cview(),
+                info.energies().viewer(),
+                info.dt(),
+                n);
+        }
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -169,65 +253,22 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(topos.size(),
-                   [topos         = topos.cviewer(),
-                    xs            = info.positions().cviewer(),
-                    kappas        = kappas.cviewer(),
-                    rest_lengths  = rest_lengths.cviewer(),
-                    G3s           = info.gradients().viewer(),
-                    H3x3s         = info.hessians().viewer(),
-                    dt            = info.dt(),
-                    gradient_only = info.gradient_only()] __device__(int I)
-                   {
-                       Vector6         X;
-                       const Vector2i& PP = topos(I);
-                       for(int i = 0; i < 2; ++i)
-                           X.segment<3>(3 * i) = xs(PP[i]);
-
-                       Float   Kt2 = kappas(I) * dt * dt;
-                       Float   L0  = rest_lengths(I);
-                       Vector3 dx  = X.head<3>() - X.tail<3>();
-
-                       Vector6   G;
-                       Matrix6x6 H;
-
-                       if(L0 == 0.0)
-                       {
-                           // Harmonic energy: E = 0.5 * k * ||dx||^2
-                           // G = k * [dx; -dx],  H = k * [[I,-I],[-I,I]]
-                           G.head<3>() = Kt2 * dx;
-                           G.tail<3>() = -Kt2 * dx;
-
-                           if(!gradient_only)
-                           {
-                               Matrix3x3 blk = Kt2 * Matrix3x3::Identity();
-                               H.block<3, 3>(0, 0) = blk;
-                               H.block<3, 3>(0, 3) = -blk;
-                               H.block<3, 3>(3, 0) = -blk;
-                               H.block<3, 3>(3, 3) = blk;
-                           }
-                       }
-                       else
-                       {
-                           SVS::dEdX(G, Kt2, X, L0);
-                           if(!gradient_only)
-                           {
-                               SVS::ddEddX(H, Kt2, X, L0);
-                           }
-                       }
-
-                       DoubletVectorAssembler VA{G3s};
-                       VA.segment<StencilSize>(I * StencilSize).write(PP, G);
-
-                       if(gradient_only)
-                           return;
-
-                       make_spd(H);
-                       TripletMatrixAssembler MA{H3x3s};
-                       MA.half_block<StencilSize>(I * HalfHessianSize).write(PP, H);
-                   });
+        auto k = SoftVertexStitch_do_compute_gradient_hessian_kernel<StencilSize,
+                                                                     HalfHessianSize>;
+        int  n = (int)topos.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                topos.cview(),
+                info.positions().cviewer(),
+                kappas.cview(),
+                rest_lengths.cview(),
+                info.gradients().viewer(),
+                info.hessians().viewer(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

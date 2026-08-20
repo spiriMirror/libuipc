@@ -13,6 +13,63 @@
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void GlobalVertexManager_step_forward_kernel(
+        cuda_tool::BufferView<Vector3> pos,
+        cuda_tool::BufferView<Vector3> safe_pos,
+        cuda_tool::BufferView<Vector3> disp,
+        Float                          alpha,
+        int                            n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        pos(i) = safe_pos(i) + alpha * disp(i);
+    }
+
+    __global__ void GlobalVertexManager_setup_ccd_kernel(
+        cuda_tool::BufferView<Vector3>  pos,
+        cuda_tool::BufferView<Vector3>  tmp_pos,
+        cuda_tool::BufferView<Vector3>  disp,
+        cuda_tool::CBufferView<Vector3> base_pos,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        disp(i)    = pos(i) - base_pos(i);
+        tmp_pos(i) = pos(i);
+        pos(i)     = base_pos(i);
+    }
+
+    struct GlobalVertexManager_MaxAbsOp
+    {
+        CUB_RUNTIME_FUNCTION Float operator()(const Float& L, const Float& R) const
+        {
+            auto absL = std::abs(L);
+            auto absR = std::abs(R);
+            return absL > absR ? absL : absR;
+        }
+    };
+
+    struct GlobalVertexManager_CwiseMinOp
+    {
+        CUB_RUNTIME_FUNCTION Vector3 operator()(const Vector3& L, const Vector3& R) const
+        {
+            return L.cwiseMin(R);
+        }
+    };
+
+    struct GlobalVertexManager_CwiseMaxOp
+    {
+        CUB_RUNTIME_FUNCTION Vector3 operator()(const Vector3& L, const Vector3& R) const
+        {
+            return L.cwiseMax(R);
+        }
+    };
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalVertexManager);
 
 void GlobalVertexManager::do_build()
@@ -115,14 +172,13 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
 {
     using namespace cuda_tool;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(positions.size(),
-               [pos      = positions.viewer(),
-                safe_pos = safe_positions.viewer(),
-                disp     = displacements.viewer(),
-                alpha    = alpha] __device__(int i) mutable
-               { pos(i) = safe_pos(i) + alpha * disp(i); });
+    auto k = GlobalVertexManager_step_forward_kernel;
+    int  n = (int)positions.size();
+    if(n > 0)
+    {
+        k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+            positions.view(), safe_positions.view(), displacements.view(), alpha, n);
+    }
 }
 
 void GlobalVertexManager::Impl::collect_vertex_displacements()
@@ -139,18 +195,13 @@ void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_p
     auto& tmp_pos = safe_positions;
     UIPC_ASSERT(base_positions.size() == positions.size(),
                 "Base positions size not equal to vertex count");
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(positions.size(),
-               [pos     = positions.viewer(),
-                tmp_pos = tmp_pos.viewer(),
-                disp    = displacements.viewer(),
-                base_pos = base_positions.cviewer()] __device__(int i) mutable
-               {
-                   disp(i)    = pos(i) - base_pos(i);
-                   tmp_pos(i) = pos(i);
-                   pos(i)     = base_pos(i);
-               });
+    auto k = GlobalVertexManager_setup_ccd_kernel;
+    int  n = (int)positions.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            positions.view(), tmp_pos.view(), displacements.view(), base_positions, n);
+    }
 }
 
 void GlobalVertexManager::Impl::restore_ccd()
@@ -195,12 +246,7 @@ Float GlobalVertexManager::Impl::compute_axis_max_displacement()
     cuda_tool::DeviceReduce().Reduce((Float*)displacements.data(),
                                 axis_max_disp.data(),
                                 displacements.size() * 3,
-                                [] CUB_RUNTIME_FUNCTION(const Float& L, const Float& R)
-                                {
-                                    auto absL = std::abs(L);
-                                    auto absR = std::abs(R);
-                                    return absL > absR ? absL : absR;
-                                },
+                                GlobalVertexManager_MaxAbsOp{},
                                 0.0);
     return axis_max_disp;
 }
@@ -213,15 +259,13 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
             positions.data(),
             min_pos.data(),
             positions.size(),
-            [] CUB_RUNTIME_FUNCTION(const Vector3& L, const Vector3& R) -> Vector3
-            { return L.cwiseMin(R); },
+            GlobalVertexManager_CwiseMinOp{},
             Vector3{max_float, max_float, max_float})
         .Reduce(
             positions.data(),
             max_pos.data(),
             positions.size(),
-            [] CUB_RUNTIME_FUNCTION(const Vector3& L, const Vector3& R) -> Vector3
-            { return L.cwiseMax(R); },
+            GlobalVertexManager_CwiseMaxOp{},
             Vector3{-max_float, -max_float, -max_float});
 
     Vector3 min_pos_host, max_pos_host;

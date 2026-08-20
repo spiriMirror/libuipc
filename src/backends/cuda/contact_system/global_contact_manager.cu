@@ -28,6 +28,22 @@ class SimSystemCreator<cuda::GlobalContactManager>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void compute_cfl_condition_kernel(cuda_tool::CBufferView<Vector3> disps,
+                                                 cuda_tool::BufferView<Float> disp_norms,
+                                                 cuda_tool::BufferView<IndexT> is_contact_active,
+                                                 int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+
+        // if the contact is not active, then the displacement is ignored
+        disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalContactManager);
 
 void GlobalContactManager::do_build()
@@ -207,16 +223,17 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
         auto displacements = global_vertex_manager->displacements();
 
         using namespace cuda_tool;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(displacements.size(),
-                   [disps      = displacements.cviewer(),
-                    disp_norms = vert_disp_norms.viewer(),
-                    is_contact_active = vert_is_active_contact.viewer()] __device__(int i) mutable
-                   {
-                       // if the contact is not active, then the displacement is ignored
-                       disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
-                   });
+        if(displacements.size() > 0)
+            compute_cfl_condition_kernel<<<cuda_tool::best_grid_dim(
+                                               (int)displacements.size(),
+                                               compute_cfl_condition_kernel),
+                                           cuda_tool::best_block_dim(
+                                               compute_cfl_condition_kernel),
+                                           0,
+                                           nullptr>>>(displacements.cviewer(),
+                                                      vert_disp_norms.viewer(),
+                                                      vert_is_active_contact.viewer(),
+                                                      (int)displacements.size());
 
         DeviceReduce().Max(vert_disp_norms.data(),
                            max_disp_norm.data(),

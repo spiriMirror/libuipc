@@ -10,6 +10,41 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void do_init_kernel(cuda_tool::BufferView<Vector2i> adaptive_topos,
+                                   cuda_tool::Dense2D<ContactCoeff> contact_tabular,
+                                   int n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+
+        Vector2i topo  = adaptive_topos(I);
+        auto&    coefL = contact_tabular(topo.x(), topo.y());
+        auto&    coefR = contact_tabular(topo.y(), topo.x());
+        coefL.kappa    = 1.0;
+        coefR.kappa    = 1.0;
+    }
+
+    __global__ void do_compute_parameters_kernel(cuda_tool::BufferView<Vector2i> adaptive_topos,
+                                                 cuda_tool::Dense2D<ContactCoeff> contact_tabular,
+                                                 Float new_kappa,
+                                                 int   n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+
+        Vector2i topo  = adaptive_topos(I);
+        auto&    coefL = contact_tabular(topo.x(), topo.y());
+        auto&    coefR = contact_tabular(topo.y(), topo.x());
+
+        coefL.kappa = new_kappa;
+        coefR.kappa = new_kappa;
+    }
+}  // namespace
+
 // ref: https://github.com/KemengHuang/Stiff-GIPC
 class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
 {
@@ -93,18 +128,14 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         test_contact_tabular->fill(ContactCoeff{0.0f});
 
         using namespace cuda_tool;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer(),
-                    contact_tabular = test_contact_tabular->viewer()] __device__(IndexT I) mutable
-                   {
-                       Vector2i topo  = adaptive_topos(I);
-                       auto&    coefL = contact_tabular(topo.x(), topo.y());
-                       auto&    coefR = contact_tabular(topo.y(), topo.x());
-                       coefL.kappa    = 1.0;
-                       coefR.kappa    = 1.0;
-                   });
+        if(adaptive_topos.size() > 0)
+            do_init_kernel<<<cuda_tool::best_grid_dim((int)adaptive_topos.size(),
+                                                      do_init_kernel),
+                             cuda_tool::best_block_dim(do_init_kernel),
+                             0,
+                             nullptr>>>(adaptive_topos.viewer(),
+                                        test_contact_tabular->viewer(),
+                                        (int)adaptive_topos.size());
 
         //auto             d_hats = vertex_manager->d_hats();
         //DeviceVar<Float> min_d_hat;
@@ -184,20 +215,17 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
                      init_kappa,
                      max_kappa);
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer(),
-                    contact_tabular = info.contact_tabular().viewer(),
-                    new_kappa = new_kappa] __device__(IndexT I) mutable
-                   {
-                       Vector2i topo  = adaptive_topos(I);
-                       auto&    coefL = contact_tabular(topo.x(), topo.y());
-                       auto&    coefR = contact_tabular(topo.y(), topo.x());
-
-                       coefL.kappa = new_kappa;
-                       coefR.kappa = new_kappa;
-                   });
+        if(adaptive_topos.size() > 0)
+            do_compute_parameters_kernel<<<cuda_tool::best_grid_dim(
+                                               (int)adaptive_topos.size(),
+                                               do_compute_parameters_kernel),
+                                           cuda_tool::best_block_dim(
+                                               do_compute_parameters_kernel),
+                                           0,
+                                           nullptr>>>(adaptive_topos.viewer(),
+                                                      info.contact_tabular().viewer(),
+                                                      new_kappa,
+                                                      (int)adaptive_topos.size());
     }
 
     vector<Float> h_kappas;

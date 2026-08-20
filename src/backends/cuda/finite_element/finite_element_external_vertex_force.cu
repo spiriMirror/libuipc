@@ -5,6 +5,24 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace eigen = cuda_tool::eigen;
+
+    __global__ void FiniteElementExternalVertexForce_do_step_kernel(
+        cuda_tool::BufferView<Vector3>  forces,
+        cuda_tool::CBufferView<IndexT>  vertex_ids,
+        cuda_tool::CBufferView<Vector3> vertex_forces,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto vid = vertex_ids(i);
+        eigen::atomic_add(forces(vid), vertex_forces(i));
+    }
+}  // namespace
+
 /**
  * @brief Scatter-add external forces from constraint buffers into the
  *        per-vertex external force buffer on FiniteElementMethod.
@@ -31,19 +49,16 @@ class FiniteElementExternalVertexForce final : public FiniteElementExternalForce
 
     void do_step(ExternalForceInfo& info) override
     {
-        SizeT force_count = constraint->forces().size();
-
-        using namespace cuda_tool;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(force_count,
-                   [forces     = info.external_forces().viewer(),
-                    vertex_ids = constraint->vertex_ids().viewer(),
-                    vertex_forces = constraint->forces().viewer()] __device__(int i) mutable
-                   {
-                       auto vid = vertex_ids(i);
-                       eigen::atomic_add(forces(vid), vertex_forces(i));
-                   });
+        auto k = FiniteElementExternalVertexForce_do_step_kernel;
+        int  n = (int)constraint->forces().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.external_forces(),
+                constraint->vertex_ids(),
+                constraint->forces(),
+                n);
+        }
     }
 };
 

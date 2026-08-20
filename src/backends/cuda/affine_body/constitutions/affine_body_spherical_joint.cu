@@ -6,6 +6,98 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace SJ = sym::affine_body_spherical_joint;
+
+    using Vector24    = Vector<Float, 24>;
+    using Matrix24x24 = Matrix<Float, 24, 24>;
+
+    __global__ void affine_body_spherical_joint_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             rest_cs,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::BufferView<Float>                Es,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids  = body_ids(I);
+        Float    kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass()
+                         + body_masses(bids(1)).mass());
+
+        Vector12 qi = qs(bids(0));
+        Vector12 qj = qs(bids(1));
+
+        auto& rest_c = rest_cs(I);
+
+        Vector3 Ft_val;
+        SJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
+        Float Et_val;
+        SJ::Et<Float>(Et_val, kappa, Ft_val);
+
+        Es(I) = Et_val;
+    }
+
+    __global__ void affine_body_spherical_joint_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             rest_cs,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::DoubletVectorView<Float, 12>     G12s,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        bool                                        gradient_only,
+        SizeT                                       HalfHessianSize,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids  = body_ids(I);
+        Float    kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass()
+                         + body_masses(bids(1)).mass());
+
+        Vector12 qi = qs(bids(0));
+        Vector12 qj = qs(bids(1));
+
+        auto&   rest_c = rest_cs(I);
+        Vector3 ci_bar = rest_c.segment<3>(0);
+        Vector3 cj_bar = rest_c.segment<3>(3);
+
+        Vector3 Ft_val;
+        SJ::Ft<Float>(Ft_val, ci_bar, qi, cj_bar, qj);
+
+        Vector3 dEdFt_val;
+        SJ::dEdFt<Float>(dEdFt_val, kappa, Ft_val);
+
+        Vector24 G;
+        SJ::JtT_Gt<Float>(G, dEdFt_val, ci_bar, cj_bar);
+
+        DoubletVectorAssembler DVA{G12s};
+        Vector2i               indices = {bids(0), bids(1)};
+        DVA.segment<2>(2 * I).write(indices, G);
+
+        if(!gradient_only)
+        {
+            Matrix3x3 ddEdFt_val;
+            SJ::ddEdFt<Float>(ddEdFt_val, kappa, Ft_val);
+            make_spd(ddEdFt_val);
+
+            Matrix24x24 H;
+            SJ::JtT_Ht_Jt<Float>(H, ddEdFt_val, ci_bar, cj_bar);
+
+            TripletMatrixAssembler TMA{H12x12s};
+            TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
+        }
+    }
+}  // namespace
+
 class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 {
   public:
@@ -118,35 +210,19 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace SJ = sym::affine_body_spherical_joint;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer(),
-                    rest_cs  = rest_cs.cviewer(),
-                    strength_ratio = strength_ratios.cviewer(),
-                    body_masses = info.body_masses().cviewer(),
-                    qs = info.qs().viewer(),
-                    Es = info.energies().viewer()] __device__(int I)
-                   {
-                       Vector2i bids  = body_ids(I);
-                       Float    kappa = strength_ratio(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-
-                       Vector12 qi = qs(bids(0));
-                       Vector12 qj = qs(bids(1));
-
-                       auto& rest_c = rest_cs(I);
-
-                       Vector3 Ft_val;
-                       SJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
-                       Float Et_val;
-                       SJ::Et<Float>(Et_val, kappa, Ft_val);
-
-                       Es(I) = Et_val;
-                   });
+        int n = (int)body_ids.size();
+        if(n > 0)
+        {
+            auto k = affine_body_spherical_joint_compute_energy_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_cs.cview(),
+                strength_ratios.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.energies(),
+                n);
+        }
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -159,59 +235,23 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace SJ       = sym::affine_body_spherical_joint;
         auto gradient_only = info.gradient_only();
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer(),
-                    rest_cs  = rest_cs.cviewer(),
-                    strength_ratio = strength_ratios.cviewer(),
-                    body_masses = info.body_masses().cviewer(),
-                    qs      = info.qs().viewer(),
-                    G12s    = info.gradients().viewer(),
-                    H12x12s = info.hessians().viewer(),
-                    gradient_only] __device__(int I)
-                   {
-                       Vector2i bids  = body_ids(I);
-                       Float    kappa = strength_ratio(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-
-                       Vector12 qi = qs(bids(0));
-                       Vector12 qj = qs(bids(1));
-
-                       auto&   rest_c = rest_cs(I);
-                       Vector3 ci_bar = rest_c.segment<3>(0);
-                       Vector3 cj_bar = rest_c.segment<3>(3);
-
-                       Vector3 Ft_val;
-                       SJ::Ft<Float>(Ft_val, ci_bar, qi, cj_bar, qj);
-
-                       Vector3 dEdFt_val;
-                       SJ::dEdFt<Float>(dEdFt_val, kappa, Ft_val);
-
-                       Vector24 G;
-                       SJ::JtT_Gt<Float>(G, dEdFt_val, ci_bar, cj_bar);
-
-                       DoubletVectorAssembler DVA{G12s};
-                       Vector2i               indices = {bids(0), bids(1)};
-                       DVA.segment<2>(2 * I).write(indices, G);
-
-                       if(!gradient_only)
-                       {
-                           Matrix3x3 ddEdFt_val;
-                           SJ::ddEdFt<Float>(ddEdFt_val, kappa, Ft_val);
-                           make_spd(ddEdFt_val);
-
-                           Matrix24x24 H;
-                           SJ::JtT_Ht_Jt<Float>(H, ddEdFt_val, ci_bar, cj_bar);
-
-                           TripletMatrixAssembler TMA{H12x12s};
-                           TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
-                       }
-                   });
+        int  n             = (int)body_ids.size();
+        if(n > 0)
+        {
+            auto k = affine_body_spherical_joint_compute_gradient_hessian_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_cs.cview(),
+                strength_ratios.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.gradients(),
+                info.hessians(),
+                gradient_only,
+                HalfHessianSize,
+                n);
+        }
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

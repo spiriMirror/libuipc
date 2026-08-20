@@ -24,6 +24,305 @@ UIPC_GENERIC void zero_out_lower(Matrix12x12& H)
         }
     }
 }
+
+namespace
+{
+    using namespace cuda_tool;  // for eigen:: / view aliases used inside kernel bodies
+
+    __global__ void abd_linear_subsystem_assemble_kinetic_shape_k1_kernel(
+        cuda_tool::CBufferView<IndexT>    is_fixed,
+        cuda_tool::CBufferView<IndexT>    is_external_kinetic,
+        cuda_tool::CBufferView<Vector12>  shape_gradient,
+        cuda_tool::CBufferView<Vector12>  kinetic_gradient,
+        cuda_tool::DenseVectorView<Float> gradients,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector12 src;
+
+        if(is_fixed(i))
+        {
+            src.setZero();  // if fixed, set to zero
+        }
+        else
+        {
+            src = shape_gradient(i);
+
+            // if not external kinetic, add kinetic gradient
+            if(!is_external_kinetic(i)) [[likely]]
+            {
+                src += kinetic_gradient(i);
+            }
+        }
+
+        gradients.segment<12>(i * 12) = src;
+
+        // cout << "EKG(" << i << "): " << src.transpose().eval() << "\n";
+    }
+
+    __global__ void abd_linear_subsystem_assemble_kinetic_shape_k2_kernel(
+        cuda_tool::TripletMatrixView<Float, 3> dst,
+        cuda_tool::CBufferView<IndexT>         is_fixed,
+        cuda_tool::CBufferView<IndexT>         is_external_kinetic,
+        cuda_tool::CBufferView<Matrix12x12>    shape_hessian,
+        cuda_tool::CBufferView<Matrix12x12>    kinetic_hessian,
+        cuda_tool::BufferView<Matrix12x12>     diag_hessian,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        TripletMatrixUnpacker MA{dst};
+        Matrix12x12           H12x12;
+
+        if(is_fixed(I))
+        {
+            // Fill kinetic hessian to identity to avoid singularity
+            H12x12.setIdentity();
+        }
+        else
+        {
+            // if not fixed, fill shape hessian
+            H12x12 = shape_hessian(I);
+
+            // if not external kinetic, add kinetic gradient
+            if(!is_external_kinetic(I)) [[likely]]
+            {
+                H12x12 += kinetic_hessian(I);
+            }
+        }
+
+        // record diagonal hessian for diag-inv preconditioner
+        diag_hessian(I) = H12x12;
+
+        // set the lower triangle blocks to zero for robustness
+        zero_out_lower(H12x12);
+
+        MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+            .write(I * 4,          // begin row
+                   I * 4,          // begin col
+                   H12x12);
+    }
+
+    __global__ void abd_linear_subsystem_assemble_reporters_k1_kernel(
+        cuda_tool::DenseVectorView<Float>        dst,
+        cuda_tool::CDoubletVectorView<Float, 12> src,
+        cuda_tool::CBufferView<IndexT>           is_fixed,
+        int                                      n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [body_i, G12] = src(I);
+
+        if(is_fixed(body_i))
+        {
+            // Do nothing
+        }
+        else
+        {
+            dst.segment<12>(body_i * 12).atomic_add(G12);
+        }
+    }
+
+    __global__ void abd_linear_subsystem_assemble_reporters_k2_kernel(
+        cuda_tool::TripletMatrixView<Float, 3>       dst,
+        cuda_tool::CTripletMatrixView<Float, 12, 12> src,
+        cuda_tool::BufferView<Matrix12x12>           diag_hessian,
+        cuda_tool::CBufferView<IndexT>               is_fixed,
+        int                                          n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        TripletMatrixUnpacker MU{dst};
+        Matrix12x12           H12x12;
+        auto&& [body_i, body_j, Value] = src(I);
+        H12x12                         = Value;
+
+        bool has_fixed = (is_fixed(body_i) || is_fixed(body_j));
+
+        // Fill diagonal hessian for diag-inv preconditioner
+        if(body_i == body_j && !has_fixed)
+        {
+            eigen::atomic_add(diag_hessian(body_i), H12x12);
+        }
+
+        if(has_fixed)
+        {
+            // Zero out hessian for fixed bodies
+            H12x12.setZero();
+        }
+        else
+        {
+            if(body_i == body_j)
+            {
+                // Since body_i == body_j, we only fill the upper triangle part
+                zero_out_lower(H12x12);
+            }
+            else if(body_i > body_j)
+            {
+                // If all the reporters only report upper triangle part, this branch should not be hit
+                H12x12.setZero();
+            }
+        }
+
+        MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+            .write(body_i * 4,  // begin row
+                   body_j * 4,  // begin col
+                   H12x12);
+    }
+
+    __global__ void abd_linear_subsystem_assemble_dytopo_effect_k1_kernel(
+        cuda_tool::CDoubletVectorView<Float, 3> dytopo_effect_gradient,
+        cuda_tool::DenseVectorView<Float>       gradients,
+        cuda_tool::CBufferView<IndexT>          v2b,
+        cuda_tool::CBufferView<ABDJacobi>       Js,
+        cuda_tool::CBufferView<IndexT>          is_fixed,
+        IndexT                                  vertex_offset,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const auto& [g_i, G3] = dytopo_effect_gradient(I);
+
+        auto  i      = g_i - vertex_offset;
+        auto  body_i = v2b(i);
+        auto& J_i    = Js(i);
+
+        if(is_fixed(body_i))
+        {
+            // Do nothing
+        }
+        else
+        {
+            Vector12 G12 = J_i.T() * G3;
+            gradients.segment<12>(body_i * 12).atomic_add(G12);
+
+            // cout << "DG(" << I << "): " << G12.transpose().eval() << "\n";
+        }
+    }
+
+    __global__ void abd_linear_subsystem_assemble_dytopo_effect_k2_kernel(
+        cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
+        cuda_tool::TripletMatrixView<Float, 3>     dst,
+        cuda_tool::CBufferView<IndexT>             v2b,
+        cuda_tool::CBufferView<ABDJacobi>          Js,
+        cuda_tool::CBufferView<IndexT>             is_fixed,
+        cuda_tool::BufferView<Matrix12x12>         diag_hessian,
+        IndexT                                     vertex_offset,
+        int                                        n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
+
+        auto i = g_i - vertex_offset;
+        auto j = g_j - vertex_offset;
+
+        auto body_i = v2b(i);
+        auto body_j = v2b(j);
+
+        auto& J_i = Js(i);
+        auto& J_j = Js(j);
+
+        Matrix12x12 H12x12;
+
+        // We know half contact hessian i <= j
+        // but we don't know body_i and body_j order
+        // so test and swap if necessary
+        IndexT L = body_i;
+        IndexT R = body_j;
+        if(body_i > body_j)
+        {
+            L = body_j;
+            R = body_i;
+        }
+
+        if(is_fixed(body_i) || is_fixed(body_j))
+        {
+            H12x12.setZero();
+        }
+        else
+        {
+            if(body_i < body_j)
+            {
+                H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
+            }
+            else if(body_i > body_j)
+            {
+                H12x12 = ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
+            }
+            else  // body_i == body_j
+            {
+                // Two vertices from the same body
+                if(i != j)
+                {
+                    H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j)
+                             + ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
+                }
+                else  // i == j
+                {
+                    H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
+                }
+
+                // Fill diagonal hessian for diag-inv preconditioner
+                eigen::atomic_add(diag_hessian(body_i), H12x12);
+
+                // Since body_i == body_j, we only fill the upper triangle part
+                zero_out_lower(H12x12);
+            }
+        }
+
+        TripletMatrixUnpacker MU{dst};
+        MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*16, (I+1)*16)
+            .write(L * 4,          // begin row
+                   R * 4,          // begin col
+                   H12x12);
+    }
+
+    __global__ void abd_linear_subsystem_retrieve_solution_kernel(
+        cuda_tool::BufferView<Vector12>      dq,
+        cuda_tool::CDenseVectorView<Float>   x,
+        int                                  n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        // retrieve solution for each body
+        dq(i) = -x.segment<12>(i * 12).as_eigen();
+    }
+
+    __global__ void abd_linear_subsystem_diag_norm_kernel(
+        cuda_tool::CBufferView<Matrix12x12> diag_hess,
+        cuda_tool::BufferView<Float>        diag_blocks_norm,
+        cuda_tool::CBufferView<IndexT>      is_fixed,
+        int                                 n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        for(int i = 0; i < 12; i++)
+            diag_blocks_norm(idx * 12 + i) =
+                is_fixed(idx) ? 0 : abs(diag_hess(idx)(i, i));
+    }
+
+    __global__ void abd_linear_subsystem_mass_norm_kernel(
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> mass,
+        cuda_tool::BufferView<Float>                block_norm,
+        cuda_tool::CBufferView<IndexT>              is_fixed,
+        int                                         n)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx >= n)
+            return;
+        block_norm(idx) = is_fixed(idx) ? 0 : mass(idx).mass();
+    }
+}  // namespace
 }  // namespace uipc::backend::cuda
 
 
@@ -220,38 +519,18 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
         cst->compute_gradient_hessian(this_info);
     }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd().body_count(),
-               [is_fixed = abd().body_id_to_is_fixed.cviewer(),
-                is_external_kinetic =
-                    abd().body_id_to_external_kinetic.cviewer(),
-                shape_gradient = body_id_to_shape_gradient.cviewer(),
-                kinetic_gradient = body_id_to_kinetic_gradient.cviewer(),
-                gradients = info.gradients().viewer(),
-                cout      = KernelCout::viewer()] __device__(int i) mutable
-               {
-                   Vector12 src;
-
-                   if(is_fixed(i))
-                   {
-                       src.setZero();  // if fixed, set to zero
-                   }
-                   else
-                   {
-                       src = shape_gradient(i);
-
-                       // if not external kinetic, add kinetic gradient
-                       if(!is_external_kinetic(i)) [[likely]]
-                       {
-                           src += kinetic_gradient(i);
-                       }
-                   }
-
-                   gradients.segment<12>(i * 12) = src;
-
-                   // cout << "EKG(" << i << "): " << src.transpose().eval() << "\n";
-               });
+    {
+        auto k = abd_linear_subsystem_assemble_kinetic_shape_k1_kernel;
+        int  n = (int)abd().body_count();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                abd().body_id_to_is_fixed.cview(),
+                abd().body_id_to_external_kinetic.cview(),
+                body_id_to_shape_gradient.cview(),
+                body_id_to_kinetic_gradient.cview(),
+                info.gradients(),
+                n);
+    }
 
     if(info.gradient_only())
         return;
@@ -260,48 +539,19 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
     auto H3x3_count = body_count * (4 * 4);
     auto body_H3x3  = info.hessians().subview(hess_offset, H3x3_count);
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(body_count,
-               [dst      = body_H3x3.viewer(),
-                is_fixed = abd().body_id_to_is_fixed.cviewer(),
-                is_external_kinetic =
-                    abd().body_id_to_external_kinetic.cviewer(),
-                shape_hessian = body_id_to_shape_hessian.cviewer(),
-                kinetic_hessian = body_id_to_kinetic_hessian.cviewer(),
-                diag_hessian = this->diag_hessian.viewer()] __device__(int I) mutable
-               {
-                   TripletMatrixUnpacker MA{dst};
-                   Matrix12x12           H12x12;
-
-                   if(is_fixed(I))
-                   {
-                       // Fill kinetic hessian to identity to avoid singularity
-                       H12x12.setIdentity();
-                   }
-                   else
-                   {
-                       // if not fixed, fill shape hessian
-                       H12x12 = shape_hessian(I);
-
-                       // if not external kinetic, add kinetic gradient
-                       if(!is_external_kinetic(I)) [[likely]]
-                       {
-                           H12x12 += kinetic_hessian(I);
-                       }
-                   }
-
-                   // record diagonal hessian for diag-inv preconditioner
-                   diag_hessian(I) = H12x12;
-
-                   // set the lower triangle blocks to zero for robustness
-                   zero_out_lower(H12x12);
-
-                   MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
-                       .write(I * 4,          // begin row
-                              I * 4,          // begin col
-                              H12x12);
-               });
+    {
+        auto k = abd_linear_subsystem_assemble_kinetic_shape_k2_kernel;
+        int  n = (int)body_count;
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_H3x3,
+                abd().body_id_to_is_fixed.cview(),
+                abd().body_id_to_external_kinetic.cview(),
+                body_id_to_shape_hessian.cview(),
+                body_id_to_kinetic_hessian.cview(),
+                diag_hessian.view(),
+                n);
+    }
 
     hess_offset += H3x3_count;
 }
@@ -320,24 +570,13 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
 
     if(reporter_gradients.doublet_count())
     {
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(reporter_gradients.doublet_count(),
-                   [dst = info.gradients().viewer(),
-                    src = reporter_gradients.cviewer(),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int I) mutable
-                   {
-                       auto&& [body_i, G12] = src(I);
-
-                       if(is_fixed(body_i))
-                       {
-                           // Do nothing
-                       }
-                       else
-                       {
-                           dst.segment<12>(body_i * 12).atomic_add(G12);
-                       }
-                   });
+        auto k = abd_linear_subsystem_assemble_reporters_k1_kernel;
+        int  n = (int)reporter_gradients.doublet_count();
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.gradients(),
+            reporter_gradients.cview(),
+            abd().body_id_to_is_fixed.cview(),
+            n);
     }
 
     if(!info.gradient_only() && reporter_hessians.triplet_count())
@@ -345,51 +584,14 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
         // get rest
         auto H3x3s = info.hessians().subview(offset);
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(reporter_hessians.triplet_count(),
-                   [dst = H3x3s.viewer(),
-                    src = reporter_hessians.cviewer(),
-                    diag_hessian = this->diag_hessian.viewer(),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int I) mutable
-                   {
-                       TripletMatrixUnpacker MU{dst};
-                       Matrix12x12           H12x12;
-                       auto&& [body_i, body_j, Value] = src(I);
-                       H12x12                         = Value;
-
-                       bool has_fixed = (is_fixed(body_i) || is_fixed(body_j));
-
-                       // Fill diagonal hessian for diag-inv preconditioner
-                       if(body_i == body_j && !has_fixed)
-                       {
-                           eigen::atomic_add(diag_hessian(body_i), H12x12);
-                       }
-
-                       if(has_fixed)
-                       {
-                           // Zero out hessian for fixed bodies
-                           H12x12.setZero();
-                       }
-                       else
-                       {
-                           if(body_i == body_j)
-                           {
-                               // Since body_i == body_j, we only fill the upper triangle part
-                               zero_out_lower(H12x12);
-                           }
-                           else if(body_i > body_j)
-                           {
-                               // If all the reporters only report upper triangle part, this branch should not be hit
-                               H12x12.setZero();
-                           }
-                       }
-
-                       MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
-                           .write(body_i * 4,  // begin row
-                                  body_j * 4,  // begin col
-                                  H12x12);
-                   });
+        auto k = abd_linear_subsystem_assemble_reporters_k2_kernel;
+        int  n = (int)reporter_hessians.triplet_count();
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            H3x3s,
+            reporter_hessians.cview(),
+            diag_hessian.view(),
+            abd().body_id_to_is_fixed.cview(),
+            n);
 
         offset += reporter_hessians.triplet_count() * (4 * 4);
     }
@@ -410,36 +612,16 @@ void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
 
     if(dytopo_effect_gradient_count)
     {
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(dytopo_effect_gradient_count,
-                   [dytopo_effect_gradient =
-                        dytopo_effect_receiver->gradients().cviewer(),
-                    gradients = info.gradients().viewer(),
-                    v2b = abd().vertex_id_to_body_id.cviewer(),
-                    Js  = abd().vertex_id_to_J.cviewer(),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer(),
-                    vertex_offset = vertex_offset,
-                    cout = KernelCout::viewer()] __device__(int I) mutable
-                   {
-                       const auto& [g_i, G3] = dytopo_effect_gradient(I);
-
-                       auto  i      = g_i - vertex_offset;
-                       auto  body_i = v2b(i);
-                       auto& J_i    = Js(i);
-
-                       if(is_fixed(body_i))
-                       {
-                           // Do nothing
-                       }
-                       else
-                       {
-                           Vector12 G12 = J_i.T() * G3;
-                           gradients.segment<12>(body_i * 12).atomic_add(G12);
-
-                           // cout << "DG(" << I << "): " << G12.transpose().eval() << "\n";
-                       }
-                   });
+        auto k = abd_linear_subsystem_assemble_dytopo_effect_k1_kernel;
+        int  n = (int)dytopo_effect_gradient_count;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            dytopo_effect_receiver->gradients(),
+            info.gradients(),
+            abd().vertex_id_to_body_id.cview(),
+            abd().vertex_id_to_J.cview(),
+            abd().body_id_to_is_fixed.cview(),
+            vertex_offset,
+            n);
     }
 
     if(info.gradient_only())
@@ -456,83 +638,17 @@ void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
     {
         // Half Contact Hessian
         // ref: https://github.com/spiriMirror/libuipc/issues/272
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(dytopo_effect_hessian_count,
-                   [dytopo_effect_hessian =
-                        dytopo_effect_receiver->hessians().cviewer(),
-                    dst = dytopo_effect_H3x3.viewer(),
-                    v2b = abd().vertex_id_to_body_id.cviewer(),
-                    Js  = abd().vertex_id_to_J.cviewer(),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer(),
-                    diag_hessian = this->diag_hessian.viewer(),
-                    vertex_offset = vertex_offset] __device__(int I) mutable
-                   {
-                       const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
-
-                       auto i = g_i - vertex_offset;
-                       auto j = g_j - vertex_offset;
-
-                       auto body_i = v2b(i);
-                       auto body_j = v2b(j);
-
-                       auto& J_i = Js(i);
-                       auto& J_j = Js(j);
-
-                       Matrix12x12 H12x12;
-
-                       // We know half contact hessian i <= j
-                       // but we don't know body_i and body_j order
-                       // so test and swap if necessary
-                       IndexT L = body_i;
-                       IndexT R = body_j;
-                       if(body_i > body_j)
-                       {
-                           L = body_j;
-                           R = body_i;
-                       }
-
-                       if(is_fixed(body_i) || is_fixed(body_j))
-                       {
-                           H12x12.setZero();
-                       }
-                       else
-                       {
-                           if(body_i < body_j)
-                           {
-                               H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
-                           }
-                           else if(body_i > body_j)
-                           {
-                               H12x12 = ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
-                           }
-                           else  // body_i == body_j
-                           {
-                               // Two vertices from the same body
-                               if(i != j)
-                               {
-                                   H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j)
-                                            + ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
-                               }
-                               else  // i == j
-                               {
-                                   H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
-                               }
-
-                               // Fill diagonal hessian for diag-inv preconditioner
-                               eigen::atomic_add(diag_hessian(body_i), H12x12);
-
-                               // Since body_i == body_j, we only fill the upper triangle part
-                               zero_out_lower(H12x12);
-                           }
-                       }
-
-                       TripletMatrixUnpacker MU{dst};
-                       MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*16, (I+1)*16)
-                           .write(L * 4,          // begin row
-                                  R * 4,          // begin col
-                                  H12x12);
-                   });
+        auto k = abd_linear_subsystem_assemble_dytopo_effect_k2_kernel;
+        int  n = (int)dytopo_effect_hessian_count;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            dytopo_effect_receiver->hessians(),
+            dytopo_effect_H3x3,
+            abd().vertex_id_to_body_id.cview(),
+            abd().vertex_id_to_J.cview(),
+            abd().body_id_to_is_fixed.cview(),
+            diag_hessian.view(),
+            vertex_offset,
+            n);
     }
 
     offset += H3x3_count;
@@ -548,32 +664,26 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
     using namespace cuda_tool;
 
     auto dq = abd().body_id_to_dq.view();
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd().body_count(),
-               [dq = dq.viewer(),
-                x = info.solution().viewer()] __device__(int i) mutable
-               {
-                   // retrieve solution for each body
-                   dq(i) = -x.segment<12>(i * 12).as_eigen();
-               });
+    {
+        auto k = abd_linear_subsystem_retrieve_solution_kernel;
+        int  n = (int)abd().body_count();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                dq, info.solution(), n);
+    }
 }
 
 Float ABDLinearSubsystem::Impl::diag_norm()
 {
     auto diag_hess = diag_hessian.view();
     block_norm.resize(diag_hess.size() * 12);
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(diag_hess.size(),
-               [diag_hess        = diag_hess.cviewer(),
-                diag_blocks_norm = block_norm.viewer(),
-                is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int idx) mutable
-               {
-                   for(int i = 0; i < 12; i++)
-                       diag_blocks_norm(idx * 12 + i) =
-                           is_fixed(idx) ? 0 : abs(diag_hess(idx)(i, i));
-               });
+    {
+        auto k = abd_linear_subsystem_diag_norm_kernel;
+        int  n = (int)diag_hess.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                diag_hess.cview(), block_norm.view(), abd().body_id_to_is_fixed.cview(), n);
+    }
 
     cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
 
@@ -584,13 +694,13 @@ Float ABDLinearSubsystem::Impl::mass_norm()
 {
     auto mass = abd().body_id_to_abd_mass.view();
     block_norm.resize(mass.size());
-    cuda_tool::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(mass.size(),
-               [mass       = mass.cviewer(),
-                block_norm = block_norm.viewer(),
-                is_fixed = abd().body_id_to_is_fixed.cviewer()] __device__(int idx) mutable
-               { block_norm(idx) = is_fixed(idx) ? 0 : mass(idx).mass(); });
+    {
+        auto k = abd_linear_subsystem_mass_norm_kernel;
+        int  n = (int)mass.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                mass.cview(), block_norm.view(), abd().body_id_to_is_fixed.cview(), n);
+    }
 
     cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
 

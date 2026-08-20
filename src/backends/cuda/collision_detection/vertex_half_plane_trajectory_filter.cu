@@ -2,6 +2,23 @@
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void VertexHalfPlaneTrajectoryFilter_label_active_vertices_kernel(
+        cuda_tool::CBufferView<Vector2i> PHs,
+        cuda_tool::BufferView<IndexT>    is_active,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PH = PHs(i);
+        auto P  = PH[0];
+        if(is_active(P) == 0)
+            cuda_tool::atomic_exch(&is_active(P), 1);
+    }
+}  // namespace
+
 void VertexHalfPlaneTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
@@ -29,19 +46,13 @@ void VertexHalfPlaneTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectIn
 void VertexHalfPlaneTrajectoryFilter::Impl::label_active_vertices(
     GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
 {
-    using namespace cuda_tool;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PHs.size(),
-               [PHs = PHs.viewer(),
-                is_active = info.vert_is_active().viewer()] __device__(int i)
-               {
-                   auto PH = PHs(i);
-                   auto P  = PH[0];
-                   if(is_active(P) == 0)
-                       atomic_exch(&is_active(P), 1);
-               });
+    int n = static_cast<int>(PHs.size());
+    if(n > 0)
+    {
+        auto k = VertexHalfPlaneTrajectoryFilter_label_active_vertices_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            PHs, info.vert_is_active(), n);
+    }
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)

@@ -7,6 +7,34 @@
 #include <uipc/common/timer.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void update_xr_kernel(Float alpha,
+                                     cuda_tool::DenseVectorView<Float>  x,
+                                     cuda_tool::CDenseVectorView<Float> p,
+                                     cuda_tool::DenseVectorView<Float>  r,
+                                     cuda_tool::CDenseVectorView<Float> Ap,
+                                     int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        x(i) += alpha * p(i);
+        r(i) -= alpha * Ap(i);
+    }
+
+    __global__ void update_p_kernel(cuda_tool::DenseVectorView<Float>  p,
+                                    cuda_tool::CDenseVectorView<Float> z,
+                                    Float beta,
+                                    int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        p(i) = z(i) + beta * p(i);
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(LinearPCG);
 
 void LinearPCG::do_build(BuildInfo& info)
@@ -182,33 +210,28 @@ void update_xr(Float                         alpha,
                cuda_tool::DenseVectorView<Float>  r,
                cuda_tool::CDenseVectorView<Float> Ap)
 {
-    using namespace cuda_tool;
-
     // Fused update of x and r for better performance
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(r.size(),
-               [alpha = alpha,
-                x     = x.viewer(),
-                p     = p.cviewer(),
-                r     = r.viewer(),
-                Ap    = Ap.cviewer()] __device__(int i) mutable
-               {
-                   x(i) += alpha * p(i);
-                   r(i) -= alpha * Ap(i);
-               });
+    int n = r.size();
+    if(n > 0)
+    {
+        update_xr_kernel<<<cuda_tool::best_grid_dim(n, update_xr_kernel),
+                           cuda_tool::best_block_dim(update_xr_kernel),
+                           0,
+                           nullptr>>>(alpha, x.viewer(), p.cviewer(), r.viewer(), Ap.cviewer(), n);
+    }
 }
 
 void update_p(cuda_tool::DenseVectorView<Float> p, cuda_tool::CDenseVectorView<Float> z, Float beta)
 {
-    using namespace cuda_tool;
-
     // Simple axpby
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(p.size(),
-               [p = p.viewer(), z = z.cviewer(), beta = beta] __device__(
-                   int i) mutable { p(i) = z(i) + beta * p(i); });
+    int n = p.size();
+    if(n > 0)
+    {
+        update_p_kernel<<<cuda_tool::best_grid_dim(n, update_p_kernel),
+                          cuda_tool::best_block_dim(update_p_kernel),
+                          0,
+                          nullptr>>>(p.viewer(), z.cviewer(), beta, n);
+    }
 }
 
 SizeT LinearPCG::pcg(cuda_tool::DenseVectorView<Float> x, cuda_tool::CDenseVectorView<Float> b, SizeT max_iter)
