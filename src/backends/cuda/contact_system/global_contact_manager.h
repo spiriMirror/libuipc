@@ -115,6 +115,7 @@ class GlobalContactManager final : public SimSystem
 
     Float compute_cfl_condition();
 
+
     friend class ContactReporter;
     void add_reporter(ContactReporter* reporter);
 

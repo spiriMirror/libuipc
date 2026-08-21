@@ -18,6 +18,10 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("newton/min_iter", IndexT{1});
     config.create("newton/use_adaptive_tol", IndexT{0});
     config.create("newton/velocity_tol", Float{0.05_m / 1.0_s});
+    // > 0: effective velocity_tol = velocity_tol_relative * scene_diagonal
+    // (rest bbox), so the exit criterion is velocity_tol_relative * diag * dt,
+    // the Stiff-GIPC scene-adaptive convention
+    config.create("newton/velocity_tol_relative", Float{0.0});
     config.create("newton/ccd_tol", Float{1.0});
     config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
 
@@ -37,6 +41,9 @@ geometry::AttributeCollection default_scene_config() noexcept
 
     config.create("contact/enable", IndexT{1});
     config.create("contact/d_hat", Float{0.01});
+    // > 0: override d_hat with d_hat_relative * scene_diagonal (rest bbox),
+    // the Stiff-GIPC scene-adaptive convention
+    config.create("contact/d_hat_relative", Float{0.0});
 
     config.create("contact/friction/enable", IndexT{1});
     // friction transition velocity

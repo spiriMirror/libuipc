@@ -145,6 +145,14 @@ void GlobalVertexManager::Impl::init()
 
     // 6) Other initializations
     axis_max_disp = 0.0;
+
+    // 7) Scene diagonal of the rest configuration, for scene-relative
+    //    parameter adaptation (contact/d_hat_relative etc.)
+    {
+        auto box       = compute_vertex_bounding_box();
+        scene_diagonal = (box.max() - box.min()).norm();
+        logger::info("Scene diagonal: {}", scene_diagonal);
+    }
 }
 
 void GlobalVertexManager::Impl::update_attributes(SizeT frame)
@@ -509,6 +517,11 @@ Float GlobalVertexManager::compute_axis_max_displacement()
 AABB GlobalVertexManager::compute_vertex_bounding_box()
 {
     return m_impl.compute_vertex_bounding_box();
+}
+
+Float GlobalVertexManager::scene_diagonal() const noexcept
+{
+    return m_impl.scene_diagonal;
 }
 
 void GlobalVertexManager::step_forward(Float alpha)

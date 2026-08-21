@@ -82,6 +82,20 @@ cuda_tool::CBuffer2DView<IndexT> GlobalContactManager::subscene_mask_tabular() c
 
 void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
+    // 0) scene-relative d_hat override: if contact/d_hat_relative > 0,
+    //    the gap is relative_dhat * scene diagonal (Stiff-GIPC convention)
+    {
+        auto rel_attr = world.scene().config().find<Float>("contact/d_hat_relative");
+        Float rel     = rel_attr ? rel_attr->view()[0] : 0.0;
+        if(rel > 0.0)
+        {
+            Float diag = global_vertex_manager->scene_diagonal();
+            d_hat      = rel * diag;
+            logger::info("Contact d_hat (relative): {} = {} x scene_diagonal({})",
+                         d_hat, rel, diag);
+        }
+    }
+
     // 1) init tabular
     _build_contact_tabular(world);
     _build_subscene_tabular(world);
@@ -248,6 +262,7 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
         return 1.0;
     }
 }
+
 }  // namespace uipc::backend::cuda
 
 
@@ -268,6 +283,7 @@ Float GlobalContactManager::compute_cfl_condition()
 {
     return m_impl.compute_cfl_condition();
 }
+
 
 void GlobalContactManager::init()
 {

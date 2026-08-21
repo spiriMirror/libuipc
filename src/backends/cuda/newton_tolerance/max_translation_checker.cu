@@ -12,6 +12,7 @@ class MaxTranslationChecker : public NewtonToleranceChecker
     SimSystemSlot<GlobalVertexManager>      vertex_manager;
     S<const geometry::AttributeSlot<Float>> dt_attr;
     Float                                   newton_velocity_tol = 0.0;
+    Float                                   velocity_tol_relative = 0.0;
     Float                                   res0                = 0.0;
     Float                                   res                 = 0.0;
     Float                                   rel_tol             = 0.0;
@@ -26,6 +27,8 @@ class MaxTranslationChecker : public NewtonToleranceChecker
         UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
         auto newton_velocity_tol_attr = config.find<Float>("newton/velocity_tol");
         newton_velocity_tol = newton_velocity_tol_attr->view()[0];
+        auto rel_attr = config.find<Float>("newton/velocity_tol_relative");
+        velocity_tol_relative = rel_attr ? rel_attr->view()[0] : 0.0;
     }
     void do_init(InitInfo& info) override {}
 
@@ -37,7 +40,12 @@ class MaxTranslationChecker : public NewtonToleranceChecker
 
     void do_check(CheckResultInfo& info) override
     {
-        abs_tol          = newton_velocity_tol * dt_attr->view()[0];
+        // scene-relative mode (Stiff-GIPC convention):
+        // abs_tol = velocity_tol_relative * scene_diagonal * dt
+        Float vel_tol = newton_velocity_tol;
+        if(velocity_tol_relative > 0.0)
+            vel_tol = velocity_tol_relative * vertex_manager->scene_diagonal();
+        abs_tol          = vel_tol * dt_attr->view()[0];
         res              = vertex_manager->compute_axis_max_displacement();
         auto newton_iter = info.newton_iter();
         if(newton_iter == 0)

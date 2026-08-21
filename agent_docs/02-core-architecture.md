@@ -61,7 +61,7 @@ core::Engine / World / Scene          ← 公开句柄层（仅持 S<internal::X
 - `newton/*`（max_iter、velocity_tol 用单位字面量 `0.05_m/1.0_s`）
 - `linear_system/solver="fused_pcg"`
 - `line_search/*`
-- `contact/enable`、`contact/d_hat`、`contact/constitution="ipc"`（或 `"al-ipc"` 及其调参）
+- `contact/enable`、`contact/d_hat`、`contact/constitution="ipc"`（或 `"al-ipc"` 及其调参）；`contact/d_hat_relative`（>0 时 d_hat=相对值×场景对角线，Stiff-GIPC 惯例）、`newton/velocity_tol_relative`（>0 时退出阈值=相对值×对角线×dt）——场景自适应参数，默认 0 关闭
 - `collision_detection/*`、`sanity_check/*`、`diff_sim/enable`
 
 完整键表见 `docs/specification/scene_config.md`。

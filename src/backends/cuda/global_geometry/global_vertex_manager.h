@@ -161,6 +161,13 @@ class GlobalVertexManager final : public SimSystem
      */
     AABB vertex_bounding_box() const noexcept;
 
+    /**
+     * @brief the diagonal length of the rest-position bounding box, computed
+     * once at init. Used for scene-relative parameter adaptation (e.g.
+     * contact/d_hat_relative, newton/velocity_tol_relative).
+     */
+    Float scene_diagonal() const noexcept;
+
   public:
     class Impl
     {
@@ -221,6 +228,9 @@ class GlobalVertexManager final : public SimSystem
         OffsetCountCollection<IndexT> reporter_vertex_offsets_counts;
 
         AABB vertex_bounding_box;
+
+        // diagonal length of the rest-position bounding box, set in init()
+        Float scene_diagonal = 0.0;
 
         BufferDump dump_positions;
         BufferDump dump_prev_positions;

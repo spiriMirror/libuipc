@@ -114,6 +114,22 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
      打印 ~10-30ms + sanity_check ~2-5ms + 真管线 20-45ms（基线同样
      如此）——"感觉慢"主要是固有结构，不是回归。
 
+## 场景对角线自适应参数（Stiff-GIPC 对齐，after `7cf19f21`）
+
+- `GlobalVertexManager` init 时计算静止包围盒对角线 `scene_diagonal()`（日志
+  打印；wrecking-ball 场景实测 28.93，与 Stiff-GIPC 的 √bboxDiagSize2=√834.9
+  完全一致）。
+- 新配置（默认 0 = 关闭，向后兼容）：
+  - `contact/d_hat_relative`：>0 时 d_hat = 相对值 × 对角线（Stiff-GIPC 的
+    relative_dhat 惯例；其 dHat 存平方故原文为 rel²·diag²）。
+  - `newton/velocity_tol_relative`：>0 时牛顿退出阈值 = 相对值 × 对角线 × dt
+    （MaxTranslationChecker，Stiff-GIPC 的 threshold×diag×dt 惯例）。
+- 6_wrecking_balls 已全参数对齐 set_case3（mu 0.2、自适应 κ、逐对象密度
+  1000/7680、tol_rate 1e-4、相对 d_hat/tol）。**对齐后效率：advance
+  26-28ms/帧 vs Stiff-GIPC 24.4ms/帧（≈1.1×）**。
+- 性能排查记录：cub workspace 修复 + 两个测量陷阱（构建争用、轨迹发散）
+  见 05 文档与上文性能节。
+
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 
 - 布料刚度公式与 mas-pncg 对齐，膜元权重为三角形 **area**（非 volume，
