@@ -124,11 +124,50 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
     relative_dhat 惯例；其 dHat 存平方故原文为 rel²·diag²）。
   - `newton/velocity_tol_relative`：>0 时牛顿退出阈值 = 相对值 × 对角线 × dt
     （MaxTranslationChecker，Stiff-GIPC 的 threshold×diag×dt 惯例）。
-- 6_wrecking_balls 已全参数对齐 set_case3（mu 0.2、自适应 κ、逐对象密度
-  1000/7680、tol_rate 1e-4、相对 d_hat/tol）。**对齐后效率：advance
-  26-28ms/帧 vs Stiff-GIPC 24.4ms/帧（≈1.1×）**。
+- 6_wrecking_balls 已全参数对齐 set_case3（mu 0.2、逐对象密度
+  1000/7680、tol_rate 1e-4、相对 d_hat/tol）。**注意：此前记录的
+  "advance 26-28ms/帧 ≈ Stiff 1.1×" 是接触前/污染 dll 下的误测；接触段
+  真实表现曾崩溃至 3-18s/帧，根因与修复见下节。**
 - 性能排查记录：cub workspace 修复 + 两个测量陷阱（构建争用、轨迹发散）
   见 05 文档与上文性能节。
+
+## Stiff-GIPC 屏障对齐：log² 硬屏障（after `4294c1d5`）
+
+- **根因链（wrecking ball 曾 3-18s/帧、牛顿撞 1024 上限）**：
+  1. Stiff-GIPC 的增量势能中屏障项**不乘 dt²**（GIPC.cu `computeEnergy`），
+     libuipc 屏障系数为 `kt2 = κ·dt²` → 同 κ 名义值下屏障强度差 1/dt²
+     （dt=0.01 时 10⁴ 倍）。"两边都设 κ=1e4"的对齐因此是假对齐。
+  2. Stiff-GIPC 的屏障是 RANK=2 的 log² 硬屏障 `κ(D-d̂²)²ln²(D/d̂²)`
+     （GIPC.cu:28 `#define RANK 2`，`_d_EE` 返回平方距离）；深陷区力比
+     经典 log 屏障强 ~2|ln(D/d̂²)| 倍，同载荷下平衡间隙宽 ~10×、平衡曲率
+     低 ~10×，牛顿 3-5 次/帧收敛。libuipc 经典 log 屏障（且 κ_eff 弱 10⁴
+     倍）深陷 D→0 病态区，CCD 把 α 压到 ~1e-3，牛顿线性爬行数百次。
+- **改动**：
+  - `sym/codim_ipc_contact.inl` 重新生成（生成器 notebook
+    `scripts/symbol_calculation/codim_ipc_contact.ipynb` 同步更新）：
+    ξ==0（体积/地面接触）走新生成的 log² 屏障 `KappaBarrierLog2` 系列；
+    ξ>0（codim 壳）保持经典带厚度屏障。公开入口 `KappaBarrier`/
+    `dKappaBarrierdD`/`ddKappaBarrierddD` 改为运行时 dispatcher，PT/EE/
+    PE/PP、地面半平面、摩擦 normal_force 全部自动跟随，无调用点改动。
+  - samples 6_wrecking_balls：κ=1e8（等效换算：libuipc κ = Stiff Kappa /
+    dt² = 1e4/1e-4）。
+- **验证**：探针 120 帧全收敛；牛顿 mean 4.54/max 22（Stiff 3.44/7）；
+  min_alpha 0.15-0.72（此前 ~1e-3 爬行）；帧均 132ms（原 3-18s）；
+  自由摆动段（f0-80）轨迹与 Stiff 平移对齐后差 <3mm；全套件
+  95 用例/14214 断言全绿。
+- **已知剩余差距（~5× 帧时）**：PCG 76 次/解 vs Stiff 15，按压帧 PCG
+  在 15-50 与 150-565 尖峰间交替（Stiff 全程 20-60 均匀）；每迭代固定
+  开销：DCD 检测 4.3ms + DyTopo 装配 3.7ms（接触对数两侧同量级：
+  Stiff cpNum ~25k vs libuipc 30-50k）。
+- **测量陷阱备忘**：
+  1. post-build 只在 pyuipc 重链接时同步 dll —— 仅改后端 .cu 时
+     site-packages 的 `uipc_backend_cuda.dll` 不会更新，必须手动同步
+     `cp build/Release/bin/uipc_*.dll build/python/src/uipc/_native/` 与
+     `.../site-packages/uipc/_native/`。
+  2. pyuipc 的 `Scene(config)` 按值拷贝 config  dict，构造后修改 python
+     侧 dict 静默无效 —— 所有 config 键必须在 `Scene(config)` 之前设好。
+  3. Stiff-GIPC 参考副本 stdout 重定向时 printf 块缓冲，timeout 强杀会丢
+     日志——插桩 printf 后必须跟 `fflush(stdout)`。
 
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 
