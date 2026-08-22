@@ -40,8 +40,10 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     config["contact"]["constitution"]       = contact_constitution;
     if(contact_constitution == "al-ipc")
     {
-        config["contact"]["d_hat"]              = 0.001;
-        config["contact"]["al-ipc"]["mu_scale"] = 1e4;
+        config["contact"]["d_hat"] = 0.001;
+        // mu_scale was split into fem/abd keys; set both to the intended value
+        config["contact"]["al-ipc"]["mu_scale_fem"] = 1e4;
+        config["contact"]["al-ipc"]["mu_scale_abd"] = 1e4;
         config["newton"]["min_iter"]            = 5;
     }
 

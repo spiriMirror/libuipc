@@ -162,8 +162,52 @@ static const Json* find_nested_json(const Json& j, const std::string_view path)
     }
 }
 
+static void throw_on_unknown_config_keys(const geometry::AttributeCollection& schema,
+                                         const Json&                          j,
+                                         const std::string&                   prefix)
+{
+    if(!j.is_object())
+        return;
+    for(const auto& [key, value] : j.items())
+    {
+        std::string path = prefix.empty() ? key : fmt::format("{}/{}", prefix, key);
+        if(schema.find(path) != nullptr)
+            continue;  // registered leaf key
+        if(value.is_object())
+        {
+            // intermediate node: acceptable only if some registered key lives below it
+            bool is_prefix_of_registered = false;
+            for(auto& name : schema.names())
+            {
+                if(name.size() > path.size() && name.starts_with(path)
+                   && name[path.size()] == '/')
+                {
+                    is_prefix_of_registered = true;
+                    break;
+                }
+            }
+            UIPC_ASSERT_THROW(is_prefix_of_registered,
+                              "Unknown scene config key \"{}\": nothing is registered under it "
+                              "(typo, or a missing default registration in scene_default_config.cpp)",
+                              path);
+            throw_on_unknown_config_keys(schema, value, path);
+            continue;
+        }
+        UIPC_ASSERT_THROW(false,
+                          "Unknown scene config key \"{}\" (typo, or a missing default "
+                          "registration in scene_default_config.cpp)",
+                          path);
+    }
+}
+
 void from_config_json(geometry::AttributeCollection& config, const Json& j)
 {
+    // Reject unknown keys up front: the forward loop below only visits keys that
+    // are registered in the default schema, so unregistered keys set by the user
+    // would otherwise be silently dropped (a real source of "parameter set but
+    // never applied" bugs).
+    throw_on_unknown_config_keys(config, j, "");
+
     auto names = config.names();
     for(auto& name : names)
     {

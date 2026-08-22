@@ -182,6 +182,14 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   python 侧塞未注册键会被**静默丢弃**（`find` 返回 nullptr 走默认分支）。
   eps_velocity_relative 初版未注册，导致对齐实验白跑一轮——新键必须同步
   注册默认值，并用日志行确认生效（"Contact eps_velocity (relative): ..."）。
+  **→ 已从根上修掉（见下）**：`from_config_json` 现在先递归检查用户 json，
+  未注册键直接 throw 带指引的错误（"typo, or a missing default registration"）。
+  该检查一举挖出两个历史笔误/失效键：① `apps/tests/core/engine.cpp` 的
+  `sanity_check/method`（schema 里是 `mode`；实际意图是 `enable=0`）；
+  ② `apps/tests/sim_case/11_abd_ramp_sliding.cpp` 的 `contact/al-ipc/mu_scale`
+  （该键已拆分为 `mu_scale_fem`/`mu_scale_abd`，旧键一直被静默丢弃）。
+  注意：python 侧对顶层未知键本就 KeyError；新检查补的是合法前缀下的
+  嵌套笔误（如 `contact/dhat_typo`）场景。
 - **d_hat_relative 传播修复（最大隐藏 bug）**：初版只改了
   `GlobalContactManager` 的标量 d_hat（CFL/日志用），**逐顶点 `d_hats`
   缓冲（过滤器/接触 kernel 真正读的）仍按绝对默认 `contact/d_hat`=0.01
