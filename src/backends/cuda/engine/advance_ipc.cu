@@ -392,8 +392,11 @@ void SimEngine::advance()
                     // CCD filter
                     alpha = filter_toi(alpha);
 
-                    // CFL Condition
-                    alpha = cfl_condition(alpha);
+                    // CFL Condition (Stiff-GIPC design: the per-step speed cap
+                    // applies only when some trajectory pair actually hits within
+                    // this step; in free flight it must not bite)
+                    if(ccd_alpha < 1.0)
+                        alpha = cfl_condition(alpha);
 
                     // Line Search Iteration
                     bool  converged        = convergence_check(newton_iter);

@@ -169,6 +169,42 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   3. Stiff-GIPC 参考副本 stdout 重定向时 printf 块缓冲，timeout 强杀会丢
      日志——插桩 printf 后必须跟 `fflush(stdout)`。
 
+## 第二轮对齐（摩擦平滑 + CFL 语义，after `81e52fce`）
+
+- **`contact/eps_velocity_relative`**（新配置，默认 0=关闭）：>0 时
+  摩擦 C1 平滑阈值 eps_velocity = 相对值 × scene_diagonal（Stiff-GIPC 惯例：
+  其每步滑移阈值为 sqrt(fDhat)·dt = 1e-2·diag·dt）。libuipc 原默认
+  0.01 m/s 绝对值，该场景下摩擦 Hessian 曲率比 Stiff 硬 ~840 倍。
+  实现于 `global_contact_manager.cu` Impl::init（与 d_hat_relative 同模式）。
+  6_wrecking_balls 与探针已设 1e-2。效果：线搜 α 恢复 0.9-1.0 健康区间
+  （此前 0.15-0.72），帧时持平。
+- **CFL 语义修正**：原实现仅统计"已激活接触顶点"的位移（`vert_is_active_contact`
+  掩码）——实测 wrecking ball 120 帧零触发，正在高速冲向接触的顶点恰好
+  不在掩码内，可一步冲入深间隙。改为 Stiff-GIPC 设计：max|dx| 覆盖**全部
+  表面顶点**（`GlobalSimplicialSurfaceManager::surf_vertices`，无表面管理器时
+  回退全顶点）；且在 `advance_ipc.cu` 线搜中仅当 CCD 命中（ccd_alpha<1）才
+  施加——避免自由飞行帧被无谓限步。本场景实测仍不触发（接触迭代内顶点
+  步长多在 5cm 以下），属语义对齐，价值在高速冲击类场景。
+- **剩余 ~5× 帧时差距的最终分解（实证）**：
+  - PCG 尖峰（150-565 次/解 vs Stiff ≤67）：dump 线性系统（config
+    `extras/debug/dump_linear_system=1`）后用 scipy+12×12 块 Jacobi 复算，
+    尖峰矩阵本身即需 236-346 次——**是矩阵（状态）难，非求解器 bug**。
+    与两侧接触段轨迹混沌发散耦合，无法逐帧对应。
+  - PCG tol 放宽到 1e-3：迭代数降 36% 但帧时不变 → PCG 非帧时主因。
+  - 每牛顿迭代固定开销 ~12ms：DCD 检测 4.3ms + 轨迹检测 4.1ms +
+    DyTopo 装配 3.7ms（检测边际 = d_hat+thickness，不肥；对数两侧同量级
+    ~25-50k）。Stiff 全迭代 7.1ms。此为 kernel 级吞吐差距（stackless BVH
+    vs mlbvh、通用 triplet/BCOO 管线 vs 手工融合 kernel），需 nsight 级
+    性能工程，非算法设计问题。
+  - 日志开销实测可忽略（Info vs Warn：132.4 vs 130.9ms/帧）。
+- **⚠ 对比口径纠正**：Stiff 日志的 "average time cost" = totalTime/totalNT
+  （GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间（totalNT/ totalTime/
+  total_Frames 是文件级全局量，跨帧累积），不是每帧时间！用 PAIRCOUNT
+  插桩日志按边际量重算：Stiff 帧时 mean 57.6ms / median 54.3ms（按压帧
+  63-98ms）。即 libuipc 帧均 130.9ms 对 Stiff 是 **~2.3×（中位 1.45×）**，
+  每迭代成本 29.3 vs 24.4ms（1.2×）——并非此前以为的 5×。剩余差距主要
+  是按压帧牛顿数 4.5 vs 3.4（~1.3×）。
+
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 
 - 布料刚度公式与 mas-pncg 对齐，膜元权重为三角形 **area**（非 volume，

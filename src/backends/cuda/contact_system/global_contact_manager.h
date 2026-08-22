@@ -12,6 +12,7 @@ namespace uipc::backend::cuda
 class ContactReporter;
 class ContactReceiver;
 class GlobalTrajectoryFilter;
+class GlobalSimplicialSurfaceManager;
 class AdaptiveContactParameterReporter;
 
 class GlobalContactManager final : public SimSystem
@@ -60,6 +61,7 @@ class GlobalContactManager final : public SimSystem
 
         SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
         SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
+        SimSystemSlot<GlobalSimplicialSurfaceManager> global_surface_manager;
 
         bool cfl_enabled = false;
 

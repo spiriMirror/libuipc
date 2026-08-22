@@ -6,6 +6,7 @@
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
 #include <collision_detection/global_trajectory_filter.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/adaptive_contact_parameter_reporter.h>
 #include <cuda_tool/cub.h>
 
@@ -32,16 +33,29 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void compute_cfl_condition_kernel(cuda_tool::CBufferView<Vector3> disps,
-                                                 cuda_tool::BufferView<Float> disp_norms,
-                                                 cuda_tool::BufferView<IndexT> is_contact_active,
+                                                 cuda_tool::BufferView<Float>   disp_norms,
+                                                 cuda_tool::CBufferView<IndexT> surf_vertices,
                                                  int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
 
-        // if the contact is not active, then the displacement is ignored
-        disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
+        // Stiff-GIPC CFL design: cap by the max displacement over all surface
+        // vertices (not only already-active contact vertices), so a fast vertex
+        // diving into contact cannot overshoot 0.5*d_hat in one Newton step.
+        disp_norms(i) = disps(surf_vertices(i)).norm();
+    }
+
+    __global__ void compute_cfl_condition_all_kernel(cuda_tool::CBufferView<Vector3> disps,
+                                                     cuda_tool::BufferView<Float> disp_norms,
+                                                     int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+
+        disp_norms(i) = disps(i).norm();
     }
 }  // namespace
 
@@ -53,6 +67,7 @@ void GlobalContactManager::do_build()
 
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
+    m_impl.global_surface_manager   = find<GlobalSimplicialSurfaceManager>();
 
 
     auto d_hat_attr = config.find<Float>("contact/d_hat");
@@ -93,6 +108,23 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
             d_hat      = rel * diag;
             logger::info("Contact d_hat (relative): {} = {} x scene_diagonal({})",
                          d_hat, rel, diag);
+        }
+    }
+
+    // 0.1) scene-relative friction eps_velocity override:
+    //    eps_velocity = relative * scene diagonal (Stiff-GIPC convention:
+    //    their per-step slip threshold is sqrt(fDhat)*dt = 1e-2*diag*dt,
+    //    and our eps_vh = eps_velocity*dt, so eps_velocity = 1e-2*diag)
+    {
+        auto rel_attr =
+            world.scene().config().find<Float>("contact/eps_velocity_relative");
+        Float rel = rel_attr ? rel_attr->view()[0] : 0.0;
+        if(rel > 0.0)
+        {
+            Float diag   = global_vertex_manager->scene_diagonal();
+            eps_velocity = rel * diag;
+            logger::info("Contact eps_velocity (relative): {} = {} x scene_diagonal({})",
+                         eps_velocity, rel, diag);
         }
     }
 
@@ -229,26 +261,45 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
     if(!cfl_enabled)  // if cfl is disabled, just return 1.0
         return 1.0;
 
-    vert_is_active_contact.fill(0);  // clear the active flag
-
     if(global_trajectory_filter)
     {
-        global_trajectory_filter->label_active_vertices();
-
         auto displacements = global_vertex_manager->displacements();
 
         using namespace cuda_tool;
         if(displacements.size() > 0)
-            compute_cfl_condition_kernel<<<cuda_tool::best_grid_dim(
-                                               (int)displacements.size(),
-                                               compute_cfl_condition_kernel),
-                                           cuda_tool::best_block_dim(
-                                               compute_cfl_condition_kernel),
-                                           0,
-                                           nullptr>>>(displacements.cviewer(),
-                                                      vert_disp_norms.viewer(),
-                                                      vert_is_active_contact.viewer(),
-                                                      (int)displacements.size());
+        {
+            if(global_surface_manager)
+            {
+                // Stiff-GIPC design: max |dx| over all *surface* vertices
+                auto surf_verts = global_surface_manager->surf_vertices();
+                int  n          = static_cast<int>(surf_verts.size());
+                vert_disp_norms.resize(n);
+                if(n > 0)
+                    compute_cfl_condition_kernel<<<cuda_tool::best_grid_dim(
+                                                       n, compute_cfl_condition_kernel),
+                                                   cuda_tool::best_block_dim(
+                                                       compute_cfl_condition_kernel),
+                                                   0,
+                                                   nullptr>>>(displacements.cviewer(),
+                                                              vert_disp_norms.viewer(),
+                                                              surf_verts,
+                                                              n);
+            }
+            else
+            {
+                // fallback: max |dx| over all vertices
+                int n = static_cast<int>(displacements.size());
+                vert_disp_norms.resize(n);
+                compute_cfl_condition_all_kernel<<<cuda_tool::best_grid_dim(
+                                                       n, compute_cfl_condition_all_kernel),
+                                                   cuda_tool::best_block_dim(
+                                                       compute_cfl_condition_all_kernel),
+                                                   0,
+                                                   nullptr>>>(displacements.cviewer(),
+                                                              vert_disp_norms.viewer(),
+                                                              n);
+            }
+        }
 
         DeviceReduce().Max(vert_disp_norms.data(),
                            max_disp_norm.data(),
