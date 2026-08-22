@@ -13,11 +13,14 @@ record it here in the same commit.**
    push to) the default branch (`main`) unless the owner explicitly says
    so. (Set 2026-08-23; current working branch at the time:
    `refactor-main`.)
-2. **Minimal diffs**: make the smallest change that achieves the goal;
+2. **Commit in stages, push without asking.** During multi-step work,
+   commit each completed stage separately (clear rollback points) and push
+   directly — no per-commit confirmation. (Set 2026-08-23.)
+3. **Minimal diffs**: make the smallest change that achieves the goal;
    reuse the project's existing algorithm/utility code instead of
    introducing parallel implementations; no opportunistic refactors,
    renames, or cleanups outside the task's scope.
-3. **Keep agent_docs current in the same change.** Any update that changes
+4. **Keep agent_docs current in the same change.** Any update that changes
    structure, workflow, conventions, build, or behavior must update the
    matching doc (and `handoff.md` / `09-known-issues-and-roadmap.md` when
    it closes or opens work) **in the same commit**.
