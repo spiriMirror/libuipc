@@ -29,6 +29,12 @@ jobs:
       group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-cmake-${{ matrix.os }}
       cancel-in-progress: true
 
+    env:
+      # Overlay port for tinygltf: vcpkg's pinned SHA512 for the v2.9.6 tarball is
+      # stale after GitHub regenerated the archive; ports/tinygltf pins the current
+      # tarball's hash. Drop this once upstream vcpkg fixes the tinygltf port.
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/ports
+
     steps:
       - name: Maximize build space
         if: matrix.os == 'ubuntu-22.04'
