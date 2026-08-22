@@ -6,6 +6,10 @@
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
 #include <collision_detection/global_trajectory_filter.h>
+#include <collision_detection/simplex_trajectory_filter.h>
+#include <utils/distance.h>
+#include <utils/distance/ccd.h>
+#include <utils/codim_thickness.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/adaptive_contact_parameter_reporter.h>
 #include <cuda_tool/cub.h>
@@ -56,6 +60,129 @@ namespace
             return;
 
         disp_norms(i) = disps(i).norm();
+    }
+
+    // Stiff-GIPC-style feasible-step pre-cap kernels: over the *active* contact
+    // pairs (already within d_hat at the current state), compute the Newton step
+    // fraction at which each pair's gap would drop to (1-slackness) of its
+    // current value, using the project's exact CCD routines. Pairs that do not
+    // come closer within the step contribute no cap (toi = 1).
+    __global__ void compute_feasible_step_PT_kernel(cuda_tool::CBufferView<Vector4i> PTs,
+                                                    cuda_tool::CBufferView<Vector3>  Ps,
+                                                    cuda_tool::CBufferView<Vector3>  dxs,
+                                                    cuda_tool::CBufferView<Float> thicknesses,
+                                                    cuda_tool::BufferView<Float> tois,
+                                                    Float eta,
+                                                    int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector4i PT = PTs(i);
+        Float thickness = PT_thickness(thicknesses(PT[0]),
+                                       thicknesses(PT[1]),
+                                       thicknesses(PT[2]),
+                                       thicknesses(PT[3]));
+        Float toi = 1.0;
+        bool  hit = distance::point_triangle_ccd(Ps(PT[0]),
+                                                 Ps(PT[1]),
+                                                 Ps(PT[2]),
+                                                 Ps(PT[3]),
+                                                 dxs(PT[0]),
+                                                 dxs(PT[1]),
+                                                 dxs(PT[2]),
+                                                 dxs(PT[3]),
+                                                 eta,
+                                                 thickness,
+                                                 1000,
+                                                 toi);
+        tois(i) = hit ? toi : Float(1.0);
+    }
+
+    __global__ void compute_feasible_step_EE_kernel(cuda_tool::CBufferView<Vector4i> EEs,
+                                                    cuda_tool::CBufferView<Vector3>  Ps,
+                                                    cuda_tool::CBufferView<Vector3>  dxs,
+                                                    cuda_tool::CBufferView<Float> thicknesses,
+                                                    cuda_tool::BufferView<Float> tois,
+                                                    Float eta,
+                                                    int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector4i EE = EEs(i);
+        Float thickness = EE_thickness(thicknesses(EE[0]),
+                                       thicknesses(EE[1]),
+                                       thicknesses(EE[2]),
+                                       thicknesses(EE[3]));
+        Float toi = 1.0;
+        bool  hit = distance::edge_edge_ccd(Ps(EE[0]),
+                                            Ps(EE[1]),
+                                            Ps(EE[2]),
+                                            Ps(EE[3]),
+                                            dxs(EE[0]),
+                                            dxs(EE[1]),
+                                            dxs(EE[2]),
+                                            dxs(EE[3]),
+                                            eta,
+                                            thickness,
+                                            1000,
+                                            toi);
+        tois(i) = hit ? toi : Float(1.0);
+    }
+
+    __global__ void compute_feasible_step_PE_kernel(cuda_tool::CBufferView<Vector3i> PEs,
+                                                    cuda_tool::CBufferView<Vector3>  Ps,
+                                                    cuda_tool::CBufferView<Vector3>  dxs,
+                                                    cuda_tool::CBufferView<Float> thicknesses,
+                                                    cuda_tool::BufferView<Float> tois,
+                                                    Float eta,
+                                                    int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector3i PE = PEs(i);
+        Float thickness = PE_thickness(thicknesses(PE[0]),
+                                       thicknesses(PE[1]),
+                                       thicknesses(PE[2]));
+        Float toi = 1.0;
+        bool  hit = distance::point_edge_ccd(Ps(PE[0]),
+                                             Ps(PE[1]),
+                                             Ps(PE[2]),
+                                             dxs(PE[0]),
+                                             dxs(PE[1]),
+                                             dxs(PE[2]),
+                                             eta,
+                                             thickness,
+                                             1000,
+                                             toi);
+        tois(i) = hit ? toi : Float(1.0);
+    }
+
+    __global__ void compute_feasible_step_PP_kernel(cuda_tool::CBufferView<Vector2i> PPs,
+                                                    cuda_tool::CBufferView<Vector3>  Ps,
+                                                    cuda_tool::CBufferView<Vector3>  dxs,
+                                                    cuda_tool::CBufferView<Float> thicknesses,
+                                                    cuda_tool::BufferView<Float> tois,
+                                                    Float eta,
+                                                    int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Vector2i PP = PPs(i);
+        Float thickness = PP_thickness(thicknesses(PP[0]), thicknesses(PP[1]));
+        Float toi = 1.0;
+        bool  hit = distance::point_point_ccd(Ps(PP[0]),
+                                              Ps(PP[1]),
+                                              dxs(PP[0]),
+                                              dxs(PP[1]),
+                                              eta,
+                                              thickness,
+                                              1000,
+                                              toi);
+        tois(i) = hit ? toi : Float(1.0);
     }
 }  // namespace
 
@@ -314,6 +441,75 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
     }
 }
 
+Float GlobalContactManager::Impl::compute_feasible_step()
+{
+    if(!global_trajectory_filter)
+        return 1.0;
+
+    auto simplex = global_trajectory_filter->find<SimplexTrajectoryFilter>();
+    if(!simplex)
+        return 1.0;
+
+    // Stiff-GIPC slackness: keep >= 20% of every active pair's current gap
+    constexpr Float eta = 0.2;
+
+    auto positions     = global_vertex_manager->positions();
+    auto displacements = global_vertex_manager->displacements();
+    auto thicknesses   = global_vertex_manager->thicknesses();
+
+    auto PTs = simplex->PTs();
+    auto EEs = simplex->EEs();
+    auto PEs = simplex->PEs();
+    auto PPs = simplex->PPs();
+
+    SizeT n_pt = PTs.size(), n_ee = EEs.size(), n_pe = PEs.size(), n_pp = PPs.size();
+    SizeT total = n_pt + n_ee + n_pe + n_pp;
+    if(total == 0)
+        return 1.0;
+
+    feasible_tois.resize(total);
+    SizeT off = 0;
+    // PT
+    if(n_pt > 0)
+    {
+        auto k = compute_feasible_step_PT_kernel;
+        int  n = (int)n_pt;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            PTs, positions, displacements, thicknesses, feasible_tois.view(off, n_pt), eta, n);
+    }
+    off += n_pt;
+    // EE
+    if(n_ee > 0)
+    {
+        auto k = compute_feasible_step_EE_kernel;
+        int  n = (int)n_ee;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            EEs, positions, displacements, thicknesses, feasible_tois.view(off, n_ee), eta, n);
+    }
+    off += n_ee;
+    // PE
+    if(n_pe > 0)
+    {
+        auto k = compute_feasible_step_PE_kernel;
+        int  n = (int)n_pe;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            PEs, positions, displacements, thicknesses, feasible_tois.view(off, n_pe), eta, n);
+    }
+    off += n_pe;
+    // PP
+    if(n_pp > 0)
+    {
+        auto k = compute_feasible_step_PP_kernel;
+        int  n = (int)n_pp;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            PPs, positions, displacements, thicknesses, feasible_tois.view(off, n_pp), eta, n);
+    }
+
+    cuda_tool::DeviceReduce().Min(feasible_tois.data(), min_feasible_toi.data(), total);
+    Float h_min = min_feasible_toi;
+    return h_min < 1.0 ? h_min : 1.0;
+}
+
 }  // namespace uipc::backend::cuda
 
 
@@ -333,6 +529,11 @@ S<cuda_tool::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParamet
 Float GlobalContactManager::compute_cfl_condition()
 {
     return m_impl.compute_cfl_condition();
+}
+
+Float GlobalContactManager::compute_feasible_step()
+{
+    return m_impl.compute_feasible_step();
 }
 
 

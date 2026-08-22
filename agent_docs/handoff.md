@@ -233,6 +233,33 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   屏障形状统一为 log²（厚度分支用 (D-ξ²) 移位距离的 log² 形式）；Stiff 无
   厚度概念统一 log²——语义最接近的等价物即为此。
 
+## 线搜预截断对齐（feasible-step pre-cap，after `3982c6bb`）
+
+- **Stiff-GIPC 设计**（GIPC.cu:10941-10973）：线搜先算 `alpha = min(1,
+  ground_feasible(0.8), self_feasible(0.8, MCP))`——对当前激活接触集做精确
+  CCD 截断（每对保持 ≥20% 当前间隙），**再**在截断后的步长上生成全 CCD
+  轨迹候选（扫掠盒更小 → 候选更少）；CFL 仅在存在 CCD 对时介入
+  （`h_ccd_cpNum>0`），且有 `alpha = max(alpha, alpha_CFL)` 的地板语义
+  （防过度压碎）。
+- **libuipc 实现**（`global_contact_manager.{h,cu}` +
+  `engine/advance_ipc.cu`）：`GlobalContactManager::compute_feasible_step()`
+  复用项目自带的 `distance::{point_triangle,edge_edge,point_edge,
+  point_point}_ccd`（`utils/distance/ccd.h`）对 `SimplexTrajectoryFilter` 公开
+  访问器给出的激活 PT/EE/PE/PP 对逐对求 CCD-TOI（eta=1-slackness=0.2），
+  单次 DeviceReduce().Min 归约；在线搜 record_start_point 之后、
+  `detect_trajectory_candidates(alpha)` 之前截断 alpha —— 轨迹候选在截断
+  后的步长上生成，规模随之缩小。同时修正了 `filter_toi` lambda 的复合语义：
+  过滤器返回的是相对扫掠步的分数，绝对步长 = alpha·toi。
+- **验证**：弱 κ 合成测试（屏障压不住时）预截断正确触发
+  （alpha=0.047/0.011/0.012）；wrecking ball 探针零回归（71.7ms/帧，牛顿
+  1.84，min_alpha 恒 1）；Stiff 侧对照（插桩）：其可行步长在 case2 上
+  273 次/40s 触发（alpha 0.2-0.4）。对齐后的良态场景里不常触发属正确行为
+  （强屏障下牛顿方向不过冲激活对）；其价值在欠收敛/高速冲击场景。
+- **CFL floor 未对齐（有意推迟）**：Stiff 的 `alpha = max(alpha, alpha_CFL)`
+  地板语义会把步长推到 CCD 命中点之后，要求 isIntersected 式穿越测试兜底
+  （地面符号距离 + 边-面穿越，D=0 接触合法）。libuipc 目前过滤器 D>0 断言
+  会直接杀进程，加地板前必须先把穿透检测改成穿越语义——属后续独立工作。
+
 ## case2 剩余 ~2× 差距的 kernel 级解剖（nsys 实证）
 
 帧时 ~245ms/帧（堆叠段），其中 GPU kernel 忙 ~115ms，**主机侧 API 开销约

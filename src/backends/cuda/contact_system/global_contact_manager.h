@@ -58,6 +58,7 @@ class GlobalContactManager final : public SimSystem
         void  compute_d_hat();
         void  compute_adaptive_kappa();
         Float compute_cfl_condition();
+        Float compute_feasible_step();
 
         SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
         SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
@@ -88,6 +89,9 @@ class GlobalContactManager final : public SimSystem
         cuda_tool::DeviceBuffer<Float>  vert_disp_norms;
         cuda_tool::DeviceVar<Float>     max_disp_norm;
 
+        cuda_tool::DeviceBuffer<Float>  feasible_tois;
+        cuda_tool::DeviceVar<Float>     min_feasible_toi;
+
         SimSystemSlotCollection<ContactReporter> contact_reporters;
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
         SimSystemSlot<AdaptiveContactParameterReporter> adaptive_contact_parameter_reporter;
@@ -116,6 +120,12 @@ class GlobalContactManager final : public SimSystem
     void compute_adaptive_parameters();
 
     Float compute_cfl_condition();
+
+    // Stiff-GIPC-style feasible-step pre-cap: over the current active contact
+    // set, the largest Newton step that keeps every pair's gap >= (1-slackness)
+    // of its current value. Applied before trajectory candidate generation to
+    // shrink the swept-AABB candidate set.
+    Float compute_feasible_step();
 
 
     friend class ContactReporter;

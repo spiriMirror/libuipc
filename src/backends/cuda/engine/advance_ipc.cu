@@ -102,10 +102,32 @@ void SimEngine::advance()
         {
             Timer timer{"Filter CCD TOI"};
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
-            if(ccd_alpha < alpha)
+            // ccd_alpha is a fraction of the swept step `alpha`; compose to
+            // get the absolute step fraction
+            Float absolute_alpha = alpha * ccd_alpha;
+            if(absolute_alpha < alpha)
             {
-                logger::info("CCD Filter: {} < {}", ccd_alpha, alpha);
-                return ccd_alpha;
+                logger::info("CCD Filter: {} < {}", absolute_alpha, alpha);
+                return absolute_alpha;
+            }
+        }
+
+        return alpha;
+    };
+
+    // Stiff-GIPC design: cap the step with the feasible step over the active
+    // contact set (each active pair keeps at least 20% of its current gap),
+    // so the swept-AABB trajectory candidates generated afterwards are fewer.
+    auto feasible_step = [this](Float alpha)
+    {
+        if(m_global_contact_manager)
+        {
+            Timer timer{"Compute Feasible Step"};
+            Float feasible_alpha = m_global_contact_manager->compute_feasible_step();
+            if(feasible_alpha < alpha)
+            {
+                logger::info("Feasible Step Filter: {} < {}", feasible_alpha, alpha);
+                return feasible_alpha;
             }
         }
 
@@ -383,6 +405,12 @@ void SimEngine::advance()
                     {
                         dump_global_surface_pre_ccd(newton_iter);
                     }
+
+                    // Stiff-GIPC design: cap the step with the feasible step
+                    // over the active contact set first, then generate the
+                    // swept-AABB trajectory candidates over the capped step
+                    // (fewer candidates than over the full step)
+                    alpha = feasible_step(alpha);
 
                     detect_trajectory_candidates(alpha);
 
