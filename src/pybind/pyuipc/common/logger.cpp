@@ -16,6 +16,7 @@ PyLogger::PyLogger(py::module& m)
         .value("Warn", spdlog::level::warn)
         .value("Error", spdlog::level::err)
         .value("Critical", spdlog::level::critical)
+        .value("Off", spdlog::level::off)
         .export_values();
 
     class_Logger.def_static(
@@ -24,7 +25,7 @@ PyLogger::PyLogger(py::module& m)
         py::arg("level"),
         R"(Set the logging level.
 Args:
-    level: Logging level (Trace, Debug, Info, Warn, Error, Critical).)");
+    level: Logging level (Trace, Debug, Info, Warn, Error, Critical, Off).)");
 
     class_Logger.def_static(
         "set_pattern",
