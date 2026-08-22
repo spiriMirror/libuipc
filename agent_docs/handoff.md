@@ -225,8 +225,28 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   剩余 ~5× 在每迭代吞吐：本场景稠密兔面（0.2 缩放后 6mm 间距）使每次
   detect 的 AABB 候选 ~45 万（距离过滤后仅 ~3-8k 激活）——候选生成与
   激活过滤分离是结构开销，融合/距离感知查询是后续优化线索。
-- 注意：布料接触在 libuipc 走厚度经典屏障（ξ=1e-3>0 分支），Stiff 无厚度
-  概念统一 log²——布料部分的接触语义天然有差异。
+- 注意：布料接触在 libuipc 走厚度偏移屏障（ξ=1e-3>0 分支），238df28e 起
+  屏障形状统一为 log²（厚度分支用 (D-ξ²) 移位距离的 log² 形式）；Stiff 无
+  厚度概念统一 log²——语义最接近的等价物即为此。
+
+## case2 剩余 ~5× 差距的 kernel 级解剖（nsys 实证，238df28e 之后仍适用）
+
+帧时 ~245ms/帧（堆叠段），其中 GPU kernel 忙 ~115ms，**主机侧 API 开销约
+一半**：每帧 7429 次 kernel 启动 + 522 次 memcpy + 1787 次 memset +
+563 次 stream sync。分解（/帧）：
+- FusedPCG 68.6ms：~83 次迭代/解 × 118µs/迭代；其中 kernel 实算仅 ~36µs，
+  其余为启动间隔（7 个 kernel/迭代串行依赖 + 每 5 次一次的收敛 D2H 同步
+  清空流水线）。→ 杠杆：cooperative-groups 持久 kernel 融合（1 次启动/
+  迭代）或 PCG 内环 CUDA graph 捕获；预估可砍 2-3×。
+- BVH 自查询（stacklessSelf 1.34ms + stacklessOther 0.89ms × ~14/帧 ≈
+  31.5ms）：稠密兔面候选 ~45 万/次 detect。→ 杠杆：查询谓词内融合精确
+  距离测试，只物化激活对。
+- 接触装配 do_assemble ×2 ≈ 26ms；SNH G/H 2.12ms×7 ≈ 14.9ms（Stiff 同款
+  FEM 装配 kernel 0.77ms/次——2.75× 差距；make_spd 9×9 EVD 是嫌疑但去掉
+  它收敛反而变差，勿简单删）；布料 DSB 8.8ms。
+- Stiff 同场景 nsys：~900 次启动/帧（libuipc 8 倍），FEM 装配 0.77ms/次。
+结论：case2 的 5× 是结构性主机开销 + 多 kernel 吞吐的乘积，需要一轮专门
+的 kernel 融合/图化工程（每个改动都必须过全套件回归）。
 - **⚠ 对比口径纠正**：Stiff 日志的 "average time cost" = totalTime/totalNT
   （GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间（totalNT/ totalTime/
   total_Frames 是文件级全局量，跨帧累积），不是每帧时间！用 PAIRCOUNT
