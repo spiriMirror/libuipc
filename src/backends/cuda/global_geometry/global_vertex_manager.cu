@@ -69,6 +69,18 @@ namespace
             return L.cwiseMax(R);
         }
     };
+
+    __global__ void GlobalVertexManager_propagate_relative_d_hat_kernel(
+        cuda_tool::BufferView<Float> d_hats, Float old_default, Float new_d_hat, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        // only rewrite entries still holding the absolute contact/d_hat default;
+        // per-geometry meta d_hat values are left untouched
+        if(d_hats(i) == old_default)
+            d_hats(i) = new_d_hat;
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(GlobalVertexManager);
@@ -77,6 +89,9 @@ void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
     m_impl.default_d_hat = d_hat->view()[0];
+
+    auto d_hat_relative = world().scene().config().find<Float>("contact/d_hat_relative");
+    m_impl.d_hat_relative = d_hat_relative ? d_hat_relative->view()[0] : 0.0;
 
     m_impl.global_trajectory_filter  = find<GlobalTrajectoryFilter>();
     m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
@@ -152,6 +167,27 @@ void GlobalVertexManager::Impl::init()
         auto box       = compute_vertex_bounding_box();
         scene_diagonal = (box.max() - box.min()).norm();
         logger::info("Scene diagonal: {}", scene_diagonal);
+    }
+
+    // 8) Propagate the scene-relative d_hat (contact/d_hat_relative, Stiff-GIPC
+    //    convention) into the per-vertex d_hats buffer: entries still holding
+    //    the absolute contact/d_hat default are replaced, per-geometry meta
+    //    d_hat values are untouched. Without this, the relative override only
+    //    affected GlobalContactManager's scalar (CFL/logging) while the contact
+    //    kernels kept using the absolute default.
+    if(d_hat_relative > 0.0)
+    {
+        Float rel_d_hat = d_hat_relative * scene_diagonal;
+        logger::info("Per-vertex d_hat (relative): {} = {} x scene_diagonal({})",
+                     rel_d_hat,
+                     d_hat_relative,
+                     scene_diagonal);
+        auto k = GlobalVertexManager_propagate_relative_d_hat_kernel;
+        int  n = (int)d_hats.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                d_hats.view(), default_d_hat, rel_d_hat, n);
+        default_d_hat = rel_d_hat;
     }
 }
 

@@ -183,6 +183,18 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   python 侧塞未注册键会被**静默丢弃**（`find` 返回 nullptr 走默认分支）。
   eps_velocity_relative 初版未注册，导致对齐实验白跑一轮——新键必须同步
   注册默认值，并用日志行确认生效（"Contact eps_velocity (relative): ..."）。
+- **d_hat_relative 传播修复（最大隐藏 bug）**：初版只改了
+  `GlobalContactManager` 的标量 d_hat（CFL/日志用），**逐顶点 `d_hats`
+  缓冲（过滤器/接触 kernel 真正读的）仍按绝对默认 `contact/d_hat`=0.01
+  填充**。wrecking ball 因此在 d_hat=0.01（应为 0.0289）下跑——过小的
+  d_hat 让接触在浅间隙处不激活，顶点冲入深间隙才被屏障拦下，系统病态化
+  （这正是此前 PCG 尖峰 150-565 的真正来源）。修复：
+  `GlobalVertexManager::Impl::init` 末尾把 `d_hat_relative × scene_diagonal`
+  传播进逐顶点缓冲（compare-and-set 只覆盖持绝对默认值的条目，逐几何 meta
+  d_hat 保留；`global_vertex_manager.{h,cu}`）。修后 wrecking ball：
+  **牛顿 mean 1.88/max 6（Stiff 3.44/7）、sum_pcg 56（Stiff 53）、min_alpha
+  恒 1.0、帧均 73.0ms（Stiff 57.6ms，1.27×）**；set_case2 移植场景自接触
+  对数从 45 万（虚假）塌缩到 ~3.7k（与 Stiff 3.5k 同量级）。
 - **CFL 语义修正**：原实现仅统计"已激活接触顶点"的位移（`vert_is_active_contact`
   掩码）——实测 wrecking ball 120 帧零触发，正在高速冲向接触的顶点恰好
   不在掩码内，可一步冲入深间隙。改为 Stiff-GIPC 设计：max|dx| 覆盖**全部
@@ -190,18 +202,31 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   回退全顶点）；且在 `advance_ipc.cu` 线搜中仅当 CCD 命中（ccd_alpha<1）才
   施加——避免自由飞行帧被无谓限步。本场景实测仍不触发（接触迭代内顶点
   步长多在 5cm 以下），属语义对齐，价值在高速冲击类场景。
-- **剩余 ~5× 帧时差距的最终分解（实证）**：
-  - PCG 尖峰（150-565 次/解 vs Stiff ≤67）：dump 线性系统（config
-    `extras/debug/dump_linear_system=1`）后用 scipy+12×12 块 Jacobi 复算，
-    尖峰矩阵本身即需 236-346 次——**是矩阵（状态）难，非求解器 bug**。
-    与两侧接触段轨迹混沌发散耦合，无法逐帧对应。
-  - PCG tol 放宽到 1e-3：迭代数降 36% 但帧时不变 → PCG 非帧时主因。
-  - 每牛顿迭代固定开销 ~12ms：DCD 检测 4.3ms + 轨迹检测 4.1ms +
-    DyTopo 装配 3.7ms（检测边际 = d_hat+thickness，不肥；对数两侧同量级
-    ~25-50k）。Stiff 全迭代 7.1ms。此为 kernel 级吞吐差距（stackless BVH
-    vs mlbvh、通用 triplet/BCOO 管线 vs 手工融合 kernel），需 nsight 级
-    性能工程，非算法设计问题。
-  - 日志开销实测可忽略（Info vs Warn：132.4 vs 130.9ms/帧）。
+- **剩余帧时差距的当前状态**：d_hat 修复后 wrecking ball 已达 Stiff 的
+  1.27×（73.0 vs 57.6ms/帧）。早期"PCG 尖峰"（150-565 次/解）实为小
+  d_hat 深间隙所致，已随 d_hat 修复消失（现 sum_pcg 56 ≈ Stiff 53）。
+  验证手段备查：线性系统 dump（config `extras/debug/dump_linear_system=1`）
+  + scipy 复算。
+
+## Stiff-GIPC set_case2 移植 benchmark（samples `examples/Stiff-GIPC-benchmark.py`）
+
+- 场景：ABD 兔（scale 0.2, y+0.5, ρ1000, ABD κ=1e8）+ FEM 兔（同网格,
+  y-0.65, SNH E=1e4/ν0.49/ρ1000）+ 布料（cloth_high.obj 4225 顶点,
+  E=5e4/ν0.49/ρ200/t=1e-3/strain_rate=100，弯曲按值匹配 E=5e7→κ_b=5.48e-3）
+  + 地面 y=-1；μ=0.2、κ=1e8（=Stiff 1e4/dt²）、dt=0.01、g=-9.8、
+  d_hat_relative=1e-3、velocity_tol_relative=1e-2、eps_velocity_relative=1e-2、
+  tol_rate=1e-4、**semi_implicit 开启（Kmin=6, beta_tol=1e-2，Stiff 的
+  beta 提前退出设计——堆叠硬帧按设计在 ~6 次牛顿封顶退出）**。
+- 网格资产：bunny2.msh 已转标准 Gmsh 2.2（原文件是 Stiff MeshProcess 的
+  非标准 7 字段变体，libigl 读不了；四面体内容逐位一致）并拷入 samples
+  assets（tetmesh/bunny2.msh + trimesh/cloth_high.obj）。
+- **结果（250 帧）**：libuipc 帧均 301ms（堆叠段稳定 ~310ms，无尖峰），
+  牛顿封顶 ~6（=Kmin）；Stiff 侧同场景 ~50-61ms/帧、牛顿 mean ~2.5。
+  剩余 ~5× 在每迭代吞吐：本场景稠密兔面（0.2 缩放后 6mm 间距）使每次
+  detect 的 AABB 候选 ~45 万（距离过滤后仅 ~3-8k 激活）——候选生成与
+  激活过滤分离是结构开销，融合/距离感知查询是后续优化线索。
+- 注意：布料接触在 libuipc 走厚度经典屏障（ξ=1e-3>0 分支），Stiff 无厚度
+  概念统一 log²——布料部分的接触语义天然有差异。
 - **⚠ 对比口径纠正**：Stiff 日志的 "average time cost" = totalTime/totalNT
   （GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间（totalNT/ totalTime/
   total_Frames 是文件级全局量，跨帧累积），不是每帧时间！用 PAIRCOUNT

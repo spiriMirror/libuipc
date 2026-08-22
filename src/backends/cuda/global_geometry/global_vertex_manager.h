@@ -199,6 +199,7 @@ class GlobalVertexManager final : public SimSystem
         void clear_recover(RecoverInfo& info);
 
         Float default_d_hat = 0.01;
+        Float d_hat_relative = 0.0;  // > 0: override default with relative * scene_diagonal (Stiff-GIPC convention)
 
         cuda_tool::DeviceBuffer<IndexT>  coindices;
         cuda_tool::DeviceBuffer<IndexT>  body_ids;
