@@ -1,47 +1,47 @@
-# 06 — Python API 与打包
+# 06 — Python API and Packaging
 
-## pybind 结构（`src/pybind/pyuipc/`）
+## pybind structure (`src/pybind/pyuipc/`)
 
-入口 `module.cpp` 的 `PYBIND11_MODULE(pyuipc, m)`：
+`PYBIND11_MODULE(pyuipc, m)` in the entry `module.cpp`:
 
-- 子模块：`unit`、`geometry`、`constitution`、`diff_sim`、`core`、`backend`、`builtin`、`usd`（USD 仅 `UIPC_WITH_USD_SUPPORT` 时）。
-- C++ 命名空间 `pyuipc::xxx` ↔ Python 子模块 `pyuipc.xxx` 一一对应；每个子目录有自己的 `module.cpp`，用 `PyXxx{m}` 构造器逐类绑定。
-- **早期暴露**：主 `module.cpp` 先绑定核心数据结构（`PyFeature`、`PyBufferView`、`PyAttributeSlot`、`PyGeometry`、`PySimplicialComplex`、各类 Slot、`PyParameterCollection`），再调各子模块 `PyModule`（几何工具/IO 依赖 core 类型）。
-- 顶层别名：`Engine`、`World`、`Scene`、`SceneIO`、`Animation` 提升到 `pyuipc` 顶层；另注册 `init`、`default_config`、`config`、`uipc::Exception`、`__version__`。
-- 构建：`pybind11_add_module(pyuipc)` 链 `uipc::uipc` + `uipc::backends`，POST_BUILD 调 `scripts/after_build_pyuipc.py`（拷包、拷依赖库、pybind11_stubgen 生成 `.pyi`）。
+- Submodules: `unit`, `geometry`, `constitution`, `diff_sim`, `core`, `backend`, `builtin`, `usd` (USD only when `UIPC_WITH_USD_SUPPORT`).
+- C++ namespaces `pyuipc::xxx` map one-to-one to Python submodules `pyuipc.xxx`; each subdirectory has its own `module.cpp` that binds classes one by one via the `PyXxx{m}` constructor.
+- **Early exposure**: the main `module.cpp` first binds the core data structures (`PyFeature`, `PyBufferView`, `PyAttributeSlot`, `PyGeometry`, `PySimplicialComplex`, the various Slots, `PyParameterCollection`), then calls each submodule's `PyModule` (geometry utilities/IO depend on core types).
+- Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `uipc::Exception`, `__version__`.
+- Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` + `uipc::backends`, and POST_BUILD runs `scripts/after_build_pyuipc.py` (copies the package, copies dependency libraries, generates `.pyi` via pybind11_stubgen).
 
-## Python 包布局（`python/src/uipc/`）
+## Python package layout (`python/src/uipc/`)
 
-- `__init__.py`：import 时先 `pyuipc.init(config)`（注入 `module_dir` 指向 `_native`），再 `from ._native.pyuipc import *`。
-- `core.py / geometry.py / constitution.py / backend.py / builtin.py / diff_sim.py / unit.py`：每个仅一行 `from uipc._native.pyuipc.xxx import *`（纯转发原生模块）。
-- 纯 Python 增强层：
-  - `gui.py`（polyscope 可视化）
-  - `profile/`（benchmark 计时 + `nsight.py` Nsight Compute 封装）
-  - `cli/`（`benchmark`、`mesh_doctor`、`uid_info`）
-  - `adapter/torch`、`adapter/warp`（ML 框架适配）
-  - `assets/`（从 HuggingFace `MuGdxy/uipc-assets` 下载场景，每个资产有 `scene.py` 的 `build_scene(scene)`）
-  - `stats.py`、`dev/`
-- 示例：`python/examples/`（4 个 demo：shell 塑性折痕 ×2、prismatic/revolute joint limit GUI）。
+- `__init__.py`: on import, first calls `pyuipc.init(config)` (injecting `module_dir` pointing to `_native`), then `from ._native.pyuipc import *`.
+- `core.py / geometry.py / constitution.py / backend.py / builtin.py / diff_sim.py / unit.py`: each is a single line `from uipc._native.pyuipc.xxx import *` (pure forwarding of the native module).
+- Pure-Python enhancement layer:
+  - `gui.py` (polyscope visualization)
+  - `profile/` (benchmark timing + `nsight.py` Nsight Compute wrapper)
+  - `cli/` (`benchmark`, `mesh_doctor`, `uid_info`)
+  - `adapter/torch`, `adapter/warp` (ML framework adapters)
+  - `assets/` (downloads scenes from HuggingFace `MuGdxy/uipc-assets`; each asset has a `scene.py` with `build_scene(scene)`)
+  - `stats.py`, `dev/`
+- Examples: `python/examples/` (4 demos: shell plastic crease ×2, prismatic/revolute joint limit GUI).
 
-## 打包管线
+## Packaging pipeline
 
-**正式发布（根 `pyproject.toml`，scikit-build-core）**：
-- 版本由 `setuptools_scm`（release-branch-semver）动态生成。
-- `wheel.packages = ["python/src/uipc"]`；CMake 定义 `UIPC_BUILD_PYBIND/WHEEL=ON`、`UIPC_CUDA_ARCHITECTURES=89`，关 tests/examples/benchmarks。
-- `if(DEFINED SKBUILD)` 时 `UIPC_INSTALL_DIR = uipc/_native`：pyuipc 扩展 + vcpkg 运行时 DLL 全部装进包内 `_native/`；`.pyi` stub 装到包根。
-- cibuildwheel：linux 下 auditwheel 排除全部 CUDA 库（依赖系统 CUDA 12.8）。
+**Official release (root `pyproject.toml`, scikit-build-core)**:
+- Version is generated dynamically by `setuptools_scm` (release-branch-semver).
+- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, `UIPC_CUDA_ARCHITECTURES=89`, and disables tests/examples/benchmarks.
+- When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
+- cibuildwheel: on linux, auditwheel excludes all CUDA libraries (relies on system CUDA 12.8).
 
-**开发模式（`python/pyproject.toml` + `python/setup.py`）**：
-- CMake 构建时 `after_build_pyuipc.py` 把 `python/src/` + pyproject 拷到 `<build>/python/`，扩展与共享库拷进 `src/uipc/_native/`，生成 stub，非 wheel 模式直接 `pip install`。
-- `setup.py` 的 `BuildPyCommand` 从 `build/vcpkg_installed/<triplet>/{bin,lib}` 与 `build/<config>/bin` 收集 dll/so。
-- uv editable 开发：`uv run --no-sync pytest python/tests`（`--no-sync` 避免每次重构建）。
+**Development mode (`python/pyproject.toml` + `python/setup.py`)**:
+- During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
+- `setup.py`'s `BuildPyCommand` collects dll/so from `build/vcpkg_installed/<triplet>/{bin,lib}` and `build/<config>/bin`.
+- uv editable development: `uv run --no-sync pytest python/tests` (`--no-sync` avoids rebuilding every time).
 
-## Python 测试
+## Python tests
 
-`python/tests/`，pytest。前置：装好 pyuipc（CMake 构建或 `uv pip install -e .`）。
+`python/tests/`, pytest. Prerequisite: pyuipc installed (CMake build or `uv pip install -e .`).
 
-## 绑定扩展要点
+## Key points for extending bindings
 
-- 新增 C++ 公开 API 时考虑同步 pybind：在对应子模块目录加 `PyXxx` 绑定文件并在该目录 `module.cpp` 注册；保持命名空间映射一致。
-- 不要破坏 `__init__.py` 的 import 链（`pyuipc` → `init()` → `config["module_dir"]`）。
-- 新绑定面需在 `python/tests/` 补测试。
+- When adding a new C++ public API, consider syncing the pybind side: add a `PyXxx` binding file in the corresponding submodule directory and register it in that directory's `module.cpp`; keep the namespace mapping consistent.
+- Do not break the import chain in `__init__.py` (`pyuipc` → `init()` → `config["module_dir"]`).
+- New binding surfaces need tests added in `python/tests/`.

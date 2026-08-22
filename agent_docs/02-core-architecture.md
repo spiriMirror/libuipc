@@ -1,74 +1,74 @@
-# 02 — 核心架构（core 模块与后端插件机制）
+# 02 — Core Architecture (core module and backend plugin mechanism)
 
-## 三层结构
+## Three-Layer Structure
 
 ```
-core::Engine / World / Scene          ← 公开句柄层（仅持 S<internal::X>，纯转发）
-  → core::internal::Engine / World / Scene   ← 生命周期与逻辑层
-    → backend::IEngine（虚接口）       ← 后端动态库实现
+core::Engine / World / Scene          ← public handle layer (holds only S<internal::X>, pure forwarding)
+  → core::internal::Engine / World / Scene   ← lifecycle and logic layer
+    → backend::IEngine (virtual interface)   ← implemented by backend dynamic libraries
 ```
 
-- 公开层：`include/uipc/core/{engine,world,scene}.h`，实现 `src/core/core/{engine,world,scene}.cpp`
-- internal 层：`include/uipc/core/internal/*.h` + `src/core/core/internal/*.cpp`
-- 后端接口：`include/uipc/core/i_engine.h`
+- Public layer: `include/uipc/core/{engine,world,scene}.h`, implemented in `src/core/core/{engine,world,scene}.cpp`
+- internal layer: `include/uipc/core/internal/*.h` + `src/core/core/internal/*.cpp`
+- Backend interface: `include/uipc/core/i_engine.h`
 
-## 后端模块加载（插件 ABI）
+## Backend Module Loading (Plugin ABI)
 
-`src/core/core/internal/engine.cpp` 的 `Engine::Impl::load_module(backend_name)`：
+`Engine::Impl::load_module(backend_name)` in `src/core/core/internal/engine.cpp`:
 
-1. 用 `dylib` 从 `uipc::config()["module_dir"]` 加载 `uipc_backend_<name>` 动态库（静态缓存 `m_cache` + 互斥锁，同名模块只加载一次）。
-2. 调用导出符号 **`uipc_init_module(UIPCModuleInitInfo*)`**（定义见 `include/uipc/backend/module_init_info.h`）：把 host 的 `std::pmr::get_default_resource()` 传给后端并 `set_default_resource`，保证跨 DLL 的 pmr 容器分配器一致。
-3. 调 **`uipc_create_engine(EngineCreateInfo*)`** 创建 `IEngine*`；**`uipc_destroy_engine`** 作 deleter。`EngineCreateInfo{ workspace, Json config }`（`include/uipc/backend/engine_create_info.h`）。
-4. 三个导出符号声明在 `src/backends/common/module.h`；各后端在 `entrance.cpp` 实现（cuda: `new cuda::SimEngine(info)`；none: `new none::SimEngine(info)`）。
+1. Uses `dylib` to load the `uipc_backend_<name>` dynamic library from `uipc::config()["module_dir"]` (static cache `m_cache` + mutex; a module with the same name is loaded only once).
+2. Calls the exported symbol **`uipc_init_module(UIPCModuleInitInfo*)`** (defined in `include/uipc/backend/module_init_info.h`): passes the host's `std::pmr::get_default_resource()` to the backend and calls `set_default_resource`, ensuring consistent pmr container allocators across DLLs.
+3. Calls **`uipc_create_engine(EngineCreateInfo*)`** to create the `IEngine*`; **`uipc_destroy_engine`** serves as the deleter. `EngineCreateInfo{ workspace, Json config }` (`include/uipc/backend/engine_create_info.h`).
+4. The three exported symbols are declared in `src/backends/common/module.h`; each backend implements them in `entrance.cpp` (cuda: `new cuda::SimEngine(info)`; none: `new none::SimEngine(info)`).
 
-也支持注入自定义引擎：`Engine(S<IEngine> overrider)` 构造（pyuipc 等场景用），不加载模块。
+Custom engines can also be injected: the `Engine(S<IEngine> overrider)` constructor (used by pyuipc and similar scenarios) does not load any module.
 
-其他细节：
-- workspace 构造时取绝对路径，不存在则创建。
-- `advance()` 清除 sync 标志；`retrieve()` 若未 sync 先自动 `sync()`。
-- `Engine::default_config()` 可被环境变量 `UIPC_ENGINE_DEFAULT_CONFIG`（指向 JSON 文件）覆盖；默认 `gpu/device=0`、gui enable。
-- 每次后端调用包 `LogPatternGuard{backend_name}` 切换日志前缀。
+Other details:
+- The workspace is converted to an absolute path at construction time and created if it does not exist.
+- `advance()` clears the sync flag; `retrieve()` automatically calls `sync()` first if not yet synced.
+- `Engine::default_config()` can be overridden by the environment variable `UIPC_ENGINE_DEFAULT_CONFIG` (pointing to a JSON file); defaults are `gpu/device=0` and gui enable.
+- Every backend call is wrapped in `LogPatternGuard{backend_name}` to switch the log prefix.
 
-## IEngine 模板方法
+## IEngine Template Method
 
-`include/uipc/core/i_engine.h`：公开非虚 `init/advance/sync/retrieve/to_json/dump/recover/frame/status/features/insert_sanity_checkers` → 受保护纯虚 `do_init/do_advance/do_sync/do_retrieve/get_frame/get_status/get_features`；`do_to_json/do_dump/do_recover/do_insert_sanity_checkers` 有空默认实现。
+`include/uipc/core/i_engine.h`: public non-virtual `init/advance/sync/retrieve/to_json/dump/recover/frame/status/features/insert_sanity_checkers` → protected pure virtual `do_init/do_advance/do_sync/do_retrieve/get_frame/get_status/get_features`; `do_to_json/do_dump/do_recover/do_insert_sanity_checkers` have empty default implementations.
 
-## World 生命周期（`src/core/core/internal/world.cpp`）
+## World Lifecycle (`src/core/core/internal/world.cpp`)
 
-持有 `S<internal::Scene>`、`W<internal::Engine>`（weak 防循环引用）、`S<SanityChecker>`、`m_valid`。
+Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular references), `S<SanityChecker>`, `m_valid`.
 
-**`World::init(Scene&)` 四步**：
-1. 记录 scene（已 init 则直接返回）；
-2. config 中 `sanity_check/enable` 为真时创建 `SanityChecker` 执行检查，失败则 `m_valid=false` 且跳过 init；
-3. `m_scene->init(*this)`；
-4. `engine->init(*this)`；之后检查 `engine->status().has_error()`，有错则 world 失效。
+**`World::init(Scene&)` in four steps**:
+1. record the scene (return immediately if already initialized);
+2. when `sanity_check/enable` in the config is true, create a `SanityChecker` to run the checks; on failure set `m_valid=false` and skip init;
+3. `m_scene->init(*this)`;
+4. `engine->init(*this)`; afterwards check `engine->status().has_error()`; on error the world becomes invalid.
 
-`advance/sync/retrieve/dump`：每步先查 `m_valid`，调用后查 `EngineStatusCollection::has_error()`，出错则 world **永久失效**并 log error。
-`recover(aim_frame)`：成功后若 `diff_sim.parameters().size() > 0` 则 `parameters().broadcast()`。
+`advance/sync/retrieve/dump`: each step first checks `m_valid`, and after the call checks `EngineStatusCollection::has_error()`; on error the world is **permanently invalidated** and an error is logged.
+`recover(aim_frame)`: after success, if `diff_sim.parameters().size() > 0` then `parameters().broadcast()`.
 
-## internal::Scene（`src/core/core/internal/scene.cpp`）
+## internal::Scene (`src/core/core/internal/scene.cpp`)
 
-- `init(world)`：记录 world 裸指针；`m_constitution_tabular.init(*this)` 扫描全部几何 meta 收集 UID；`diff_sim/enable` 时 `m_diff_sim.init(*this)`；置 `m_started=true`。
-- **pending 机制**：world 启动后几何增删不立即生效，进 `m_pending_create/m_pending_destroy`（`GeometryCollection`），由 `solve_pending()` 统一结算。`Scene::Objects::destroy` 按 `is_started()/is_pending()` 选直接 destroy 或 pending_destroy。
-- `dt()` 从 config 属性 `"dt"` 读取。
-- `update_from(const SceneSnapshotCommit&)`：应用增量 commit 更新 config/objects/contact_tabular/geometries/rest_geometries。
+- `init(world)`: records the world raw pointer; `m_constitution_tabular.init(*this)` scans all geometry metas to collect UIDs; when `diff_sim/enable`, calls `m_diff_sim.init(*this)`; sets `m_started=true`.
+- **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`) and are settled together by `solve_pending()`. `Scene::Objects::destroy` chooses between direct destroy and pending_destroy based on `is_started()/is_pending()`.
+- `dt()` is read from the config attribute `"dt"`.
+- `update_from(const SceneSnapshotCommit&)`: applies an incremental commit to update config/objects/contact_tabular/geometries/rest_geometries.
 
-## Scene 默认配置（`src/core/core/scene_default_config.cpp`）
+## Scene Default Configuration (`src/core/core/scene_default_config.cpp`)
 
-用 `AttributeCollection`（resize(1)）存配置。关键键：
-- `dt=0.01`、`gravity`、`cfl/enable`
+Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
+- `dt=0.01`, `gravity`, `cfl/enable`
 - `integrator/type="bdf1"`
-- `newton/*`（max_iter、velocity_tol 用单位字面量 `0.05_m/1.0_s`）
+- `newton/*` (max_iter, velocity_tol use unit literals such as `0.05_m/1.0_s`)
 - `linear_system/solver="fused_pcg"`
 - `line_search/*`
-- `contact/enable`、`contact/d_hat`、`contact/constitution="ipc"`（或 `"al-ipc"` 及其调参）；`contact/d_hat_relative`（>0 时 d_hat=相对值×场景对角线，Stiff-GIPC 惯例）、`newton/velocity_tol_relative`（>0 时退出阈值=相对值×对角线×dt）——场景自适应参数，默认 0 关闭
-- `collision_detection/*`、`sanity_check/*`、`diff_sim/enable`
+- `contact/enable`, `contact/d_hat`, `contact/constitution="ipc"` (or `"al-ipc"` and its tuning parameters); `contact/d_hat_relative` (when >0, d_hat = relative value × scene diagonal, the Stiff-GIPC convention), `newton/velocity_tol_relative` (when >0, exit threshold = relative value × diagonal × dt) — scene-adaptive parameters, default 0 (disabled)
+- `collision_detection/*`, `sanity_check/*`, `diff_sim/enable`
 
-完整键表见 `docs/specification/scene_config.md`。
+See `docs/specification/scene_config.md` for the full key table.
 
-## RMR（Reporter-Manager-Receiver）与 SimSystem 体系
+## RMR (Reporter-Manager-Receiver) and the SimSystem Hierarchy
 
-定义在 `src/backends/common/`，类层次：
+Defined in `src/backends/common/`; class hierarchy:
 
 ```
 core::IEngine
@@ -79,26 +79,26 @@ core::IEngine
 backend::ISimSystem                 (common/i_sim_system.h)
  └── backend::SimSystem            (common/sim_system.h)
       └── cuda::SimSystem          (cuda/sim_system.h)
-           ├── Manager（GlobalVertexManager、GlobalContactManager、GlobalLinearSystem…）
-           ├── Reporter / Subsystem（Animator、LineSearchReporter、DiagLinearSubsystem…）
-           └── Receiver（DyTopoEffectReceiver、ContactReceiver…）
+           ├── Manager (GlobalVertexManager, GlobalContactManager, GlobalLinearSystem...)
+           ├── Reporter / Subsystem (Animator, LineSearchReporter, DiagLinearSubsystem...)
+           └── Receiver (DyTopoEffectReceiver, ContactReceiver...)
 ```
 
-要点：
-- **`ISimSystem`**：`name/is_valid/is_engine_aware/is_building`、强/弱依赖（`strong_dependencies/weak_dependencies`）、`to_json`；dump/recover 生命周期 `dump/try_recover/apply_recover/clear_recover` 对应 `do_*` 虚函数；`BaseInfo{frame, workspace, config}`。
-- **`backend::SimSystem`**：持 `SimEngine&`；`find<T>(QueryOptions)/require<T>` 在 `SimSystemCollection` 查其它系统；`require` 失败抛 `SimSystemException` → 本系统 build 期判 invalid。
-- **`cuda::SimSystem`**：新增事件注册 `on_init_scene/on_rebuild_scene/on_write_scene`（只能在 `do_build()` 中调用，动作存入引擎 `SimActionCollection`）；`check_state(SimEngineState)` 断言管线阶段。
-- **`SimSystemCollection`**（`common/sim_system_collection.cpp`）：key 为 `typeid(s).hash_code()`；`build_systems()` 先统一 `set_building(true)` → 逐个 `build()`（内调 `do_build()`）→ 捕获异常标 invalid → `cleanup_invalid_systems()` **级联删除强依赖失效者**（弱依赖不影响）。
-- **覆写机制**：`QueryOptions{exact}`；`exact=false` 允许返回派生类型系统 —— 即用派生类替换基类功能。另有 `*FeatureOverrider`（如 `affine_body_state_accessor_feature.cu`）通过 `engine.features()` 覆盖 feature。
-- **自动注册**：`REGISTER_SIM_SYSTEM(T)` 宏（`common/sim_system.h` 末尾）借助 `SimSystemAutoRegister` 静态期注册 creator；`SimEngine::build_systems()` 遍历 creator 实例化。creator 构造参数类型决定归属引擎（cuda 系统构造参数是 `cuda::SimEngine&`，dynamic_cast 校验）。
-- **SimSystemSlot<T> / SimSystemSlotCollection<T>**（`common/sim_system_slot.h`）：惰性绑定插槽；`register_sim_system(T&)` 挂入 manager 的 slot；`lazy_init()` 首次访问时确认绑定。Manager 用 SlotCollection 收集全部 reporter/subsystem。
+Key points:
+- **`ISimSystem`**: `name/is_valid/is_engine_aware/is_building`, strong/weak dependencies (`strong_dependencies/weak_dependencies`), `to_json`; dump/recover lifecycle `dump/try_recover/apply_recover/clear_recover` mapped to `do_*` virtual functions; `BaseInfo{frame, workspace, config}`.
+- **`backend::SimSystem`**: holds a `SimEngine&`; `find<T>(QueryOptions)/require<T>` look up other systems in the `SimSystemCollection`; on failure `require` throws `SimSystemException` → this system is judged invalid during build.
+- **`cuda::SimSystem`**: adds event registration `on_init_scene/on_rebuild_scene/on_write_scene` (may only be called inside `do_build()`; the actions are stored in the engine's `SimActionCollection`); `check_state(SimEngineState)` asserts the pipeline stage.
+- **`SimSystemCollection`** (`common/sim_system_collection.cpp`): keyed by `typeid(s).hash_code()`; `build_systems()` first calls `set_building(true)` on all systems → builds them one by one (internally calling `do_build()`) → caught exceptions mark a system invalid → `cleanup_invalid_systems()` **cascades the deletion of systems whose strong dependencies have become invalid** (weak dependencies are unaffected).
+- **Override mechanism**: `QueryOptions{exact}`; `exact=false` allows returning a derived-type system — i.e. replacing base-class functionality with a derived class. There are also `*FeatureOverrider` classes (e.g. `affine_body_state_accessor_feature.cu`) that override features via `engine.features()`.
+- **Auto-registration**: the `REGISTER_SIM_SYSTEM(T)` macro (at the end of `common/sim_system.h`) registers a creator at static-init time via `SimSystemAutoRegister`; `SimEngine::build_systems()` iterates over the creators to instantiate the systems. The creator's constructor parameter type determines which engine it belongs to (cuda systems take `cuda::SimEngine&` as constructor parameter, verified via dynamic_cast).
+- **SimSystemSlot<T> / SimSystemSlotCollection<T>** (`common/sim_system_slot.h`): lazily-bound slots; `register_sim_system(T&)` hooks a system into the manager's slot; `lazy_init()` confirms the binding on first access. Managers use SlotCollection to gather all reporters/subsystems.
 
-## 周边子系统（core 内）
+## Peripheral Subsystems (within core)
 
-- **SanityCheck**（`src/sanity_check/`）：init 前场景校验（表面距离/交叉、半平面距离等内置检查器），测试见 `apps/tests/sanity_check/`。
-- **DiffSim**（`include/uipc/diff_sim/`）：参数集合 `ParameterCollection`，`broadcast()` 在 recover 后触发；GPU 侧在 `src/backends/cuda/diff_sim/`。
-- **SceneSnapshot/Commit**：场景增量序列化（`SceneIO` 的 `commit/update`），用于 GUI/网络同步。
+- **SanityCheck** (`src/sanity_check/`): scene validation before init (built-in checkers such as surface distance/intersection, half-plane distance); tests in `apps/tests/sanity_check/`.
+- **DiffSim** (`include/uipc/diff_sim/`): parameter set `ParameterCollection`; `broadcast()` is triggered after recover; GPU side in `src/backends/cuda/diff_sim/`.
+- **SceneSnapshot/Commit**: incremental scene serialization (`SceneIO`'s `commit/update`), used for GUI/network synchronization.
 
-## 日志、错误与基础设施（`include/uipc/common/`）
+## Logging, Errors, and Infrastructure (`include/uipc/common/`)
 
-- `Logger`（spdlog 封装）、`Timer`（作用域计时，嵌套成树，输出 `timer_frames.json`）、`Json`（nlohmann）、`unit.h`（`1.0_GPa` 等字面量）、`UIPC_ASSERT` / `UIPC_ASSERT_THROW`（fast-fail 约定：内部不变量用前者，用户输入用后者）、`Exception`、智能指针别名 `S<T>=shared_ptr`、`U<T>=unique_ptr`、`W<T>=weak_ptr`。
+- `Logger` (spdlog wrapper), `Timer` (scoped timing, nested into a tree, outputs `timer_frames.json`), `Json` (nlohmann), `unit.h` (literals such as `1.0_GPa`), `UIPC_ASSERT` / `UIPC_ASSERT_THROW` (fast-fail convention: the former for internal invariants, the latter for user input), `Exception`, smart pointer aliases `S<T>=shared_ptr`, `U<T>=unique_ptr`, `W<T>=weak_ptr`.

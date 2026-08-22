@@ -1,115 +1,115 @@
-# 05 — CUDA 后端
+# 05 — CUDA Backend
 
-目录：`src/backends/cuda/`（编译为 MODULE 库 `uipc_backend_cuda`）。入口 `entrance.cpp` → `cuda::SimEngine`（`sim_engine.h` + `engine/*.cu`）。GPU id 取自 engine config `gpu/device`。
+Directory: `src/backends/cuda/` (compiled as the MODULE library `uipc_backend_cuda`). Entry point `entrance.cpp` → `cuda::SimEngine` (`sim_engine.h` + `engine/*.cu`). The GPU id comes from the engine config `gpu/device`.
 
-## 子系统目录
+## Subsystem Directories
 
-| 目录 | 职责 |
+| Directory | Responsibility |
 |---|---|
-| `engine/` | 管线编排：`sim_engine_do_init/do_advance/do_retrieve/do_sync` 等 |
-| `pipeline/` | 管线动作（SimAction）定义 |
-| `global_geometry/` | 全局顶点管理（GlobalVertexManager）、包围盒 |
-| `affine_body/` | ABD 动力学（97 文件）：雅可比、质量/能量组装、关节、state accessor |
-| `finite_element/` | FEM（123 文件）：各本构的梯度/Hessian 组装 kernel（Fem3D/Codim2D/Codim1D 系列） |
-| `collision_detection/` | StacklessBVH、simplex distance、global trajectory filter、DCD/CCD 候选检测 |
-| `contact_system/` | IPC / AL-IPC 接触模型（symplectic/implicit）、法向/切向力、CFL 条件 |
-| `distance_system/` | 距离计算 |
-| `active_set_system/` | 接触激活集 |
-| `dytopo_effect_system/` | 动态拓扑效应（摩擦等耦合项） |
-| `inter_primitive_effect_system/` | 图元间效应（软缝合等） |
-| `joint_dof_system/` | 关节自由度系统 |
-| `coupling_system/` | 多体耦合 |
-| `linear_system/` | 线性求解：GlobalLinearSystem、fused PCG、SpMV、预条件子 |
-| `line_search/` | 线搜索能量评估 |
-| `newton_tolerance/` | Newton 收敛判据 |
-| `time_integrator/` | 时间积分与速度更新（BDF1 等） |
-| `animator/` | 动画步进 |
-| `external_force/` | 外力计算 |
-| `diff_sim/` | 可微仿真 |
-| `implicit_geometry/` | 隐式几何（HalfPlane 等） |
-| `sanity_check/` | GPU 侧检查器 |
-| `cuda_device/` | 设备管理 |
-| `algorithm/`、`utils/` | 共享算法与工具 |
-| 根级文件 | `sim_engine.h/.cpp`、`sim_system.h`、`sim_action*.h`、`sim_engine_state.h`、`energy_component_flags.*`、`kernel_cout.*`、`type_define.h` |
+| `engine/` | Pipeline orchestration: `sim_engine_do_init/do_advance/do_retrieve/do_sync`, etc. |
+| `pipeline/` | Pipeline action (SimAction) definitions |
+| `global_geometry/` | Global vertex management (GlobalVertexManager), bounding boxes |
+| `affine_body/` | ABD dynamics (97 files): Jacobians, mass/energy assembly, joints, state accessors |
+| `finite_element/` | FEM (123 files): gradient/Hessian assembly kernels for each constitution (Fem3D/Codim2D/Codim1D families) |
+| `collision_detection/` | StacklessBVH, simplex distance, global trajectory filter, DCD/CCD candidate detection |
+| `contact_system/` | IPC / AL-IPC contact models (symplectic/implicit), normal/tangential forces, CFL condition |
+| `distance_system/` | Distance computation |
+| `active_set_system/` | Contact active set |
+| `dytopo_effect_system/` | Dynamic-topology effects (friction and other coupling terms) |
+| `inter_primitive_effect_system/` | Inter-primitive effects (soft stitching, etc.) |
+| `joint_dof_system/` | Joint DOF system |
+| `coupling_system/` | Multi-body coupling |
+| `linear_system/` | Linear solves: GlobalLinearSystem, fused PCG, SpMV, preconditioners |
+| `line_search/` | Line-search energy evaluation |
+| `newton_tolerance/` | Newton convergence criteria |
+| `time_integrator/` | Time integration and velocity update (BDF1, etc.) |
+| `animator/` | Animation stepping |
+| `external_force/` | External force computation |
+| `diff_sim/` | Differentiable simulation |
+| `implicit_geometry/` | Implicit geometry (HalfPlane, etc.) |
+| `sanity_check/` | GPU-side checkers |
+| `cuda_device/` | Device management |
+| `algorithm/`, `utils/` | Shared algorithms and utilities |
+| Root-level files | `sim_engine.h/.cpp`, `sim_system.h`, `sim_action*.h`, `sim_engine_state.h`, `energy_component_flags.*`, `kernel_cout.*`, `type_define.h` |
 
-## advance 管线（`engine/sim_engine_do_advance.cu`）
+## advance Pipeline (`engine/sim_engine_do_advance.cu`)
 
 ```
 Pipeline
-├── Rebuild Scene                          （含条件分支 Update Diff Parm）
+├── Rebuild Scene                          (includes conditional branch Update Diff Parm)
 └── Simulation
-    ├── Clear External Forces              （条件）
-    ├── Step Animation                     （条件）
-    ├── Compute External Force Accel.      （条件）
-    ├── Detect DCD Candidates              （条件）
-    ├── Newton Iteration                   （LOOP）
-    │   ├── Detect DCD Candidates          （iter > 0）
-    │   ├── Compute DyTopo Effect          （条件：Assemble → Convert → Distribute）
-    │   ├── Solve Global Linear System     （Build → PCG：Apply Preconditioner + SpMV）
+    ├── Clear External Forces              (conditional)
+    ├── Step Animation                     (conditional)
+    ├── Compute External Force Accel.      (conditional)
+    ├── Detect DCD Candidates              (conditional)
+    ├── Newton Iteration                   (LOOP)
+    │   ├── Detect DCD Candidates          (iter > 0)
+    │   ├── Compute DyTopo Effect          (conditional: Assemble → Convert → Distribute)
+    │   ├── Solve Global Linear System     (Build → PCG: Apply Preconditioner + SpMV)
     │   └── Line Search
     │       ├── Detect Trajectory Cand.
-    │       ├── Compute Energy             （初始 E0）
+    │       ├── Compute Energy             (initial E0)
     │       ├── Filter CCD TOI
     │       ├── Compute CFL Condition
-    │       └── Line Search Iteration      （LOOP：Filter Contact Cand. → Compute Energy）
+    │       └── Line Search Iteration      (LOOP: Filter Contact Cand. → Compute Energy)
     └── Update Velocity
 ```
 
-注意：父计时器时长**包含**子计时器（如 Newton Iteration 占 80% 时 PCG/Line Search 已计入）。实际层级以运行输出的 `timer_frames.json` 为准（随启用的 feature 动态变化）。
+Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
-`do_init/do_advance/do_retrieve/do_sync` 中各 sim system 通过 `SimActionCollection` 注册的回调（`on_init_scene/on_rebuild_scene/on_write_scene`）被依次调用。
+During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 
-## kernel 与 kernel 命名
+## Kernels and Kernel Naming
 
-所有 kernel 都是**命名 `__global__` 函数**（匿名 namespace 内定义），经裸 `<<<grid, block, 0, stream>>>` 启动。kernel 名按 `<所属类>_<原函数>[_kN]_kernel` 约定命名，ncu 报告里直接可读：
+All kernels are **named `__global__` functions** (defined in anonymous namespaces), launched via bare `<<<grid, block, 0, stream>>>`. Kernel names follow the `<owning class>_<original function>[_kN]_kernel` convention, so they are directly readable in ncu reports:
 
 ```
 InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel
 FEMLineSearchReporter_step_forward_kernel
 ```
 
-- 启动块大小经 `cuda_tool::best_block_dim(kernel)` 按占用率自动选择（与 muda 的 occupancy 自选一致，保证 FP 行为不变）；grid 由 `cuda_tool::best_grid_dim(n, kernel)` 计算。**块大小缓存以 kernel 函数地址为键**（`unordered_map<const void*, int>`），不能按函数指针类型做 `static` 缓存——同签名的不同 kernel 会共享缓存项，跨 kernel 串扰块大小会扰动 atomic 归约顺序，曾在全套件中引发 case 36 frame 17 line-search 失败（隔离单跑不现）。
-- `buffer::kernel_fill<int>` 类内存操作统一走 `cuda_tool::BufferLaunch`（内部为命名模板 kernel）。
-- `python/src/uipc/profile/nsight.py` 的 `_shorten_kernel_name()` 原用于从 `parallel_for_kernel<Lambda>` 提取外层函数名；命名 kernel 时代理不再需要（符号本身可读）。
+- Launch block size is auto-selected by occupancy via `cuda_tool::best_block_dim(kernel)` (consistent with muda's occupancy-based selection, guaranteeing unchanged FP behavior); the grid is computed by `cuda_tool::best_grid_dim(n, kernel)`. **The block-size cache is keyed by kernel function address** (`unordered_map<const void*, int>`); it must not be a `static` cache keyed by function-pointer type — different kernels with the same signature would share a cache entry, and cross-kernel block-size interference perturbs the atomic reduction order, which once caused a case 36 frame 17 line-search failure in the full test suite (not reproducible when run in isolation).
+- Memory operations such as `buffer::kernel_fill<int>` uniformly go through `cuda_tool::BufferLaunch` (internally named template kernels).
+- `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
 
-## GPU 代码规范（摘自 review-pr / simulation-dev）
+## GPU Coding Guidelines (excerpted from review-pr / simulation-dev)
 
-- buffer 参数用 `cuda_tool::BufferView` / `cuda_tool::TripletMatrixView` 等 view 类型，**禁裸指针**。
-- kernel 体顶部先做索引守卫，越界立即 return。
-- 调试用 `cuda_tool::debug_sync_all()` 做快速失败屏障；kernel 断言用 `UIPC_KERNEL_ASSERT`（随 `uipc::RUNTIME_CHECK` 开关）。
-- 检查 `isfinite`；除零/负开方加保守守卫。
-- 修改 solver/kernel 遵循 `.cursor/skills/simulation-dev/SKILL.md` 的调试闭环。
+- Buffer parameters use view types such as `cuda_tool::BufferView` / `cuda_tool::TripletMatrixView`; **raw pointers are forbidden**.
+- Put index guards at the top of the kernel body; return immediately on out-of-bounds.
+- For debugging, use `cuda_tool::debug_sync_all()` as a fail-fast barrier; kernel assertions use `UIPC_KERNEL_ASSERT` (gated by `uipc::RUNTIME_CHECK`).
+- Check `isfinite`; add conservative guards for division by zero / square roots of negatives.
+- When modifying solvers/kernels, follow the debug loop in `.cursor/skills/simulation-dev/SKILL.md`.
 
-## 性能分析工具链
+## Performance Analysis Toolchain
 
-- `python -m uipc.cli.benchmark run/profile/analyze/compare`（CLI）与 `uipc.profile` / `uipc.profile.nsight`（Python API）。
-- 流程：先 `run` 拿分阶段 wall-clock（`report/report.md` + `timer_frames.json`），再 `profile` 拿 per-kernel 指标（ncu），交叉定位"热点阶段 + 低效 kernel"；只占帧时间 <5% 的阶段不优化。
-- 细节见 `.cursor/skills/gpu-optimization/SKILL.md`。
+- `python -m uipc.cli.benchmark run/profile/analyze/compare` (CLI) and `uipc.profile` / `uipc.profile.nsight` (Python API).
+- Workflow: first `run` to get per-stage wall-clock (`report/report.md` + `timer_frames.json`), then `profile` to get per-kernel metrics (ncu), and cross-reference to locate "hot stages + inefficient kernels"; stages taking <5% of frame time are not optimized.
+- See `.cursor/skills/gpu-optimization/SKILL.md` for details.
 
-## cuda_tool（自研 raw-CUDA 工具库）
+## cuda_tool (in-house raw-CUDA utility library)
 
-`src/backends/cuda/cuda_tool/`，命名空间 `uipc::backend::cuda_tool`。**后端唯一的设备工具库**（muda 依赖已全部移除，无 vendored 副本、无外部子模块；Eigen 保留）。
+`src/backends/cuda/cuda_tool/`, namespace `uipc::backend::cuda_tool`. **The backend's only device utility library** (all muda dependencies have been removed: no vendored copy, no external submodule; Eigen is kept).
 
-| 文件 | 内容 |
+| File | Contents |
 |---|---|
-| `stream.h` | `CUDA_TOOL_CHECK` 错误检查、`default_stream`、`Stream`（`Stream::Default()`） |
-| `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`、`Dense/CDense`（标量 viewer）、`ViewerBase`、`Extent2D`、`Buffer2DView`、`Dense1D/Dense2D`（含 `make_dense_1d/2d`） |
-| `launch.h` | `best_block_dim/best_grid_dim`（占用率自选块大小/grid 计算） |
-| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`、`BufferLaunch`（fill/copy/resize，内部命名模板 kernel） |
-| `cub.h` | `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` 薄封装（指针形态）+ warp 级 cub 头；**临时存储走 stream 级 workspace 缓存**（`details::cub_temp_storage`，按需 2× 增长、跨调用复用——逐次 cudaMalloc/cudaFree 每次 ~10-100µs 且与设备隐式同步，曾在 6_wrecking_balls 场景造成 ~15%/帧 的性能回退） |
-| `linear_system.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + 全套 view（Triplet/Doublet/DenseVector/BCOO）+ `LinearSystemContext`（cublas dot/norm） |
-| `eigen.h` + `eigen/` | 设备端小矩阵数学（`eigen::evd/svd/pd/inverse/atomic_add`，自 muda ext/eigen 逐字移植，比特级一致） |
-| `debug.h` | `debug_sync_all/check_finite` + `UIPC_KERNEL_ASSERT/ERROR/WARN` 宏族（随 `uipc::RUNTIME_CHECK`） |
-| `logger.h` | `LoggerViewer`（kernel 内 `cout <<`，device printf）+ `KernelCout` |
-| `atomic.h` | 标量 `atomic_add/atomic_exch` |
+| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`) |
+| `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`, `Dense/CDense` (scalar viewers), `ViewerBase`, `Extent2D`, `Buffer2DView`, `Dense1D/Dense2D` (with `make_dense_1d/2d`) |
+| `launch.h` | `best_block_dim/best_grid_dim` (occupancy-based block size / grid computation) |
+| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch` (fill/copy/resize; internally named template kernels) |
+| `cub.h` | Thin wrappers (pointer-style) for `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` + warp-level cub headers; **temporary storage uses a stream-level workspace cache** (`details::cub_temp_storage`, grows 2× on demand, reused across calls — per-call cudaMalloc/cudaFree costs ~10-100µs each and implicitly synchronizes with the device, which once caused a ~15%/frame performance regression in the 6_wrecking_balls scene) |
+| `linear_system.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + full set of views (Triplet/Doublet/DenseVector/BCOO) + `LinearSystemContext` (cublas dot/norm) |
+| `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`; ported verbatim from muda ext/eigen, bit-for-bit identical) |
+| `debug.h` | `debug_sync_all/check_finite` + the `UIPC_KERNEL_ASSERT/ERROR/WARN` macro family (gated by `uipc::RUNTIME_CHECK`) |
+| `logger.h` | `LoggerViewer` (in-kernel `cout <<`, device printf) + `KernelCout` |
+| `atomic.h` | Scalar `atomic_add/atomic_exch` |
 
-- 构建要点：需 `--extended-lambda --expt-relaxed-constexpr`，MSVC + CUDA≥13 需 `/Zc:preprocessor`；fmt 在 nvcc device pass 有 UTF-8 冲突，故 cuda_tool 用 `std::runtime_error`；Eigen `::arg` 需全局 shim（已内置 `type_define.h`）。
-- **伞头 `cuda_tool.h` 不含 `cub.h`**：CCCL 设备算法头极重（每个 TU 多展开 ~16.5 万行），使用 `Device*` 封装的 ~23 个文件显式 `#include <cuda_tool/cub.h>`；`linear_system.h` 也不再传递包含 cub.h。
-- **必须启用 RDC**（`CUDA_SEPARABLE_COMPILATION ON` + `CUDA_RESOLVE_DEVICE_SYMBOLS ON`）：`affine_body/utils.cu` 定义了 `UIPC_GENERIC` 自由函数（如 `q_to_transform`），被其他 TU 的 device 代码跨编译单元调用；关 RDC 会 `ptxas fatal: Unresolved extern`。xmake 侧对应 `add_cuflags("-rdc=true")`。
-- **教训（2026-08-20 纠错）**：CMake+ninja 不跟踪编译旗标变化（纯 mtime 驱动）——切换 RDC 这类全局旗标后"全量构建"可能实际只重编了源文件有变动的 TU，陈旧对象会蒙混链接成功造成"验证通过"假象；改全局旗标必须手动清对象目录再验证。曾因此误判 RDC 可关（提交 d2f48087 中的 RDC 部分已纠正）。
-- 编译耗时画像（32 核，CUDA 13.2，RTX 5090）：全量 ~4.7 min / ~8800 CPU·s，219 个 .cu 平均 ~35s；单 TU 预处理展开 ~163 万行，其中 CUDA 工具链头 ~86 万、WinSDK ~31 万、MSVC STL ~15 万、Eigen ~15 万、项目自身 <2 万——大头是工具链头，项目头已经砍无可砍。
-- smoke test 保留为 `test_compile.cu.txt`。
+- Build notes: requires `--extended-lambda --expt-relaxed-constexpr`; MSVC + CUDA≥13 requires `/Zc:preprocessor`; fmt has a UTF-8 conflict in the nvcc device pass, so cuda_tool uses `std::runtime_error`; Eigen `::arg` needs a global shim (already built into `type_define.h`).
+- **The umbrella header `cuda_tool.h` does not include `cub.h`**: the CCCL device-algorithm headers are extremely heavy (~165k extra expanded lines per TU), so the ~23 files using the `Device*` wrappers explicitly `#include <cuda_tool/cub.h>`; `linear_system.h` no longer transitively includes cub.h either.
+- **RDC must be enabled** (`CUDA_SEPARABLE_COMPILATION ON` + `CUDA_RESOLVE_DEVICE_SYMBOLS ON`): `affine_body/utils.cu` defines `UIPC_GENERIC` free functions (e.g. `q_to_transform`) that are called across translation units by device code in other TUs; disabling RDC gives `ptxas fatal: Unresolved extern`. The xmake-side equivalent is `add_cuflags("-rdc=true")`.
+- **Lesson learned (correction dated 2026-08-20)**: CMake+ninja does not track compile-flag changes (purely mtime-driven) — after switching a global flag like RDC, a "full build" may actually only recompile TUs whose source files changed, and stale objects can slip through linking and create a false "verification passed" impression; after changing global flags you must manually clean the object directory before verifying. This once led to the wrong conclusion that RDC could be disabled (the RDC part of commit d2f48087 has since been corrected).
+- Compile-time profile (32 cores, CUDA 13.2, RTX 5090): full build ~4.7 min / ~8800 CPU·s, 219 .cu files averaging ~35s; a single TU's preprocessed expansion is ~1.63M lines, of which CUDA toolchain headers ~860k, WinSDK ~310k, MSVC STL ~150k, Eigen ~150k, the project itself <20k — the bulk is toolchain headers; the project headers have already been trimmed as far as possible.
+- The smoke test is kept as `test_compile.cu.txt`.
 
-## none 后端
+## none Backend
 
-`src/backends/none/`：空实现（`none::SimEngine` 各 `do_*` 基本 no-op），用作新后端模板与 core 基础功能自检。**注意：无 GPU 环境没有可用的计算后端**。
+`src/backends/none/`: an empty implementation (each `none::SimEngine` `do_*` is basically a no-op), used as a template for new backends and as a self-check of core basic functionality. **Note: environments without a GPU have no usable compute backend**.
