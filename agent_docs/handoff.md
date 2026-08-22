@@ -175,9 +175,14 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   摩擦 C1 平滑阈值 eps_velocity = 相对值 × scene_diagonal（Stiff-GIPC 惯例：
   其每步滑移阈值为 sqrt(fDhat)·dt = 1e-2·diag·dt）。libuipc 原默认
   0.01 m/s 绝对值，该场景下摩擦 Hessian 曲率比 Stiff 硬 ~840 倍。
-  实现于 `global_contact_manager.cu` Impl::init（与 d_hat_relative 同模式）。
-  6_wrecking_balls 与探针已设 1e-2。效果：线搜 α 恢复 0.9-1.0 健康区间
-  （此前 0.15-0.72），帧时持平。
+  实现于 `global_contact_manager.cu` Impl::init（与 d_hat_relative 同模式），
+  默认键注册于 `scene_default_config.cpp`。6_wrecking_balls 与探针已设 1e-2。
+  **真实效果（注册修复后实测）：牛顿 mean 4.46→3.70（Stiff 3.44，基本对齐）、
+  sum_pcg 349→250、帧均 129.9→114.5ms。**
+- **配置键教训**：scene config 只认 `scene_default_config.cpp` 里注册的键，
+  python 侧塞未注册键会被**静默丢弃**（`find` 返回 nullptr 走默认分支）。
+  eps_velocity_relative 初版未注册，导致对齐实验白跑一轮——新键必须同步
+  注册默认值，并用日志行确认生效（"Contact eps_velocity (relative): ..."）。
 - **CFL 语义修正**：原实现仅统计"已激活接触顶点"的位移（`vert_is_active_contact`
   掩码）——实测 wrecking ball 120 帧零触发，正在高速冲向接触的顶点恰好
   不在掩码内，可一步冲入深间隙。改为 Stiff-GIPC 设计：max|dx| 覆盖**全部
@@ -201,9 +206,9 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   （GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间（totalNT/ totalTime/
   total_Frames 是文件级全局量，跨帧累积），不是每帧时间！用 PAIRCOUNT
   插桩日志按边际量重算：Stiff 帧时 mean 57.6ms / median 54.3ms（按压帧
-  63-98ms）。即 libuipc 帧均 130.9ms 对 Stiff 是 **~2.3×（中位 1.45×）**，
-  每迭代成本 29.3 vs 24.4ms（1.2×）——并非此前以为的 5×。剩余差距主要
-  是按压帧牛顿数 4.5 vs 3.4（~1.3×）。
+  63-98ms）。**当前最终状态（全部对齐后）：libuipc 帧均 114.5ms / 牛顿
+  mean 3.70，对 Stiff 57.6ms / 3.44 —— 帧时 ~2.0×，牛顿数 ~1.08×。**
+  剩余差距在每迭代成本（PCG 尖峰 + 检测/装配吞吐，见上条分解）。
 
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 

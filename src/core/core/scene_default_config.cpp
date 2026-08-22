@@ -48,6 +48,9 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/friction/enable", IndexT{1});
     // friction transition velocity
     config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
+    // > 0: override eps_velocity with eps_velocity_relative * scene_diagonal
+    // (rest bbox), the Stiff-GIPC convention (sqrt(fDhat) = 1e-2 * diag)
+    config.create("contact/eps_velocity_relative", Float{0.0});
     
     // default:
     //  - ipc
