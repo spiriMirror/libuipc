@@ -90,9 +90,6 @@ jobs:
       - name: Setup vcpkg (Windows)
         if: matrix.os == 'windows-2022'
         id: vcpkg
-        env:
-          # tinygltf overlay port (see ports/tinygltf): unblocks the stale-hash download
-          VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/ports
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ env.WORKSPACE }}/build"
@@ -156,7 +153,6 @@ jobs:
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
             CMAKE_BUILD_PARALLEL_LEVEL="3"
-            VCPKG_OVERLAY_PORTS="/project/ports"
         with:
           package-dir: "."
           output-dir: "build/wheelhouse"

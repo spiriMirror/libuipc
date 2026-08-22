@@ -85,8 +85,27 @@ base_vcpkg_json = {
     ]
 }
 
+def overlay_ports_entry(output_dir):
+    # Overlay port for tinygltf (see ports/tinygltf): unblocks the stale
+    # SHA512 download after GitHub regenerated the v2.9.6 tarball. vcpkg
+    # resolves 'overlay-ports' relative to the directory holding
+    # vcpkg-configuration.json (the manifest/binary dir), whose nesting depth
+    # varies: plain CMake uses <repo>/build, scikit-build-core (cibuildwheel)
+    # uses <repo>/build/<wheel_tag>. Compute the path from the actual output
+    # dir so both layouts resolve to <repo>/ports.
+    repo_ports = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), 'ports')
+    try:
+        rel = os.path.relpath(repo_ports, os.path.abspath(output_dir))
+    except ValueError:
+        # different drives on Windows: fall back to the absolute path
+        rel = repo_ports
+    return rel.replace('\\', '/')
+
+
 # vcpkg-configuration.json
 base_vcpkg_configuration = {
+    'overlay-ports': [],  # filled in by write_vcpkg_configuration()
     'default-registry': {
         'kind': 'git',
         'baseline': VCPKG_BASE_LINE,
@@ -174,7 +193,9 @@ def write_vcpkg_configuration(args):
     config_path = f'{args.output_dir}/vcpkg-configuration.json'
 
     is_dev_mode = is_enabled(args.dev_mode)
-    
+
+    base_vcpkg_configuration['overlay-ports'] = [overlay_ports_entry(args.output_dir)]
+
     is_new, changed = JsonFileWriter.write_json(config_path, base_vcpkg_configuration)
 
     if is_new:
