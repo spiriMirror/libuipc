@@ -72,6 +72,32 @@ FEMLineSearchReporter_step_forward_kernel
 - Memory operations such as `buffer::kernel_fill<int>` uniformly go through `cuda_tool::BufferLaunch` (internally named template kernels).
 - `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
 
+## FusedPCG CUDA graph replay (linear_system/use_cuda_graph, default 1)
+
+The per-iteration kernel chain of `LinearFusedPCG` (spmv_dot → update_xr →
+preconditioner → dot → converged → update_p → swap_rz) is ~10 tiny launches
+whose launch gaps dominated the wall time (~80 µs of ~118 µs per iteration on
+case2-scale scenes). `linear_fused_pcg.cu` now captures `check_interval`
+iterations as one CUDA graph and replays it per block; the host convergence
+check cadence is unchanged. Numerics: identical kernels/args/order; expect
+ULP-level trajectory divergence after contact onset (see doc 08).
+
+- Graph validity key: x/b/r/z/p/Ap buffer pointers, matrix row/col/value
+  pointers, matrix triplet_count, N, check_interval, max_iter — any change
+  recaptures. rz_tol lives on device (`d_rz_tol`, synchronously uploaded per
+  solve) so tolerance changes do NOT force recapture.
+- Stream plumbing: `Spmv::rbk_sym_spmv_dot`, `GlobalLinearSystem::Impl`
+  `spmv_dot/apply_preconditioner`, `IterativeSolver` pass-throughs,
+  `ApplyPreconditionerInfo::stream()`, and the ABD/FEM diag preconditioners
+  all accept an optional launch stream (default = legacy default stream =
+  unchanged behavior). The MAS preconditioner engine is NOT plumbed; scenes
+  using it fail capture and fall back to the plain loop permanently (warned
+  once).
+- `linear_system/check_interval` is now a registered config key (default 5) —
+  it was previously unregistered and silently dropped.
+- Per-iteration "SpMV"/"Apply Preconditioner" Timer entries disappear from
+  reports when replaying (graph blocks only report under "FusedPCG").
+
 ## GPU Coding Guidelines (excerpted from review-pr / simulation-dev)
 
 - Buffer parameters use view types such as `cuda_tool::BufferView` / `cuda_tool::TripletMatrixView`; **raw pointers are forbidden**.

@@ -28,6 +28,20 @@
 >   keeps the benchmark loop; parameters untouched).
 > - External PR #461 (EmbeddedCollisionMesh) reviewed — verdict and the
 >   three must-fix bugs recorded in doc 09.
+> - **FusedPCG CUDA-graph block replay (2026-08-23)**: `check_interval`-sized
+>   iteration blocks are captured once per (buffer-set, N, triplet-count) and
+>   replayed as single graph launches; case2 250-frame benchmark 301 →
+>   233 ms/frame (~1.29×). Config `linear_system/use_cuda_graph` (default 1);
+>   `linear_system/check_interval` is now a registered key (default 5 — it was
+>   unregistered and silently dropped before). Details and traps in doc 05/08.
+>   Notable bugs found during the work: rz_tol async-upload vs graph-launch
+>   stream race (sync upload now), triplet_count missing from the graph key,
+>   and Timer objects created during stream capture deterministically crashing
+>   the single-process suite binary (0xC0000409) — capture path creates no
+>   Timer objects anymore (plain path keeps them for case 59's SpMV counts).
+>   The al-ipc pipeline is gated off graph replay for now (crash observed only
+>   in the C++ suite binary's al-ipc section; python repro passes — root cause
+>   open, see doc 09).
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

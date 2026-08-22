@@ -137,6 +137,23 @@ touching that area; several of these have bitten us more than once.
 - Kernel launch block sizes come from `cuda_tool::best_block_dim(kernel)`
   with a **per-kernel-address** occupancy cache (see the suite-pollution
   entry above — never key it by type).
+- **CUDA-graph capture traps** (learned the hard way in the FusedPCG graph
+  work):
+  - A captured graph bakes every kernel's **by-value arguments** — including
+    counts embedded in views (e.g. SpMV's `triplet_count`). A buffer that is
+    refilled in place with a different count leaves the graph reading a stale
+    size. Validity keys must include such counts, not just pointers.
+  - **Blocking streams do not wait for legacy-default-stream work.** A
+    `cudaMemcpyAsync` H2D on the default stream followed by
+    `cudaGraphLaunch` on a blocking stream races (we read an uninitialized
+    device tolerance → `dx=0` → flat line-search energy). Upload
+    graph-consumed host data with a *synchronous* `cudaMemcpy`.
+  - A launch into the legacy default stream during capture invalidates the
+    capture (detected at `cudaStreamEndCapture`) — use that as the automatic
+    fallback signal for un-plumbed callees.
+  - Graph replay vs plain launches can schedule blocks differently →
+    different atomic-add arrival order → ULP divergence → chaotic scenes
+    diverge after contact onset. Expected; do not chase bit-equality there.
 - `DeviceVector::resize(n)` value-initializes the grown tail (thrust
   parity); `loose_resize_entries` deliberately does NOT initialize —
   see below.

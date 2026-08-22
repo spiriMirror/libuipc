@@ -28,8 +28,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
   convergence — see doc 08)
 
 **Planned levers (in priority order)**:
-1. Cooperative-groups persistent-kernel fusion or CUDA-graph capture of the
-   PCG inner loop (estimated 2-3× on PCG).
+1. ~~Cooperative-groups persistent-kernel fusion or CUDA-graph capture of the
+   PCG inner loop~~ **DONE (2026-08-23)**: FusedPCG now replays
+   `check_interval`-sized iteration blocks as CUDA graphs
+   (`linear_system/use_cuda_graph`, default on; details in doc 05).
+   Remaining within-PCG cost is the ~83-iteration count itself.
 2. Fuse exact distance tests into BVH query predicates; materialize only
    active pairs (kills the 450k-candidate overhead).
 3. SNH/FEM assembly kernel throughput (profile `make_spd` EVD alternatives
@@ -54,6 +57,23 @@ assertions).
 | `octree v2.5` | `src/geometry/xmake.lua` | xmake-repo layout stabilizes |
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
 | `johnwason/vcpkg-action revision: master` | `.github/workflows/*.yml` | pin to a known-good commit proactively (drift risk, same class as the three above) |
+
+## Open issues
+
+- **CUDA-graph capture crash in the C++ suite binary (worked around)**: with
+  Timer objects created inside the captured call chain, the single-process
+  suite deterministically fail-fasted (0xC0000409) at the second engine's
+  capture (never in isolation, never in python multi-engine repro). The
+  capture path now creates no Timers. A second unresolved thread: al-ipc +
+  graph capture crashed in the suite binary even without Timers (python
+  al-ipc captures fine) — graph replay is gated to `contact/constitution ==
+  "ipc"` until root-caused. Both symptoms point at some lurking global-state
+  interaction with stream capture in the test binary; if someone revisits,
+  start from `scripts/run_sim_case_isolated.py` + a binary-search over
+  engine-count.
+- **Remaining case2 gap after the PCG graph work**: measure again with the
+  graph on; the next levers are BVH distance-fusion and FEM assembly
+  throughput (doc above).
 
 ## External PRs under review
 
