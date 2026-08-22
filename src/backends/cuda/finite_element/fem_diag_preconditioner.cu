@@ -122,7 +122,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         int  n = (int)diag_inv.size();
         if(n > 0)
         {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.r(), info.z(), converged.cviewer(), diag_inv.view(), n);
         }
     }

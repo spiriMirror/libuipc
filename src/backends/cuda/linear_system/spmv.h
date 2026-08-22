@@ -31,12 +31,15 @@ class Spmv
 
     // reduce by key symmetric spmv with fused dot product
     // computes y = a * A * x  AND  d_dot = x^T * (a * A * x) in a single pass
+    // `stream` defaults to the legacy default stream; pass a capture stream
+    // when recording a CUDA graph.
     void rbk_sym_spmv_dot(Float                                a,
                           cuda_tool::CBCOOMatrixView<Float, 3> A,
                           cuda_tool::CDenseVectorView<Float>   x,
                           Float                                b,
                           cuda_tool::DenseVectorView<Float>    y,
-                          cuda_tool::VarView<Float>            d_dot);
+                          cuda_tool::VarView<Float>            d_dot,
+                          cudaStream_t                         stream = nullptr);
 
     // debug fallback cpu spmv
     // very slow, only for debug

@@ -460,7 +460,8 @@ void GlobalLinearSystem::Impl::distribute_solution()
 
 void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<Float> z,
                                                     cuda_tool::CDenseVectorView<Float> r,
-                                                    cuda_tool::CVarView<IndexT> converged)
+                                                    cuda_tool::CVarView<IndexT> converged,
+                                                    cudaStream_t stream)
 {
     (void)converged;
     auto diag_dof_counts  = diag_dof_offsets_counts.counts();
@@ -472,6 +473,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
         info.m_z         = z;
         info.m_r         = r;
         info.m_converged = converged;
+        info.m_stream    = stream;
         global_preconditioner->apply(info);
     }
 
@@ -484,6 +486,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
         info.m_z                       = z.subview(offset, count);
         info.m_r                       = r.subview(offset, count);
         info.m_converged               = converged;
+        info.m_stream                  = stream;
         preconditioner->apply(info);
     }
 
@@ -496,7 +499,8 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
             auto count  = diag_dof_counts[i];
             auto z_sub  = z.subview(offset, count);
             auto r_sub  = r.subview(offset, count);
-            z_sub.buffer_view().copy_from(r_sub.buffer_view());
+            cuda_tool::BufferLaunch(stream).copy(z_sub.buffer_view(),
+                                                 r_sub.buffer_view());
         }
     }
 }
@@ -515,9 +519,10 @@ void GlobalLinearSystem::Impl::spmv(Float                              a,
 
 void GlobalLinearSystem::Impl::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                                         cuda_tool::DenseVectorView<Float>  y,
-                                        cuda_tool::VarView<Float> d_dot)
+                                        cuda_tool::VarView<Float> d_dot,
+                                        cudaStream_t stream)
 {
-    spmver.rbk_sym_spmv_dot(1.0, bcoo_A.cview(), x, 0.0, y, d_dot);
+    spmver.rbk_sym_spmv_dot(1.0, bcoo_A.cview(), x, 0.0, y, d_dot, stream);
 }
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
