@@ -5,6 +5,7 @@
 #include <kernel_cout.h>
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
+#include <algorithm>
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <utils/distance.h>
@@ -309,14 +310,59 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
 
     auto mask_map = Eigen::Map<MaskMatrix>(h_contact_mask_tabular.data(), N, N);
 
+    // Default contact stiffness policy:
+    //  - user never called default_model() -> use contact/adaptive/min_kappa
+    //  - user set it -> clamp into [min_kappa, max_kappa] and remind the range
+    //  - negative kappa (adaptive-kappa opt-in) is never clamped
+    auto& scene_cfg = world.scene().config();
+    Float min_kappa =
+        scene_cfg.find<Float>("contact/adaptive/min_kappa")->view()[0];
+    Float max_kappa =
+        scene_cfg.find<Float>("contact/adaptive/max_kappa")->view()[0];
+
+    Float default_kappa = resistance_view[0];
+    if(!world.scene().contact_tabular().default_model_is_user_set())
+    {
+        default_kappa = min_kappa;
+        logger::info(
+            "Contact default kappa not set by user; using contact/adaptive/min_kappa = {}",
+            min_kappa);
+    }
+    else if(default_kappa >= 0.0 && (default_kappa < min_kappa || default_kappa > max_kappa))
+    {
+        logger::warn("Contact default kappa {} is clamped to [{}] (valid range: [{}, {}])",
+                     default_kappa,
+                     std::clamp(default_kappa, min_kappa, max_kappa),
+                     min_kappa,
+                     max_kappa);
+        default_kappa = std::clamp(default_kappa, min_kappa, max_kappa);
+    }
+
     h_contact_tabular.resize(
-        N * N, ContactCoeff{.kappa = resistance_view[0], .mu = friction_rate_view[0]});
+        N * N, ContactCoeff{.kappa = default_kappa, .mu = friction_rate_view[0]});
 
     // set the defined contact model
-    for(auto&& [ids, kappa, mu, is_enabled] :
-        zip(topo_view, resistance_view, friction_rate_view, enabled_view))
+    for(SizeT i = 0; i < topo_view.size(); ++i)
     {
-        ContactCoeff coeff{.kappa = kappa, .mu = mu};
+        auto  ids = topo_view[i];
+        Float kappa = resistance_view[i];
+        Float mu = friction_rate_view[i];
+        auto& is_enabled = enabled_view[i];
+
+        // entry 0 is the default model: use the policy-resolved default kappa
+        Float kk = (i == 0) ? default_kappa : kappa;
+        if(kk >= 0.0 && (kk < min_kappa || kk > max_kappa))
+        {
+            Float clamped = std::clamp(kk, min_kappa, max_kappa);
+            if(i != 0)
+                logger::warn(
+                    "Contact kappa {} for model ({},{}) is clamped to {} "
+                    "(valid range: [{}, {}])",
+                    kk, ids.x(), ids.y(), clamped, min_kappa, max_kappa);
+            kk = clamped;
+        }
+
+        ContactCoeff coeff{.kappa = kk, .mu = mu};
 
         auto upper                 = ids.x() * N + ids.y();
         h_contact_tabular[upper]   = coeff;

@@ -39,6 +39,7 @@ class ContactTabular::Impl
 
         auto default_element = create("default");
         insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
+        m_default_model_user_set = false;
     }
 
     ContactElement create(std::string_view name) noexcept
@@ -149,6 +150,7 @@ class ContactTabular::Impl
         view(*m_friction_rates)[0] = friction_rate;
         view(*m_resistances)[0]    = resistance;
         view(*m_is_enabled)[0]     = enable;
+        m_default_model_user_set   = true;
     }
 
     ContactModel default_model() const noexcept { return at(0, 0); }
@@ -181,6 +183,8 @@ class ContactTabular::Impl
     mutable S<geometry::AttributeSlot<Vector2i>> m_topo;
     mutable S<geometry::AttributeSlot<Float>>    m_friction_rates;
     mutable S<geometry::AttributeSlot<Float>>    m_resistances;
+
+        bool m_default_model_user_set = false;
     mutable S<geometry::AttributeSlot<IndexT>>   m_is_enabled;
 
     void _append_contact_models()
@@ -286,6 +290,11 @@ ContactElement ContactTabular::default_element() noexcept
 ContactModel ContactTabular::default_model() const noexcept
 {
     return m_impl->default_model();
+}
+
+bool ContactTabular::default_model_is_user_set() const noexcept
+{
+    return m_impl->m_default_model_user_set;
 }
 
 ContactModelCollection ContactTabular::contact_models() noexcept

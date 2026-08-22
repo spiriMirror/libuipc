@@ -50,6 +50,16 @@ class UIPC_CORE_API ContactTabular final
     ContactElement default_element() noexcept;
     ContactModel   default_model() const noexcept;
 
+    /**
+     * @brief Whether default_model(...) was ever called by the user.
+     *
+     * Used by the backend to resolve the default contact stiffness:
+     * unset -> use contact/adaptive/min_kappa; set -> clamp the user's value
+     * into [min_kappa, max_kappa] (a warning reminds the user of the range);
+     * negative values (adaptive-kappa opt-in) are never clamped.
+     */
+    bool default_model_is_user_set() const noexcept;
+
 
     friend UIPC_CORE_API void to_json(Json& j, const ContactTabular& ct);
 

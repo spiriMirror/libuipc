@@ -510,3 +510,22 @@ regression).
 - Full-suite logs: `output/test_sim_case_fix1.log` / `_run2.log`
   (post-migration, all passing); baseline reference
   `output/test_sim_case_baseline.log`.
+
+## Default kappa policy (after `3982c6bb`)
+
+- Rule (user requirement): if the user never calls `default_model(...)`, the
+  effective default contact stiffness is `contact/adaptive/min_kappa`
+  (default 1e8); if the user set it, the value is clamped into
+  [min_kappa, max_kappa] (defaults [1e8, 1e11]) with a warning that prints the
+  valid range; negative kappa (adaptive-kappa opt-in) is never clamped and
+  takes precedence (the GIPCAdaptiveParameterStrategy path).
+- Implementation: `ContactTabular` tracks `default_model_is_user_set()` (new
+  public getter, additive); the policy is applied at
+  `GlobalContactManager::Impl::_build_contact_tabular` when the host-side
+  coeff table is filled, so the device table always carries the resolved
+  values while the adaptive strategy keeps reading the core attribute for its
+  negative-marker detection (unclamped by design).
+- Verified: smoke test of all five cases (unset / below-min / above-max /
+  in-range / negative marker) behaves exactly per spec; full sim suite
+  95/14214 + 6 fast binaries green. Note the built-in default stiffness
+  effectively changes 1e9 -> 1e8 for scenes that never set the default model.
