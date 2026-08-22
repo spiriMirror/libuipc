@@ -4,6 +4,8 @@
 #include <uipc/common/timer.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cuda_tool/cub.h>
+#include <algorithm>
+#include <optional>
 namespace uipc::backend::cuda
 {
 namespace
@@ -77,18 +79,28 @@ namespace
 
     __global__ void fused_update_converged_kernel(cuda_tool::CDense<Float> d_rz_new,
                                                   cuda_tool::Dense<IndexT> d_converged,
-                                                  Float rz_tol,
+                                                  cuda_tool::CDense<Float> d_rz_tol,
                                                   int   n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
         Float rz_new = *d_rz_new;
+        Float rz_tol = *d_rz_tol;
         *d_converged = abs(rz_new) <= rz_tol ? 1 : 0;
     }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(LinearFusedPCG);
+
+LinearFusedPCG::~LinearFusedPCG()
+{
+    destroy_graph();
+    if(m_capture_stream)
+        cudaStreamDestroy(m_capture_stream);
+    if(m_graph_stream)
+        cudaStreamDestroy(m_graph_stream);
+}
 
 void LinearFusedPCG::do_build(BuildInfo& info)
 {
@@ -113,6 +125,23 @@ void LinearFusedPCG::do_build(BuildInfo& info)
     if(check_attr)
         check_interval = check_attr->view()[0];
 
+    auto graph_attr = config.find<IndexT>("linear_system/use_cuda_graph");
+    if(graph_attr)
+        m_use_cuda_graph = graph_attr->view()[0];
+
+    // v1 scope: graph replay is only enabled for the default IPC pipeline.
+    // The al-ipc pipeline hits a host-side fail-fast (0xC0000409) during
+    // stream capture *in the C++ test binary only* (the equivalent python
+    // al-ipc scenes capture and replay fine) — root cause not yet found, so
+    // keep al-ipc on the plain launch path until it is. See doc 09.
+    auto constitution_attr = config.find<std::string>("contact/constitution");
+    if(constitution_attr && constitution_attr->view()[0] != "ipc"
+       && m_use_cuda_graph != 0)
+    {
+        m_use_cuda_graph = 0;
+        logger::info("LinearFusedPCG: contact/constitution != ipc — CUDA graph replay disabled");
+    }
+
     auto dump_attr = config.find<IndexT>("extras/debug/dump_linear_pcg");
     if(dump_attr && dump_attr->view()[0] != 0)
         logger::warn(
@@ -120,10 +149,11 @@ void LinearFusedPCG::do_build(BuildInfo& info)
             "fused_pcg does not support PCG vector dumps. "
             "Set linear_system/solver to \"linear_pcg\" to use this feature.");
 
-    logger::info("LinearFusedPCG: max_iter_ratio = {}, tol_rate = {}, check_interval = {}",
+    logger::info("LinearFusedPCG: max_iter_ratio = {}, tol_rate = {}, check_interval = {}, use_cuda_graph = {}",
                  max_iter_ratio,
                  global_tol_rate,
-                 check_interval);
+                 check_interval,
+                 m_use_cuda_graph);
 }
 
 void LinearFusedPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
@@ -201,9 +231,10 @@ void LinearFusedPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
 // d_result = x^T * y  (cublas-free, device-only, CUB warp reduction)
 void fused_dot(cuda_tool::CDenseVectorView<Float> x,
                cuda_tool::CDenseVectorView<Float> y,
-               cuda_tool::VarView<Float>          d_result)
+               cuda_tool::VarView<Float>          d_result,
+               cudaStream_t                       stream = nullptr)
 {
-    cudaMemsetAsync(d_result.data(), 0, sizeof(Float));
+    cudaMemsetAsync(d_result.data(), 0, sizeof(Float), stream);
 
     constexpr int block_dim   = 256;
     int           n           = x.size();
@@ -211,7 +242,7 @@ void fused_dot(cuda_tool::CDenseVectorView<Float> x,
 
     if(block_count > 0)
     {
-        fused_dot_kernel<<<block_count, block_dim, 0, nullptr>>>(
+        fused_dot_kernel<<<block_count, block_dim, 0, stream>>>(
             x.cviewer(), y.cviewer(), d_result.viewer(), n);
     }
 }
@@ -223,12 +254,13 @@ void fused_update_xr(cuda_tool::CVarView<Float>         d_rz,
                      cuda_tool::DenseVectorView<Float>  x,
                      cuda_tool::CDenseVectorView<Float> p,
                      cuda_tool::DenseVectorView<Float>  r,
-                     cuda_tool::CDenseVectorView<Float> Ap)
+                     cuda_tool::CDenseVectorView<Float> Ap,
+                     cudaStream_t                       stream = nullptr)
 {
     int n = r.size();
     if(n > 0)
     {
-        fused_update_xr_kernel<<<cuda_tool::best_grid_dim(n, fused_update_xr_kernel), cuda_tool::best_block_dim(fused_update_xr_kernel), 0, nullptr>>>(
+        fused_update_xr_kernel<<<cuda_tool::best_grid_dim(n, fused_update_xr_kernel), cuda_tool::best_block_dim(fused_update_xr_kernel), 0, stream>>>(
             d_rz.cviewer(),
             d_pAp.cviewer(),
             d_converged.cviewer(),
@@ -246,12 +278,13 @@ void fused_update_p(cuda_tool::CVarView<Float>         d_rz_new,
                     cuda_tool::CVarView<Float>         d_rz,
                     cuda_tool::CVarView<IndexT>        d_converged,
                     cuda_tool::DenseVectorView<Float>  p,
-                    cuda_tool::CDenseVectorView<Float> z)
+                    cuda_tool::CDenseVectorView<Float> z,
+                    cudaStream_t                       stream = nullptr)
 {
     int n = p.size();
     if(n > 0)
     {
-        fused_update_p_kernel<<<cuda_tool::best_grid_dim(n, fused_update_p_kernel), cuda_tool::best_block_dim(fused_update_p_kernel), 0, nullptr>>>(
+        fused_update_p_kernel<<<cuda_tool::best_grid_dim(n, fused_update_p_kernel), cuda_tool::best_block_dim(fused_update_p_kernel), 0, stream>>>(
             d_rz_new.cviewer(), d_rz.cviewer(), d_converged.cviewer(), p.viewer(), z.cviewer(), n);
     }
 }
@@ -259,20 +292,162 @@ void fused_update_p(cuda_tool::CVarView<Float>         d_rz_new,
 // d_rz = d_rz_new when not converged (single-thread write).
 void fused_swap_rz(cuda_tool::CVarView<Float>  d_rz_new,
                    cuda_tool::VarView<Float>   d_rz,
-                   cuda_tool::CVarView<IndexT> d_converged)
+                   cuda_tool::CVarView<IndexT> d_converged,
+                   cudaStream_t                stream = nullptr)
 {
     // single-thread kernel (muda Launch() parity: 1 block x 1 thread)
-    fused_swap_rz_kernel<<<1, 1, 0, nullptr>>>(
+    fused_swap_rz_kernel<<<1, 1, 0, stream>>>(
         d_rz_new.cviewer(), d_rz.viewer(), d_converged.cviewer());
 }
 
-void fused_update_converged(cuda_tool::CVarView<Float> d_rz_new,
-                            cuda_tool::VarView<IndexT> d_converged,
-                            Float                      rz_tol)
+// d_converged = |rz_new| <= rz_tol (single-thread write); rz_tol lives on
+// device so a captured CUDA graph survives tolerance changes between solves.
+void fused_update_converged(cuda_tool::CVarView<Float>  d_rz_new,
+                            cuda_tool::VarView<IndexT>  d_converged,
+                            cuda_tool::CVarView<Float>  d_rz_tol,
+                            cudaStream_t                stream = nullptr)
 {
     int n = 1;
-    fused_update_converged_kernel<<<cuda_tool::best_grid_dim(n, fused_update_converged_kernel), cuda_tool::best_block_dim(fused_update_converged_kernel), 0, nullptr>>>(
-        d_rz_new.cviewer(), d_converged.viewer(), rz_tol, n);
+    fused_update_converged_kernel<<<cuda_tool::best_grid_dim(n, fused_update_converged_kernel), cuda_tool::best_block_dim(fused_update_converged_kernel), 0, stream>>>(
+        d_rz_new.cviewer(), d_converged.viewer(), d_rz_tol.cviewer(), n);
+}
+
+// One PCG iteration on `stream`; the unit of both graph capture and the
+// uncaptured fallback. Kernels/arguments/order are identical either way.
+// `timed` adds the per-iteration "SpMV"/"Apply Preconditioner" Timers —
+// plain path only; during graph capture no Timer objects may be created
+// (empirically corrupts state in the single-process test suite binary).
+void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x,
+                                   cudaStream_t stream, bool timed)
+{
+    // Ap = A * p,  pAp = p^T * Ap
+    {
+        std::optional<Timer> timer;
+        if(timed)
+            timer.emplace("SpMV");
+        spmv_dot(p.cview(), Ap.view(), d_pAp.view(), stream);
+    }
+
+    // alpha = rz / pAp,  x += alpha * p,  r -= alpha * Ap
+    fused_update_xr(
+        d_rz.view(), d_pAp.view(), d_converged.view(), x, p.cview(), r.view(), Ap.cview(), stream);
+
+    // z = P^{-1} * r
+    {
+        std::optional<Timer> timer;
+        if(timed)
+            timer.emplace("Apply Preconditioner");
+        apply_preconditioner(z, r, d_converged.view(), stream);
+    }
+
+    // rz_new = r^T * z, keep convergence flag on device for preconditioner skip.
+    fused_dot(r.cview(), z.cview(), d_rz_new.view(), stream);
+    fused_update_converged(d_rz_new.view(), d_converged.view(), d_rz_tol.view(), stream);
+
+    // p = z + beta * p (skip when abs(rz_new) <= rz_tol), then rz = rz_new.
+    fused_update_p(d_rz_new.view(), d_rz.view(), d_converged.view(), p.view(), z.cview(), stream);
+    fused_swap_rz(d_rz_new.view(), d_rz.view(), d_converged.view(), stream);
+}
+
+// ---------------------------------------------------------------------------
+// CUDA graph block replay
+// ---------------------------------------------------------------------------
+
+void LinearFusedPCG::destroy_graph()
+{
+    if(m_graph_exec)
+    {
+        cudaGraphExecDestroy(m_graph_exec);
+        m_graph_exec = nullptr;
+    }
+    if(m_graph)
+    {
+        cudaGraphDestroy(m_graph);
+        m_graph = nullptr;
+    }
+    m_graph_n = 0;
+}
+
+bool LinearFusedPCG::graph_key_matches(cuda_tool::DenseVectorView<Float>  x,
+                                       cuda_tool::CDenseVectorView<Float> b,
+                                       SizeT                              interval,
+                                       SizeT                              max_iter) const
+{
+    if(!m_graph_exec)
+        return false;
+    auto A = matrix_data_ptrs();
+    std::array<const void*, 12> ptrs = {x.data(),  b.data(),  r.buffer_view().data(),
+                                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
+                                        A[0],      A[1],      A[2],
+                                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
+    return m_graph_n == x.size() && m_graph_interval == interval
+           && m_graph_max_iter == max_iter && m_graph_ptrs == ptrs
+           && m_graph_triplets == matrix_triplet_count();
+}
+
+void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
+                                   cuda_tool::CDenseVectorView<Float> b,
+                                   SizeT                              interval,
+                                   SizeT                              max_iter)
+{
+    destroy_graph();
+
+    if(!m_capture_stream)
+        cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamNonBlocking);
+
+    cudaError_t err =
+        cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
+    if(err != cudaSuccess)
+    {
+        cudaGetLastError();
+        logger::warn("LinearFusedPCG: cudaStreamBeginCapture failed ({}); "
+                     "CUDA graph replay disabled for this instance",
+                     cudaGetErrorString(err));
+        m_graph_disabled = true;
+        return;
+    }
+
+    // recorded, not executed; the block is launched for real right after
+    for(SizeT i = 0; i < interval; ++i)
+        run_iteration(x, m_capture_stream, false);
+    err = cudaStreamEndCapture(m_capture_stream, &m_graph);
+    if(err != cudaSuccess || m_graph == nullptr)
+    {
+        // a callee launched outside the capture stream (e.g. the MAS
+        // preconditioner engine): the capture is invalidated
+        cudaGetLastError();
+        logger::warn("LinearFusedPCG: stream capture invalidated ({}); "
+                     "CUDA graph replay disabled for this instance",
+                     cudaGetErrorString(err));
+        m_graph          = nullptr;
+        m_graph_disabled = true;
+        return;
+    }
+    err = cudaGraphInstantiateWithFlags(&m_graph_exec, m_graph, 0);
+    if(err != cudaSuccess)
+    {
+        cudaGetLastError();
+        logger::warn("LinearFusedPCG: cudaGraphInstantiate failed ({}); "
+                     "CUDA graph replay disabled for this instance",
+                     cudaGetErrorString(err));
+        destroy_graph();
+        m_graph_disabled = true;
+        return;
+    }
+
+    logger::info("LinearFusedPCG: captured CUDA graph (interval = {}, n = {})",
+                 interval,
+                 x.size());
+
+    auto A = matrix_data_ptrs();
+    m_graph_ptrs     = {x.data(),  b.data(),  r.buffer_view().data(),
+                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
+                        A[0],      A[1],      A[2],
+                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
+    m_graph_n        = x.size();
+    m_graph_interval = interval;
+    m_graph_max_iter = max_iter;
+    m_graph_triplets = matrix_triplet_count();
 }
 
 SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
@@ -281,7 +456,6 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
 {
     Timer pcg_timer{"FusedPCG"};
 
-    SizeT k     = 0;
     d_converged = 0;
 
     // r = b - A*x, but x0 = 0 so r = b
@@ -306,45 +480,62 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
         return 0;
 
     Float rz_tol = global_tol_rate * abs_rz0;
+    // synchronous upload: an async copy on the default stream would race with
+    // the graph launch on m_graph_stream (blocking streams do not wait for
+    // legacy-stream work), letting the converged kernel read a stale/uninit
+    // tolerance. (Symptom was dx=0 -> flat line-search energy.)
+    CUDA_TOOL_CHECK(cudaMemcpy(
+        d_rz_tol.data(), &rz_tol, sizeof(Float), cudaMemcpyHostToDevice));
     SizeT effective_check_interval = check_interval > 0 ? check_interval : SizeT{1};
 
-    for(k = 1; k < max_iter; ++k)
+    SizeT total_iters = max_iter > 0 ? max_iter - 1 : 0;
+    SizeT iter_done   = 0;
+    bool  converged   = false;
+
+    while(true)
     {
-        // Ap = A * p,  pAp = p^T * Ap
+        SizeT block = std::min(effective_check_interval, total_iters - iter_done);
+
+        bool graph_block = m_use_cuda_graph && !m_graph_disabled
+                           && block == effective_check_interval;
+        if(graph_block)
         {
-            Timer timer{"SpMV"};
-            spmv_dot(p.cview(), Ap.view(), d_pAp.view());
+            if(!graph_key_matches(x, b, effective_check_interval, max_iter))
+                rebuild_graph(x, b, effective_check_interval, max_iter);
+
+            if(m_graph_exec)
+            {
+                if(!m_graph_stream)
+                    cudaStreamCreateWithFlags(&m_graph_stream, cudaStreamDefault);
+                cudaGraphLaunch(m_graph_exec, m_graph_stream);
+                // order the host check after the replayed block
+                cudaStreamSynchronize(m_graph_stream);
+            }
+            else  // capture failed: plain path
+            {
+                for(SizeT i = 0; i < block; ++i)
+                    run_iteration(x, nullptr, true);
+            }
         }
-
-        // alpha = rz / pAp,  x += alpha * p,  r -= alpha * Ap
-        fused_update_xr(
-            d_rz.view(), d_pAp.view(), d_converged.view(), x, p.cview(), r.view(), Ap.cview());
-
-        // z = P^{-1} * r
+        else  // tail block / graph disabled
         {
-            Timer timer{"Apply Preconditioner"};
-            apply_preconditioner(z, r, d_converged.view());
+            for(SizeT i = 0; i < block; ++i)
+                run_iteration(x, nullptr, true);
         }
+        iter_done += block;
 
-        // rz_new = r^T * z, keep convergence flag on device for preconditioner skip.
-        fused_dot(r.cview(), z.cview(), d_rz_new.view());
-        fused_update_converged(d_rz_new.view(), d_converged.view(), rz_tol);
-
-        // Check error ratio periodically to avoid per-iteration D2H synchronization.
-        bool do_check = (k % effective_check_interval == 0) || (k + 1 == max_iter);
-        if(do_check)
+        // host convergence check, same cadence as the plain loop
+        Float rz_new_host = d_rz_new;
+        check_iter_rz_nan_inf(rz_new_host, iter_done);
+        if((std::abs(rz_new_host) / abs_rz0) <= global_tol_rate)
         {
-            Float rz_new_host = d_rz_new;
-            check_iter_rz_nan_inf(rz_new_host, k);
-            if((std::abs(rz_new_host) / abs_rz0) <= global_tol_rate)
-                break;
+            converged = true;
+            break;
         }
-
-        // p = z + beta * p (skip when abs(rz_new) <= rz_tol), then rz = rz_new.
-        fused_update_p(d_rz_new.view(), d_rz.view(), d_converged.view(), p.view(), z.cview());
-        fused_swap_rz(d_rz_new.view(), d_rz.view(), d_converged.view());
+        if(iter_done >= total_iters)
+            break;
     }
 
-    return k;
+    return converged ? iter_done : max_iter;
 }
 }  // namespace uipc::backend::cuda

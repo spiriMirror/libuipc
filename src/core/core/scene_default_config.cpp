@@ -36,6 +36,14 @@ geometry::AttributeCollection default_scene_config() noexcept
     //  - linear_pcg (30% slower)
     config.create("linear_system/solver", std::string{"fused_pcg"});
 
+    // replay check_interval-sized blocks of FusedPCG iterations as a CUDA
+    // graph (1, default) or run the plain per-iteration kernel launches (0)
+    config.create("linear_system/use_cuda_graph", IndexT{1});
+
+    // convergence is checked on the host every this many PCG iterations
+    // (larger = fewer D2H stalls, coarser exit granularity)
+    config.create("linear_system/check_interval", IndexT{5});
+
     config.create("line_search/max_iter", IndexT{8});
     config.create("line_search/report_energy", IndexT{0});
 

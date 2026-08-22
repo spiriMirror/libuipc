@@ -29,6 +29,10 @@ void run_bunny_scene(const std::string& output_path, bool use_mas)
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    // this benchmark reads the per-iteration "SpMV" timer counts, which only
+    // exist on the plain launch path; CUDA-graph replay intentionally has no
+    // per-iteration host observation
+    config["linear_system"]["use_cuda_graph"] = 0;
 
     Scene scene{config};
     {
