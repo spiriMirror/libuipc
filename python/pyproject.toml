@@ -62,7 +62,7 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 
 [project.optional-dependencies]
 gui = ["polyscope"]
-dev = ["pytest"]
+dev = ["pytest>=9.0.3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
