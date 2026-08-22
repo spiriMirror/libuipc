@@ -50,7 +50,7 @@ class InfoStacklessBVHV0
 
       public:
         friend class InfoStacklessBVHV0;
-        SizeT                            m_size = 0;
+        SizeT                                 m_size = 0;
         cuda_tool::DeviceBuffer<Vector2i>     m_pairs;
         cuda_tool::DeviceBuffer<unsigned int> m_queryMtCode;
         cuda_tool::DeviceVar<AABB>            m_querySceneBox;
@@ -90,9 +90,9 @@ class InfoStacklessBVHV0
                cuda_tool::CBufferView<IndexT>   query_BIDs,
                cuda_tool::CBufferView<IndexT>   query_CIDs,
                cuda_tool::CBuffer2DView<IndexT> cmts,
-               NodePred                    np,
-               LeafPred                    lp,
-               QueryBuffer&                qbuffer);
+               NodePred                         np,
+               LeafPred                         lp,
+               QueryBuffer&                     qbuffer);
 
     Config&       config() noexcept { return m_impl.config; }
     const Config& config() const noexcept { return m_impl.config; }
@@ -119,14 +119,14 @@ class InfoStacklessBVHV0
                           cuda_tool::CBufferView<IndexT> cids);
 
         template <typename NodeCull, typename PairPred>
-        void stacklessSelf(NodeCull                   node_cull,
-                           PairPred                   pair_pred,
+        void stacklessSelf(NodeCull                        node_cull,
+                           PairPred                        pair_pred,
                            cuda_tool::VarView<int>         cpNum,
                            cuda_tool::BufferView<Vector2i> buffer);
 
         template <typename NodeCull, typename PairPred>
-        void stacklessOther(NodeCull                   node_cull,
-                            PairPred                   pair_pred,
+        void stacklessOther(NodeCull                        node_cull,
+                            PairPred                        pair_pred,
                             cuda_tool::CBufferView<AABB>    query_aabbs,
                             cuda_tool::CBufferView<int>     query_sorted_id,
                             cuda_tool::VarView<int>         cpNum,
@@ -161,14 +161,14 @@ class InfoStacklessBVHV0
         cuda_tool::DeviceVector<IndexT>   int_bid;
         cuda_tool::DeviceVector<IndexT>   int_cid;
         cuda_tool::DeviceVector<Node>     nodes;
-        Config                       config;
+        Config                            config;
     };
 
   private:
     cuda_tool::CBufferView<AABB>   m_aabbs;
     cuda_tool::CBufferView<IndexT> m_BIDs;
     cuda_tool::CBufferView<IndexT> m_CIDs;
-    Impl                      m_impl;
+    Impl                           m_impl;
 };
 }  // namespace uipc::backend::cuda
 

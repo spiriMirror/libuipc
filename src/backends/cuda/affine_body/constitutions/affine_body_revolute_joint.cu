@@ -73,10 +73,10 @@ namespace
         }
         current_angles(I) = rel + init_angles(I);
         UIPC_KERNEL_ASSERT(::isfinite(current_angles(I)),
-                    "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
-                    current_angles(I),
-                    theta,
-                    prev_rel);
+                           "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
+                           current_angles(I),
+                           theta,
+                           prev_rel);
     }
 
     __global__ void affine_body_revolute_joint_compute_energy_kernel(
@@ -94,8 +94,7 @@ namespace
         Vector2i bids = body_ids(I);
 
         Float kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         const Vector12& X_bar = rest_positions(I);
 
@@ -144,9 +143,8 @@ namespace
         Vector3 qj0_bar = X_bar.segment<3>(6);
         Vector3 qj1_bar = X_bar.segment<3>(9);
 
-        Float K =
-            strength_ratio(I)
-            * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        Float K = strength_ratio(I)
+                  * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         // Compute constraint violation in F-space
         Vector6 F;
@@ -209,8 +207,7 @@ namespace
 
         auto  passive = is_passive(I);
         Float kappa   = strength_ratios(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
         auto aim_angle = aim_angles(I);
         if(passive == 1)
         {
@@ -224,17 +221,12 @@ namespace
         Vector6  rb  = r_basis(I);
 
         Vector12 F01_q;
-        DRJ::F01_q<Float>(F01_q,
-                          lb.segment<3>(0),
-                          lb.segment<3>(3),
-                          q_i,
-                          rb.segment<3>(0),
-                          rb.segment<3>(3),
-                          q_j);
+        DRJ::F01_q<Float>(
+            F01_q, lb.segment<3>(0), lb.segment<3>(3), q_i, rb.segment<3>(0), rb.segment<3>(3), q_j);
 
         // Fold the frame-start unwrap shift into theta_tilde (gradient unaffected; see driving_theta_tilde).
-        Float theta_tilde = driving_theta_tilde(
-            F01_q, aim_angle, init_angles(I), current_angles(I));
+        Float theta_tilde =
+            driving_theta_tilde(F01_q, aim_angle, init_angles(I), current_angles(I));
 
         Float E;
         DRJ::E(E, kappa, F01_q, theta_tilde);
@@ -275,9 +267,8 @@ namespace
         }
 
         auto passive = is_passive(I);
-        auto kappa =
-            strength_ratios(I)
-            * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        auto kappa   = strength_ratios(I)
+                     * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
         auto aim_angle = aim_angles(I);
         if(passive == 1)
         {
@@ -292,17 +283,12 @@ namespace
         Vector6 rb = r_basis(I);
 
         Vector12 F01_q;
-        DRJ::F01_q<Float>(F01_q,
-                          lb.segment<3>(0),
-                          lb.segment<3>(3),
-                          q_i,
-                          rb.segment<3>(0),
-                          rb.segment<3>(3),
-                          q_j);
+        DRJ::F01_q<Float>(
+            F01_q, lb.segment<3>(0), lb.segment<3>(3), q_i, rb.segment<3>(0), rb.segment<3>(3), q_j);
 
         // Same unwrap as do_compute_energy (must be bit-identical).
-        Float theta_tilde = driving_theta_tilde(
-            F01_q, aim_angle, init_angles(I), current_angles(I));
+        Float theta_tilde =
+            driving_theta_tilde(F01_q, aim_angle, init_angles(I), current_angles(I));
 
         // G12s
         Vector12 G01;
@@ -363,9 +349,8 @@ namespace
         Vector12 q_j = qs(bids(1));
 
         // position direction of the applied torque on body j (right-hand rule)
-        ABDJacobi e_bar[2] = {
-            ABDJacobi{X_bar.segment<3>(3) - X_bar.segment<3>(0)},
-            ABDJacobi{X_bar.segment<3>(9) - X_bar.segment<3>(6)}};
+        ABDJacobi e_bar[2] = {ABDJacobi{X_bar.segment<3>(3) - X_bar.segment<3>(0)},
+                              ABDJacobi{X_bar.segment<3>(9) - X_bar.segment<3>(6)}};
         Vector3 e_i = e_bar[0].vec_x(q_i).normalized();
         Vector3 e_j = e_bar[1].vec_x(q_j).normalized();
 
@@ -471,8 +456,7 @@ namespace
 
         Float dE_dx   = 0.0f;
         Float d2E_dx2 = 0.0f;
-        joint_limit::eval_penalty_derivatives<Float>(
-            x, lower, upper, strength, dE_dx, d2E_dx2);
+        joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
 
         Vector24 dx_dq;
         ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
@@ -772,8 +756,8 @@ Edge             = ({}, {}))",
     {
         using namespace cuda_tool;
         namespace RJ = sym::affine_body_revolute_joint;
-        auto k = affine_body_revolute_joint_compute_energy_kernel;
-        int  n = (int)body_ids.size();
+        auto k       = affine_body_revolute_joint_compute_energy_kernel;
+        int  n       = (int)body_ids.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 body_ids.cview(),
@@ -1217,7 +1201,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         namespace DRJ = sym::affine_body_driving_revolute_joint;
 
         auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_kernel;
-        int  n = (int)is_constrained.size();
+        int n = (int)is_constrained.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
@@ -1509,8 +1493,8 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     {
         using namespace cuda_tool;
         namespace ERJ = sym::affine_body_revolute_joint_limit;
-        auto k = affine_body_revolute_joint_limit_compute_energy_kernel;
-        int  n = (int)lowers.size();
+        auto k        = affine_body_revolute_joint_limit_compute_energy_kernel;
+        int  n        = (int)lowers.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
@@ -1543,7 +1527,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         auto gradient_only = info.gradient_only();
 
         auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_kernel;
-        int  n = (int)lowers.size();
+        int n = (int)lowers.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),

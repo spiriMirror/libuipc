@@ -21,11 +21,11 @@ class AffineBodyExternalBodyForceConstraint final : public AffineBodyConstraint
     {
       public:
         // Host-side buffers for collecting data before copying to device
-        vector<Vector12>             h_forces;
-        vector<IndexT>               h_body_ids;
+        vector<Vector12>                  h_forces;
+        vector<IndexT>                    h_body_ids;
         cuda_tool::DeviceBuffer<Vector12> forces;
         cuda_tool::DeviceBuffer<IndexT>   body_ids;
-        AffineBodyDynamics*          affine_body_dynamics = nullptr;
+        AffineBodyDynamics*               affine_body_dynamics = nullptr;
 
         void step(backend::WorldVisitor& world, AffineBodyAnimator::FilteredInfo& info);
     };

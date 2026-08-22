@@ -16,29 +16,28 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void ABDFEMLinearSubsystem_assemble_kernel(
-        cuda_tool::CBufferView<IndexT>            v2b,
-        cuda_tool::CBufferView<ABDJacobi>         Js,
-        cuda_tool::CBufferView<IndexT>            body_is_fixed,
-        cuda_tool::CBufferView<IndexT>            vertex_is_fixed,
-        cuda_tool::TripletMatrixView<Float, 3, 3> L,
+        cuda_tool::CBufferView<IndexT>             v2b,
+        cuda_tool::CBufferView<ABDJacobi>          Js,
+        cuda_tool::CBufferView<IndexT>             body_is_fixed,
+        cuda_tool::CBufferView<IndexT>             vertex_is_fixed,
+        cuda_tool::TripletMatrixView<Float, 3, 3>  L,
         cuda_tool::CTripletMatrixView<Float, 3, 3> abd_fem_dytopo_effect,
-        IndexT                                    abd_point_offset,
-        IndexT                                    fem_point_offset,
-        int                                       n)
+        IndexT                                     abd_point_offset,
+        IndexT                                     fem_point_offset,
+        int                                        n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
             return;
         {
             // global vertex indices
-            auto&& [gI_abd_v, gJ_fem_v, H3x3] =
-                abd_fem_dytopo_effect(I);
+            auto&& [gI_abd_v, gJ_fem_v, H3x3] = abd_fem_dytopo_effect(I);
 
             UIPC_KERNEL_ASSERT(abd_point_offset <= fem_point_offset,
-                        "We assume ABD vertices are before FEM vertices, "
-                        "but got abd_point_offset=%d, fem_point_offset=%d",
-                        abd_point_offset,
-                        fem_point_offset);
+                               "We assume ABD vertices are before FEM vertices, "
+                               "but got abd_point_offset=%d, fem_point_offset=%d",
+                               abd_point_offset,
+                               fem_point_offset);
 
             auto I_abd_v = gI_abd_v - abd_point_offset;
             auto J_fem_v = gJ_fem_v - fem_point_offset;

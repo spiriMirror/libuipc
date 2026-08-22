@@ -115,11 +115,11 @@ namespace
         Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
         Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
         UIPC_KERNEL_ASSERT(V > 0.0,
-                    "Negative volume tetrahedron (%d, %d, %d, %d)",
-                    tet[0],
-                    tet[1],
-                    tet[2],
-                    tet[3]);
+                           "Negative volume tetrahedron (%d, %d, %d, %d)",
+                           tet[0],
+                           tet[1],
+                           tet[2],
+                           tet[3]);
         rest_volumes(i) = V;
     }
 }  // namespace
@@ -1170,8 +1170,7 @@ auto FiniteElementMethod::FilteredInfo::geo_infos() const noexcept -> span<const
     return span{m_impl->geo_infos}.subspan(info.geo_info_offset, info.geo_info_count);
 }
 
-auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept
-    -> const ConstitutionInfo&
+auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept -> const ConstitutionInfo&
 {
     switch(m_dim)
     {

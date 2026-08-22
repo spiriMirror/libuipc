@@ -78,8 +78,7 @@ namespace
         Vector2i bids = body_ids(I);
 
         Float kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -137,8 +136,7 @@ namespace
         Vector2i bids = body_ids(I);
 
         Float kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -249,9 +247,8 @@ namespace
             Es(I) = 0.0;
             return;
         }
-        Float kappa =
-            strength_ratios(I)
-            * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        Float kappa = strength_ratios(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         auto passive      = is_passive(I);
         auto aim_distance = aim_distances(I);
@@ -315,9 +312,8 @@ namespace
             return;
         }
 
-        Float kappa =
-            strength_ratios(I)
-            * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        Float kappa = strength_ratios(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         auto passive      = is_passive(I);
         auto aim_distance = aim_distances(I);
@@ -483,8 +479,7 @@ namespace
 
         Float dE_dx   = 0.0f;
         Float d2E_dx2 = 0.0f;
-        joint_limit::eval_penalty_derivatives<Float>(
-            x, lower, upper, strength, dE_dx, d2E_dx2);
+        joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
 
         Vector24 dx_dq;
         compute_absolute_distance_derivative(dx_dq, C_bar, t_bar, qk, ql);
@@ -794,8 +789,8 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
     {
         using namespace cuda_tool;
         namespace PJ = sym::affine_body_prismatic_joint;
-        auto k = affine_body_prismatic_joint_compute_energy_kernel;
-        int  n = (int)body_ids.size();
+        auto k       = affine_body_prismatic_joint_compute_energy_kernel;
+        int  n       = (int)body_ids.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 body_ids.cview(),
@@ -1153,7 +1148,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
         using Matrix24x24 = Matrix<Float, 24, 24>;
 
         auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_kernel;
-        int  n = (int)is_constrained.size();
+        int n = (int)is_constrained.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 prismatic_joint->body_ids.cview(),
@@ -1519,7 +1514,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         auto gradient_only = info.gradient_only();
 
         auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_kernel;
-        int  n = (int)ref_qs.size();
+        int n = (int)ref_qs.size();
         if(n > 0)
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 prismatic_joint->body_ids.cview(),

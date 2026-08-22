@@ -52,7 +52,7 @@ class GlobalSimplicialSurfaceManager : public SimSystem
         cuda_tool::BufferView<IndexT>   surf_vertices() noexcept;
         cuda_tool::BufferView<Vector2i> surf_edges() noexcept;
         cuda_tool::BufferView<Vector3i> surf_triangles() noexcept;
-        const ReporterInfo&        reporter_info() const noexcept;
+        const ReporterInfo&             reporter_info() const noexcept;
 
       private:
         friend class Impl;
@@ -105,6 +105,6 @@ class GlobalSimplicialSurfaceManager : public SimSystem
     void rebuild();  // only called by SimEngine
 
     friend class SimplicialSurfaceReporter;
-    void add_reporter(SimplicialSurfaceReporter* reporter) noexcept; // only called by SimplicialSurfaceReporter
+    void add_reporter(SimplicialSurfaceReporter* reporter) noexcept;  // only called by SimplicialSurfaceReporter
 };
 }  // namespace uipc::backend::cuda

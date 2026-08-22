@@ -10,7 +10,7 @@ namespace
                                                        cuda_tool::Dense<int> cp_num,
                                                        cuda_tool::BufferView<Vector2i> pairs,
                                                        Pred p,
-                                                       int n)
+                                                       int  n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -36,7 +36,7 @@ namespace
                                                       cuda_tool::Dense<int> cp_num,
                                                       cuda_tool::BufferView<Vector2i> pairs,
                                                       Pred p,
-                                                      int n)
+                                                      int  n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -103,7 +103,9 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
 }
 
 template <typename Pred>
-void AtomicCountingLBVH::query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& qbuffer)
+void AtomicCountingLBVH::query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs,
+                               Pred         p,
+                               QueryBuffer& qbuffer)
 {
     using namespace cuda_tool;
 

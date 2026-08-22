@@ -66,15 +66,15 @@ TEST_CASE("fem_mas_soft_vertex_stitch_regression", "[fem][mas][stitch][regressio
     auto [slot_b, _rest_b] = cloth_obj->geometries().create(cloth_b);
 
     vector<Vector2i> stitch_pairs;
-    auto             n =
-        std::min<SizeT>(256, std::min(cloth_a.positions().size(), cloth_b.positions().size()));
+    auto             n = std::min<SizeT>(
+        256, std::min(cloth_a.positions().size(), cloth_b.positions().size()));
     stitch_pairs.reserve(n);
     for(SizeT i = 0; i < n; ++i)
         stitch_pairs.push_back(Vector2i{static_cast<IndexT>(i), static_cast<IndexT>(i)});
 
     SoftVertexStitch svs;
-    auto             stitch_geo = svs.create_geometry({slot_a, slot_b}, stitch_pairs, 1000.0, 0.0);
-    auto             stitch_obj = scene.objects().create("stitch");
+    auto stitch_geo = svs.create_geometry({slot_a, slot_b}, stitch_pairs, 1000.0, 0.0);
+    auto stitch_obj = scene.objects().create("stitch");
     stitch_obj->geometries().create(stitch_geo);
 
     world.init(scene);
@@ -88,6 +88,7 @@ TEST_CASE("fem_mas_soft_vertex_stitch_regression", "[fem][mas][stitch][regressio
         world.advance();
         REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

@@ -6,13 +6,14 @@
 namespace uipc::backend::cuda
 {
 
-void copy_to_buffer_view(cuda_tool::CBufferView<Vector3>   src_view,
-                         backend::BufferView          buffer_view,
-                         IndexT                       vertex_offset,
-                         SizeT                        vertex_count)
+void copy_to_buffer_view(cuda_tool::CBufferView<Vector3> src_view,
+                         backend::BufferView             buffer_view,
+                         IndexT                          vertex_offset,
+                         SizeT                           vertex_count)
 {
-    auto src_subview = src_view.subview(vertex_offset, vertex_count);
-    auto* dst_ptr = reinterpret_cast<Vector3*>(buffer_view.handle()) + buffer_view.offset();
+    auto  src_subview = src_view.subview(vertex_offset, vertex_count);
+    auto* dst_ptr =
+        reinterpret_cast<Vector3*>(buffer_view.handle()) + buffer_view.offset();
     cuda_tool::BufferView<Vector3> dst_muda_view{dst_ptr, vertex_count};
     dst_muda_view.copy_from(src_subview);
 }

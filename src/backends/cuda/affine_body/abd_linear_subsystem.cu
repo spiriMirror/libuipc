@@ -171,8 +171,8 @@ namespace
         }
 
         MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
-            .write(body_i * 4,  // begin row
-                   body_j * 4,  // begin col
+            .write(body_i * 4,     // begin row
+                   body_j * 4,     // begin col
                    H12x12);
     }
 
@@ -287,9 +287,7 @@ namespace
     }
 
     __global__ void abd_linear_subsystem_retrieve_solution_kernel(
-        cuda_tool::BufferView<Vector12>      dq,
-        cuda_tool::CDenseVectorView<Float>   x,
-        int                                  n)
+        cuda_tool::BufferView<Vector12> dq, cuda_tool::CDenseVectorView<Float> x, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -686,7 +684,8 @@ Float ABDLinearSubsystem::Impl::diag_norm()
                 diag_hess.cview(), block_norm.view(), abd().body_id_to_is_fixed.cview(), n);
     }
 
-    cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
+    cuda_tool::DeviceReduce().Max(
+        block_norm.data(), reduced_norm.data(), block_norm.size());
 
     return reduced_norm;
 }
@@ -703,7 +702,8 @@ Float ABDLinearSubsystem::Impl::mass_norm()
                 mass.cview(), block_norm.view(), abd().body_id_to_is_fixed.cview(), n);
     }
 
-    cuda_tool::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
+    cuda_tool::DeviceReduce().Max(
+        block_norm.data(), reduced_norm.data(), block_norm.size());
 
     return reduced_norm;
 }

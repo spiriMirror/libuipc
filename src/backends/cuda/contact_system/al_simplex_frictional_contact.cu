@@ -17,7 +17,7 @@ namespace
                                                 cuda_tool::CBufferView<Vector3> x,
                                                 cuda_tool::CBufferView<Vector3> prev_x,
                                                 cuda_tool::BufferView<Float> Es,
-                                                int  n)
+                                                int                          n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -31,8 +31,8 @@ namespace
                          contact_ids(PT[2]),
                          contact_ids(PT[3])};
 
-        auto coeff = sym::codim_ipc_contact::PT_contact_coeff(table, cids);
-        Float mu = coeff.mu;
+        auto  coeff = sym::codim_ipc_contact::PT_contact_coeff(table, cids);
+        Float mu    = coeff.mu;
 
         const auto& prev_P  = prev_x(PT[0]);
         const auto& prev_T0 = prev_x(PT[1]);
@@ -57,7 +57,7 @@ namespace
                                                 cuda_tool::CBufferView<Vector3> x,
                                                 cuda_tool::CBufferView<Vector3> prev_x,
                                                 cuda_tool::BufferView<Float> Es,
-                                                int  n)
+                                                int                          n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -71,8 +71,8 @@ namespace
                          contact_ids(EE[2]),
                          contact_ids(EE[3])};
 
-        auto coeff = sym::codim_ipc_contact::EE_contact_coeff(table, cids);
-        Float mu = coeff.mu;
+        auto  coeff = sym::codim_ipc_contact::EE_contact_coeff(table, cids);
+        Float mu    = coeff.mu;
 
         const Vector3& prev_Ea0 = prev_x(EE[0]);
         const Vector3& prev_Ea1 = prev_x(EE[1]);
@@ -98,7 +98,7 @@ namespace
                                           cuda_tool::CBufferView<Vector3> prev_x,
                                           cuda_tool::DoubletVectorView<Float, 3> Gs,
                                           cuda_tool::TripletMatrixView<Float, 3> Hs,
-                                          int  n)
+                                          int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -112,8 +112,8 @@ namespace
                          contact_ids(PT[2]),
                          contact_ids(PT[3])};
 
-        auto coeff = sym::codim_ipc_contact::PT_contact_coeff(table, cids);
-        Float mu = coeff.mu;
+        auto  coeff = sym::codim_ipc_contact::PT_contact_coeff(table, cids);
+        Float mu    = coeff.mu;
 
         const auto& prev_P  = prev_x(PT[0]);
         const auto& prev_T0 = prev_x(PT[1]);
@@ -149,7 +149,7 @@ namespace
                                           cuda_tool::CBufferView<Vector3> prev_x,
                                           cuda_tool::DoubletVectorView<Float, 3> Gs,
                                           cuda_tool::TripletMatrixView<Float, 3> Hs,
-                                          int  n)
+                                          int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -163,8 +163,8 @@ namespace
                          contact_ids(EE[2]),
                          contact_ids(EE[3])};
 
-        auto coeff = sym::codim_ipc_contact::EE_contact_coeff(table, cids);
-        Float mu = coeff.mu;
+        auto  coeff = sym::codim_ipc_contact::EE_contact_coeff(table, cids);
+        Float mu    = coeff.mu;
 
         const Vector3& rest_Ea0 = rest_x(EE[0]);
         const Vector3& rest_Ea1 = rest_x(EE[1]);
@@ -266,38 +266,30 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
     auto EE_lambda = active_set->EE_lambda_friction();
 
     if(PT_size > 0)
-        do_compute_energy_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_size,
-                                                               do_compute_energy_k1_kernel),
-                                      cuda_tool::best_block_dim(do_compute_energy_k1_kernel),
-                                      0,
-                                      nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                                 global_vertex_manager->contact_element_ids()
-                                                     .cviewer(),
-                                                 global_contact_manager->eps_velocity(),
-                                                 dt_attr->view()[0],
-                                                 PTs.cviewer(),
-                                                 PT_lambda.cviewer(),
-                                                 x.cviewer(),
-                                                 prev_x.cviewer(),
-                                                 PT_energies.viewer(),
-                                                 (int)PT_size);
+        do_compute_energy_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_size, do_compute_energy_k1_kernel), cuda_tool::best_block_dim(do_compute_energy_k1_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            PTs.cviewer(),
+            PT_lambda.cviewer(),
+            x.cviewer(),
+            prev_x.cviewer(),
+            PT_energies.viewer(),
+            (int)PT_size);
 
     if(EE_size > 0)
-        do_compute_energy_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_size,
-                                                               do_compute_energy_k2_kernel),
-                                      cuda_tool::best_block_dim(do_compute_energy_k2_kernel),
-                                      0,
-                                      nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                                 global_vertex_manager->contact_element_ids()
-                                                     .cviewer(),
-                                                 global_contact_manager->eps_velocity(),
-                                                 dt_attr->view()[0],
-                                                 EEs.cviewer(),
-                                                 EE_lambda.cviewer(),
-                                                 x.cviewer(),
-                                                 prev_x.cviewer(),
-                                                 EE_energies.viewer(),
-                                                 (int)EE_size);
+        do_compute_energy_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_size, do_compute_energy_k2_kernel), cuda_tool::best_block_dim(do_compute_energy_k2_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            EEs.cviewer(),
+            EE_lambda.cviewer(),
+            x.cviewer(),
+            prev_x.cviewer(),
+            EE_energies.viewer(),
+            (int)EE_size);
 }
 
 void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
@@ -325,37 +317,33 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
     auto EE_lambda = active_set->EE_lambda_friction();
 
     if(PT_size > 0)
-        do_assemble_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_size, do_assemble_k1_kernel),
-                                cuda_tool::best_block_dim(do_assemble_k1_kernel),
-                                0,
-                                nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                           global_vertex_manager->contact_element_ids().cviewer(),
-                                           global_contact_manager->eps_velocity(),
-                                           dt_attr->view()[0],
-                                           PTs.cviewer(),
-                                           PT_lambda.cviewer(),
-                                           x.cviewer(),
-                                           prev_x.cviewer(),
-                                           PT_grad.viewer(),
-                                           PT_hess.viewer(),
-                                           (int)PT_size);
+        do_assemble_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_size, do_assemble_k1_kernel), cuda_tool::best_block_dim(do_assemble_k1_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            PTs.cviewer(),
+            PT_lambda.cviewer(),
+            x.cviewer(),
+            prev_x.cviewer(),
+            PT_grad.viewer(),
+            PT_hess.viewer(),
+            (int)PT_size);
 
     if(EE_size > 0)
-        do_assemble_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_size, do_assemble_k2_kernel),
-                                cuda_tool::best_block_dim(do_assemble_k2_kernel),
-                                0,
-                                nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                           global_vertex_manager->contact_element_ids().cviewer(),
-                                           global_contact_manager->eps_velocity(),
-                                           dt_attr->view()[0],
-                                           EEs.cviewer(),
-                                           EE_lambda.cviewer(),
-                                           x.cviewer(),
-                                           rest_x.viewer(),
-                                           prev_x.cviewer(),
-                                           EE_grad.viewer(),
-                                           EE_hess.viewer(),
-                                           (int)EE_size);
+        do_assemble_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_size, do_assemble_k2_kernel), cuda_tool::best_block_dim(do_assemble_k2_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            EEs.cviewer(),
+            EE_lambda.cviewer(),
+            x.cviewer(),
+            rest_x.viewer(),
+            prev_x.cviewer(),
+            EE_grad.viewer(),
+            EE_hess.viewer(),
+            (int)EE_size);
 }
 
 void ALSimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)

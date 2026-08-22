@@ -186,8 +186,9 @@ class DeviceSelect
     DeviceSelect& Flagged(const T* in, const int* flags, T* out, int* num_selected, int n)
     {
         details::run_with_temp_storage(
-            [&](void* t, size_t& b, cudaStream_t s)
-            { cub::DeviceSelect::Flagged(t, b, in, flags, out, num_selected, n, s); },
+            [&](void* t, size_t& b, cudaStream_t s) {
+                cub::DeviceSelect::Flagged(t, b, in, flags, out, num_selected, n, s);
+            },
             m_stream);
         return *this;
     }
@@ -216,8 +217,9 @@ class DevicePartition
     DevicePartition& If(const T* in, T* out, int* num_selected, int n, Pred pred)
     {
         details::run_with_temp_storage(
-            [&](void* t, size_t& b, cudaStream_t s)
-            { cub::DevicePartition::If(t, b, in, out, num_selected, n, pred, s); },
+            [&](void* t, size_t& b, cudaStream_t s) {
+                cub::DevicePartition::If(t, b, in, out, num_selected, n, pred, s);
+            },
             m_stream);
         return *this;
     }
@@ -225,8 +227,9 @@ class DevicePartition
     DevicePartition& Flagged(const T* in, const int* flags, T* out, int* num_selected, int n)
     {
         details::run_with_temp_storage(
-            [&](void* t, size_t& b, cudaStream_t s)
-            { cub::DevicePartition::Flagged(t, b, in, flags, out, num_selected, n, s); },
+            [&](void* t, size_t& b, cudaStream_t s) {
+                cub::DevicePartition::Flagged(t, b, in, flags, out, num_selected, n, s);
+            },
             m_stream);
         return *this;
     }
@@ -246,8 +249,9 @@ class DeviceRadixSort
     DeviceRadixSort& SortKeys(const K* in, K* out, int n)
     {
         details::run_with_temp_storage(
-            [&](void* t, size_t& b, cudaStream_t s)
-            { cub::DeviceRadixSort::SortKeys(t, b, in, out, n, 0, sizeof(K) * 8, s); },
+            [&](void* t, size_t& b, cudaStream_t s) {
+                cub::DeviceRadixSort::SortKeys(t, b, in, out, n, 0, sizeof(K) * 8, s);
+            },
             m_stream);
         return *this;
     }
@@ -310,13 +314,14 @@ class DeviceRunLengthEncode
     {
         details::run_with_temp_storage(
             [&](void* t, size_t& b, cudaStream_t s)
-            { cub::DeviceRunLengthEncode::Encode(t, b, in, unique, counts, num_runs, n, s); },
+            {
+                cub::DeviceRunLengthEncode::Encode(t, b, in, unique, counts, num_runs, n, s);
+            },
             m_stream);
         return *this;
     }
     template <typename T, typename OffT, typename LenT>
-    DeviceRunLengthEncode& NonTrivialRuns(
-        const T* in, OffT* offsets, LenT* lengths, int* num_runs, int n)
+    DeviceRunLengthEncode& NonTrivialRuns(const T* in, OffT* offsets, LenT* lengths, int* num_runs, int n)
     {
         details::run_with_temp_storage(
             [&](void* t, size_t& b, cudaStream_t s)

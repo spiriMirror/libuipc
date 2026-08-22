@@ -47,11 +47,11 @@ namespace
         y(i) = b * y(i);
     }
 
-    __global__ void Spmv_sym_spmv_kernel(Float a,
+    __global__ void Spmv_sym_spmv_kernel(Float                                a,
                                          cuda_tool::CBCOOMatrixView<Float, 3> A,
                                          cuda_tool::CDenseVectorView<Float>   x,
                                          cuda_tool::DenseVectorView<Float>    y,
-                                         int n)
+                                         int                                  n)
     {
         int index = blockIdx.x * blockDim.x + threadIdx.x;
         if(index >= n)
@@ -89,8 +89,8 @@ namespace
             {
                 auto seg_x = x.segment<N>(i * N);
 
-                Eigen::Vector<T, N> vec_x = seg_x.as_eigen();
-                auto result = a * block.transpose() * vec_x;
+                Eigen::Vector<T, N> vec_x  = seg_x.as_eigen();
+                auto                result = a * block.transpose() * vec_x;
 
                 auto seg_y = y.segment<N>(j * N);
                 seg_y.atomic_add(result.eval());
@@ -98,7 +98,7 @@ namespace
         }
     }
 
-    __global__ void Spmv_rbk_spmv_kernel(Float a,
+    __global__ void Spmv_rbk_spmv_kernel(Float                                a,
                                          cuda_tool::CBCOOMatrixView<Float, 3> A,
                                          cuda_tool::CDenseVectorView<Float>   x,
                                          cuda_tool::DenseVectorView<Float>    y)
@@ -183,29 +183,26 @@ namespace
             }
         }
 
-        flags.flags = WarpReduceInt(temp_storage_int[warp_id])
-                          .HeadSegmentedReduce(flags.flags,
-                                               flags.is_head,
-                                               [](uint32_t a, uint32_t b)
-                                               { return a + b; });
+        flags.flags =
+            WarpReduceInt(temp_storage_int[warp_id])
+                .HeadSegmentedReduce(flags.flags,
+                                     flags.is_head,
+                                     [](uint32_t a, uint32_t b) { return a + b; });
 
         vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.x(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
         vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.y(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
         vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.z(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
 
         // cub::WARP_SYNC(warp_mask);
@@ -213,18 +210,17 @@ namespace
         flags.is_head = b2i(flags.is_head && flags.is_valid);
 
         flags.b2i();
-        int is_head_mask =
-            detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
+        int is_head_mask = detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
         uint32_t offset = __fns(is_head_mask, 0, lane_id + 1);
 
         int valid_bit = (offset != ~0u);
         int shuffle_mask = detail::bit_operation::WARP_BALLOT(valid_bit, warp_mask);
 
-        i = cub::ShuffleIndex<32>(i, offset, shuffle_mask);
+        i           = cub::ShuffleIndex<32>(i, offset, shuffle_mask);
         flags.flags = cub::ShuffleIndex<32>(flags.flags, offset, shuffle_mask);
-        vec.x() = cub::ShuffleIndex<32>(vec.x(), offset, shuffle_mask);
-        vec.y() = cub::ShuffleIndex<32>(vec.y(), offset, shuffle_mask);
-        vec.z() = cub::ShuffleIndex<32>(vec.z(), offset, shuffle_mask);
+        vec.x()     = cub::ShuffleIndex<32>(vec.x(), offset, shuffle_mask);
+        vec.y()     = cub::ShuffleIndex<32>(vec.y(), offset, shuffle_mask);
+        vec.z()     = cub::ShuffleIndex<32>(vec.z(), offset, shuffle_mask);
 
         if(valid_bit && flags.is_head && flags.is_valid)
         {
@@ -242,12 +238,11 @@ namespace
         }
     }
 
-    __global__ void Spmv_rbk_sym_spmv_kernel(
-        Float a,
-        cuda_tool::CBCOOMatrixView<Float, 3> A,
-        cuda_tool::CDenseVectorView<Float>   x,
-        cuda_tool::DenseVectorView<Float>    y,
-        int n)
+    __global__ void Spmv_rbk_sym_spmv_kernel(Float a,
+                                             cuda_tool::CBCOOMatrixView<Float, 3> A,
+                                             cuda_tool::CDenseVectorView<Float> x,
+                                             cuda_tool::DenseVectorView<Float> y,
+                                             int n)
     {
         constexpr int warp_size = 32;
         constexpr int block_dim = 256;
@@ -263,7 +258,7 @@ namespace
             auto global_thread_id   = idx;
             auto thread_id_in_block = threadIdx.x;
             auto warp_id            = thread_id_in_block / warp_size;
-            auto lane_id = thread_id_in_block & (warp_size - 1);
+            auto lane_id            = thread_id_in_block & (warp_size - 1);
 
             __shared__ union
             {
@@ -315,23 +310,23 @@ namespace
 
 
             // ----------------------------------- warp reduce ----------------------------------------------
-            vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
-                          .HeadSegmentedReduce(vec.x(),
-                                               flags.is_head,
-                                               [](Float a, Float b)
-                                               { return a + b; });
+            vec.x() =
+                WarpReduceFloat(temp_storage_float[warp_id])
+                    .HeadSegmentedReduce(vec.x(),
+                                         flags.is_head,
+                                         [](Float a, Float b) { return a + b; });
 
-            vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
-                          .HeadSegmentedReduce(vec.y(),
-                                               flags.is_head,
-                                               [](Float a, Float b)
-                                               { return a + b; });
+            vec.y() =
+                WarpReduceFloat(temp_storage_float[warp_id])
+                    .HeadSegmentedReduce(vec.y(),
+                                         flags.is_head,
+                                         [](Float a, Float b) { return a + b; });
 
-            vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
-                          .HeadSegmentedReduce(vec.z(),
-                                               flags.is_head,
-                                               [](Float a, Float b)
-                                               { return a + b; });
+            vec.z() =
+                WarpReduceFloat(temp_storage_float[warp_id])
+                    .HeadSegmentedReduce(vec.z(),
+                                         flags.is_head,
+                                         [](Float a, Float b) { return a + b; });
             // ----------------------------------- warp reduce -----------------------------------------------
 
 
@@ -347,13 +342,12 @@ namespace
         }
     }
 
-    __global__ void Spmv_rbk_sym_spmv_dot_kernel(
-        Float a,
-        cuda_tool::CBCOOMatrixView<Float, 3> A,
-        cuda_tool::CDenseVectorView<Float>   x,
-        cuda_tool::DenseVectorView<Float>    y,
-        cuda_tool::Dense<Float>              d_dot,
-        int                                  triplet_count)
+    __global__ void Spmv_rbk_sym_spmv_dot_kernel(Float a,
+                                                 cuda_tool::CBCOOMatrixView<Float, 3> A,
+                                                 cuda_tool::CDenseVectorView<Float> x,
+                                                 cuda_tool::DenseVectorView<Float> y,
+                                                 cuda_tool::Dense<Float> d_dot,
+                                                 int triplet_count)
     {
         constexpr int warp_size = 32;
         constexpr int block_dim = 256;
@@ -366,7 +360,7 @@ namespace
         auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
         auto thread_id_in_block = threadIdx.x;
         auto warp_id            = thread_id_in_block / warp_size;
-        auto lane_id = thread_id_in_block & (warp_size - 1);
+        auto lane_id            = thread_id_in_block & (warp_size - 1);
 
         __shared__ union
         {
@@ -379,7 +373,7 @@ namespace
         Flags   flags;
         Vector3 vec;
         vec.setZero();
-        Float   dot_local = 0;
+        Float dot_local = 0;
 
         flags.is_cross_warp = 0;
         flags.is_valid      = 0;
@@ -398,7 +392,7 @@ namespace
             auto j       = Triplet.col_index;
 
             Eigen::Vector<T, N> x_j = x.segment<N>(j * N).as_eigen();
-            vec = Triplet.value * x_j;
+            vec                     = Triplet.value * x_j;
 
             flags.is_valid = 1;
 
@@ -409,7 +403,7 @@ namespace
             else
             {
                 Eigen::Vector<T, N> x_i = x.segment<N>(i * N).as_eigen();
-                dot_local = 2.0 * a * x_i.dot(vec);
+                dot_local               = 2.0 * a * x_i.dot(vec);
 
                 Vector3 vec_ = a * Triplet.value.transpose() * x_i;
                 y.segment<N>(j * N).atomic_add(vec_);
@@ -424,20 +418,17 @@ namespace
         vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.x(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
         vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.y(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
         vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
                       .HeadSegmentedReduce(vec.z(),
                                            flags.is_head,
-                                           [](Float a, Float b)
-                                           { return a + b; });
+                                           [](Float a, Float b) { return a + b; });
 
         if(flags.is_head && flags.is_valid)
         {
@@ -446,17 +437,16 @@ namespace
             seg_y.atomic_add(result.eval());
         }
 
-        dot_local = WarpReduceFloat(temp_storage_float[warp_id])
-                        .Sum(dot_local);
+        dot_local = WarpReduceFloat(temp_storage_float[warp_id]).Sum(dot_local);
         if(lane_id == 0)
             atomicAdd(d_dot.data(), dot_local);
     }
 }  // namespace
 
-void Spmv::sym_spmv(Float                           a,
+void Spmv::sym_spmv(Float                                a,
                     cuda_tool::CBCOOMatrixView<Float, 3> A,
                     cuda_tool::CDenseVectorView<Float>   x,
-                    Float                           b,
+                    Float                                b,
                     cuda_tool::DenseVectorView<Float>    y)
 {
     if(b != 0)
@@ -464,10 +454,8 @@ void Spmv::sym_spmv(Float                           a,
         int n = y.size();
         if(n > 0)
         {
-            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel),
-                                  cuda_tool::best_block_dim(Spmv_scale_y_kernel),
-                                  0,
-                                  nullptr>>>(b, y, n);
+            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, nullptr>>>(
+                b, y, n);
         }
     }
     else
@@ -478,18 +466,15 @@ void Spmv::sym_spmv(Float                           a,
     int triplet_count = A.triplet_count();
     if(triplet_count > 0)
     {
-        Spmv_sym_spmv_kernel<<<cuda_tool::best_grid_dim(triplet_count,
-                                                        Spmv_sym_spmv_kernel),
-                               cuda_tool::best_block_dim(Spmv_sym_spmv_kernel),
-                               0,
-                               nullptr>>>(a, A, x, y, triplet_count);
+        Spmv_sym_spmv_kernel<<<cuda_tool::best_grid_dim(triplet_count, Spmv_sym_spmv_kernel), cuda_tool::best_block_dim(Spmv_sym_spmv_kernel), 0, nullptr>>>(
+            a, A, x, y, triplet_count);
     }
 }
 
-void Spmv::rbk_spmv(Float                           a,
+void Spmv::rbk_spmv(Float                                a,
                     cuda_tool::CBCOOMatrixView<Float, 3> A,
                     cuda_tool::CDenseVectorView<Float>   x,
-                    Float                           b,
+                    Float                                b,
                     cuda_tool::DenseVectorView<Float>    y)
 {
     if(b != 0)
@@ -497,10 +482,8 @@ void Spmv::rbk_spmv(Float                           a,
         int n = y.size();
         if(n > 0)
         {
-            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel),
-                                  cuda_tool::best_block_dim(Spmv_scale_y_kernel),
-                                  0,
-                                  nullptr>>>(b, y, n);
+            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, nullptr>>>(
+                b, y, n);
         }
     }
     else
@@ -508,8 +491,8 @@ void Spmv::rbk_spmv(Float                           a,
         cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
-    constexpr int block_dim = 128;
-    int block_count = (A.triplet_count() + block_dim - 1) / block_dim;
+    constexpr int block_dim   = 128;
+    int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
     if(block_count > 0)
     {
@@ -517,10 +500,10 @@ void Spmv::rbk_spmv(Float                           a,
     }
 }
 
-void Spmv::rbk_sym_spmv(Float                           a,
+void Spmv::rbk_sym_spmv(Float                                a,
                         cuda_tool::CBCOOMatrixView<Float, 3> A,
                         cuda_tool::CDenseVectorView<Float>   x,
-                        Float                           b,
+                        Float                                b,
                         cuda_tool::DenseVectorView<Float>    y)
 
 {
@@ -529,10 +512,8 @@ void Spmv::rbk_sym_spmv(Float                           a,
         int n = y.size();
         if(n > 0)
         {
-            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel),
-                                  cuda_tool::best_block_dim(Spmv_scale_y_kernel),
-                                  0,
-                                  nullptr>>>(b, y, n);
+            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, nullptr>>>(
+                b, y, n);
         }
     }
     else
@@ -540,21 +521,20 @@ void Spmv::rbk_sym_spmv(Float                           a,
         cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
-    constexpr int block_dim     = 256;
-    int           block_count   = (A.triplet_count() + block_dim - 1) / block_dim;
+    constexpr int block_dim   = 256;
+    int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
     int           triplet_count = A.triplet_count();
 
     if(triplet_count > 0)
     {
-        Spmv_rbk_sym_spmv_kernel<<<block_count, block_dim, 0, nullptr>>>(
-            a, A, x, y, triplet_count);
+        Spmv_rbk_sym_spmv_kernel<<<block_count, block_dim, 0, nullptr>>>(a, A, x, y, triplet_count);
     }
 }
 
-void Spmv::rbk_sym_spmv_dot(Float                           a,
+void Spmv::rbk_sym_spmv_dot(Float                                a,
                             cuda_tool::CBCOOMatrixView<Float, 3> A,
                             cuda_tool::CDenseVectorView<Float>   x,
-                            Float                           b,
+                            Float                                b,
                             cuda_tool::DenseVectorView<Float>    y,
                             cuda_tool::VarView<Float>            d_dot)
 {
@@ -563,10 +543,8 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
         int n = y.size();
         if(n > 0)
         {
-            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel),
-                                  cuda_tool::best_block_dim(Spmv_scale_y_kernel),
-                                  0,
-                                  nullptr>>>(b, y, n);
+            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, nullptr>>>(
+                b, y, n);
         }
     }
     else
@@ -588,10 +566,10 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
     }
 }
 
-void Spmv::cpu_sym_spmv(Float                           a,
+void Spmv::cpu_sym_spmv(Float                                a,
                         cuda_tool::CBCOOMatrixView<Float, 3> A_view,
                         cuda_tool::CDenseVectorView<Float>   x,
-                        Float                           b,
+                        Float                                b,
                         cuda_tool::DenseVectorView<Float>    y)
 {
     using BlockMatrix      = Matrix3x3;

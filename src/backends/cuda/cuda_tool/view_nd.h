@@ -7,7 +7,7 @@ namespace uipc::backend::cuda_tool
 // Dense extents for 2D / 3D buffers (row-major, contiguous).
 struct Extent2D
 {
-    size_t h = 0, w = 0;
+    size_t   h = 0, w = 0;
     __host__ __device__ constexpr Extent2D() = default;
     __host__ __device__ constexpr Extent2D(size_t h, size_t w)
         : h(h)
@@ -82,14 +82,14 @@ class Dense1DT
     __host__ __device__ auto_const_t<T>& operator()(int x) const noexcept
     {
         UIPC_KERNEL_ASSERT(m_data != nullptr, "Dense1D: data is null");
-        UIPC_KERNEL_ASSERT(x >= 0 && x < m_dim,
-                           "Dense1D: out of range, index=%d, dim=%d",
-                           x,
-                           m_dim);
+        UIPC_KERNEL_ASSERT(x >= 0 && x < m_dim, "Dense1D: out of range, index=%d, dim=%d", x, m_dim);
         return m_data[x];
     }
 
-    __host__ __device__ auto_const_t<T>* data() const noexcept { return m_data; }
+    __host__ __device__ auto_const_t<T>* data() const noexcept
+    {
+        return m_data;
+    }
 
     __host__ __device__ int total_size() const noexcept { return m_dim; }
 
@@ -218,13 +218,19 @@ class Dense2DBase
 
     __host__ __device__ const T* data() const noexcept { return m_data; }
 
-    __host__ __device__ int total_size() const noexcept { return m_dim.x * m_dim.y; }
+    __host__ __device__ int total_size() const noexcept
+    {
+        return m_dim.x * m_dim.y;
+    }
 
     __host__ __device__ int area() const noexcept { return total_size(); }
 
     __host__ __device__ int2 dim() const noexcept { return m_dim; }
 
-    __host__ __device__ int pitch_bytes() const noexcept { return m_pitch_bytes; }
+    __host__ __device__ int pitch_bytes() const noexcept
+    {
+        return m_pitch_bytes;
+    }
 };
 
 template <typename T>
@@ -269,8 +275,8 @@ class CBuffer2DView
     {
     }
     __host__ __device__ const T* data() const { return m_data; }
-    __host__ __device__ Extent2D  extent() const { return m_extent; }
-    __host__ __device__ const T&  operator()(size_t y, size_t x) const
+    __host__ __device__ Extent2D extent() const { return m_extent; }
+    __host__ __device__ const T& operator()(size_t y, size_t x) const
     {
         return m_data[y * m_extent.w + x];
     }
@@ -308,8 +314,7 @@ class Buffer2DView : public CBuffer2DView<T>
     {
         size_t n = this->m_extent.count();
         if(n)
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(
-                data(), host, n * sizeof(T), cudaMemcpyHostToDevice, s));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(data(), host, n * sizeof(T), cudaMemcpyHostToDevice, s));
     }
     __host__ __device__ CBuffer2DView<T> cview() const { return *this; }
     __host__ __device__ operator CBuffer2DView<T>() const { return *this; }

@@ -264,17 +264,17 @@ class FiniteElementMethod final : public SimSystem
         cuda_tool::DeviceBuffer<IndexT>  is_dynamic;  // Vertex IsDynamic
         cuda_tool::DeviceBuffer<Vector3> gravities;   // Vertex Gravity
 
-        cuda_tool::DeviceBuffer<Vector3> x_bars;    // Rest Positions
-        cuda_tool::DeviceBuffer<Vector3> xs;        // Positions
-        cuda_tool::DeviceBuffer<Vector3> dxs;       // Displacements
-        cuda_tool::DeviceBuffer<Vector3> x_temps;   // Safe Positions for line search
-        cuda_tool::DeviceBuffer<Vector3> vs;        // Velocities
+        cuda_tool::DeviceBuffer<Vector3> x_bars;  // Rest Positions
+        cuda_tool::DeviceBuffer<Vector3> xs;      // Positions
+        cuda_tool::DeviceBuffer<Vector3> dxs;     // Displacements
+        cuda_tool::DeviceBuffer<Vector3> x_temps;  // Safe Positions for line search
+        cuda_tool::DeviceBuffer<Vector3> vs;       // Velocities
         cuda_tool::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
         cuda_tool::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         cuda_tool::DeviceBuffer<Float>   masses;    // Mass
         cuda_tool::DeviceBuffer<Float>   thicknesses;  // Thickness
 
-        cuda_tool::DeviceBuffer<Vector3> vertex_external_forces;      // per-vertex F_ext
+        cuda_tool::DeviceBuffer<Vector3> vertex_external_forces;  // per-vertex F_ext
         cuda_tool::DeviceBuffer<Vector3> vertex_external_force_accs;  // per-vertex a_ext = F/m
 
 
@@ -333,8 +333,14 @@ class FiniteElementMethod final : public SimSystem
     auto rest_lengths() const noexcept { return m_impl.rest_lengths.view(); }
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
     auto gravities() const noexcept { return m_impl.gravities.view(); }
-    auto vertex_external_forces() const noexcept { return m_impl.vertex_external_forces.view(); }
-    auto vertex_external_force_accs() const noexcept { return m_impl.vertex_external_force_accs.view(); }
+    auto vertex_external_forces() const noexcept
+    {
+        return m_impl.vertex_external_forces.view();
+    }
+    auto vertex_external_force_accs() const noexcept
+    {
+        return m_impl.vertex_external_force_accs.view();
+    }
 
     /**
      * @brief return the frame-local dof offset of FEM for the given frame

@@ -123,9 +123,8 @@ using namespace info_stackless_detail;
 
 namespace
 {
-    __global__ void InfoStacklessBVH_calcMaxBVFromBox_kernel(size_t size,
-                                                             cuda_tool::CBufferView<AABB> box,
-                                                             cuda_tool::Dense<AABB> out)
+    __global__ void InfoStacklessBVH_calcMaxBVFromBox_kernel(
+        size_t size, cuda_tool::CBufferView<AABB> box, cuda_tool::Dense<AABB> out)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= size)
@@ -197,22 +196,20 @@ namespace
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
             return;
-        auto   bv     = box(idx);
-        auto   center = bv.center();
-        float3 c = make_float3(center.x(), center.y(), center.z());
+        auto   bv        = box(idx);
+        auto   center    = bv.center();
+        float3 c         = make_float3(center.x(), center.y(), center.z());
         auto   scene_min = scene->min();
-        float3 smin =
-            make_float3(scene_min.x(), scene_min.y(), scene_min.z());
+        float3 smin = make_float3(scene_min.x(), scene_min.y(), scene_min.z());
         auto   scene_size = scene->sizes();
         float3 off        = c - smin;
         codes(idx)        = morton3D(off.x / scene_size.x(),
-                                     off.y / scene_size.y(),
-                                     off.z / scene_size.z());
+                              off.y / scene_size.y(),
+                              off.z / scene_size.z());
     }
 
-    __global__ void InfoStacklessBVH_calcInverseMapping_kernel(cuda_tool::BufferView<int32_t> map,
-                                                               cuda_tool::BufferView<int32_t> inv,
-                                                               int n)
+    __global__ void InfoStacklessBVH_calcInverseMapping_kernel(
+        cuda_tool::BufferView<int32_t> map, cuda_tool::BufferView<int32_t> inv, int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -220,16 +217,17 @@ namespace
         inv(map(idx)) = idx;
     }
 
-    __global__ void InfoStacklessBVH_buildPrimitivesFromBox_kernel(cuda_tool::BufferView<int> _prim_idx,
-                                                                   cuda_tool::BufferView<AABB> _prim_box,
-                                                                   cuda_tool::BufferView<int32_t> _prim_map,
-                                                                   cuda_tool::BufferView<IndexT> _ext_bid,
-                                                                   cuda_tool::BufferView<IndexT> _ext_cid,
-                                                                   cuda_tool::CBufferView<IndexT> _bids,
-                                                                   cuda_tool::CBufferView<IndexT> _cids,
-                                                                   bool has_info,
-                                                                   cuda_tool::CBufferView<AABB> box,
-                                                                   int n)
+    __global__ void InfoStacklessBVH_buildPrimitivesFromBox_kernel(
+        cuda_tool::BufferView<int>     _prim_idx,
+        cuda_tool::BufferView<AABB>    _prim_box,
+        cuda_tool::BufferView<int32_t> _prim_map,
+        cuda_tool::BufferView<IndexT>  _ext_bid,
+        cuda_tool::BufferView<IndexT>  _ext_cid,
+        cuda_tool::CBufferView<IndexT> _bids,
+        cuda_tool::CBufferView<IndexT> _cids,
+        bool                           has_info,
+        cuda_tool::CBufferView<AABB>   box,
+        int                            n)
     {
         constexpr IndexT invalid = static_cast<IndexT>(-1);
         int              idx     = blockIdx.x * blockDim.x + threadIdx.x;
@@ -250,35 +248,34 @@ namespace
         }
     }
 
-    __global__ void InfoStacklessBVH_calcExtNodeSplitMetrics_kernel(cuda_tool::BufferView<uint32_t> codes,
-                                                                    cuda_tool::BufferView<int> metrics,
-                                                                    int n)
+    __global__ void InfoStacklessBVH_calcExtNodeSplitMetrics_kernel(
+        cuda_tool::BufferView<uint32_t> codes, cuda_tool::BufferView<int> metrics, int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
             return;
-        metrics(idx) =
-            idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
+        metrics(idx) = idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
     }
 
-    __global__ void InfoStacklessBVH_buildIntNodes_kernel(int size,
-                                                          cuda_tool::BufferView<uint32_t> _depths,
-                                                          cuda_tool::BufferView<int> _lvs_lca,
-                                                          cuda_tool::BufferView<int> _lvs_metric,
-                                                          cuda_tool::BufferView<uint32_t> _lvs_par,
-                                                          cuda_tool::BufferView<AABB> _lvs_box,
-                                                          cuda_tool::BufferView<IndexT> _lvs_bid,
-                                                          cuda_tool::BufferView<IndexT> _lvs_cid,
-                                                          cuda_tool::BufferView<int> _tks_lc,
-                                                          cuda_tool::BufferView<int> _tks_rc,
-                                                          cuda_tool::BufferView<int> _tks_range_x,
-                                                          cuda_tool::BufferView<int> _tks_range_y,
-                                                          cuda_tool::BufferView<uint32_t> _tks_mark,
-                                                          cuda_tool::BufferView<AABB> _tks_box,
-                                                          cuda_tool::BufferView<IndexT> _tks_bid,
-                                                          cuda_tool::BufferView<IndexT> _tks_cid,
-                                                          cuda_tool::BufferView<uint32_t> _flag,
-                                                          cuda_tool::BufferView<int> _tks_par)
+    __global__ void InfoStacklessBVH_buildIntNodes_kernel(
+        int                             size,
+        cuda_tool::BufferView<uint32_t> _depths,
+        cuda_tool::BufferView<int>      _lvs_lca,
+        cuda_tool::BufferView<int>      _lvs_metric,
+        cuda_tool::BufferView<uint32_t> _lvs_par,
+        cuda_tool::BufferView<AABB>     _lvs_box,
+        cuda_tool::BufferView<IndexT>   _lvs_bid,
+        cuda_tool::BufferView<IndexT>   _lvs_cid,
+        cuda_tool::BufferView<int>      _tks_lc,
+        cuda_tool::BufferView<int>      _tks_rc,
+        cuda_tool::BufferView<int>      _tks_range_x,
+        cuda_tool::BufferView<int>      _tks_range_y,
+        cuda_tool::BufferView<uint32_t> _tks_mark,
+        cuda_tool::BufferView<AABB>     _tks_box,
+        cuda_tool::BufferView<IndexT>   _tks_bid,
+        cuda_tool::BufferView<IndexT>   _tks_cid,
+        cuda_tool::BufferView<uint32_t> _flag,
+        cuda_tool::BufferView<int>      _tks_par)
     {
         constexpr IndexT invalid = static_cast<IndexT>(-1);
         int              idx     = blockIdx.x * blockDim.x + threadIdx.x;
@@ -287,10 +284,10 @@ namespace
 
         _lvs_lca(idx) = -1;
         _depths(idx)  = 0;
-        int l         = idx - 1;
-        int r         = idx;
-        bool mark = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
-        int cur       = mark ? l : r;
+        int  l        = idx - 1;
+        int  r        = idx;
+        bool mark     = (l >= 0) ? (_lvs_metric(l) < _lvs_metric(r)) : false;
+        int  cur      = mark ? l : r;
         _lvs_par(idx) = cur;
         if(_flag.total_size() == 0)
             return;
@@ -364,12 +361,13 @@ namespace
         }
     }
 
-    __global__ void InfoStacklessBVH_calcIntNodeOrders_kernel(cuda_tool::BufferView<int> _tks_lc,
-                                                              cuda_tool::BufferView<int> _lcas,
-                                                              cuda_tool::BufferView<uint32_t> _depths,
-                                                              cuda_tool::BufferView<uint32_t> _offsets,
-                                                              cuda_tool::BufferView<int> _tkMap,
-                                                              int n)
+    __global__ void InfoStacklessBVH_calcIntNodeOrders_kernel(
+        cuda_tool::BufferView<int>      _tks_lc,
+        cuda_tool::BufferView<int>      _lcas,
+        cuda_tool::BufferView<uint32_t> _depths,
+        cuda_tool::BufferView<uint32_t> _offsets,
+        cuda_tool::BufferView<int>      _tkMap,
+        int                             n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -384,10 +382,11 @@ namespace
         }
     }
 
-    __global__ void InfoStacklessBVH_updateBvhExtNodeLinks_kernel(cuda_tool::BufferView<int> _map,
-                                                                  cuda_tool::BufferView<int> _lcas,
-                                                                  cuda_tool::BufferView<uint32_t> _pars,
-                                                                  int n)
+    __global__ void InfoStacklessBVH_updateBvhExtNodeLinks_kernel(
+        cuda_tool::BufferView<int>      _map,
+        cuda_tool::BufferView<int>      _lcas,
+        cuda_tool::BufferView<uint32_t> _pars,
+        int                             n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -397,20 +396,21 @@ namespace
         _lcas(idx) = (ori != -1) ? (_map(ori) << 1) : (idx << 1 | 1);
     }
 
-    __global__ void InfoStacklessBVH_reorderNode_kernel(int int_size,
-                                                        cuda_tool::BufferView<int> _lvs_lca,
-                                                        cuda_tool::BufferView<AABB> _lvs_box,
-                                                        cuda_tool::BufferView<IndexT> _lvs_bid,
-                                                        cuda_tool::BufferView<IndexT> _lvs_cid,
-                                                        cuda_tool::BufferView<int> _tk_map,
-                                                        cuda_tool::BufferView<int> _int_lc,
-                                                        cuda_tool::BufferView<uint32_t> _int_mark,
-                                                        cuda_tool::BufferView<int> _int_range_y,
-                                                        cuda_tool::BufferView<AABB> _int_box,
-                                                        cuda_tool::BufferView<IndexT> _int_bid,
-                                                        cuda_tool::BufferView<IndexT> _int_cid,
-                                                        cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
-                                                        int count)
+    __global__ void InfoStacklessBVH_reorderNode_kernel(
+        int                                           int_size,
+        cuda_tool::BufferView<int>                    _lvs_lca,
+        cuda_tool::BufferView<AABB>                   _lvs_box,
+        cuda_tool::BufferView<IndexT>                 _lvs_bid,
+        cuda_tool::BufferView<IndexT>                 _lvs_cid,
+        cuda_tool::BufferView<int>                    _tk_map,
+        cuda_tool::BufferView<int>                    _int_lc,
+        cuda_tool::BufferView<uint32_t>               _int_mark,
+        cuda_tool::BufferView<int>                    _int_range_y,
+        cuda_tool::BufferView<AABB>                   _int_box,
+        cuda_tool::BufferView<IndexT>                 _int_bid,
+        cuda_tool::BufferView<IndexT>                 _int_cid,
+        cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
+        int                                           count)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= count)
@@ -435,9 +435,9 @@ namespace
             return;
 
         InfoStacklessBVH::Node n;
-        int      new_id = _tk_map(idx);
-        uint32_t m      = _int_mark(idx);
-        n.lc = (m & 1) ? _int_lc(idx) + int_size : _tk_map(_int_lc(idx));
+        int                    new_id = _tk_map(idx);
+        uint32_t               m      = _int_mark(idx);
+        n.lc    = (m & 1) ? _int_lc(idx) + int_size : _tk_map(_int_lc(idx));
         n.bound = _int_box(idx);
         int ie  = _lvs_lca(_int_range_y(idx) + 1);
         if(ie == -1)
@@ -454,25 +454,26 @@ namespace
     }
 
     template <typename NodeCull, typename PairPred>
-    __global__ void InfoStacklessBVH_stacklessSelf_kernel(int Size,
-                                                          cuda_tool::CBufferView<AABB> _box,
-                                                          int intSize,
-                                                          int numObjs,
-                                                          cuda_tool::BufferView<int> _lvs_idx,
-                                                          cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
-                                                          cuda_tool::CBufferView<IndexT> _bids,
-                                                          cuda_tool::CBufferView<IndexT> _cids,
-                                                          bool has_info,
-                                                          cuda_tool::Dense<int> resCounter,
-                                                          cuda_tool::BufferView<Vector2i> res,
-                                                          NodeCull node_cull,
-                                                          PairPred pair_pred)
+    __global__ void InfoStacklessBVH_stacklessSelf_kernel(
+        int                                           Size,
+        cuda_tool::CBufferView<AABB>                  _box,
+        int                                           intSize,
+        int                                           numObjs,
+        cuda_tool::BufferView<int>                    _lvs_idx,
+        cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
+        cuda_tool::CBufferView<IndexT>                _bids,
+        cuda_tool::CBufferView<IndexT>                _cids,
+        bool                                          has_info,
+        cuda_tool::Dense<int>                         resCounter,
+        cuda_tool::BufferView<Vector2i>               res,
+        NodeCull                                      node_cull,
+        PairPred                                      pair_pred)
     {
         constexpr IndexT invalid = static_cast<IndexT>(-1);
-        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-        bool active = tid < Size;
-        int  idx    = -1;
-        AABB bv;
+        int              tid     = blockIdx.x * blockDim.x + threadIdx.x;
+        bool             active  = tid < Size;
+        int              idx     = -1;
+        AABB             bv;
         if(active)
         {
             idx = _lvs_idx(tid);
@@ -565,37 +566,34 @@ namespace
             if(threadIdx.x == 0)
                 shared_counter = 0;
             bool done = total < MAX_RES_PER_BLOCK;
-            safe_copy_to(shared_res,
-                         total,
-                         res.data(),
-                         gidx,
-                         static_cast<int>(res.total_size()));
+            safe_copy_to(shared_res, total, res.data(), gidx, static_cast<int>(res.total_size()));
             if(done)
                 break;
         }
     }
 
     template <typename NodeCull, typename PairPred>
-    __global__ void InfoStacklessBVH_stacklessOther_kernel(int Size,
-                                                           cuda_tool::CBufferView<AABB> _box,
-                                                           cuda_tool::CBufferView<int> sortedIdx,
-                                                           int intSize,
-                                                           int numObjs,
-                                                           cuda_tool::BufferView<int> _lvs_idx,
-                                                           cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
-                                                           cuda_tool::CBufferView<IndexT> _qbids,
-                                                           cuda_tool::CBufferView<IndexT> _qcids,
-                                                           bool qhas_info,
-                                                           cuda_tool::Dense<int> resCounter,
-                                                           cuda_tool::BufferView<Vector2i> res,
-                                                           NodeCull node_cull,
-                                                           PairPred pair_pred)
+    __global__ void InfoStacklessBVH_stacklessOther_kernel(
+        int                                           Size,
+        cuda_tool::CBufferView<AABB>                  _box,
+        cuda_tool::CBufferView<int>                   sortedIdx,
+        int                                           intSize,
+        int                                           numObjs,
+        cuda_tool::BufferView<int>                    _lvs_idx,
+        cuda_tool::BufferView<InfoStacklessBVH::Node> _nodes,
+        cuda_tool::CBufferView<IndexT>                _qbids,
+        cuda_tool::CBufferView<IndexT>                _qcids,
+        bool                                          qhas_info,
+        cuda_tool::Dense<int>                         resCounter,
+        cuda_tool::BufferView<Vector2i>               res,
+        NodeCull                                      node_cull,
+        PairPred                                      pair_pred)
     {
         constexpr IndexT invalid = static_cast<IndexT>(-1);
-        int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-        bool active = tid < Size;
-        int  idx    = -1;
-        AABB bv;
+        int              tid     = blockIdx.x * blockDim.x + threadIdx.x;
+        bool             active  = tid < Size;
+        int              idx     = -1;
+        AABB             bv;
         if(active)
         {
             idx = sortedIdx(tid);
@@ -645,12 +643,13 @@ namespace
                     {
                         auto pair = int2{idx, _lvs_idx(st - intSize)};
                         // query side: SMem pre-loaded; leaf side: node.bid/cid
-                        InfoStacklessBVH::LeafPredInfo leaf_info{pair.x,
-                                                               pair.y,
-                                                               s_qbid[threadIdx.x],
-                                                               s_qcid[threadIdx.x],
-                                                               node.bid,
-                                                               node.cid};
+                        InfoStacklessBVH::LeafPredInfo leaf_info{
+                            pair.x,
+                            pair.y,
+                            s_qbid[threadIdx.x],
+                            s_qcid[threadIdx.x],
+                            node.bid,
+                            node.cid};
                         if(pair_pred(leaf_info))
                         {
                             int sidx = atomicAdd(&shared_counter, 1);
@@ -676,11 +675,7 @@ namespace
                 shared_counter = 0;
             __syncthreads();
             bool done = total < MAX_RES_PER_BLOCK;
-            safe_copy_to(shared_res,
-                         total,
-                         res.data(),
-                         gidx,
-                         static_cast<int>(res.total_size()));
+            safe_copy_to(shared_res, total, res.data(), gidx, static_cast<int>(res.total_size()));
             if(done)
                 break;
         }
@@ -783,7 +778,12 @@ inline void InfoStacklessBVH::Impl::calcIntNodeOrders(int size)
     auto k = InfoStacklessBVH_calcIntNodeOrders_kernel;
     if(size > 0)
         k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            int_lc.view(), ext_lca.view(), count.view(), offsetTable.view(), tkMap.view(), size);
+            int_lc.view(),
+            ext_lca.view(),
+            count.view(),
+            offsetTable.view(),
+            tkMap.view(),
+            size);
 }
 
 inline void InfoStacklessBVH::Impl::updateBvhExtNodeLinks(int size)
@@ -890,9 +890,9 @@ inline void InfoStacklessBVH::Impl::build(cuda_tool::CBufferView<AABB>   aabbs,
 //   inside the hot loop.
 // ---------------------------------------------------------------------------
 template <typename NodeCull, typename PairPred>
-void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
-                                           PairPred                   pair_pred,
-                                           cuda_tool::VarView<int>         cpNum,
+void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                node_cull,
+                                           PairPred                pair_pred,
+                                           cuda_tool::VarView<int> cpNum,
                                            cuda_tool::BufferView<Vector2i> buffer)
 {
     auto num_query = static_cast<int>(ext_aabb.size());
@@ -925,13 +925,13 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
 //   already filled from SMem — no global reads inside the hot loop.
 // ---------------------------------------------------------------------------
 template <typename NodeCull, typename PairPred>
-void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
-                                            PairPred                pair_pred,
+void InfoStacklessBVH::Impl::stacklessOther(NodeCull node_cull,
+                                            PairPred pair_pred,
                                             cuda_tool::CBufferView<AABB> query_aabbs,
                                             cuda_tool::CBufferView<IndexT> query_bids,
                                             cuda_tool::CBufferView<IndexT> query_cids,
                                             cuda_tool::CBufferView<int> query_sorted_id,
-                                            cuda_tool::VarView<int>         cpNum,
+                                            cuda_tool::VarView<int> cpNum,
                                             cuda_tool::BufferView<Vector2i> buffer)
 {
     auto num_query = static_cast<int>(query_aabbs.size());
@@ -1011,9 +1011,9 @@ inline void InfoStacklessBVH::build(cuda_tool::CBufferView<AABB> aabbs)
 // detect() with NodePred / LeafPred: wrapper passes pre-loaded bid/cid to NodePredInfo
 template <typename NodePred, typename LeafPred>
 inline void InfoStacklessBVH::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
-                                     NodePred                    np,
-                                     LeafPred                    lp,
-                                     QueryBuffer&                qbuffer)
+                                     NodePred                         np,
+                                     LeafPred                         lp,
+                                     QueryBuffer&                     qbuffer)
 {
     if(m_aabbs.size() == 0)
     {
@@ -1049,13 +1049,13 @@ inline void InfoStacklessBVH::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
 
 // query() with NodePred / LeafPred: passes query BIDs/CIDs to stacklessOther for SMem pre-load
 template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVH::query(cuda_tool::CBufferView<AABB>     query_aabbs,
-                                    cuda_tool::CBufferView<IndexT>   query_BIDs,
-                                    cuda_tool::CBufferView<IndexT>   query_CIDs,
+inline void InfoStacklessBVH::query(cuda_tool::CBufferView<AABB>   query_aabbs,
+                                    cuda_tool::CBufferView<IndexT> query_BIDs,
+                                    cuda_tool::CBufferView<IndexT> query_CIDs,
                                     cuda_tool::CBuffer2DView<IndexT> cmts,
-                                    NodePred                    np,
-                                    LeafPred                    lp,
-                                    QueryBuffer&                qbuffer)
+                                    NodePred                         np,
+                                    LeafPred                         lp,
+                                    QueryBuffer&                     qbuffer)
 {
     if(m_aabbs.size() == 0 || query_aabbs.size() == 0)
     {

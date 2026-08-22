@@ -49,8 +49,8 @@ class FiniteElementAnimator final : public Animator
             , m_dt(dt)
         {
         }
-        Float                      substep_ratio() const noexcept;
-        Float                      dt() const noexcept;
+        Float                           substep_ratio() const noexcept;
+        Float                           dt() const noexcept;
         cuda_tool::CBufferView<Vector3> xs() const noexcept;
         cuda_tool::CBufferView<Vector3> x_prevs() const noexcept;
         cuda_tool::CBufferView<Float>   masses() const noexcept;
@@ -80,12 +80,12 @@ class FiniteElementAnimator final : public Animator
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl*                             impl,
-                                   SizeT                             index,
-                                   Float                             dt,
+        ComputeGradientHessianInfo(Impl* impl,
+                                   SizeT index,
+                                   Float dt,
                                    cuda_tool::DoubletVectorView<Float, 3> gradients,
                                    cuda_tool::TripletMatrixView<Float, 3> hessians,
-                                   bool                              gradient_only)
+                                   bool gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -94,12 +94,12 @@ class FiniteElementAnimator final : public Animator
         }
         cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept;
         cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept;
-        bool                              gradient_only() const noexcept;
+        bool                                   gradient_only() const noexcept;
 
       private:
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
     class ReportExtentInfo
@@ -118,11 +118,11 @@ class FiniteElementAnimator final : public Animator
       private:
         friend class FiniteElementAnimator;
         friend class FiniteElementConstraint;
-        SizeT m_hessian_block_count    = 0;
-        SizeT m_gradient_segment_count = 0;
-        SizeT m_energy_count           = 0;
-        bool  m_gradient_only          = false;
-        mutable bool m_gradient_only_checked = false;
+        SizeT        m_hessian_block_count    = 0;
+        SizeT        m_gradient_segment_count = 0;
+        SizeT        m_energy_count           = 0;
+        bool         m_gradient_only          = false;
+        mutable bool m_gradient_only_checked  = false;
     };
 
     class Impl

@@ -41,9 +41,9 @@ class Codim1DConstitution : public FiniteElementConstitution
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Codim1DConstitution*    impl,
-                          SizeT                   index_in_dim,
-                          Float                   dt,
+        ComputeEnergyInfo(Codim1DConstitution*         impl,
+                          SizeT                        index_in_dim,
+                          Float                        dt,
                           cuda_tool::BufferView<Float> energies)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
@@ -79,7 +79,7 @@ class Codim1DConstitution : public FiniteElementConstitution
       private:
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
   protected:

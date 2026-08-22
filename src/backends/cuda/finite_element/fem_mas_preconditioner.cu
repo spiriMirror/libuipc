@@ -19,8 +19,7 @@ namespace
 {
     namespace eigen = cuda_tool::eigen;
 
-    __global__ void fill_identity_indices_kernel(cuda_tool::BufferView<uint32_t> indices,
-                                                 int                             n)
+    __global__ void fill_identity_indices_kernel(cuda_tool::BufferView<uint32_t> indices, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -109,8 +108,8 @@ void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& 
                                       const cuda_tool::DeviceBuffer<int>& unpart_flags,
                                       cuda_tool::DenseVectorView<Float>  z,
                                       cuda_tool::CDenseVectorView<Float> r,
-                                      cuda_tool::CVarView<IndexT>        converged,
-                                      SizeT                         num_verts)
+                                      cuda_tool::CVarView<IndexT> converged,
+                                      SizeT                       num_verts)
 {
     int n = (int)num_verts;
     if(n > 0)
@@ -146,9 +145,9 @@ class FEMMASPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    MASPreconditionerEngine      engine;
-    bool                         m_has_partition     = false;
-    bool                         m_has_unpartitioned = false;
+    MASPreconditionerEngine           engine;
+    bool                              m_has_partition     = false;
+    bool                              m_has_unpartitioned = false;
     cuda_tool::DeviceBuffer<uint32_t> sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
@@ -429,12 +428,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         // MAS assembly for partitioned vertices
         fill_identity_indices(sorted_indices, triplet_count);
-        engine.set_preconditioner(A.values(),
-                                  A.row_indices(),
-                                  A.col_indices(),
-                                  sorted_indices.view(),
-                                  dof_offset / 3,
-                                  0);
+        engine.set_preconditioner(
+            A.values(), A.row_indices(), A.col_indices(), sorted_indices.view(), dof_offset / 3, 0);
 
         auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");
         if(dump_mas && dump_mas->view()[0] != 0)
@@ -443,8 +438,9 @@ class FEMMASPreconditioner : public LocalPreconditioner
                 static_cast<SimEngine&>(uipc::backend::SimSystem::engine());
             backend::BackendPathTool path_tool{std::string{workspace()}};
             auto out_dir = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-            this->engine.dump_cluster_matrices_debug(
-                out_dir.string(), cuda_engine.frame(), cuda_engine.newton_iter());
+            this->engine.dump_cluster_matrices_debug(out_dir.string(),
+                                                     cuda_engine.frame(),
+                                                     cuda_engine.newton_iter());
         }
 
         // Diagonal fallback assembly for unpartitioned vertices

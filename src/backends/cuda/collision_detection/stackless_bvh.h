@@ -69,7 +69,7 @@ class StacklessBVH
 
       public:
         friend class StacklessBVH;
-        SizeT                        m_size = 0;
+        SizeT                             m_size = 0;
         cuda_tool::DeviceBuffer<Vector2i> m_pairs;
 
         cuda_tool::DeviceBuffer<unsigned int> m_queryMtCode;
@@ -131,14 +131,14 @@ class StacklessBVH
       public:
         void build(cuda_tool::CBufferView<AABB> aabbs);
         template <typename Pred>
-        void StacklessCDSharedSelf(Pred                       pred,
+        void StacklessCDSharedSelf(Pred                            pred,
                                    cuda_tool::VarView<int>         cpNum,
                                    cuda_tool::BufferView<Vector2i> buffer);
         template <typename Pred>
-        void StacklessCDSharedOther(Pred                       pred,
-                                    cuda_tool::CBufferView<AABB>    query_aabbs,
-                                    cuda_tool::CBufferView<int>     query_sorted_id,
-                                    cuda_tool::VarView<int>         cpNum,
+        void StacklessCDSharedOther(Pred                         pred,
+                                    cuda_tool::CBufferView<AABB> query_aabbs,
+                                    cuda_tool::CBufferView<int> query_sorted_id,
+                                    cuda_tool::VarView<int>     cpNum,
                                     cuda_tool::BufferView<Vector2i> buffer);
 
 
@@ -157,7 +157,7 @@ class StacklessBVH
 
 
         cuda_tool::CBufferView<AABB> objs;  // external AABBs, should be kept valid
-        cuda_tool::DeviceVar<AABB>   scene_box;  // external bounding boxes
+        cuda_tool::DeviceVar<AABB>        scene_box;  // external bounding boxes
         cuda_tool::DeviceVector<uint32_t> flags;
         cuda_tool::DeviceVector<uint32_t> mtcode;  // external morton codes
         cuda_tool::DeviceVector<int32_t>  sorted_id;

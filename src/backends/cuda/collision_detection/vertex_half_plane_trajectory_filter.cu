@@ -5,9 +5,7 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void VertexHalfPlaneTrajectoryFilter_label_active_vertices_kernel(
-        cuda_tool::CBufferView<Vector2i> PHs,
-        cuda_tool::BufferView<IndexT>    is_active,
-        int                              n)
+        cuda_tool::CBufferView<Vector2i> PHs, cuda_tool::BufferView<IndexT> is_active, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -205,7 +203,7 @@ bool VertexHalfPlaneTrajectoryFilter::Impl::try_recover(RecoverInfo& info)
 void VertexHalfPlaneTrajectoryFilter::Impl::apply_recover(RecoverInfo& info)
 {
     dump_PHs.apply_to(recovered_PHs);
-    // temporary switch to the recovered PHs, which will be used 
+    // temporary switch to the recovered PHs, which will be used
     // in the record_friction_candidates() function to recover the friction candidates.
     PHs = recovered_PHs.view();
 }

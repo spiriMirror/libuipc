@@ -32,7 +32,7 @@ class Codim1DConstitutionDiffParmReporter : public FiniteElementConstitutionDiff
         IndexT dof_count(SizeT frame) const;
 
         cuda_tool::TripletMatrixView<Float, 1> pGpP() const;
-        Float                             dt() const;
+        Float                                  dt() const;
 
       protected:
         Codim1DConstitutionDiffParmReporter* m_impl = nullptr;

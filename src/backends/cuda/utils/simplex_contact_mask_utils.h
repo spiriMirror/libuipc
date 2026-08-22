@@ -4,26 +4,26 @@
 namespace uipc::backend::cuda
 {
 inline __device__ bool allow_PT_contact(const cuda_tool::CDense2D<IndexT>& table,
-                                        const Vector4i&               cids)
+                                        const Vector4i& cids)
 {
     return table(cids[0], cids[1]) && table(cids[0], cids[2]) && table(cids[0], cids[3]);
 }
 
 inline __device__ bool allow_EE_contact(const cuda_tool::CDense2D<IndexT>& table,
-                                        const Vector4i&               cids)
+                                        const Vector4i& cids)
 {
     return table(cids[0], cids[2]) && table(cids[0], cids[3])
            && table(cids[1], cids[2]) && table(cids[1], cids[3]);
 }
 
 inline __device__ bool allow_PE_contact(const cuda_tool::CDense2D<IndexT>& table,
-                                        const Vector3i&               cids)
+                                        const Vector3i& cids)
 {
     return table(cids[0], cids[1]) && table(cids[0], cids[2]);
 }
 
 inline __device__ bool allow_PP_contact(const cuda_tool::CDense2D<IndexT>& table,
-                                        const Vector2i&               cids)
+                                        const Vector2i& cids)
 {
     return table(cids[0], cids[1]);
 }

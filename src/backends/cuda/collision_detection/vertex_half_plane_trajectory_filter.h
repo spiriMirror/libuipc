@@ -25,10 +25,10 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         {
         }
 
-        Float                    d_hat() const noexcept;
+        Float                         d_hat() const noexcept;
         cuda_tool::CBufferView<Float> d_hats() const noexcept;
 
-        IndexT                     half_plane_vertex_offset() const noexcept;
+        IndexT half_plane_vertex_offset() const noexcept;
         cuda_tool::CBufferView<Vector3> plane_normals() const noexcept;
         cuda_tool::CBufferView<Vector3> plane_positions() const noexcept;
 
@@ -49,7 +49,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     {
       public:
         using BaseInfo::BaseInfo;
-        Float                      alpha() const noexcept;
+        Float                           alpha() const noexcept;
         cuda_tool::CBufferView<Vector3> displacements() const noexcept;
 
       private:
@@ -120,8 +120,8 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         }
     };
 
-    cuda_tool::CBufferView<Vector2i> PHs() noexcept;
-    cuda_tool::CBufferView<Vector2i> friction_PHs() noexcept;
+    cuda_tool::CBufferView<Vector2i>         PHs() noexcept;
+    cuda_tool::CBufferView<Vector2i>         friction_PHs() noexcept;
     virtual cuda_tool::CBufferView<Vector2i> candidate_PHs() const noexcept = 0;
     virtual cuda_tool::CBufferView<Float>    toi_PHs() const noexcept       = 0;
 
@@ -130,7 +130,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     virtual void do_filter_active(FilterActiveInfo& info) = 0;
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
 
-    virtual void do_build(BuildInfo& info){};
+    virtual void do_build(BuildInfo& info) {};
     virtual bool do_dump(DumpInfo& info) override;
     virtual bool do_try_recover(RecoverInfo& info) override;
     virtual void do_apply_recover(RecoverInfo& info) override;

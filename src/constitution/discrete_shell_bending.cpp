@@ -47,20 +47,17 @@ Float DiscreteShellBending::bending_stiffness(Float young_modulus,
            / (12.0 * (1.0 - poisson_ratio * poisson_ratio));
 }
 
-void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc,
-                                    Float                        young_modulus,
-                                    Float                        poisson_ratio)
+void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float young_modulus, Float poisson_ratio)
 {
     Base::apply_to(sc);
 
     // thickness lives on the mesh (set by the membrane/stretch constitution);
     // bending is optional, so it reads the attribute instead of re-taking it.
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
-    UIPC_ASSERT_THROW(
-        attr_thickness != nullptr,
-        "DiscreteShellBending::apply_to(sc, E, nu) needs the vertex thickness "
-        "attribute; apply a membrane (stretch) constitution with thickness first, "
-        "or use apply_to(sc, bending_stiffness) for a raw value.");
+    UIPC_ASSERT_THROW(attr_thickness != nullptr,
+                      "DiscreteShellBending::apply_to(sc, E, nu) needs the vertex thickness "
+                      "attribute; apply a membrane (stretch) constitution with thickness first, "
+                      "or use apply_to(sc, bending_stiffness) for a raw value.");
 
     auto t_view = geometry::view(*attr_thickness);
     auto edges  = sc.edges().topo().view();
@@ -76,8 +73,8 @@ void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc,
     for(SizeT i = 0; i < edges.size(); ++i)
     {
         // per-edge thickness from the two endpoints (supports non-uniform shells)
-        Float t_e     = (t_view[edges[i](0)] + t_view[edges[i](1)]) * 0.5;
-        bs_view[i]    = young_modulus * t_e * t_e * t_e / denom;
+        Float t_e  = (t_view[edges[i](0)] + t_view[edges[i](1)]) * 0.5;
+        bs_view[i] = young_modulus * t_e * t_e * t_e / denom;
     }
 }
 

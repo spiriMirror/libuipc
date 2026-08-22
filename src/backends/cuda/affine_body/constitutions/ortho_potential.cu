@@ -32,14 +32,14 @@ namespace
     }
 
     __global__ void ortho_potential_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Vector12>    qs,
-        cuda_tool::CBufferView<Float>       volumes,
-        cuda_tool::BufferView<Vector12>     gradients,
-        cuda_tool::BufferView<Matrix12x12>  body_hessian,
-        cuda_tool::CBufferView<Float>       kappas,
-        Float                               dt,
-        bool                                gradient_only,
-        int                                 n)
+        cuda_tool::CBufferView<Vector12>   qs,
+        cuda_tool::CBufferView<Float>      volumes,
+        cuda_tool::BufferView<Vector12>    gradients,
+        cuda_tool::BufferView<Matrix12x12> body_hessian,
+        cuda_tool::CBufferView<Float>      kappas,
+        Float                              dt,
+        bool                               gradient_only,
+        int                                n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

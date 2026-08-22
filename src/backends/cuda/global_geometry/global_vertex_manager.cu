@@ -252,7 +252,7 @@ void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_p
 void GlobalVertexManager::Impl::restore_ccd()
 {
     cuda_tool::BufferLaunch().copy<Vector3>(positions.view(),
-                                       std::as_const(safe_positions).view());
+                                            std::as_const(safe_positions).view());
 }
 
 void GlobalVertexManager::Impl::overwrite_positions(cuda_tool::CBufferView<Vector3> src)
@@ -289,10 +289,10 @@ void GlobalVertexManager::Impl::record_start_point()
 Float GlobalVertexManager::Impl::compute_axis_max_displacement()
 {
     cuda_tool::DeviceReduce().Reduce((Float*)displacements.data(),
-                                axis_max_disp.data(),
-                                displacements.size() * 3,
-                                GlobalVertexManager_MaxAbsOp{},
-                                0.0);
+                                     axis_max_disp.data(),
+                                     displacements.size() * 3,
+                                     GlobalVertexManager_MaxAbsOp{},
+                                     0.0);
     return axis_max_disp;
 }
 
@@ -300,18 +300,16 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
 {
     Float max_float = std::numeric_limits<Float>::max();
     cuda_tool::DeviceReduce()
-        .Reduce(
-            positions.data(),
-            min_pos.data(),
-            positions.size(),
-            GlobalVertexManager_CwiseMinOp{},
-            Vector3{max_float, max_float, max_float})
-        .Reduce(
-            positions.data(),
-            max_pos.data(),
-            positions.size(),
-            GlobalVertexManager_CwiseMaxOp{},
-            Vector3{-max_float, -max_float, -max_float});
+        .Reduce(positions.data(),
+                min_pos.data(),
+                positions.size(),
+                GlobalVertexManager_CwiseMinOp{},
+                Vector3{max_float, max_float, max_float})
+        .Reduce(positions.data(),
+                max_pos.data(),
+                positions.size(),
+                GlobalVertexManager_CwiseMaxOp{},
+                Vector3{-max_float, -max_float, -max_float});
 
     Vector3 min_pos_host, max_pos_host;
     min_pos_host = min_pos;

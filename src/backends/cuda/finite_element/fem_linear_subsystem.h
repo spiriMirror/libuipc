@@ -35,10 +35,10 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        bool                                 m_gradient_only = false;
+        bool                                      m_gradient_only = false;
         cuda_tool::DoubletVectorView<Float, 3>    m_gradients;
         cuda_tool::TripletMatrixView<Float, 3, 3> m_hessians;
-        Float                                m_dt = 0.0;
+        Float                                     m_dt = 0.0;
     };
 
     class ReportExtentInfo
@@ -69,8 +69,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     class AssembleInfo
     {
       public:
-        AssembleInfo(Impl*                                impl,
-                     IndexT                               index,
+        AssembleInfo(Impl*                                     impl,
+                     IndexT                                    index,
                      cuda_tool::TripletMatrixView<Float, 3, 3> hessians,
                      bool gradient_only) noexcept
             : m_impl(impl)
@@ -82,16 +82,16 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
         cuda_tool::DoubletVectorView<Float, 3>    gradients() const;
         cuda_tool::TripletMatrixView<Float, 3, 3> hessians() const;
-        Float                                dt() const noexcept;
-        bool                                 gradient_only() const noexcept;
+        Float                                     dt() const noexcept;
+        bool gradient_only() const noexcept;
 
       private:
         friend class FEMLinearSubsystem;
 
-        Impl*                                m_impl  = nullptr;
-        IndexT                               m_index = ~0;
+        Impl*                                     m_impl  = nullptr;
+        IndexT                                    m_index = ~0;
         cuda_tool::TripletMatrixView<Float, 3, 3> m_hessians;
-        bool                                 m_gradient_only = false;
+        bool                                      m_gradient_only = false;
     };
 
     class Impl

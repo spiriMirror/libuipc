@@ -60,20 +60,20 @@ class GlobalContactManager final : public SimSystem
         Float compute_cfl_condition();
         Float compute_feasible_step();
 
-        SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
-        SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
+        SimSystemSlot<GlobalVertexManager>            global_vertex_manager;
+        SimSystemSlot<GlobalTrajectoryFilter>         global_trajectory_filter;
         SimSystemSlot<GlobalSimplicialSurfaceManager> global_surface_manager;
 
         bool cfl_enabled = false;
 
         S<cuda_tool::DeviceBuffer2D<ContactCoeff>> contact_tabular;
 
-        vector<ContactCoeff>         h_contact_tabular;
-        vector<IndexT>               h_contact_mask_tabular;
-        vector<IndexT>               h_subcene_mask_tabular;
+        vector<ContactCoeff>              h_contact_tabular;
+        vector<IndexT>                    h_contact_mask_tabular;
+        vector<IndexT>                    h_subcene_mask_tabular;
         cuda_tool::DeviceBuffer2D<IndexT> contact_mask_tabular;
         cuda_tool::DeviceBuffer2D<IndexT> subscene_mask_tabular;
-        Float                        reserve_ratio = 1.1;
+        Float                             reserve_ratio = 1.1;
 
         Float                                   d_hat = 0.0;
         Float                                   kappa = 0.0;
@@ -89,8 +89,8 @@ class GlobalContactManager final : public SimSystem
         cuda_tool::DeviceBuffer<Float>  vert_disp_norms;
         cuda_tool::DeviceVar<Float>     max_disp_norm;
 
-        cuda_tool::DeviceBuffer<Float>  feasible_tois;
-        cuda_tool::DeviceVar<Float>     min_feasible_toi;
+        cuda_tool::DeviceBuffer<Float> feasible_tois;
+        cuda_tool::DeviceVar<Float>    min_feasible_toi;
 
         SimSystemSlotCollection<ContactReporter> contact_reporters;
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
@@ -102,8 +102,8 @@ class GlobalContactManager final : public SimSystem
     bool  cfl_enabled() const;
 
     cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
-    cuda_tool::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
-    cuda_tool::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
+    cuda_tool::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
+    cuda_tool::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
 
 
   protected:

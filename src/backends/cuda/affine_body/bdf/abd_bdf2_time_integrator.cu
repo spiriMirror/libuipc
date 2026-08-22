@@ -26,7 +26,7 @@ namespace
         if(i >= n)
             return;
         // q_n is tracked in q_prevs for current step.
-        q_ns(i) = qs(i);
+        q_ns(i)          = qs(i);
         auto&    q_n     = q_ns(i);
         Vector12 q_n_1   = q_n_1s(i);
         Vector12 q_v_n   = q_v_ns(i);
@@ -66,10 +66,10 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        Vector12 qv;
+        Vector12    qv;
         const auto& q     = qs(i);
         const auto& q_n   = q_ns(i);
-        auto&    q_n_1 = q_n_1s(i);
+        auto&       q_n_1 = q_n_1s(i);
         BDF2::compute_qv(qv, q, q_n, q_n_1, dt);
 
         // Update velocity history.

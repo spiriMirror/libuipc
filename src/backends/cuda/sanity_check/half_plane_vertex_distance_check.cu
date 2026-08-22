@@ -56,8 +56,7 @@ namespace
             if(!contact_mask(hp_contact_ids(h), contact_ids(i)))
                 continue;
 
-            Float d = (positions(i) - hp_origins(h)).dot(hp_normals(h))
-                      - thickness(i);
+            Float d = (positions(i) - hp_origins(h)).dot(hp_normals(h)) - thickness(i);
             if(d <= 0.0)
             {
                 vertex_too_close(i) = 1;
@@ -189,8 +188,7 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
 
         auto& ctx = context();
 
-        const geometry::SimplicialComplex& scene_surface =
-            ctx.scene_simplicial_surface();
+        const geometry::SimplicialComplex& scene_surface = ctx.scene_simplicial_surface();
 
         auto& contact_tabular  = ctx.contact_tabular();
         auto& subscene_tabular = ctx.subscene_tabular();
@@ -239,17 +237,19 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
                 h_thickness[i] = VThickness[i];
         }
 
-        SizeT CN = contact_tabular.element_count();
+        SizeT          CN = contact_tabular.element_count();
         vector<IndexT> h_contact_mask(CN * CN);
         for(IndexT i = 0; i < (IndexT)CN; ++i)
             for(IndexT j = 0; j < (IndexT)CN; ++j)
-                h_contact_mask[i * CN + j] = contact_tabular.at(i, j).is_enabled() ? 1 : 0;
+                h_contact_mask[i * CN + j] =
+                    contact_tabular.at(i, j).is_enabled() ? 1 : 0;
 
-        SizeT SN = subscene_tabular.element_count();
+        SizeT          SN = subscene_tabular.element_count();
         vector<IndexT> h_subscene_mask(SN * SN);
         for(IndexT i = 0; i < (IndexT)SN; ++i)
             for(IndexT j = 0; j < (IndexT)SN; ++j)
-                h_subscene_mask[i * SN + j] = subscene_tabular.at(i, j).is_enabled() ? 1 : 0;
+                h_subscene_mask[i * SN + j] =
+                    subscene_tabular.at(i, j).is_enabled() ? 1 : 0;
 
         DeviceBuffer<Vector3> positions(num_vertices);
         DeviceBuffer<Float>   thickness(num_vertices);
@@ -279,7 +279,7 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
         for(auto& halfplane : halfplanes)
         {
             auto instance_count = halfplane->instances().size();
-            auto Ns = halfplane->instances().find<Vector3>("N");
+            auto Ns             = halfplane->instances().find<Vector3>("N");
             UIPC_ASSERT(Ns, "Normal vector `N` not found in half-plane");
             auto Ps = halfplane->instances().find<Vector3>("P");
             UIPC_ASSERT(Ps, "Origin point `P` not found in half-plane");
@@ -288,15 +288,18 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
             auto HObjIds = halfplane->instances().find<IndexT>("sanity_check/object_id");
             UIPC_ASSERT(HObjIds, "`sanity_check/object_id` not found in half-plane");
 
-            auto attr_cid  = halfplane->meta().find<IndexT>(builtin::contact_element_id);
+            auto attr_cid = halfplane->meta().find<IndexT>(builtin::contact_element_id);
             auto attr_scid = halfplane->meta().find<IndexT>(builtin::subscene_element_id);
             IndexT HCid  = attr_cid ? attr_cid->view()[0] : IndexT(0);
             IndexT HSCid = attr_scid ? attr_scid->view()[0] : IndexT(0);
 
             for(SizeT I = 0; I < instance_count; ++I)
-                hp_instances.push_back({Ns->view()[I], Ps->view()[I],
-                                        HCid, HSCid,
-                                        HGeoIds->view()[I], HObjIds->view()[I]});
+                hp_instances.push_back({Ns->view()[I],
+                                        Ps->view()[I],
+                                        HCid,
+                                        HSCid,
+                                        HGeoIds->view()[I],
+                                        HObjIds->view()[I]});
         }
 
         if(hp_instances.empty())
@@ -367,14 +370,14 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
                 Float d = (Vs[vI] - hp.P).dot(hp.N) - h_thickness[vI];
                 if(d <= 0.0)
                 {
-                    close_geo_ids[{(IndexT)VGeoIds[vI], hp.geo_id}] =
-                        {(IndexT)VObjectIds[vI], hp.obj_id};
+                    close_geo_ids[{(IndexT)VGeoIds[vI], hp.geo_id}] = {
+                        (IndexT)VObjectIds[vI], hp.obj_id};
                 }
             }
         }
 
         ::uipc::backend::SanityCheckMessageVisitor scmv{msg};
-        auto& buffer = scmv.message();
+        auto&                                      buffer = scmv.message();
 
         for(auto& [GeoIds, ObjIds] : close_geo_ids)
         {
@@ -432,7 +435,6 @@ class HalfPlaneVertexDistanceCheck final : public BackendSanityChecker
 
         return SanityCheckResult::Error;
     }
-
 };
 
 REGISTER_BACKEND_SANITY_CHECKER(HalfPlaneVertexDistanceCheck);

@@ -12,15 +12,15 @@ namespace
     __global__ void do_compute_energy_kernel(cuda_tool::CDense2D<ContactCoeff> table,
                                              cuda_tool::CBufferView<IndexT> contact_ids,
                                              IndexT half_plane_vertex_offset,
-                                             Float eps_v,
-                                             Float dt,
+                                             Float  eps_v,
+                                             Float  dt,
                                              cuda_tool::CBufferView<Vector2i> PHs,
                                              cuda_tool::CBufferView<Float> lambda,
                                              cuda_tool::CBufferView<Vector3> x,
                                              cuda_tool::CBufferView<Vector3> prev_x,
                                              cuda_tool::CBufferView<Vector3> plane_normals,
                                              cuda_tool::BufferView<Float> Es,
-                                             int   n)
+                                             int                          n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -44,16 +44,16 @@ namespace
     __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
                                        cuda_tool::CBufferView<IndexT> contact_ids,
                                        IndexT half_plane_vertex_offset,
-                                       Float eps_v,
-                                       Float dt,
+                                       Float  eps_v,
+                                       Float  dt,
                                        cuda_tool::CBufferView<Vector2i> PHs,
-                                       cuda_tool::CBufferView<Float> lambda,
-                                       cuda_tool::CBufferView<Vector3> x,
-                                       cuda_tool::CBufferView<Vector3> prev_x,
+                                       cuda_tool::CBufferView<Float>    lambda,
+                                       cuda_tool::CBufferView<Vector3>  x,
+                                       cuda_tool::CBufferView<Vector3>  prev_x,
                                        cuda_tool::CBufferView<Vector3> plane_normals,
                                        cuda_tool::DoubletVectorView<Float, 3> Gs,
                                        cuda_tool::TripletMatrixView<Float, 3> Hs,
-                                       int   n)
+                                       int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -141,22 +141,19 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactMa
     auto PH_lambda = active_set->PH_lambda_friction();
 
     if(PH_size > 0)
-        do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)PH_size,
-                                                            do_compute_energy_kernel),
-                                   cuda_tool::best_block_dim(do_compute_energy_kernel),
-                                   0,
-                                   nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                              global_vertex_manager->contact_element_ids().cviewer(),
-                                              half_plane_vertex_reporter->vertex_offset(),
-                                              global_contact_manager->eps_velocity(),
-                                              dt_attr->view()[0],
-                                              PHs.cviewer(),
-                                              PH_lambda.cviewer(),
-                                              x.cviewer(),
-                                              prev_x.cviewer(),
-                                              half_plane->normals().viewer(),
-                                              PH_energies.viewer(),
-                                              (int)PH_size);
+        do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)PH_size, do_compute_energy_kernel), cuda_tool::best_block_dim(do_compute_energy_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            half_plane_vertex_reporter->vertex_offset(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            PHs.cviewer(),
+            PH_lambda.cviewer(),
+            x.cviewer(),
+            prev_x.cviewer(),
+            half_plane->normals().viewer(),
+            PH_energies.viewer(),
+            (int)PH_size);
 }
 
 void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager::GradientHessianInfo& info)
@@ -178,22 +175,20 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
     auto PH_lambda = active_set->PH_lambda_friction();
 
     if(PH_size > 0)
-        do_assemble_kernel<<<cuda_tool::best_grid_dim((int)PH_size, do_assemble_kernel),
-                             cuda_tool::best_block_dim(do_assemble_kernel),
-                             0,
-                             nullptr>>>(global_contact_manager->contact_tabular().cviewer(),
-                                        global_vertex_manager->contact_element_ids().cviewer(),
-                                        half_plane_vertex_reporter->vertex_offset(),
-                                        global_contact_manager->eps_velocity(),
-                                        dt_attr->view()[0],
-                                        PHs.cviewer(),
-                                        PH_lambda.cviewer(),
-                                        x.cviewer(),
-                                        prev_x.cviewer(),
-                                        half_plane->normals().viewer(),
-                                        PH_grad.viewer(),
-                                        PH_hess.viewer(),
-                                        (int)PH_size);
+        do_assemble_kernel<<<cuda_tool::best_grid_dim((int)PH_size, do_assemble_kernel), cuda_tool::best_block_dim(do_assemble_kernel), 0, nullptr>>>(
+            global_contact_manager->contact_tabular().cviewer(),
+            global_vertex_manager->contact_element_ids().cviewer(),
+            half_plane_vertex_reporter->vertex_offset(),
+            global_contact_manager->eps_velocity(),
+            dt_attr->view()[0],
+            PHs.cviewer(),
+            PH_lambda.cviewer(),
+            x.cviewer(),
+            prev_x.cviewer(),
+            half_plane->normals().viewer(),
+            PH_grad.viewer(),
+            PH_hess.viewer(),
+            (int)PH_size);
 }
 
 void ALVertexHalfPlaneFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)

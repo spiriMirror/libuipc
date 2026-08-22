@@ -15,11 +15,11 @@ class UIPC_CONSTITUTION_API StrainLimitingBaraffWitkinShell : public FiniteEleme
     // Separate stretch / shear moduli (cloth: the two deformation modes have
     // independent material parameters, cf. mas-pncg ClothMaterialConfig).
     void apply_to(geometry::SimplicialComplex& sc,
-                  const ElasticModuli2D& stretch_moduli,
-                  const ElasticModuli2D& shear_moduli,
-                  Float mass_density = 2e2,
-                  Float thickness    = 0.001_m,
-                  Float strain_rate  = 100.0) const;
+                  const ElasticModuli2D&       stretch_moduli,
+                  const ElasticModuli2D&       shear_moduli,
+                  Float                        mass_density = 2e2,
+                  Float                        thickness    = 0.001_m,
+                  Float                        strain_rate  = 100.0) const;
 
     // Convenience overload: stretch and shear share one moduli pair.
     void apply_to(geometry::SimplicialComplex& sc,

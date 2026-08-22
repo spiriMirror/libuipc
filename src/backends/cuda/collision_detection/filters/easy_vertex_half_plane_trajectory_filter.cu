@@ -13,21 +13,21 @@ namespace
     constexpr Float eta = 0.1;
 
     __global__ void EasyVertexHalfPlaneTrajectoryFilter_filter_active_kernel(
-        cuda_tool::Dense<IndexT>       num,
-        IndexT                         plane_vertex_offset,
-        cuda_tool::CBufferView<IndexT> surf_vertices,
+        cuda_tool::Dense<IndexT>        num,
+        IndexT                          plane_vertex_offset,
+        cuda_tool::CBufferView<IndexT>  surf_vertices,
         cuda_tool::CBufferView<Vector3> positions,
-        cuda_tool::CBufferView<Float>  thicknesses,
-        cuda_tool::CBufferView<IndexT> contact_element_ids,
-        cuda_tool::CBufferView<IndexT> subscene_element_ids,
-        cuda_tool::CDense2D<IndexT>    contact_mask_tabular,
-        cuda_tool::CDense2D<IndexT>    subscene_mask_tabular,
+        cuda_tool::CBufferView<Float>   thicknesses,
+        cuda_tool::CBufferView<IndexT>  contact_element_ids,
+        cuda_tool::CBufferView<IndexT>  subscene_element_ids,
+        cuda_tool::CDense2D<IndexT>     contact_mask_tabular,
+        cuda_tool::CDense2D<IndexT>     subscene_mask_tabular,
         cuda_tool::CBufferView<Vector3> half_plane_positions,
         cuda_tool::CBufferView<Vector3> half_plane_normals,
         cuda_tool::BufferView<Vector2i> PHs,
-        cuda_tool::CBufferView<Float>  d_hats,
-        size_t                         max_count,
-        int                            n)
+        cuda_tool::CBufferView<Float>   d_hats,
+        size_t                          max_count,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -79,20 +79,20 @@ namespace
     }
 
     __global__ void EasyVertexHalfPlaneTrajectoryFilter_filter_toi_kernel(
-        cuda_tool::CBufferView<IndexT> surf_vertices,
-        IndexT                         plane_vertex_offset,
+        cuda_tool::CBufferView<IndexT>  surf_vertices,
+        IndexT                          plane_vertex_offset,
         cuda_tool::CBufferView<Vector3> positions,
-        cuda_tool::CBufferView<Float>  thicknesses,
-        cuda_tool::CBufferView<IndexT> contact_element_ids,
-        cuda_tool::CBufferView<IndexT> subscene_element_ids,
-        cuda_tool::CDense2D<IndexT>    subscene_mask_tabular,
-        cuda_tool::CDense2D<IndexT>    contact_mask_tabular,
+        cuda_tool::CBufferView<Float>   thicknesses,
+        cuda_tool::CBufferView<IndexT>  contact_element_ids,
+        cuda_tool::CBufferView<IndexT>  subscene_element_ids,
+        cuda_tool::CDense2D<IndexT>     subscene_mask_tabular,
+        cuda_tool::CDense2D<IndexT>     contact_mask_tabular,
         cuda_tool::CBufferView<Vector3> displacements,
         cuda_tool::CBufferView<Vector3> half_plane_positions,
         cuda_tool::CBufferView<Vector3> half_plane_normals,
-        cuda_tool::BufferView<Float>   tois,
-        Float                          alpha,
-        int                            n)
+        cuda_tool::BufferView<Float>    tois,
+        Float                           alpha,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

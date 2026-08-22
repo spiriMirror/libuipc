@@ -20,8 +20,8 @@ class FiniteElementExternalVertexForceConstraint final : public FiniteElementCon
     class Impl
     {
       public:
-        vector<Vector3>             h_forces;
-        vector<IndexT>              h_vertex_ids;
+        vector<Vector3>                  h_forces;
+        vector<IndexT>                   h_vertex_ids;
         cuda_tool::DeviceBuffer<Vector3> forces;
         cuda_tool::DeviceBuffer<IndexT>  vertex_ids;
 

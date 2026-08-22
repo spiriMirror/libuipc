@@ -268,4 +268,4 @@ UIPC_GENERIC Matrix3x3 F(const Vector3&   x0,
     auto ds = Ds(x0, x1, x2, x3);
     return ds * DmInv;
 }
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::backend::cuda::fem

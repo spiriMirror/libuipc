@@ -36,10 +36,7 @@ class DeviceVar
 {
   public:
     using value_type = T;
-    DeviceVar()
-    {
-        CUDA_TOOL_CHECK(cudaMalloc(&m_data, sizeof(T)));
-    }
+    DeviceVar() { CUDA_TOOL_CHECK(cudaMalloc(&m_data, sizeof(T))); }
     explicit DeviceVar(const T& value)
         : DeviceVar()
     {
@@ -75,15 +72,15 @@ class DeviceVar
         return *this;
     }
 
-    T* data() { return m_data; }
+    T*       data() { return m_data; }
     const T* data() const { return m_data; }
 
     VarView<T>  view() { return VarView<T>{m_data}; }
     CVarView<T> cview() const { return CVarView<T>{m_data}; }
     Dense<T>    viewer() { return Dense<T>{m_data}; }
     CDense<T>   cviewer() const { return CDense<T>{m_data}; }
-                operator VarView<T>() { return view(); }
-                operator CVarView<T>() const { return cview(); }
+    operator VarView<T>() { return view(); }
+    operator CVarView<T>() const { return cview(); }
 
     void copy_from(const T& value, cudaStream_t s = default_stream())
     {
@@ -106,7 +103,10 @@ class DeviceVar
         CUDA_TOOL_CHECK(cudaMemcpyAsync(host, m_data, sizeof(T), cudaMemcpyDeviceToHost, s));
     }
 
-    void fill(const T& value, cudaStream_t s = default_stream()) { copy_from(value, s); }
+    void fill(const T& value, cudaStream_t s = default_stream())
+    {
+        copy_from(value, s);
+    }
 
     // implicit host read-back (D2H copy + sync), mirroring cuda_tool::DeviceVar
     operator T() const
@@ -127,11 +127,17 @@ class DeviceVector
 {
   public:
     using value_type = T;
-    DeviceVector() = default;
+    DeviceVector()   = default;
     explicit DeviceVector(size_t n) { resize(n); }
     explicit DeviceVector(size_t n, const T& init) { resize(n, init); }
-    explicit DeviceVector(std::initializer_list<T> il) { copy_from(il.begin(), il.size()); }
-    explicit DeviceVector(span<const T> host) { copy_from(host.data(), host.size()); }
+    explicit DeviceVector(std::initializer_list<T> il)
+    {
+        copy_from(il.begin(), il.size());
+    }
+    explicit DeviceVector(span<const T> host)
+    {
+        copy_from(host.data(), host.size());
+    }
 
     ~DeviceVector() { release(); }
     DeviceVector(DeviceVector&& o) noexcept { move_from(std::move(o)); }
@@ -152,15 +158,21 @@ class DeviceVector
         return *this;
     }
 
-    size_t size() const { return m_size; }
-    size_t capacity() const { return m_capacity; }
-    T*     data() { return m_data; }
+    size_t   size() const { return m_size; }
+    size_t   capacity() const { return m_capacity; }
+    T*       data() { return m_data; }
     const T* data() const { return m_data; }
 
     // thrust-compatible device iterators (muda DeviceVector parity)
-    thrust::device_ptr<T>       begin() { return thrust::device_ptr<T>(m_data); }
-    thrust::device_ptr<T>       end() { return thrust::device_ptr<T>(m_data + m_size); }
-    thrust::device_ptr<const T> begin() const { return thrust::device_ptr<const T>(m_data); }
+    thrust::device_ptr<T> begin() { return thrust::device_ptr<T>(m_data); }
+    thrust::device_ptr<T> end()
+    {
+        return thrust::device_ptr<T>(m_data + m_size);
+    }
+    thrust::device_ptr<const T> begin() const
+    {
+        return thrust::device_ptr<const T>(m_data);
+    }
     thrust::device_ptr<const T> end() const
     {
         return thrust::device_ptr<const T>(m_data + m_size);
@@ -201,7 +213,8 @@ class DeviceVector
         T* p = nullptr;
         CUDA_TOOL_CHECK(cudaMalloc(&p, cap * sizeof(T)));
         if(m_data && m_size)
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(p, m_data, m_size * sizeof(T), cudaMemcpyDeviceToDevice, s));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                p, m_data, m_size * sizeof(T), cudaMemcpyDeviceToDevice, s));
         if(m_data)
             cudaFree(m_data);
         m_data     = p;
@@ -238,21 +251,25 @@ class DeviceVector
     }
     BufferView<T>  viewer() { return view(); }
     CBufferView<T> cviewer() const { return cview(); }
-                   operator BufferView<T>() { return view(); }
-                   operator CBufferView<T>() const { return cview(); }
-    BufferView<T>  subview(size_t offset, size_t count = ~0ull) { return view(offset, count); }
+    operator BufferView<T>() { return view(); }
+    operator CBufferView<T>() const { return cview(); }
+    BufferView<T> subview(size_t offset, size_t count = ~0ull)
+    {
+        return view(offset, count);
+    }
 
     // fill
-    void fill(const T& value, cudaStream_t s = default_stream()) { fill(view(), value, s); }
+    void fill(const T& value, cudaStream_t s = default_stream())
+    {
+        fill(view(), value, s);
+    }
     void fill(BufferView<T> v, const T& value, cudaStream_t s = default_stream())
     {
         if(v.size() == 0)
             return;
         int n = (int)v.size();
-        details::buffer_fill_kernel<<<(n + default_block_dim - 1) / default_block_dim,
-                                      default_block_dim,
-                                      0,
-                                      s>>>(v, value);
+        details::buffer_fill_kernel<<<(n + default_block_dim - 1) / default_block_dim, default_block_dim, 0, s>>>(
+            v, value);
     }
 
     // copies
@@ -270,7 +287,10 @@ class DeviceVector
             CUDA_TOOL_CHECK(cudaMemcpyAsync(
                 m_data, o.data(), o.size() * sizeof(T), cudaMemcpyDeviceToDevice, s));
     }
-    void copy_from(BufferView<T> o, cudaStream_t s = default_stream()) { copy_from(o.cview(), s); }
+    void copy_from(BufferView<T> o, cudaStream_t s = default_stream())
+    {
+        copy_from(o.cview(), s);
+    }
     void copy_from(const T* host, size_t n, cudaStream_t s = default_stream())
     {
         resize(n, s);
@@ -286,7 +306,8 @@ class DeviceVector
     {
         if(m_size)
         {
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(host, m_data, m_size * sizeof(T), cudaMemcpyDeviceToHost, s));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                host, m_data, m_size * sizeof(T), cudaMemcpyDeviceToHost, s));
             CUDA_TOOL_CHECK(cudaStreamSynchronize(s));
         }
     }
@@ -325,8 +346,8 @@ class DeviceBuffer2D
     DeviceBuffer2D() = default;
     DeviceBuffer2D(Extent2D e) { resize(e); }
     ~DeviceBuffer2D() { release(); }
-    DeviceBuffer2D(DeviceBuffer2D&&)            = default;
-    DeviceBuffer2D& operator=(DeviceBuffer2D&&) = default;
+    DeviceBuffer2D(DeviceBuffer2D&&)                 = default;
+    DeviceBuffer2D& operator=(DeviceBuffer2D&&)      = default;
     DeviceBuffer2D(const DeviceBuffer2D&)            = delete;
     DeviceBuffer2D& operator=(const DeviceBuffer2D&) = delete;
 
@@ -337,17 +358,23 @@ class DeviceBuffer2D
     }
     void clear() { m_buf.clear(); }
     void release() { m_buf.release(); }
-    void fill(const T& v, cudaStream_t s = default_stream()) { m_buf.fill(v, s); }
+    void fill(const T& v, cudaStream_t s = default_stream())
+    {
+        m_buf.fill(v, s);
+    }
     Extent2D extent() const { return m_extent; }
     T*       data() { return m_buf.data(); }
     const T* data() const { return m_buf.data(); }
 
     Buffer2DView<T>  view() { return Buffer2DView<T>{m_buf.data(), m_extent}; }
-    CBuffer2DView<T> cview() const { return CBuffer2DView<T>{m_buf.data(), m_extent}; }
-    Dense2D<T>       viewer() { return view().viewer(); }
-    CDense2D<T>      cviewer() const { return cview().cviewer(); }
-                     operator Buffer2DView<T>() { return view(); }
-                     operator CBuffer2DView<T>() const { return cview(); }
+    CBuffer2DView<T> cview() const
+    {
+        return CBuffer2DView<T>{m_buf.data(), m_extent};
+    }
+    Dense2D<T>  viewer() { return view().viewer(); }
+    CDense2D<T> cviewer() const { return cview().cviewer(); }
+    operator Buffer2DView<T>() { return view(); }
+    operator CBuffer2DView<T>() const { return cview(); }
 
   private:
     DeviceVector<T> m_buf;
@@ -369,10 +396,8 @@ class BufferLaunch
     BufferLaunch& fill(BufferView<T> dst, const T& value)
     {
         if(dst.size())
-            details::buffer_fill_kernel<<<grid_dim_for((int)dst.size()),
-                                          default_block_dim,
-                                          0,
-                                          m_stream>>>(dst, value);
+            details::buffer_fill_kernel<<<grid_dim_for((int)dst.size()), default_block_dim, 0, m_stream>>>(
+                dst, value);
         return *this;
     }
     template <typename T>
@@ -395,10 +420,8 @@ class BufferLaunch
         if(dst.size() != src.size())
             throw std::runtime_error{"BufferLaunch::copy size mismatch"};
         if(dst.size())
-            details::buffer_copy_kernel<<<grid_dim_for((int)dst.size()),
-                                          default_block_dim,
-                                          0,
-                                          m_stream>>>(dst, src);
+            details::buffer_copy_kernel<<<grid_dim_for((int)dst.size()), default_block_dim, 0, m_stream>>>(
+                dst, src);
         return *this;
     }
     template <typename T>
@@ -413,11 +436,8 @@ class BufferLaunch
     BufferLaunch& copy(BufferView<T> dst, const T* src)
     {
         if(dst.size())
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(dst.data(),
-                                            src,
-                                            dst.size() * sizeof(T),
-                                            cudaMemcpyHostToDevice,
-                                            m_stream));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                dst.data(), src, dst.size() * sizeof(T), cudaMemcpyHostToDevice, m_stream));
         return *this;
     }
     // download (device -> host)
@@ -425,11 +445,8 @@ class BufferLaunch
     BufferLaunch& copy(T* dst, CBufferView<T> src)
     {
         if(src.size())
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(dst,
-                                            src.data(),
-                                            src.size() * sizeof(T),
-                                            cudaMemcpyDeviceToHost,
-                                            m_stream));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                dst, src.data(), src.size() * sizeof(T), cudaMemcpyDeviceToHost, m_stream));
         return *this;
     }
 

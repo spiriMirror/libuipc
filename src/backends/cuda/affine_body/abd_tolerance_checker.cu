@@ -6,11 +6,10 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    __global__ void abd_tolerance_checker_do_check_kernel(
-        cuda_tool::CBufferView<Vector12> dqs,
-        cuda_tool::VarView<IndexT>       success,
-        Float                            abs_tol,
-        int                              n)
+    __global__ void abd_tolerance_checker_do_check_kernel(cuda_tool::CBufferView<Vector12> dqs,
+                                                          cuda_tool::VarView<IndexT> success,
+                                                          Float abs_tol,
+                                                          int   n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -44,7 +43,7 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     S<const geometry::AttributeSlot<Float>> dt_attr;
     Float                                   transrate_tol = 0.0;
     Float                                   abs_tol       = 0.0;
-    cuda_tool::DeviceVar<IndexT>                 success;
+    cuda_tool::DeviceVar<IndexT>            success;
     IndexT h_success = 1;  // 1 means success, 0 means failure
 
     // Inherited via NewtonToleranceChecker

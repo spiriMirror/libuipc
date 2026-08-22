@@ -144,8 +144,8 @@ namespace
             Vector2i E = edge_viewer(info.i);
             Vector3i F = tri_viewer(info.j);
 
-            if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2]
-               || E[1] == F[0] || E[1] == F[1] || E[1] == F[2])
+            if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2] || E[1] == F[0]
+               || E[1] == F[1] || E[1] == F[2])
                 return false;
 
             {
@@ -176,8 +176,8 @@ namespace
                     return false;
             }
 
-            if(info.bid_i == info.bid_j
-               && info.bid_i != static_cast<IndexT>(-1) && !self_coll_v(E[0]))
+            if(info.bid_i == info.bid_j && info.bid_i != static_cast<IndexT>(-1)
+               && !self_coll_v(E[0]))
                 return false;
 
             return tri_edge_intersect_device(pos_viewer(F[0]),
@@ -236,7 +236,7 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
             DeviceBuffer<IndexT> tri_cids(num_tris);
             {
                 auto k = SimplicialSurfaceIntersectionCheck_build_tri_aabbs_kernel;
-                int  n = (int)num_tris;
+                int n = (int)num_tris;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -256,7 +256,7 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
             DeviceBuffer<IndexT> edge_cids(num_edges);
             {
                 auto k = SimplicialSurfaceIntersectionCheck_build_edge_aabbs_kernel;
-                int  n = (int)num_edges;
+                int n = (int)num_edges;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -303,14 +303,8 @@ class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
                       edge_cids.view(),
                       cmts.view(),
                       SimplicialSurfaceIntersectionCheck_NodePred{cmts_v},
-                      SimplicialSurfaceIntersectionCheck_LeafPred{pos_viewer,
-                                                                  edge_viewer,
-                                                                  tri_viewer,
-                                                                  vert_cids_v,
-                                                                  vert_scids_v,
-                                                                  self_coll_v,
-                                                                  contact_cmts_v,
-                                                                  subscene_cmts_v},
+                      SimplicialSurfaceIntersectionCheck_LeafPred{
+                          pos_viewer, edge_viewer, tri_viewer, vert_cids_v, vert_scids_v, self_coll_v, contact_cmts_v, subscene_cmts_v},
                       qbuffer);
 
             vector<Vector2i> h_pairs(qbuffer.size());

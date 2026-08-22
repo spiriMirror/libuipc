@@ -18,7 +18,7 @@ class AtomicCountingLBVH
 
       private:
         friend class AtomicCountingLBVH;
-        SizeT                        m_size = 0;
+        SizeT                             m_size = 0;
         cuda_tool::DeviceBuffer<Vector2i> m_pairs;
     };
 
@@ -35,8 +35,8 @@ class AtomicCountingLBVH
   private:
     cuda_tool::CBufferView<LinearBVHAABB> m_aabbs;
     cuda_tool::DeviceVar<IndexT>          m_cp_num;
-    LinearBVH                        m_lbvh;
-    Float                            m_reserve_ratio = 1.1;
+    LinearBVH                             m_lbvh;
+    Float                                 m_reserve_ratio = 1.1;
     cuda_tool::Stream&                    m_stream;
 };
 }  // namespace uipc::backend::cuda

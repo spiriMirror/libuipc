@@ -32,10 +32,10 @@ namespace
     __global__ void gpu_intersection_check_build_tri_aabbs_kernel(
         cuda_tool::BufferView<Vector3i> Fs,
         cuda_tool::BufferView<Vector3>  Ps,
-        cuda_tool::BufferView<AABB>      aabbs,
-        cuda_tool::BufferView<IndexT>    bids,
-        cuda_tool::BufferView<IndexT>    cids,
-        int                              n)
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -53,10 +53,10 @@ namespace
     __global__ void gpu_intersection_check_build_edge_aabbs_kernel(
         cuda_tool::BufferView<Vector2i> Es,
         cuda_tool::BufferView<Vector3>  Ps,
-        cuda_tool::BufferView<AABB>      aabbs,
-        cuda_tool::BufferView<IndexT>    bids,
-        cuda_tool::BufferView<IndexT>    cids,
-        int                              n)
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -73,11 +73,11 @@ namespace
     __global__ void gpu_distance_check_build_tri_aabbs_kernel(
         cuda_tool::BufferView<Vector3i> Fs,
         cuda_tool::BufferView<Vector3>  Ps,
-        cuda_tool::BufferView<AABB>      aabbs,
-        cuda_tool::BufferView<IndexT>    bids,
-        cuda_tool::BufferView<IndexT>    cids,
-        float                            expand,
-        int                              n)
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        float                           expand,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -96,11 +96,11 @@ namespace
 
     __global__ void gpu_distance_check_build_point_aabbs_kernel(
         cuda_tool::BufferView<Vector3> Ps,
-        cuda_tool::BufferView<AABB>     aabbs,
-        cuda_tool::BufferView<IndexT>   bids,
-        cuda_tool::BufferView<IndexT>   cids,
-        float                           expand,
-        int                             n)
+        cuda_tool::BufferView<AABB>    aabbs,
+        cuda_tool::BufferView<IndexT>  bids,
+        cuda_tool::BufferView<IndexT>  cids,
+        float                          expand,
+        int                            n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -116,10 +116,10 @@ namespace
 
     __global__ void gpu_halfplane_check_kernel(cuda_tool::BufferView<Vector3> Ps,
                                                cuda_tool::Dense<IndexT> violation,
-                                               Vector3                  plane_P,
-                                               Vector3                  plane_N,
-                                               Float                    thickness,
-                                               int                      n)
+                                               Vector3 plane_P,
+                                               Vector3 plane_N,
+                                               Float   thickness,
+                                               int     n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -131,7 +131,7 @@ namespace
     }
 
     __global__ void gpu_volume_check_kernel(cuda_tool::BufferView<Vector4i> Ts,
-                                            cuda_tool::BufferView<Vector3> Ps,
+                                            cuda_tool::BufferView<Vector3>  Ps,
                                             cuda_tool::Dense<IndexT> violation,
                                             int                      n)
     {
@@ -194,8 +194,8 @@ namespace
     {
         cuda_tool::BufferView<Vector3i> Fs;
         cuda_tool::BufferView<Vector3>  Ps;
-        cuda_tool::Dense<IndexT>         violation;
-        Float                            thickness2;
+        cuda_tool::Dense<IndexT>        violation;
+        Float                           thickness2;
 
         __device__ bool operator()(InfoStacklessBVH::LeafPredInfo leaf) const
         {
@@ -328,14 +328,13 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
 
     tri_bvh.build(tri_aabbs.view(), tri_bids.view(), tri_cids.view());
 
-    tri_bvh.query(
-        edge_aabbs.view(),
-        edge_bids.view(),
-        edge_cids.view(),
-        d_cmts.view(),
-        NodePredAllow{},
-        GpuIntersectionLeafPred{d_Es.viewer(), d_Fs.viewer(), d_Ps.viewer()},
-        qbuffer);
+    tri_bvh.query(edge_aabbs.view(),
+                  edge_bids.view(),
+                  edge_cids.view(),
+                  d_cmts.view(),
+                  NodePredAllow{},
+                  GpuIntersectionLeafPred{d_Es.viewer(), d_Fs.viewer(), d_Ps.viewer()},
+                  qbuffer);
 
     return qbuffer.size();
 }
@@ -462,17 +461,14 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
 
     tri_bvh.build(tri_aabbs.view(), tri_bids.view(), tri_cids.view());
 
-    tri_bvh.query(
-        point_aabbs.view(),
-        point_bids.view(),
-        point_cids.view(),
-        d_cmts.view(),
-        NodePredAllow{},
-        GpuDistanceLeafPred{d_Fs.viewer(),
-                            d_Ps.viewer(),
-                            violation_count.viewer(),
-                            thickness2},
-        qbuffer);
+    tri_bvh.query(point_aabbs.view(),
+                  point_bids.view(),
+                  point_cids.view(),
+                  d_cmts.view(),
+                  NodePredAllow{},
+                  GpuDistanceLeafPred{
+                      d_Fs.viewer(), d_Ps.viewer(), violation_count.viewer(), thickness2},
+                  qbuffer);
 
     IndexT h_count = violation_count;
     return h_count;
@@ -513,12 +509,7 @@ SizeT gpu_halfplane_check(span<const Vector3> h_Ps,
         if(n > 0)
         {
             k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
-                d_Ps.viewer(),
-                violation_count.viewer(),
-                plane_P,
-                plane_N,
-                thickness,
-                n);
+                d_Ps.viewer(), violation_count.viewer(), plane_P, plane_N, thickness, n);
         }
     }
 

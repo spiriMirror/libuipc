@@ -21,9 +21,11 @@ class LinearFusedPCG : public IterativeSolver
   private:
     using DeviceDenseVector = cuda_tool::DeviceDenseVector<Float>;
 
-    SizeT fused_pcg(cuda_tool::DenseVectorView<Float> x, cuda_tool::CDenseVectorView<Float> b, SizeT max_iter);
-    void check_init_rz_nan_inf(Float rz);
-    void check_iter_rz_nan_inf(Float rz, SizeT k);
+    SizeT fused_pcg(cuda_tool::DenseVectorView<Float>  x,
+                    cuda_tool::CDenseVectorView<Float> b,
+                    SizeT                              max_iter);
+    void  check_init_rz_nan_inf(Float rz);
+    void  check_iter_rz_nan_inf(Float rz, SizeT k);
 
     DeviceDenseVector r;
     DeviceDenseVector z;

@@ -27,7 +27,7 @@ TEST_CASE("strain_limiting_baraff_witkin_attribute_layout", "[constitution]")
     // separate stretch / shear moduli
     Float E_stretch = 1.0_MPa, nu_stretch = 0.49;
     Float E_shear = 10.0_kPa, nu_shear = 0.4;
-    Float thickness  = 0.001_m;
+    Float thickness   = 0.001_m;
     Float strain_rate = 120.0;
     slbws.apply_to(mesh,
                    ElasticModuli2D::youngs_poisson(E_stretch, nu_stretch),
@@ -48,14 +48,13 @@ TEST_CASE("strain_limiting_baraff_witkin_attribute_layout", "[constitution]")
     CHECK(sr->size() == mesh.triangles().size());
 
     // stretch attr = E_stretch * t / (1 - nu_stretch^2)  [= (lambda + 2*mu) * t]
-    Float expect_stretch =
-        E_stretch * thickness / (1.0 - nu_stretch * nu_stretch);
+    Float expect_stretch = E_stretch * thickness / (1.0 - nu_stretch * nu_stretch);
     // shear attr = E_shear / (2 * (1 + nu_shear))  (thickness-independent)
     Float expect_shear = E_shear / (2.0 * (1.0 + nu_shear));
 
-    CHECK(std::ranges::all_of(
-        lambda->view(),
-        [&](Float v) { return v == Catch::Approx(expect_stretch); }));
+    CHECK(std::ranges::all_of(lambda->view(),
+                              [&](Float v)
+                              { return v == Catch::Approx(expect_stretch); }));
     CHECK(std::ranges::all_of(
         mu->view(), [&](Float v) { return v == Catch::Approx(expect_shear); }));
     CHECK(std::ranges::all_of(
@@ -68,9 +67,9 @@ TEST_CASE("strain_limiting_baraff_witkin_attribute_layout", "[constitution]")
     auto sr2     = mesh2.triangles().find<Float>("strain_rate");
     REQUIRE(lambda2);
     REQUIRE(sr2);
-    CHECK(std::ranges::all_of(
-        lambda2->view(),
-        [&](Float v) { return v == Catch::Approx(expect_stretch); }));
-    CHECK(std::ranges::all_of(
-        sr2->view(), [](Float v) { return v == Catch::Approx(100.0); }));
+    CHECK(std::ranges::all_of(lambda2->view(),
+                              [&](Float v)
+                              { return v == Catch::Approx(expect_stretch); }));
+    CHECK(std::ranges::all_of(sr2->view(),
+                              [](Float v) { return v == Catch::Approx(100.0); }));
 }

@@ -33,7 +33,7 @@ namespace uipc::backend::cuda
  * @return true if successful, false otherwise
  */
 template <typename T, int BlockDim>
-bool export_matrix_market(std::string_view                             filename,
+bool export_matrix_market(std::string_view filename,
                           const cuda_tool::CTripletMatrixView<T, BlockDim>& matrix,
                           bool one_based = true)
 {
@@ -124,9 +124,9 @@ bool export_matrix_market(std::string_view                             filename,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool export_vector_market(std::string_view                 filename,
+bool export_vector_market(std::string_view                      filename,
                           const cuda_tool::CDenseVectorView<T>& vector,
-                          bool                             one_based = true)
+                          bool one_based = true)
 {
     // Copy data from device to host
     std::vector<T> values_host(vector.size());
@@ -166,9 +166,9 @@ bool export_vector_market(std::string_view                 filename,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool export_vector_market(std::string_view            filename,
+bool export_vector_market(std::string_view                 filename,
                           const cuda_tool::CBufferView<T>& vector,
-                          bool                        one_based = true)
+                          bool                             one_based = true)
 {
     // Copy data from device to host
     std::vector<T> values_host(vector.size());
@@ -246,7 +246,7 @@ bool export_vector_market(span<const T> vector, std::string_view filename, bool 
  */
 template <typename T, int BlockDim>
 bool import_matrix_market(cuda_tool::DeviceTripletMatrix<T, BlockDim>& matrix,
-                          std::string_view                        filename,
+                          std::string_view                             filename,
                           bool one_based = true)
 {
     using BlockMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
@@ -375,8 +375,8 @@ bool import_matrix_market(cuda_tool::DeviceTripletMatrix<T, BlockDim>& matrix,
  */
 template <typename T>
 bool import_vector_market(cuda_tool::DeviceDenseVector<T>& vector,
-                          std::string_view            filename,
-                          bool                        one_based = true)
+                          std::string_view                 filename,
+                          bool                             one_based = true)
 {
     std::ifstream file{std::string{filename}};
     if(!file.is_open())
@@ -459,8 +459,8 @@ bool import_vector_market(cuda_tool::DeviceDenseVector<T>& vector,
  */
 template <typename T>
 bool import_vector_market(cuda_tool::DeviceBuffer<T>& vector,
-                          std::string_view       filename,
-                          bool                   one_based = true)
+                          std::string_view            filename,
+                          bool                        one_based = true)
 {
     std::ifstream file{std::string{filename}};
     if(!file.is_open())

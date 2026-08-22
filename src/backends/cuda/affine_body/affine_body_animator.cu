@@ -161,8 +161,7 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
     }
 }
 
-auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept
-    -> span<const AnimatedGeoInfo>
+auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept -> span<const AnimatedGeoInfo>
 {
     auto [offset, count] = m_impl->constraint_geo_info_offsets_counts[m_index];
 

@@ -2,7 +2,7 @@ namespace uipc::backend::cuda
 {
 template <typename T>
 cuda_tool::BufferView<T> GlobalVertexManager::Impl::subview(cuda_tool::DeviceBuffer<T>& buffer,
-                                                       SizeT index) const noexcept
+                                                            SizeT index) const noexcept
 {
     span<const IndexT> reporter_vertex_offsets = reporter_vertex_offsets_counts.offsets();
     span<const IndexT> reporter_vertex_counts = reporter_vertex_offsets_counts.counts();

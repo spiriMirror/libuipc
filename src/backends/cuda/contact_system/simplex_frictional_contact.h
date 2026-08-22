@@ -35,10 +35,10 @@ class SimplexFrictionalContact : public ContactReporter
         cuda_tool::CBufferView<Vector3>        rest_positions() const;
         cuda_tool::CBufferView<Float>          thicknesses() const;
         cuda_tool::CBufferView<IndexT>         contact_element_ids() const;
-        Float                             d_hat() const;
+        Float                                  d_hat() const;
         cuda_tool::CBufferView<Float>          d_hats() const;
-        Float                             dt() const;
-        Float                             eps_velocity() const;
+        Float                                  dt() const;
+        Float                                  eps_velocity() const;
 
       private:
         friend class SimplexFrictionalContact;
@@ -75,7 +75,7 @@ class SimplexFrictionalContact : public ContactReporter
 
         cuda_tool::DoubletVectorView<Float, 3> m_PP_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_PP_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
 

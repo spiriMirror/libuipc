@@ -38,7 +38,7 @@ class GlobalVertexManager final : public SimSystem
     {
       public:
         VertexAttributeInfo(Impl* impl, SizeT index, SizeT frame) noexcept;
-        SizeT                     frame() const noexcept;
+        SizeT                          frame() const noexcept;
         cuda_tool::BufferView<Vector3> rest_positions() const noexcept;
         cuda_tool::BufferView<Float>   thicknesses() const noexcept;
         cuda_tool::BufferView<IndexT>  coindices() const noexcept;
@@ -191,7 +191,8 @@ class GlobalVertexManager final : public SimSystem
         AABB  compute_vertex_bounding_box();
 
         template <typename T>
-        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
+        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer,
+                                         SizeT index) const noexcept;
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);

@@ -11,13 +11,13 @@ class MaxTranslationChecker : public NewtonToleranceChecker
 
     SimSystemSlot<GlobalVertexManager>      vertex_manager;
     S<const geometry::AttributeSlot<Float>> dt_attr;
-    Float                                   newton_velocity_tol = 0.0;
+    Float                                   newton_velocity_tol   = 0.0;
     Float                                   velocity_tol_relative = 0.0;
-    Float                                   res0                = 0.0;
-    Float                                   res                 = 0.0;
-    Float                                   rel_tol             = 0.0;
-    Float                                   abs_tol             = 0.0;
-    SizeT                                   frame               = 0;
+    Float                                   res0                  = 0.0;
+    Float                                   res                   = 0.0;
+    Float                                   rel_tol               = 0.0;
+    Float                                   abs_tol               = 0.0;
+    SizeT                                   frame                 = 0;
 
     void do_build(BuildInfo& info) override
     {

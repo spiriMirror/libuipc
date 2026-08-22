@@ -327,7 +327,7 @@ class AffineBodyDynamics : public SimSystem
 
         template <typename T>
         cuda_tool::BufferView<T> subview(DeviceBuffer<T>& body_id_to_values,
-                                    SizeT constitution_index) const noexcept;
+                                         SizeT constitution_index) const noexcept;
 
         template <typename T>
         span<T> subview(vector<T>& body_id_to_values, SizeT constitution_index) const noexcept;

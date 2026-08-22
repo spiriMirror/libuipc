@@ -60,13 +60,13 @@ namespace
         if(I > 0)
         {
             auto&& [prev_i, prev_G] = dytopo_effect_gradient(I - 1);
-            prev_in_range = in_range(prev_i, range);
+            prev_in_range           = in_range(prev_i, range);
         }
         bool next_in_range = false;
         if(I < dytopo_effect_gradient.total_doublet_count() - 1)
         {
             auto&& [next_i, next_G] = dytopo_effect_gradient(I + 1);
-            next_in_range = in_range(next_i, range);
+            next_in_range           = in_range(next_i, range);
         }
 
         // if the prev is not in range, then this is the start of the partition
@@ -95,12 +95,12 @@ namespace
     }
 
     __global__ void GlobalDyTopoEffectManager_distribute_k3_kernel(
-        cuda_tool::BufferView<IndexT>             selected_hessian,
-        cuda_tool::Dense<IndexT>                  last,
+        cuda_tool::BufferView<IndexT>              selected_hessian,
+        cuda_tool::Dense<IndexT>                   last,
         cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
-        Vector2i                                  i_range,
-        Vector2i                                  j_range,
-        int                                       n)
+        Vector2i                                   i_range,
+        Vector2i                                   j_range,
+        int                                        n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -110,8 +110,7 @@ namespace
         auto in_range = [](int i, const Vector2i& range)
         { return i >= range.x() && i < range.y(); };
 
-        selected_hessian(I) =
-            in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
+        selected_hessian(I) = in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
 
         // fill the last one as 0, so that we can calculate the total count
         // during the exclusive scan
@@ -120,13 +119,13 @@ namespace
     }
 
     __global__ void GlobalDyTopoEffectManager_distribute_k4_kernel(
-        cuda_tool::CBufferView<IndexT>            selected_hessian,
-        cuda_tool::CBufferView<IndexT>            selected_hessian_offsets,
+        cuda_tool::CBufferView<IndexT>             selected_hessian,
+        cuda_tool::CBufferView<IndexT>             selected_hessian_offsets,
         cuda_tool::CTripletMatrixView<Float, 3, 3> dytopo_effect_hessian,
-        cuda_tool::TripletMatrixView<Float, 3, 3> classified_hessian,
-        Vector2i                                  i_range,
-        Vector2i                                  j_range,
-        int                                       n)
+        cuda_tool::TripletMatrixView<Float, 3, 3>  classified_hessian,
+        Vector2i                                   i_range,
+        Vector2i                                   j_range,
+        int                                        n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -134,7 +133,7 @@ namespace
         if(selected_hessian(I))
         {
             auto&& [i, j, H] = dytopo_effect_hessian(I);
-            auto offset = selected_hessian_offsets(I);
+            auto offset      = selected_hessian_offsets(I);
 
             classified_hessian(offset).write(i, j, H);
         }
@@ -235,7 +234,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
         reporter_hessian_offsets_counts.scan();
 
         auto total_gradient_count = reporter_gradient_offsets_counts.total_count();
-        auto total_hessian_count  = reporter_hessian_offsets_counts.total_count();
+        auto total_hessian_count = reporter_hessian_offsets_counts.total_count();
 
         // allocate
         loose_resize_entries(collected_dytopo_effect_gradient, total_gradient_count);

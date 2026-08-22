@@ -32,14 +32,14 @@ namespace
     }
 
     __global__ void FiniteElementBDF1Kinetic_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<IndexT>           is_fixed,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Vector3>          x_tildes,
-        cuda_tool::CBufferView<Float>            masses,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::CBufferView<IndexT>            is_fixed,
+        cuda_tool::CBufferView<Vector3>           xs,
+        cuda_tool::CBufferView<Vector3>           x_tildes,
+        cuda_tool::CBufferView<Float>             masses,
+        cuda_tool::DoubletVectorView<Float, 3>    G3s,
         cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
-        bool                                     gradient_only,
-        int                                      n)
+        bool                                      gradient_only,
+        int                                       n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

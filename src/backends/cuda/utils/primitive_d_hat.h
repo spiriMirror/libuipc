@@ -32,7 +32,7 @@ inline UIPC_GENERIC Float triangle_dcd_expansion(const Float& d_hat_T0,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
-                    "Triangle d_hat should be the same");
+                           "Triangle d_hat should be the same");
     }
 
     return (d_hat_T0 + d_hat_T1 + d_hat_T2) / 3.0;
@@ -49,7 +49,7 @@ inline UIPC_GENERIC Float PT_d_hat(const Float& d_hat_P,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
-                    "Triangle d_hat should be the same");
+                           "Triangle d_hat should be the same");
     }
 
     return (d_hat_P + d_hat_T0) / 2.0;
@@ -66,7 +66,7 @@ inline UIPC_GENERIC Float EE_d_hat(const Float& d_hat_Ea0,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(d_hat_Ea0 == d_hat_Ea1 && d_hat_Eb0 == d_hat_Eb1,
-                    "Edge d_hat should be the same");
+                           "Edge d_hat should be the same");
     }
 
     return (d_hat_Ea0 + d_hat_Eb0) / 2.0;

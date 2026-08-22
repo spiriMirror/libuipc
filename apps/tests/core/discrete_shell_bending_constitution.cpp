@@ -22,12 +22,12 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
         Vector3i{0, 2, 3},
     };
 
-    auto elastic_mesh         = trimesh(Vs, Fs);
-    auto plastic_mesh         = trimesh(Vs, Fs);
-    auto stress_plastic_mesh  = trimesh(Vs, Fs);
+    auto elastic_mesh        = trimesh(Vs, Fs);
+    auto plastic_mesh        = trimesh(Vs, Fs);
+    auto stress_plastic_mesh = trimesh(Vs, Fs);
 
     DiscreteShellBending              dsb;
-    StrainPlasticDiscreteShellBending       pdsb;
+    StrainPlasticDiscreteShellBending pdsb;
     StressPlasticDiscreteShellBending spdsb;
 
     dsb.apply_to(elastic_mesh, 5.0_kPa);
@@ -37,15 +37,14 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
     auto elastic_bending = elastic_mesh.edges().find<Float>("bending_stiffness");
     REQUIRE(elastic_bending);
     CHECK(elastic_bending->size() == elastic_mesh.edges().size());
-    CHECK(std::ranges::all_of(
-        elastic_bending->view(), [](Float v) { return v == Catch::Approx(5.0_kPa); }));
+    CHECK(std::ranges::all_of(elastic_bending->view(),
+                              [](Float v) { return v == Catch::Approx(5.0_kPa); }));
     CHECK(elastic_mesh.edges().find<Float>("bending_yield_threshold") == nullptr);
     CHECK(elastic_mesh.edges().find<Float>("bending_hardening_modulus") == nullptr);
 
     auto plastic_bending = plastic_mesh.edges().find<Float>("bending_stiffness");
-    auto plastic_yield   = plastic_mesh.edges().find<Float>("bending_yield_threshold");
-    auto plastic_hardening =
-        plastic_mesh.edges().find<Float>("bending_hardening_modulus");
+    auto plastic_yield = plastic_mesh.edges().find<Float>("bending_yield_threshold");
+    auto plastic_hardening = plastic_mesh.edges().find<Float>("bending_hardening_modulus");
 
     REQUIRE(plastic_bending);
     REQUIRE(plastic_yield);
@@ -53,14 +52,15 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
     CHECK(plastic_bending->size() == plastic_mesh.edges().size());
     CHECK(plastic_yield->size() == plastic_mesh.edges().size());
     CHECK(plastic_hardening->size() == plastic_mesh.edges().size());
-    CHECK(std::ranges::all_of(
-        plastic_bending->view(), [](Float v) { return v == Catch::Approx(5.0_kPa); }));
-    CHECK(std::ranges::all_of(
-        plastic_yield->view(), [](Float v) { return v == Catch::Approx(0.05); }));
-    CHECK(std::ranges::all_of(
-        plastic_hardening->view(), [](Float v) { return v == Catch::Approx(0.0); }));
+    CHECK(std::ranges::all_of(plastic_bending->view(),
+                              [](Float v) { return v == Catch::Approx(5.0_kPa); }));
+    CHECK(std::ranges::all_of(plastic_yield->view(),
+                              [](Float v) { return v == Catch::Approx(0.05); }));
+    CHECK(std::ranges::all_of(plastic_hardening->view(),
+                              [](Float v) { return v == Catch::Approx(0.0); }));
 
-    auto stress_plastic_bending = stress_plastic_mesh.edges().find<Float>("bending_stiffness");
+    auto stress_plastic_bending =
+        stress_plastic_mesh.edges().find<Float>("bending_stiffness");
     auto stress_plastic_yield =
         stress_plastic_mesh.edges().find<Float>("bending_yield_stress");
     auto stress_plastic_hardening =
@@ -110,15 +110,15 @@ TEST_CASE("discrete_shell_bending_formula_overload", "[constitution]")
         tv[3]   = 0.001;
     }
 
-    Float E = 6.0e4, nu = 0.4;
+    Float                E = 6.0e4, nu = 0.4;
     DiscreteShellBending dsb;
     dsb.apply_to(mesh, E, nu);
 
     auto bs = mesh.edges().find<Float>("bending_stiffness");
     REQUIRE(bs);
-    auto edges  = mesh.edges().topo().view();
-    auto tv     = geometry::view(*attr_thickness);
-    auto bsv    = geometry::view(*bs);
+    auto  edges = mesh.edges().topo().view();
+    auto  tv    = geometry::view(*attr_thickness);
+    auto  bsv   = geometry::view(*bs);
     Float denom = 12.0 * (1.0 - nu * nu);
     for(SizeT i = 0; i < edges.size(); ++i)
     {

@@ -5,9 +5,7 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void SimplexTrajectoryFilter_label_active_vertices_k1_kernel(
-        cuda_tool::CBufferView<Vector4i> PTs,
-        cuda_tool::BufferView<IndexT>    is_active,
-        int                              n)
+        cuda_tool::CBufferView<Vector4i> PTs, cuda_tool::BufferView<IndexT> is_active, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -22,9 +20,7 @@ namespace
     }
 
     __global__ void SimplexTrajectoryFilter_label_active_vertices_k2_kernel(
-        cuda_tool::CBufferView<Vector4i> EEs,
-        cuda_tool::BufferView<IndexT>    is_active,
-        int                              n)
+        cuda_tool::CBufferView<Vector4i> EEs, cuda_tool::BufferView<IndexT> is_active, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -39,9 +35,7 @@ namespace
     }
 
     __global__ void SimplexTrajectoryFilter_label_active_vertices_k3_kernel(
-        cuda_tool::CBufferView<Vector3i> PEs,
-        cuda_tool::BufferView<IndexT>    is_active,
-        int                              n)
+        cuda_tool::CBufferView<Vector3i> PEs, cuda_tool::BufferView<IndexT> is_active, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -56,9 +50,7 @@ namespace
     }
 
     __global__ void SimplexTrajectoryFilter_label_active_vertices_k4_kernel(
-        cuda_tool::CBufferView<Vector2i> PPs,
-        cuda_tool::BufferView<IndexT>    is_active,
-        int                              n)
+        cuda_tool::CBufferView<Vector2i> PPs, cuda_tool::BufferView<IndexT> is_active, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -101,37 +93,29 @@ void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter
     if(PTs.size() > 0)
     {
         auto k1 = SimplexTrajectoryFilter_label_active_vertices_k1_kernel;
-        k1<<<cuda_tool::best_grid_dim((int)PTs.size(), k1),
-             cuda_tool::best_block_dim(k1),
-             0,
-             nullptr>>>(PTs, info.vert_is_active(), (int)PTs.size());
+        k1<<<cuda_tool::best_grid_dim((int)PTs.size(), k1), cuda_tool::best_block_dim(k1), 0, nullptr>>>(
+            PTs, info.vert_is_active(), (int)PTs.size());
     }
 
     if(EEs.size() > 0)
     {
         auto k2 = SimplexTrajectoryFilter_label_active_vertices_k2_kernel;
-        k2<<<cuda_tool::best_grid_dim((int)EEs.size(), k2),
-             cuda_tool::best_block_dim(k2),
-             0,
-             nullptr>>>(EEs, info.vert_is_active(), (int)EEs.size());
+        k2<<<cuda_tool::best_grid_dim((int)EEs.size(), k2), cuda_tool::best_block_dim(k2), 0, nullptr>>>(
+            EEs, info.vert_is_active(), (int)EEs.size());
     }
 
     if(PEs.size() > 0)
     {
         auto k3 = SimplexTrajectoryFilter_label_active_vertices_k3_kernel;
-        k3<<<cuda_tool::best_grid_dim((int)PEs.size(), k3),
-             cuda_tool::best_block_dim(k3),
-             0,
-             nullptr>>>(PEs, info.vert_is_active(), (int)PEs.size());
+        k3<<<cuda_tool::best_grid_dim((int)PEs.size(), k3), cuda_tool::best_block_dim(k3), 0, nullptr>>>(
+            PEs, info.vert_is_active(), (int)PEs.size());
     }
 
     if(PPs.size() > 0)
     {
         auto k4 = SimplexTrajectoryFilter_label_active_vertices_k4_kernel;
-        k4<<<cuda_tool::best_grid_dim((int)PPs.size(), k4),
-             cuda_tool::best_block_dim(k4),
-             0,
-             nullptr>>>(PPs, info.vert_is_active(), (int)PPs.size());
+        k4<<<cuda_tool::best_grid_dim((int)PPs.size(), k4), cuda_tool::best_block_dim(k4), 0, nullptr>>>(
+            PPs, info.vert_is_active(), (int)PPs.size());
     }
 }
 

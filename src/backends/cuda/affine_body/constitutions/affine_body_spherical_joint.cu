@@ -27,8 +27,7 @@ namespace
             return;
         Vector2i bids  = body_ids(I);
         Float    kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -60,8 +59,7 @@ namespace
             return;
         Vector2i bids  = body_ids(I);
         Float    kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -137,13 +135,13 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
             {
                 auto sc = geo.as<geometry::SimplicialComplex>();
 
-                auto l_geo_id = sc->vertices().find<IndexT>("l_geo_id");
-                auto l_geo_id_view = l_geo_id->view();
-                auto r_geo_id = sc->vertices().find<IndexT>("r_geo_id");
-                auto r_geo_id_view = r_geo_id->view();
-                auto l_inst_id = sc->vertices().find<IndexT>("l_inst_id");
+                auto l_geo_id       = sc->vertices().find<IndexT>("l_geo_id");
+                auto l_geo_id_view  = l_geo_id->view();
+                auto r_geo_id       = sc->vertices().find<IndexT>("r_geo_id");
+                auto r_geo_id_view  = r_geo_id->view();
+                auto l_inst_id      = sc->vertices().find<IndexT>("l_inst_id");
                 auto l_inst_id_view = l_inst_id->view();
-                auto r_inst_id = sc->vertices().find<IndexT>("r_inst_id");
+                auto r_inst_id      = sc->vertices().find<IndexT>("r_inst_id");
                 auto r_inst_id_view = r_inst_id->view();
                 auto strength_ratio_view =
                     sc->vertices().find<Float>("strength_ratio")->view();
@@ -152,7 +150,7 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
                 auto pos1_attr = sc->vertices().find<Vector3>("r_position");
                 const bool use_local_positions = pos0_attr && pos1_attr;
 
-                auto Ps = sc->positions().view();
+                auto        Ps       = sc->positions().view();
                 const SizeT n_joints = sc->vertices().size();
                 for(SizeT i = 0; i < n_joints; ++i)
                 {
@@ -164,10 +162,8 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
                     body_ids_list.push_back({info.body_id(l_gid, l_iid),
                                              info.body_id(r_gid, r_iid)});
 
-                    Transform LT{
-                        info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
-                    Transform RT{
-                        info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
+                    Transform LT{info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
+                    Transform RT{info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
 
                     Vector6 rest_c;
                     if(use_local_positions)
@@ -177,7 +173,7 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
                     }
                     else
                     {
-                        Vector3 anchor = Ps[i];
+                        Vector3 anchor       = Ps[i];
                         rest_c.segment<3>(0) = LT.inverse() * anchor;
                         rest_c.segment<3>(3) = RT.inverse() * anchor;
                     }

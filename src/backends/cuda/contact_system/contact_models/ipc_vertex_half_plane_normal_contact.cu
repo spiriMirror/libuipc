@@ -37,9 +37,9 @@ namespace
         Vector3 P = plane_positions(HI);
         Vector3 N = plane_normals(HI);
 
-        Float kt2 = table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset))
-                        .kappa
-                    * dt * dt;
+        Float kt2 =
+            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset)).kappa
+            * dt * dt;
 
         Float thickness = thicknesses(vI);
 
@@ -59,8 +59,8 @@ namespace
                                        cuda_tool::CBufferView<Float> thicknesses,
                                        cuda_tool::CBufferView<Float> d_hats,
                                        IndexT half_plane_vertex_offset,
-                                       Float dt,
-                                       int   n)
+                                       Float  dt,
+                                       int    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -77,13 +77,13 @@ namespace
 
         Float d_hat = d_hats(vI);
 
-        Float kt2 = table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset))
-                        .kappa
-                    * dt * dt;
+        Float kt2 =
+            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset)).kappa
+            * dt * dt;
 
         Float thickness = thicknesses(vI);
 
-        Vector3   G;
+        Vector3 G;
         if(gradient_only)
         {
             sym::ipc_vertex_half_contact::PH_barrier_gradient(
@@ -117,22 +117,19 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
         using namespace cuda_tool;
 
         if(info.PHs().size() > 0)
-            do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(),
-                                                                do_compute_energy_kernel),
-                                       cuda_tool::best_block_dim(do_compute_energy_kernel),
-                                       0,
-                                       nullptr>>>(info.energies().viewer(),
-                                                  info.PHs().viewer(),
-                                                  half_plane->positions().viewer(),
-                                                  half_plane->normals().viewer(),
-                                                  info.contact_tabular().viewer(),
-                                                  info.contact_element_ids().viewer(),
-                                                  info.positions().viewer(),
-                                                  info.thicknesses().viewer(),
-                                                  info.half_plane_vertex_offset(),
-                                                  info.d_hats().viewer(),
-                                                  info.dt(),
-                                                  (int)info.PHs().size());
+            do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(), do_compute_energy_kernel), cuda_tool::best_block_dim(do_compute_energy_kernel), 0, nullptr>>>(
+                info.energies().viewer(),
+                info.PHs().viewer(),
+                half_plane->positions().viewer(),
+                half_plane->normals().viewer(),
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.half_plane_vertex_offset(),
+                info.d_hats().viewer(),
+                info.dt(),
+                (int)info.PHs().size());
     }
 
     virtual void do_assemble(ContactInfo& info) override
@@ -141,24 +138,21 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
 
         if(info.PHs().size())
         {
-            do_assemble_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(),
-                                                          do_assemble_kernel),
-                                 cuda_tool::best_block_dim(do_assemble_kernel),
-                                 0,
-                                 nullptr>>>(info.gradient_only(),
-                                            info.gradients().viewer(),
-                                            info.hessians().viewer(),
-                                            info.PHs().viewer(),
-                                            half_plane->positions().viewer(),
-                                            half_plane->normals().viewer(),
-                                            info.contact_tabular().viewer(),
-                                            info.contact_element_ids().viewer(),
-                                            info.positions().viewer(),
-                                            info.thicknesses().viewer(),
-                                            info.d_hats().viewer(),
-                                            info.half_plane_vertex_offset(),
-                                            info.dt(),
-                                            (int)info.PHs().size());
+            do_assemble_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(), do_assemble_kernel), cuda_tool::best_block_dim(do_assemble_kernel), 0, nullptr>>>(
+                info.gradient_only(),
+                info.gradients().viewer(),
+                info.hessians().viewer(),
+                info.PHs().viewer(),
+                half_plane->positions().viewer(),
+                half_plane->normals().viewer(),
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.half_plane_vertex_offset(),
+                info.dt(),
+                (int)info.PHs().size());
         }
     }
 

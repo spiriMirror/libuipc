@@ -14,7 +14,9 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     Float s_r = rotation_strength;
     Float m   = mass.mass();
 
-    UIPC_KERNEL_ASSERT(m > 0.0, "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.", m);
+    UIPC_KERNEL_ASSERT(m > 0.0,
+                       "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.",
+                       m);
 
     Matrix12x12 M = mass.to_mat();
 
@@ -61,12 +63,11 @@ namespace
         {
             Vector12 q      = qs(i);
             Vector12 q_prev = q_prevs(i);
-            Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-            Vector12 dq = q - q_aim;
-            Vector2  s  = strength_ratios(I);
+            Vector12 q_aim  = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq     = q - q_aim;
+            Vector2  s      = strength_ratios(I);
 
-            Matrix12x12 M =
-                compute_constraint_mass(body_masses(i), s(0), s(1));
+            Matrix12x12 M = compute_constraint_mass(body_masses(i), s(0), s(1));
 
             E = 0.5 * dq.transpose() * M * dq;
         }
@@ -103,9 +104,9 @@ namespace
         {
             Vector12 q      = qs(i);
             Vector12 q_prev = q_prevs(i);
-            Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-            Vector12 dq = q - q_aim;
-            Vector2  s  = strength_ratios(I);
+            Vector12 q_aim  = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq     = q - q_aim;
+            Vector2  s      = strength_ratios(I);
 
             M = compute_constraint_mass(body_masses(i), s(0), s(1));
             G = M * dq;

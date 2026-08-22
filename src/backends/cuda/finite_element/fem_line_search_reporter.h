@@ -20,7 +20,7 @@ class FEMLineSearchReporter final : public LineSearchReporter
 
       private:
         friend class FEMLineSearchReporter;
-        SizeT m_energy_count  = 0;
+        SizeT m_energy_count = 0;
     };
 
     class ComputeEnergyInfo
@@ -33,12 +33,12 @@ class FEMLineSearchReporter final : public LineSearchReporter
         }
 
         cuda_tool::BufferView<Float> energies() const { return m_energies; }
-        Float                   dt() const noexcept { return m_dt; }
+        Float                        dt() const noexcept { return m_dt; }
 
       private:
         friend class FEMLineSearchReporter;
         cuda_tool::BufferView<Float> m_energies;
-        Float                   m_dt = 0.0;
+        Float                        m_dt = 0.0;
     };
 
     class Impl
@@ -52,13 +52,13 @@ class FEMLineSearchReporter final : public LineSearchReporter
         SimSystemSlot<FiniteElementMethod> finite_element_method;
 
         SimSystemSlot<FiniteElementKinetic> finite_element_kinetic;
-        cuda_tool::DeviceBuffer<Float>           kinetic_energies;
-        cuda_tool::DeviceVar<Float>              total_kinetic_energy;
+        cuda_tool::DeviceBuffer<Float>      kinetic_energies;
+        cuda_tool::DeviceVar<Float>         total_kinetic_energy;
 
         SimSystemSlotCollection<FEMLineSearchSubreporter> reporters;
-        OffsetCountCollection<IndexT> reporter_energy_offsets_counts;
-        cuda_tool::DeviceBuffer<Float>     reporter_energies;
-        cuda_tool::DeviceVar<Float>        total_reporter_energy;
+        OffsetCountCollection<IndexT>  reporter_energy_offsets_counts;
+        cuda_tool::DeviceBuffer<Float> reporter_energies;
+        cuda_tool::DeviceVar<Float>    total_reporter_energy;
 
         FiniteElementMethod::Impl& fem()
         {

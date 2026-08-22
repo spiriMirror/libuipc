@@ -28,10 +28,9 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        Float           expansion = d_hat(i);
-        Float           extend_f  = thickness(i) + expansion;
-        Eigen::Vector3f ext =
-            Eigen::Vector3f::Constant(static_cast<float>(extend_f));
+        Float expansion = d_hat(i);
+        Float extend_f  = thickness(i) + expansion;
+        Eigen::Vector3f ext = Eigen::Vector3f::Constant(static_cast<float>(extend_f));
         Eigen::Vector3f pos = positions(i).cast<float>();
 
         AABB box;
@@ -51,11 +50,10 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        IndexT p            = codim_indices(i);
-        Float  expansion    = d_hat(p);
-        Float  extend_f     = thickness(p) + expansion;
-        Eigen::Vector3f ext = Eigen::Vector3f::Constant(
-            static_cast<float>(extend_f));
+        IndexT p         = codim_indices(i);
+        Float  expansion = d_hat(p);
+        Float  extend_f  = thickness(p) + expansion;
+        Eigen::Vector3f ext = Eigen::Vector3f::Constant(static_cast<float>(extend_f));
         Eigen::Vector3f pos = positions(p).cast<float>();
 
         AABB box;
@@ -75,12 +73,11 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        Vector2i E  = edges(i);
-        Float thick = thickness(E[0]) + thickness(E[1]);
-        Float expansion = (d_hat(E[0]) + d_hat(E[1])) / 2.0;
-        Float           extend_f = thick + expansion;
-        Eigen::Vector3f ext = Eigen::Vector3f::Constant(
-            static_cast<float>(extend_f));
+        Vector2i E         = edges(i);
+        Float    thick     = thickness(E[0]) + thickness(E[1]);
+        Float    expansion = (d_hat(E[0]) + d_hat(E[1])) / 2.0;
+        Float    extend_f  = thick + expansion;
+        Eigen::Vector3f ext = Eigen::Vector3f::Constant(static_cast<float>(extend_f));
         Eigen::Vector3f v0 = positions(E[0]).cast<float>();
         Eigen::Vector3f v1 = positions(E[1]).cast<float>();
 
@@ -103,14 +100,11 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        Vector3i F  = triangles(i);
-        Float thick = thickness(F[0]) + thickness(F[1])
-                      + thickness(F[2]);
-        Float expansion =
-            (d_hat(F[0]) + d_hat(F[1]) + d_hat(F[2])) / 3.0;
-        Float           extend_f = thick + expansion;
-        Eigen::Vector3f ext = Eigen::Vector3f::Constant(
-            static_cast<float>(extend_f));
+        Vector3i F     = triangles(i);
+        Float    thick = thickness(F[0]) + thickness(F[1]) + thickness(F[2]);
+        Float    expansion = (d_hat(F[0]) + d_hat(F[1]) + d_hat(F[2])) / 3.0;
+        Float    extend_f  = thick + expansion;
+        Eigen::Vector3f ext = Eigen::Vector3f::Constant(static_cast<float>(extend_f));
         Eigen::Vector3f v0 = positions(F[0]).cast<float>();
         Eigen::Vector3f v1 = positions(F[1]).cast<float>();
         Eigen::Vector3f v2 = positions(F[2]).cast<float>();
@@ -212,8 +206,7 @@ namespace
             if(!allow_PP_contact(ContactTable, cids))
                 return false;
 
-            if(info.bid_i == info.bid_j
-               && info.bid_i != static_cast<IndexT>(-1)
+            if(info.bid_i == info.bid_j && info.bid_i != static_cast<IndexT>(-1)
                && !SelfCollision(CodimP))
                 return false;
 
@@ -259,18 +252,16 @@ namespace
             if(!allow_PE_contact(ContactTable, cids))
                 return false;
 
-            if(info.bid_i == info.bid_j
-               && info.bid_i != static_cast<IndexT>(-1)
+            if(info.bid_i == info.bid_j && info.bid_i != static_cast<IndexT>(-1)
                && !SelfCollision(CodimP))
                 return false;
 
-            auto pe_flag = distance::point_edge_distance_flag(
-                Vs(CodimP), Vs(E[0]), Vs(E[1]));
+            auto pe_flag =
+                distance::point_edge_distance_flag(Vs(CodimP), Vs(E[0]), Vs(E[1]));
             Float D;
-            distance::point_edge_distance2(
-                pe_flag, Vs(CodimP), Vs(E[0]), Vs(E[1]), D);
+            distance::point_edge_distance2(pe_flag, Vs(CodimP), Vs(E[0]), Vs(E[1]), D);
 
-            Float thickness = VThickness(CodimP) + VThickness(E[0]);
+            Float thickness  = VThickness(CodimP) + VThickness(E[0]);
             Float thickness2 = thickness * thickness;
 
             if(D <= thickness2)
@@ -307,8 +298,8 @@ namespace
             if(!allow_PT_contact(ContactTable, cids))
                 return false;
 
-            if(info.bid_i == info.bid_j
-               && info.bid_i != static_cast<IndexT>(-1) && !SelfCollision(P))
+            if(info.bid_i == info.bid_j && info.bid_i != static_cast<IndexT>(-1)
+               && !SelfCollision(P))
                 return false;
 
             auto pt_flag = distance::point_triangle_distance_flag(
@@ -344,12 +335,10 @@ namespace
             Vector2i E0 = Es(ei);
             Vector2i E1 = Es(ej);
 
-            if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0]
-               || E0[1] == E1[1])
+            if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                 return false;
 
-            Vector4i scids = {
-                SCIds(E0[0]), SCIds(E0[1]), SCIds(E1[0]), SCIds(E1[1])};
+            Vector4i scids = {SCIds(E0[0]), SCIds(E0[1]), SCIds(E1[0]), SCIds(E1[1])};
             if(!allow_EE_contact(SubsceneTable, scids))
                 return false;
 
@@ -357,8 +346,7 @@ namespace
             if(!allow_EE_contact(ContactTable, cids))
                 return false;
 
-            if(info.bid_i == info.bid_j
-               && info.bid_i != static_cast<IndexT>(-1)
+            if(info.bid_i == info.bid_j && info.bid_i != static_cast<IndexT>(-1)
                && !SelfCollision(E0[0]))
                 return false;
 
@@ -368,7 +356,7 @@ namespace
             distance::edge_edge_distance2(
                 ee_flag, Vs(E0[0]), Vs(E0[1]), Vs(E1[0]), Vs(E1[1]), D);
 
-            Float thickness = VThickness(E0[0]) + VThickness(E1[0]);
+            Float thickness  = VThickness(E0[0]) + VThickness(E1[0]);
             Float thickness2 = thickness * thickness;
 
             if(D <= thickness2)
@@ -473,7 +461,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             DeviceBuffer<AABB> point_aabbs(num_verts);
             {
                 auto k = SimplicialSurfaceDistanceCheck_build_point_aabbs_kernel;
-                int  n = (int)num_verts;
+                int n = (int)num_verts;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -489,7 +477,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             if(num_codim > 0)
             {
                 auto k = SimplicialSurfaceDistanceCheck_build_codim_point_aabbs_kernel;
-                int  n = (int)num_codim;
+                int n = (int)num_codim;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -544,7 +532,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             if(num_codim > 0)
             {
                 auto k = SimplicialSurfaceDistanceCheck_gather_codim_bids_cids_kernel;
-                int  n = (int)num_codim;
+                int n = (int)num_codim;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -562,7 +550,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             if(num_edges > 0)
             {
                 auto k = SimplicialSurfaceDistanceCheck_gather_edge_bids_cids_kernel;
-                int  n = (int)num_edges;
+                int n = (int)num_edges;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -580,7 +568,7 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
             if(num_tris > 0)
             {
                 auto k = SimplicialSurfaceDistanceCheck_gather_tri_bids_cids_kernel;
-                int  n = (int)num_tris;
+                int n = (int)num_tris;
                 if(n > 0)
                 {
                     k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
@@ -629,14 +617,8 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                                 codim_cids.view(),
                                 cmts.view(),
                                 SimplicialSurfaceDistanceCheck_NodePred{ContactMask},
-                                SimplicialSurfaceDistanceCheck_PP_LeafPred{Vs,
-                                                                           VThickness,
-                                                                           CodimPs,
-                                                                           CIds,
-                                                                           SCIds,
-                                                                           SelfCollision,
-                                                                           ContactTable,
-                                                                           SubsceneTable},
+                                SimplicialSurfaceDistanceCheck_PP_LeafPred{
+                                    Vs, VThickness, CodimPs, CIds, SCIds, SelfCollision, ContactTable, SubsceneTable},
                                 pp_qbuf);
             }
 
@@ -656,15 +638,8 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                                codim_cids.view(),
                                cmts.view(),
                                SimplicialSurfaceDistanceCheck_NodePred{ContactMask},
-                               SimplicialSurfaceDistanceCheck_PE_LeafPred{Vs,
-                                                                          VThickness,
-                                                                          Es,
-                                                                          CodimPs,
-                                                                          CIds,
-                                                                          SCIds,
-                                                                          SelfCollision,
-                                                                          ContactTable,
-                                                                          SubsceneTable},
+                               SimplicialSurfaceDistanceCheck_PE_LeafPred{
+                                   Vs, VThickness, Es, CodimPs, CIds, SCIds, SelfCollision, ContactTable, SubsceneTable},
                                pe_qbuf);
             }
 
@@ -683,14 +658,8 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
                               point_cids.view(),
                               cmts.view(),
                               SimplicialSurfaceDistanceCheck_NodePred{ContactMask},
-                              SimplicialSurfaceDistanceCheck_PT_LeafPred{Vs,
-                                                                         VThickness,
-                                                                         Fs,
-                                                                         CIds,
-                                                                         SCIds,
-                                                                         SelfCollision,
-                                                                         ContactTable,
-                                                                         SubsceneTable},
+                              SimplicialSurfaceDistanceCheck_PT_LeafPred{
+                                  Vs, VThickness, Fs, CIds, SCIds, SelfCollision, ContactTable, SubsceneTable},
                               pt_qbuf);
             }
 
@@ -706,14 +675,8 @@ class SimplicialSurfaceDistanceCheck final : public BackendSanityChecker
 
                 edge_bvh.detect(cmts.view(),
                                 SimplicialSurfaceDistanceCheck_NodePred{ContactMask},
-                                SimplicialSurfaceDistanceCheck_EE_LeafPred{Vs,
-                                                                           VThickness,
-                                                                           Es,
-                                                                           CIds,
-                                                                           SCIds,
-                                                                           SelfCollision,
-                                                                           ContactTable,
-                                                                           SubsceneTable},
+                                SimplicialSurfaceDistanceCheck_EE_LeafPred{
+                                    Vs, VThickness, Es, CIds, SCIds, SelfCollision, ContactTable, SubsceneTable},
                                 ee_qbuf);
             }
 

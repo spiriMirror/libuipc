@@ -51,7 +51,7 @@ geometry::AttributeCollection default_scene_config() noexcept
     // > 0: override eps_velocity with eps_velocity_relative * scene_diagonal
     // (rest bbox), the Stiff-GIPC convention (sqrt(fDhat) = 1e-2 * diag)
     config.create("contact/eps_velocity_relative", Float{0.0});
-    
+
     // default:
     //  - ipc
     // or:
@@ -70,7 +70,6 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/adaptive/init_kappa", Float{1.0_GPa});
     config.create("contact/adaptive/max_kappa", Float{100.0_GPa});
 
-    
 
     // default:
     //  - info_stackless_bvh
@@ -163,8 +162,8 @@ static const Json* find_nested_json(const Json& j, const std::string_view path)
 }
 
 static void throw_on_unknown_config_keys(const geometry::AttributeCollection& schema,
-                                         const Json&                          j,
-                                         const std::string&                   prefix)
+                                         const Json&        j,
+                                         const std::string& prefix)
 {
     if(!j.is_object())
         return;

@@ -58,7 +58,7 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
     SimSystemSlot<GlobalLinearSystem>             linear_system;
     SimSystemSlot<GlobalDyTopoEffectManager>      dytopo_effect_manager;
 
-    std::vector<IndexT>                   h_adaptive_kappa_index;
+    std::vector<IndexT>                        h_adaptive_kappa_index;
     cuda_tool::DeviceBuffer<Vector2i>          adaptive_topos;
     S<cuda_tool::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
 
@@ -124,19 +124,17 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         // non-adaptive kappa to 0.0 (don't contribute)
         // adaptive kappa to 1.0 (contribute)
 
-        test_contact_tabular = std::make_shared<cuda_tool::DeviceBuffer2D<ContactCoeff>>();
+        test_contact_tabular =
+            std::make_shared<cuda_tool::DeviceBuffer2D<ContactCoeff>>();
         test_contact_tabular->resize({N, N});
         test_contact_tabular->fill(ContactCoeff{0.0f});
 
         using namespace cuda_tool;
         if(adaptive_topos.size() > 0)
-            do_init_kernel<<<cuda_tool::best_grid_dim((int)adaptive_topos.size(),
-                                                      do_init_kernel),
-                             cuda_tool::best_block_dim(do_init_kernel),
-                             0,
-                             nullptr>>>(adaptive_topos.viewer(),
-                                        test_contact_tabular->viewer(),
-                                        (int)adaptive_topos.size());
+            do_init_kernel<<<cuda_tool::best_grid_dim((int)adaptive_topos.size(), do_init_kernel), cuda_tool::best_block_dim(do_init_kernel), 0, nullptr>>>(
+                adaptive_topos.viewer(),
+                test_contact_tabular->viewer(),
+                (int)adaptive_topos.size());
 
         //auto             d_hats = vertex_manager->d_hats();
         //DeviceVar<Float> min_d_hat;
@@ -151,7 +149,7 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         // set a test contact tabular
         auto original_contact_tabular = info.exchange_contact_tabular(test_contact_tabular);
 
-        auto _compute_gradient = [this](EnergyComponentFlags         flags,
+        auto _compute_gradient = [this](EnergyComponentFlags flags,
                                         cuda_tool::DenseVectorView<Float> gradient)
         {
             // 1. Compute dytopo effect
@@ -217,16 +215,14 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
                      max_kappa);
 
         if(adaptive_topos.size() > 0)
-            do_compute_parameters_kernel<<<cuda_tool::best_grid_dim(
-                                               (int)adaptive_topos.size(),
-                                               do_compute_parameters_kernel),
-                                           cuda_tool::best_block_dim(
-                                               do_compute_parameters_kernel),
-                                           0,
-                                           nullptr>>>(adaptive_topos.viewer(),
-                                                      info.contact_tabular().viewer(),
-                                                      new_kappa,
-                                                      (int)adaptive_topos.size());
+            do_compute_parameters_kernel<<<
+                cuda_tool::best_grid_dim((int)adaptive_topos.size(), do_compute_parameters_kernel),
+                cuda_tool::best_block_dim(do_compute_parameters_kernel),
+                0,
+                nullptr>>>(adaptive_topos.viewer(),
+                           info.contact_tabular().viewer(),
+                           new_kappa,
+                           (int)adaptive_topos.size());
     }
 
     vector<Float> h_kappas;

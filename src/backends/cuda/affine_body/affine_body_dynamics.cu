@@ -527,10 +527,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                 ABDJacobiDyadicMass geo_mass;
                 {
                     auto mass_attr = sc.meta().find<Float>(builtin::abd_mass);
-                    auto mx_attr   = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
-                    auto mxx_attr  = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
+                    auto mx_attr = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                    auto mxx_attr = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
                     UIPC_ASSERT(mass_attr && mx_attr && mxx_attr,
-                        "abd_mass/abd_mass_x_bar/abd_mass_x_bar_x_bar not found on affine body geometry");
+                                "abd_mass/abd_mass_x_bar/abd_mass_x_bar_x_bar not found on affine body geometry");
                     auto m             = mass_attr->view()[0];
                     auto m_x_bar       = mx_attr->view()[0];
                     auto m_x_bar_x_bar = mxx_attr->view()[0];
@@ -560,7 +560,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     h_body_id_to_self_collision[body_id] = self_collision_value;
                 }
             });
-
     }
 
 
@@ -579,50 +578,50 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
         body_id_to_external_force.resize(abd_body_count);
         body_id_to_external_force_acc.resize(abd_body_count);
-        for_each(
-            geo_slots,
-            [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
-            {
-                auto geoI = I.global_index();
+        for_each(geo_slots,
+                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+                 {
+                     auto geoI = I.global_index();
 
-                auto vert_count  = sc.vertices().size();
-                auto vert_offset = geo_infos[geoI].vertex_offset;
-                auto body_count  = sc.instances().size();
-                auto body_offset = geo_infos[geoI].body_offset;
+                     auto vert_count  = sc.vertices().size();
+                     auto vert_offset = geo_infos[geoI].vertex_offset;
+                     auto body_count  = sc.instances().size();
+                     auto body_offset = geo_infos[geoI].body_offset;
 
-                auto sub_Js = Js.subspan(vert_offset, vert_count);
-                // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
+                     auto sub_Js = Js.subspan(vert_offset, vert_count);
+                     // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
 
 
-                auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
-                auto gravity_view =
-                    gravity_attr ? gravity_attr->view() : span<const Vector3>{};
+                     auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
+                     auto gravity_view = gravity_attr ? gravity_attr->view() :
+                                                        span<const Vector3>{};
 
-                auto mass_attr = sc.meta().find<Float>(builtin::abd_mass);
-                auto mx_attr   = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
-                UIPC_ASSERT(mass_attr && mx_attr,
-                    "abd_mass/abd_mass_x_bar not found on affine body geometry");
-                Float   total_m = mass_attr->view()[0];
-                Vector3 mx_bar  = mx_attr->view()[0];
+                     auto mass_attr = sc.meta().find<Float>(builtin::abd_mass);
+                     auto mx_attr = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                     UIPC_ASSERT(mass_attr && mx_attr,
+                                 "abd_mass/abd_mass_x_bar not found on affine body geometry");
+                     Float   total_m = mass_attr->view()[0];
+                     Vector3 mx_bar  = mx_attr->view()[0];
 
-                for(auto i : range(body_count))
-                {
-                    Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
+                     for(auto i : range(body_count))
+                     {
+                         Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
 
-                    Vector12 G;
-                    G.segment<3>(0) = total_m * local_gravity;
-                    G.segment<3>(3) = local_gravity(0) * mx_bar;
-                    G.segment<3>(6) = local_gravity(1) * mx_bar;
-                    G.segment<3>(9) = local_gravity(2) * mx_bar;
+                         Vector12 G;
+                         G.segment<3>(0) = total_m * local_gravity;
+                         G.segment<3>(3) = local_gravity(0) * mx_bar;
+                         G.segment<3>(6) = local_gravity(1) * mx_bar;
+                         G.segment<3>(9) = local_gravity(2) * mx_bar;
 
-                    Matrix12x12 abd_body_mass_inv = h_body_id_to_abd_mass_inv[body_offset];
-                    Vector12 g = abd_body_mass_inv * G;
+                         Matrix12x12 abd_body_mass_inv =
+                             h_body_id_to_abd_mass_inv[body_offset];
+                         Vector12 g = abd_body_mass_inv * G;
 
-                    auto body_id = body_offset + i;
+                         auto body_id = body_offset + i;
 
-                    h_body_id_to_abd_gravity[body_id] = g;
-                }
-            });
+                         h_body_id_to_abd_gravity[body_id] = g;
+                     }
+                 });
     }
 
 
@@ -692,7 +691,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_transfer(body_id_to_q, body_id_to_q_tilde);
     async_transfer(body_id_to_q, body_id_to_q_prev);
 
-    auto async_resize = []<typename T>(cuda_tool::DeviceBuffer<T>& buf, SizeT size, const T& value)
+    auto async_resize =
+        []<typename T>(cuda_tool::DeviceBuffer<T>& buf, SizeT size, const T& value)
     {
         cuda_tool::BufferLaunch().resize<T>(buf, size);
         cuda_tool::BufferLaunch().fill<T>(buf.view(), value);
@@ -846,8 +846,7 @@ auto AffineBodyDynamics::FilteredInfo::geo_infos() const noexcept -> span<const 
                                            constitution_info.geo_count);
 }
 
-auto AffineBodyDynamics::FilteredInfo::constitution_info() const noexcept
-    -> const ConstitutionInfo&
+auto AffineBodyDynamics::FilteredInfo::constitution_info() const noexcept -> const ConstitutionInfo&
 {
     return m_impl->constitution_infos[m_constitution_index];
 }

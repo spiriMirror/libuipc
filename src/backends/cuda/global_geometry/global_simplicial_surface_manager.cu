@@ -196,8 +196,7 @@ cuda_tool::BufferView<Vector3i> GlobalSimplicialSurfaceManager::SurfaceAttribute
     return m_impl->surf_triangles.view(info.surf_triangle_offset, info.surf_triangle_count);
 }
 
-auto GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept
-    -> const ReporterInfo&
+auto GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept -> const ReporterInfo&
 {
     return m_impl->reporter_infos[m_index];
 }

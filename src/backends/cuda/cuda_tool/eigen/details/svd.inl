@@ -11,35 +11,35 @@ namespace details
                                             Eigen::Matrix<float, 3, 3>& V)
     {
         cuda_tool::details::eigen::svd3x3(F(0, 0),
-                                     F(0, 1),
-                                     F(0, 2),
-                                     F(1, 0),
-                                     F(1, 1),
-                                     F(1, 2),
-                                     F(2, 0),
-                                     F(2, 1),
-                                     F(2, 2),
-                                     U(0, 0),
-                                     U(0, 1),
-                                     U(0, 2),
-                                     U(1, 0),
-                                     U(1, 1),
-                                     U(1, 2),
-                                     U(2, 0),
-                                     U(2, 1),
-                                     U(2, 2),
-                                     Sigma(0),
-                                     Sigma(1),
-                                     Sigma(2),
-                                     V(0, 0),
-                                     V(0, 1),
-                                     V(0, 2),
-                                     V(1, 0),
-                                     V(1, 1),
-                                     V(1, 2),
-                                     V(2, 0),
-                                     V(2, 1),
-                                     V(2, 2));
+                                          F(0, 1),
+                                          F(0, 2),
+                                          F(1, 0),
+                                          F(1, 1),
+                                          F(1, 2),
+                                          F(2, 0),
+                                          F(2, 1),
+                                          F(2, 2),
+                                          U(0, 0),
+                                          U(0, 1),
+                                          U(0, 2),
+                                          U(1, 0),
+                                          U(1, 1),
+                                          U(1, 2),
+                                          U(2, 0),
+                                          U(2, 1),
+                                          U(2, 2),
+                                          Sigma(0),
+                                          Sigma(1),
+                                          Sigma(2),
+                                          V(0, 0),
+                                          V(0, 1),
+                                          V(0, 2),
+                                          V(1, 0),
+                                          V(1, 1),
+                                          V(1, 2),
+                                          V(2, 0),
+                                          V(2, 1),
+                                          V(2, 2));
     }
 }  // namespace details
 }  // namespace uipc::backend::cuda_tool::eigen
@@ -89,9 +89,9 @@ UIPC_INLINE UIPC_GENERIC void pd(const Eigen::Matrix<float, 3, 3>& F,
 }
 
 UIPC_INLINE UIPC_GENERIC void svd(const Eigen::Matrix<double, 3, 3>& F,
-                      Eigen::Matrix<double, 3, 3>&       U,
-                      Eigen::Vector3<double>&            Sigma,
-                      Eigen::Matrix<double, 3, 3>&       V)
+                                  Eigen::Matrix<double, 3, 3>&       U,
+                                  Eigen::Vector3<double>&            Sigma,
+                                  Eigen::Matrix<double, 3, 3>&       V)
 {
     Eigen::Matrix3f fU;
     Eigen::Vector3f fSigma;
@@ -103,8 +103,8 @@ UIPC_INLINE UIPC_GENERIC void svd(const Eigen::Matrix<double, 3, 3>& F,
 }
 
 UIPC_INLINE UIPC_GENERIC void pd(const Eigen::Matrix<double, 3, 3>& F,
-                     Eigen::Matrix<double, 3, 3>&       R,
-                     Eigen::Matrix<double, 3, 3>&       S)
+                                 Eigen::Matrix<double, 3, 3>&       R,
+                                 Eigen::Matrix<double, 3, 3>&       S)
 {
     Eigen::Matrix3f fR;
     Eigen::Matrix3f fS;

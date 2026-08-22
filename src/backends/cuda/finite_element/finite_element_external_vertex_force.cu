@@ -34,13 +34,13 @@ class FiniteElementExternalVertexForce final : public FiniteElementExternalForce
 
     using FiniteElementExternalForceReporter::FiniteElementExternalForceReporter;
 
-    SimSystemSlot<FiniteElementMethod>                          finite_element_method;
-    SimSystemSlot<FiniteElementExternalVertexForceConstraint>   constraint;
+    SimSystemSlot<FiniteElementMethod> finite_element_method;
+    SimSystemSlot<FiniteElementExternalVertexForceConstraint> constraint;
 
     virtual void do_build(BuildInfo& info) override
     {
         finite_element_method = require<FiniteElementMethod>();
-        constraint            = require<FiniteElementExternalVertexForceConstraint>();
+        constraint = require<FiniteElementExternalVertexForceConstraint>();
     }
 
     U64 get_uid() const noexcept override { return UID; }
@@ -54,10 +54,7 @@ class FiniteElementExternalVertexForce final : public FiniteElementExternalForce
         if(n > 0)
         {
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                info.external_forces(),
-                constraint->vertex_ids(),
-                constraint->forces(),
-                n);
+                info.external_forces(), constraint->vertex_ids(), constraint->forces(), n);
         }
     }
 };

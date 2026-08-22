@@ -178,7 +178,7 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    __global__ void StacklessBVH_calcMaxBVFromBox_kernel(size_t                        size,
+    __global__ void StacklessBVH_calcMaxBVFromBox_kernel(size_t size,
                                                          cuda_tool::CBufferView<AABB> box,
                                                          cuda_tool::Dense<AABB> _bv)
     {
@@ -260,12 +260,12 @@ namespace
                 float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
                 float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
                 float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
-                tempMinX = __mm_min(tempMinX, otherMinX);
-                tempMinY = __mm_min(tempMinY, otherMinY);
-                tempMinZ = __mm_min(tempMinZ, otherMinZ);
-                tempMaxX = __mm_max(tempMaxX, otherMaxX);
-                tempMaxY = __mm_max(tempMaxY, otherMaxY);
-                tempMaxZ = __mm_max(tempMaxZ, otherMaxZ);
+                tempMinX        = __mm_min(tempMinX, otherMinX);
+                tempMinY        = __mm_min(tempMinY, otherMinY);
+                tempMinZ        = __mm_min(tempMinZ, otherMinZ);
+                tempMaxX        = __mm_max(tempMaxX, otherMaxX);
+                tempMaxY        = __mm_max(tempMaxY, otherMaxY);
+                tempMaxZ        = __mm_max(tempMaxZ, otherMaxZ);
             }
         }
 
@@ -281,7 +281,7 @@ namespace
     }
 
     __global__ void StacklessBVH_calcMCsFromBox_kernel(cuda_tool::CBufferView<AABB> box,
-                                                       cuda_tool::CDense<AABB>     scene,
+                                                       cuda_tool::CDense<AABB> scene,
                                                        cuda_tool::BufferView<uint32_t> codes,
                                                        int n)
     {
@@ -293,12 +293,11 @@ namespace
 
         // Get center using Eigen API
         auto   center = bv.center();
-        float3 c = make_float3(center.x(), center.y(), center.z());
+        float3 c      = make_float3(center.x(), center.y(), center.z());
 
         // Get scene min
-        auto   sceneMin = scene->min();
-        float3 sceneMinVec =
-            make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
+        auto sceneMin = scene->min();
+        float3 sceneMinVec = make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
         const float3 offset = c - sceneMinVec;
 
         // Get dimensions
@@ -309,9 +308,8 @@ namespace
     }
 
     /// incoherent access, thus poor performance
-    __global__ void StacklessBVH_calcInverseMapping_kernel(cuda_tool::BufferView<int32_t> map,
-                                                           cuda_tool::BufferView<int32_t> invMap,
-                                                           int n)
+    __global__ void StacklessBVH_calcInverseMapping_kernel(
+        cuda_tool::BufferView<int32_t> map, cuda_tool::BufferView<int32_t> invMap, int n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -320,11 +318,12 @@ namespace
         invMap(map(idx)) = idx;
     }
 
-    __global__ void StacklessBVH_buildPrimitivesFromBox_kernel(cuda_tool::BufferView<int>  _primIdx,
-                                                               cuda_tool::BufferView<AABB> _primBox,
-                                                               cuda_tool::BufferView<int32_t> _primMap,
-                                                               cuda_tool::CBufferView<AABB> box,
-                                                               int n)
+    __global__ void StacklessBVH_buildPrimitivesFromBox_kernel(
+        cuda_tool::BufferView<int>     _primIdx,
+        cuda_tool::BufferView<AABB>    _primBox,
+        cuda_tool::BufferView<int32_t> _primMap,
+        cuda_tool::CBufferView<AABB>   box,
+        int                            n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -343,28 +342,28 @@ namespace
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
             return;
-        _metrics(idx) = idx != extsize - 1 ?
-                            32 - __clz(_codes(idx) ^ _codes(idx + 1)) :
-                            33;
+        _metrics(idx) =
+            idx != extsize - 1 ? 32 - __clz(_codes(idx) ^ _codes(idx + 1)) : 33;
     }
 
-    __global__ void StacklessBVH_buildIntNodes_kernel(int size,
-                                                      // leaf nodes
-                                                      cuda_tool::BufferView<uint32_t> _depths,
-                                                      cuda_tool::BufferView<int> _lvs_lca,
-                                                      cuda_tool::BufferView<int> _lvs_metric,
-                                                      cuda_tool::BufferView<uint32_t> _lvs_par,
-                                                      cuda_tool::BufferView<uint32_t> _lvs_mark,
-                                                      cuda_tool::BufferView<AABB> _lvs_box,
-                                                      // internal nodes
-                                                      cuda_tool::BufferView<int> _tks_rc,
-                                                      cuda_tool::BufferView<int> _tks_lc,
-                                                      cuda_tool::BufferView<int> _tks_range_y,
-                                                      cuda_tool::BufferView<int> _tks_range_x,
-                                                      cuda_tool::BufferView<uint32_t> _tks_mark,
-                                                      cuda_tool::BufferView<AABB> _tks_box,
-                                                      cuda_tool::BufferView<uint32_t> _flag,
-                                                      cuda_tool::BufferView<int> _tks_par)
+    __global__ void StacklessBVH_buildIntNodes_kernel(
+        int size,
+        // leaf nodes
+        cuda_tool::BufferView<uint32_t> _depths,
+        cuda_tool::BufferView<int>      _lvs_lca,
+        cuda_tool::BufferView<int>      _lvs_metric,
+        cuda_tool::BufferView<uint32_t> _lvs_par,
+        cuda_tool::BufferView<uint32_t> _lvs_mark,
+        cuda_tool::BufferView<AABB>     _lvs_box,
+        // internal nodes
+        cuda_tool::BufferView<int>      _tks_rc,
+        cuda_tool::BufferView<int>      _tks_lc,
+        cuda_tool::BufferView<int>      _tks_range_y,
+        cuda_tool::BufferView<int>      _tks_range_x,
+        cuda_tool::BufferView<uint32_t> _tks_mark,
+        cuda_tool::BufferView<AABB>     _tks_box,
+        cuda_tool::BufferView<uint32_t> _flag,
+        cuda_tool::BufferView<int>      _tks_par)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= size)
@@ -470,12 +469,13 @@ namespace
         }
     }
 
-    __global__ void StacklessBVH_calcIntNodeOrders_kernel(cuda_tool::BufferView<int> _tks_lc,
-                                                          cuda_tool::BufferView<int> _lcas,
-                                                          cuda_tool::BufferView<uint32_t> _depths,
-                                                          cuda_tool::BufferView<uint32_t> _offsets,
-                                                          cuda_tool::BufferView<int> _tkMap,
-                                                          int n)
+    __global__ void StacklessBVH_calcIntNodeOrders_kernel(
+        cuda_tool::BufferView<int>      _tks_lc,
+        cuda_tool::BufferView<int>      _lcas,
+        cuda_tool::BufferView<uint32_t> _depths,
+        cuda_tool::BufferView<uint32_t> _offsets,
+        cuda_tool::BufferView<int>      _tkMap,
+        int                             n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -493,10 +493,11 @@ namespace
         }
     }
 
-    __global__ void StacklessBVH_updateBvhExtNodeLinks_kernel(cuda_tool::BufferView<int> _mapTable,
-                                                              cuda_tool::BufferView<int> _lcas,
-                                                              cuda_tool::BufferView<uint32_t> _pars,
-                                                              int n)
+    __global__ void StacklessBVH_updateBvhExtNodeLinks_kernel(
+        cuda_tool::BufferView<int>      _mapTable,
+        cuda_tool::BufferView<int>      _lcas,
+        cuda_tool::BufferView<uint32_t> _pars,
+        int                             n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -509,19 +510,20 @@ namespace
             _lcas(idx) = idx << 1 | 1;
     }
 
-    __global__ void StacklessBVH_reorderNode_kernel(int intSize,
-                                                    // leaf nodes
-                                                    cuda_tool::BufferView<int> _lvs_lca,
-                                                    cuda_tool::BufferView<AABB> _lvs_box,
-                                                    // internal nodes
-                                                    cuda_tool::BufferView<int> _tkMap,
-                                                    cuda_tool::BufferView<int> _unorderedTks_lc,
-                                                    cuda_tool::BufferView<uint32_t> _unorderedTks_mark,
-                                                    cuda_tool::BufferView<int> _unorderedTks_rangey,
-                                                    cuda_tool::BufferView<AABB> _unorderedTks_box,
-                                                    // total nodes
-                                                    cuda_tool::BufferView<StacklessBVH::Node> _nodes,
-                                                    int n)
+    __global__ void StacklessBVH_reorderNode_kernel(
+        int intSize,
+        // leaf nodes
+        cuda_tool::BufferView<int>  _lvs_lca,
+        cuda_tool::BufferView<AABB> _lvs_box,
+        // internal nodes
+        cuda_tool::BufferView<int>      _tkMap,
+        cuda_tool::BufferView<int>      _unorderedTks_lc,
+        cuda_tool::BufferView<uint32_t> _unorderedTks_mark,
+        cuda_tool::BufferView<int>      _unorderedTks_rangey,
+        cuda_tool::BufferView<AABB>     _unorderedTks_box,
+        // total nodes
+        cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+        int                                       n)
     {
         using namespace culbvh;
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -553,8 +555,8 @@ namespace
         int           newId = _tkMap(idx);
         uint32_t      mark  = _unorderedTks_mark(idx);
 
-        internalNode.lc = mark & 1 ? _unorderedTks_lc(idx) + intSize :
-                                     _tkMap(_unorderedTks_lc(idx));
+        internalNode.lc    = mark & 1 ? _unorderedTks_lc(idx) + intSize :
+                                        _tkMap(_unorderedTks_lc(idx));
         internalNode.bound = _unorderedTks_box(idx);
 
         int internalEscape = _lvs_lca(_unorderedTks_rangey(idx) + 1);
@@ -573,15 +575,16 @@ namespace
     }
 
     template <typename Pred>
-    __global__ void StacklessBVH_StacklessCDSharedSelf_kernel(int Size,
-                                                              cuda_tool::CBufferView<AABB> _box,
-                                                              int intSize,
-                                                              int numObjs,
-                                                              cuda_tool::BufferView<int> _lvs_idx,
-                                                              cuda_tool::BufferView<StacklessBVH::Node> _nodes,
-                                                              cuda_tool::Dense<int> resCounter,
-                                                              cuda_tool::BufferView<Vector2i> res,
-                                                              Pred pred)
+    __global__ void StacklessBVH_StacklessCDSharedSelf_kernel(
+        int                                       Size,
+        cuda_tool::CBufferView<AABB>              _box,
+        int                                       intSize,
+        int                                       numObjs,
+        cuda_tool::BufferView<int>                _lvs_idx,
+        cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+        cuda_tool::Dense<int>                     resCounter,
+        cuda_tool::BufferView<Vector2i>           res,
+        Pred                                      pred)
     {
         using namespace culbvh;
         int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
@@ -600,7 +603,7 @@ namespace
         if(threadIdx.x == 0)
             sharedCounter = 0;
 
-        int             st = 0;
+        int                st = 0;
         StacklessBVH::Node node;
         // Upper bound of iterations to avoid infinite loop
         const int MaxIter = numObjs * 2;
@@ -626,8 +629,7 @@ namespace
                         {
                             if(tid < st - intSize)
                             {
-                                auto pair =
-                                    make_ordered_pair(idx, _lvs_idx(st - intSize));
+                                auto pair = make_ordered_pair(idx, _lvs_idx(st - intSize));
                                 if(pred(pair.x, pair.y))
                                 {
                                     int sIdx = atomicAdd(&sharedCounter, 1);
@@ -653,10 +655,10 @@ namespace
                 }
 
                 UIPC_KERNEL_ASSERT(inner_I < MaxIter,
-                            "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
-                            inner_I,
-                            MaxIter,
-                            numObjs);
+                                   "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
+                                   inner_I,
+                                   MaxIter,
+                                   numObjs);
             }
             // Flush whatever we have
             __syncthreads();
@@ -693,16 +695,17 @@ namespace
     }
 
     template <typename Pred>
-    __global__ void StacklessBVH_StacklessCDSharedOther_kernel(int Size,
-                                                               cuda_tool::CBufferView<AABB> _box,
-                                                               cuda_tool::CBufferView<int> sortedIdx,
-                                                               int intSize,
-                                                               int numObjs,
-                                                               cuda_tool::BufferView<int> _lvs_idx,
-                                                               cuda_tool::BufferView<StacklessBVH::Node> _nodes,
-                                                               cuda_tool::Dense<int> resCounter,
-                                                               cuda_tool::BufferView<Vector2i> res,
-                                                               Pred pred)
+    __global__ void StacklessBVH_StacklessCDSharedOther_kernel(
+        int                                       Size,
+        cuda_tool::CBufferView<AABB>              _box,
+        cuda_tool::CBufferView<int>               sortedIdx,
+        int                                       intSize,
+        int                                       numObjs,
+        cuda_tool::BufferView<int>                _lvs_idx,
+        cuda_tool::BufferView<StacklessBVH::Node> _nodes,
+        cuda_tool::Dense<int>                     resCounter,
+        cuda_tool::BufferView<Vector2i>           res,
+        Pred                                      pred)
     {
         using namespace culbvh;
         int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
@@ -721,7 +724,7 @@ namespace
         if(threadIdx.x == 0)
             sharedCounter = 0;
 
-        int             st = 0;
+        int                st = 0;
         StacklessBVH::Node node;
 
         // Upper bound of iterations to avoid infinite loop
@@ -774,10 +777,10 @@ namespace
                 }
 
                 UIPC_KERNEL_ASSERT(inner_I < MaxIter,
-                            "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
-                            inner_I,
-                            MaxIter,
-                            numObjs);
+                                   "Exceeded max iteration in stackless traversal, %d (Max=%d), numObj=(%d)",
+                                   inner_I,
+                                   MaxIter,
+                                   numObjs);
             }
 
 
@@ -902,7 +905,12 @@ UIPC_INLINE void StacklessBVH::Impl::calcIntNodeOrders(int size)
     auto k = StacklessBVH_calcIntNodeOrders_kernel;
     if(size > 0)
         k<<<cuda_tool::best_grid_dim(size, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            int_lc.view(), ext_lca.view(), count.view(), offsetTable.view(), tkMap.view(), size);
+            int_lc.view(),
+            ext_lca.view(),
+            count.view(),
+            offsetTable.view(),
+            tkMap.view(),
+            size);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
@@ -1011,7 +1019,7 @@ inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
 }
 
 template <typename Pred>
-void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
+void StacklessBVH::Impl::StacklessCDSharedSelf(Pred                    pred,
                                                cuda_tool::VarView<int> cpNum,
                                                cuda_tool::BufferView<Vector2i> buffer)
 {

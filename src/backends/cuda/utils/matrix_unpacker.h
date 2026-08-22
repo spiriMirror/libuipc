@@ -23,13 +23,13 @@ class TripletMatrixUnpacker
             , m_I(I)
         {
             UIPC_KERNEL_ASSERT(I + (M * N) <= m_unpacker.m_triplet.triplet_count(),
-                        "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
-                        I,
-                        M,
-                        N,
-                        m_unpacker.m_triplet.triplet_count(),
-                        m_unpacker.m_triplet.kernel_file(),
-                        m_unpacker.m_triplet.kernel_line());
+                               "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
+                               I,
+                               M,
+                               N,
+                               m_unpacker.m_triplet.triplet_count(),
+                               m_unpacker.m_triplet.kernel_file(),
+                               m_unpacker.m_triplet.kernel_line());
         }
 
 
@@ -105,13 +105,13 @@ class TripletMatrixUnpacker
             , m_I(I)
         {
             UIPC_KERNEL_ASSERT(I + (N * (N + 1)) / 2 <= m_unpacker.m_triplet.triplet_count(),
-                        "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
-                        I,
-                        N,
-                        N,
-                        m_unpacker.m_triplet.triplet_count(),
-                        m_unpacker.m_triplet.kernel_file(),
-                        m_unpacker.m_triplet.kernel_line());
+                               "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
+                               I,
+                               N,
+                               N,
+                               m_unpacker.m_triplet.triplet_count(),
+                               m_unpacker.m_triplet.kernel_file(),
+                               m_unpacker.m_triplet.kernel_line());
         }
 
         /**
@@ -143,9 +143,9 @@ class TripletMatrixUnpacker
         {
             auto submatrix_offset = m_unpacker.m_triplet.submatrix_offset();
             UIPC_KERNEL_ASSERT(submatrix_offset.x == submatrix_offset.y,
-                        "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
-                        submatrix_offset.x,
-                        submatrix_offset.y);
+                               "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
+                               submatrix_offset.x,
+                               submatrix_offset.y);
             UpperIJ ret;
             // keep it in upper triangular in the global matrix (not the submatrix)
             auto dst_i = (i + ii);

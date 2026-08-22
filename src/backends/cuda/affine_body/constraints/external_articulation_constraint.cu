@@ -79,13 +79,11 @@ namespace
 
             if(joint_uid == RevoluteUID)
             {
-                ERJ::DeltaTheta<Float>(
-                    delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                ERJ::DeltaTheta<Float>(delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
             }
             else if(joint_uid == PrismaticUID)
             {
-                EPJ::DeltaTheta<Float>(
-                    delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                EPJ::DeltaTheta<Float>(delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
             }
             else
             {
@@ -131,8 +129,7 @@ namespace
             const Vector12& qk = qs(body_ids[0]);
             const Vector12& ql = qs(body_ids[1]);
 
-            const Vector2i& ref_q_prev_ids =
-                joint_id_to_ref_q_prev_ids(joint_id);
+            const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(joint_id);
 
             const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
                                           ref_q_prevs(ref_q_prev_ids[0]) :
@@ -157,8 +154,8 @@ namespace
             else
             {
                 UIPC_KERNEL_ASSERT(false,
-                            "ExternalArticulationConstraint: Unknown joint UID {}",
-                            joint_uid);
+                                   "ExternalArticulationConstraint: Unknown joint UID {}",
+                                   joint_uid);
                 // should not reach here
                 delta_theta = 0.0f;
             }
@@ -174,8 +171,8 @@ namespace
         Float delta_theta_tilde_i = joint_id_to_delta_theta_tilde(ij[0]);
         Float delta_theta_tilde_j = joint_id_to_delta_theta_tilde(ij[1]);
 
-        energies(I) = 0.5 * (delta_theta_i - delta_theta_tilde_i)
-                      * m_ij * (delta_theta_j - delta_theta_tilde_j);
+        energies(I) = 0.5 * (delta_theta_i - delta_theta_tilde_i) * m_ij
+                      * (delta_theta_j - delta_theta_tilde_j);
     }
 
     __global__ void external_articulation_constraint_compute_gradient_hessian_k1_kernel(
@@ -227,9 +224,7 @@ namespace
         }
         else
         {
-            UIPC_KERNEL_ASSERT(false,
-                        "ExternalArticulationConstraint: Unknown joint UID {}",
-                        joint_uid);
+            UIPC_KERNEL_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", joint_uid);
             G24.setZero();
         }
 
@@ -268,13 +263,12 @@ namespace
         {
             U64 joint_uid = joint_id_to_uid(joint_id);
 
-            Vector6  basis_k   = joint_id_to_L_basis(joint_id);
-            Vector6  basis_l   = joint_id_to_R_basis(joint_id);
-            Vector2i body_ids  = joint_id_to_body_ids(joint_id);
-            const Vector12& qk = qs(body_ids[0]);
-            const Vector12& ql = qs(body_ids[1]);
-            const Vector2i& ref_q_prev_ids =
-                joint_id_to_ref_q_prev_ids(joint_id);
+            Vector6         basis_k  = joint_id_to_L_basis(joint_id);
+            Vector6         basis_l  = joint_id_to_R_basis(joint_id);
+            Vector2i        body_ids = joint_id_to_body_ids(joint_id);
+            const Vector12& qk       = qs(body_ids[0]);
+            const Vector12& ql       = qs(body_ids[1]);
+            const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(joint_id);
             const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
                                           ref_q_prevs(ref_q_prev_ids[0]) :
                                           q_prevs(body_ids[0]);
@@ -287,13 +281,11 @@ namespace
             U64 uid = joint_id_to_uid(joint_id);
             if(uid == RevoluteUID)
             {
-                ERJ::dDeltaTheta_dQ(
-                    dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                ERJ::dDeltaTheta_dQ(dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
             }
             else if(uid == PrismaticUID)
             {
-                EPJ::dDeltaTheta_dQ(
-                    dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                EPJ::dDeltaTheta_dQ(dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
             }
             else
             {
@@ -360,8 +352,8 @@ namespace
             else
             {
                 UIPC_KERNEL_ASSERT(false,
-                            "ExternalArticulationConstraint: Unknown joint UID {}",
-                            joint_uid);
+                                   "ExternalArticulationConstraint: Unknown joint UID {}",
+                                   joint_uid);
             }
 
             H24x24 += JT_H_J;
@@ -413,19 +405,15 @@ namespace
         Float delta_theta;
         if(joint_uid == RevoluteUID)
         {
-            ERJ::DeltaTheta<Float>(
-                delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
+            ERJ::DeltaTheta<Float>(delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
         }
         else if(joint_uid == PrismaticUID)
         {
-            EPJ::DeltaTheta<Float>(
-                delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
+            EPJ::DeltaTheta<Float>(delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
         }
         else
         {
-            UIPC_KERNEL_ASSERT(false,
-                        "ExternalArticulationConstraint: Unknown joint UID {}",
-                        joint_uid);
+            UIPC_KERNEL_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", joint_uid);
             // should not reach here
             delta_theta = 0.0f;
         }
@@ -527,10 +515,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     vector<std::tuple<AttrRefQPrev, IndexT>> h_attr_ref_q_prevs;
 
     // joint_id -> [l_ref_q_prev_id, r_ref_q_prev_id]
-    vector<Vector2i>             h_joint_id_to_ref_q_prev_ids;
+    vector<Vector2i>                  h_joint_id_to_ref_q_prev_ids;
     cuda_tool::DeviceBuffer<Vector2i> joint_id_to_ref_q_prev_ids;
 
-    vector<Vector12>             h_ref_q_prevs;
+    vector<Vector12>                  h_ref_q_prevs;
     cuda_tool::DeviceBuffer<Vector12> ref_q_prevs;
 
     /**
@@ -539,8 +527,8 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
      * Revolute Joint:  [bn_bar, tn_bar]
      */
 
-    vector<Vector6>             h_joint_id_to_L_basis;
-    vector<Vector6>             h_joint_id_to_R_basis;
+    vector<Vector6>                  h_joint_id_to_L_basis;
+    vector<Vector6>                  h_joint_id_to_R_basis;
     cuda_tool::DeviceBuffer<Vector6> joint_id_to_L_basis;
     cuda_tool::DeviceBuffer<Vector6> joint_id_to_R_basis;
 
@@ -679,17 +667,13 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
         // 1. Get Joint's two Links
         auto joint_l_geo_id = joint_mesh->edges().find<IndexT>("l_geo_id");
-        UIPC_ASSERT(joint_l_geo_id,
-                    "ExternalArticulationConstraint: Joint geometry must have 'l_geo_id' attribute on `edges`");
+        UIPC_ASSERT(joint_l_geo_id, "ExternalArticulationConstraint: Joint geometry must have 'l_geo_id' attribute on `edges`");
         auto joint_r_geo_id = joint_mesh->edges().find<IndexT>("r_geo_id");
-        UIPC_ASSERT(joint_r_geo_id,
-                    "ExternalArticulationConstraint: Joint geometry must have 'r_geo_id' attribute on `edges`");
+        UIPC_ASSERT(joint_r_geo_id, "ExternalArticulationConstraint: Joint geometry must have 'r_geo_id' attribute on `edges`");
         auto joint_l_inst_id = joint_mesh->edges().find<IndexT>("l_inst_id");
-        UIPC_ASSERT(joint_l_inst_id,
-                    "ExternalArticulationConstraint: Joint geometry must have 'l_inst_id' attribute on `edges`");
+        UIPC_ASSERT(joint_l_inst_id, "ExternalArticulationConstraint: Joint geometry must have 'l_inst_id' attribute on `edges`");
         auto joint_r_inst_id = joint_mesh->edges().find<IndexT>("r_inst_id");
-        UIPC_ASSERT(joint_r_inst_id,
-                    "ExternalArticulationConstraint: Joint geometry must have 'r_inst_id' attribute on `edges`");
+        UIPC_ASSERT(joint_r_inst_id, "ExternalArticulationConstraint: Joint geometry must have 'r_inst_id' attribute on `edges`");
         auto joint_l_geo_id_view  = joint_l_geo_id->view();
         auto joint_r_geo_id_view  = joint_r_geo_id->view();
         auto joint_l_inst_id_view = joint_l_inst_id->view();
@@ -724,11 +708,12 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
             if(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID)
             {
-                Vector3 t = LT.rotation() * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index]);
+                Vector3 t = LT.rotation()
+                            * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index]);
                 Vector3 n, b_vec;
                 orthonormal_basis(t, n, b_vec);
-                Matrix3x3 L_inv_rot = LT.rotation().inverse();
-                Matrix3x3 R_inv_rot = RT.rotation().inverse();
+                Matrix3x3 L_inv_rot   = LT.rotation().inverse();
+                Matrix3x3 R_inv_rot   = RT.rotation().inverse();
                 L_basis.segment<3>(0) = L_inv_rot * n;
                 L_basis.segment<3>(3) = L_inv_rot * b_vec;
                 R_basis.segment<3>(0) = R_inv_rot * n;
@@ -736,10 +721,16 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             }
             else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
             {
-                Vector3 l_t = (LT.rotation() * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index])).normalized();
+                Vector3 l_t =
+                    (LT.rotation()
+                     * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index]))
+                        .normalized();
                 Vector3 l_c = LT * l_pos0_attr->view()[index];
-                Vector3 r_t = (RT.rotation() * (r_pos1_attr->view()[index] - r_pos0_attr->view()[index])).normalized();
-                Vector3 r_c = RT * r_pos0_attr->view()[index];
+                Vector3 r_t =
+                    (RT.rotation()
+                     * (r_pos1_attr->view()[index] - r_pos0_attr->view()[index]))
+                        .normalized();
+                Vector3 r_c           = RT * r_pos0_attr->view()[index];
                 L_basis.segment<3>(0) = LT.inverse() * l_c;
                 L_basis.segment<3>(3) = LT.rotation().inverse() * l_t;
                 R_basis.segment<3>(0) = RT.inverse() * r_c;
@@ -968,7 +959,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
         // upload to device
         auto async_copy = []<typename T>(cuda_tool::DeviceBuffer<T>& device_buffer,
-                                         span<const T>          host_vector)
+                                         span<const T> host_vector)
         {
             cuda_tool::BufferLaunch().copy<T>(device_buffer.view(), host_vector.data());
         };
@@ -1048,22 +1039,20 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n_gradient > 0)
         {
             auto k = external_articulation_constraint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n_gradient, k),
-               cuda_tool::best_block_dim(k),
-               0,
-               nullptr>>>(info.gradients(),
-                          joint_id_to_G_theta.cview(),
-                          joint_id_to_body_ids.cview(),
-                          joint_id_to_L_basis.cview(),
-                          joint_id_to_R_basis.cview(),
-                          info.qs(),
-                          info.q_prevs(),
-                          joint_id_to_ref_q_prev_ids.cview(),
-                          ref_q_prevs.view(),
-                          joint_id_to_uid.cview(),
-                          ExternalArticulationConstituion::RevoluteJointConstitutionUID,
-                          ExternalArticulationConstituion::PrismaticJointConstitutionUID,
-                          n_gradient);
+            k<<<cuda_tool::best_grid_dim(n_gradient, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.gradients(),
+                joint_id_to_G_theta.cview(),
+                joint_id_to_body_ids.cview(),
+                joint_id_to_L_basis.cview(),
+                joint_id_to_R_basis.cview(),
+                info.qs(),
+                info.q_prevs(),
+                joint_id_to_ref_q_prev_ids.cview(),
+                ref_q_prevs.view(),
+                joint_id_to_uid.cview(),
+                ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                ExternalArticulationConstituion::PrismaticJointConstitutionUID,
+                n_gradient);
         }
 
         if(info.gradient_only())
@@ -1074,25 +1063,23 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n_hessian > 0)
         {
             auto k = external_articulation_constraint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n_hessian, k),
-               cuda_tool::best_block_dim(k),
-               0,
-               nullptr>>>(info.hessians(),
-                          joint_id_to_G_theta.cview(),
-                          joint_id_to_body_ids.cview(),
-                          joint_joint_id_to_mass.cview(),
-                          joint_joint_id_to_joint_ij.cview(),
-                          joint_id_to_L_basis.cview(),
-                          joint_id_to_R_basis.cview(),
-                          info.qs(),
-                          info.q_prevs(),
-                          joint_id_to_ref_q_prev_ids.cview(),
-                          ref_q_prevs.view(),
-                          joint_id_to_uid.cview(),
-                          ExternalArticulationConstituion::RevoluteJointConstitutionUID,
-                          ExternalArticulationConstituion::PrismaticJointConstitutionUID,
-                          HalfHessianSize,
-                          n_hessian);
+            k<<<cuda_tool::best_grid_dim(n_hessian, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.hessians(),
+                joint_id_to_G_theta.cview(),
+                joint_id_to_body_ids.cview(),
+                joint_joint_id_to_mass.cview(),
+                joint_joint_id_to_joint_ij.cview(),
+                joint_id_to_L_basis.cview(),
+                joint_id_to_R_basis.cview(),
+                info.qs(),
+                info.q_prevs(),
+                joint_id_to_ref_q_prev_ids.cview(),
+                ref_q_prevs.view(),
+                joint_id_to_uid.cview(),
+                ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                ExternalArticulationConstituion::PrismaticJointConstitutionUID,
+                HalfHessianSize,
+                n_hessian);
         }
     }
 

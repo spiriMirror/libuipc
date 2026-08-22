@@ -19,10 +19,9 @@ namespace uipc::backend::cuda
 // ============================================================================
 namespace
 {
-    __global__ void FEMLinearSubsystem_assemble_k1_kernel(
-        cuda_tool::CBufferView<IndexT>    is_fixed,
-        cuda_tool::DenseVectorView<Float> gradients,
-        int                               n)
+    __global__ void FEMLinearSubsystem_assemble_k1_kernel(cuda_tool::CBufferView<IndexT> is_fixed,
+                                                          cuda_tool::DenseVectorView<Float> gradients,
+                                                          int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -53,10 +52,10 @@ namespace
     }
 
     __global__ void FEMLinearSubsystem_assemble_kinetic_kernel(
-        cuda_tool::DenseVectorView<Float>         dst,
-        cuda_tool::CDoubletVectorView<Float, 3>   src,
-        cuda_tool::CBufferView<IndexT>            is_fixed,
-        int                                       n)
+        cuda_tool::DenseVectorView<Float>       dst,
+        cuda_tool::CDoubletVectorView<Float, 3> src,
+        cuda_tool::CBufferView<IndexT>          is_fixed,
+        int                                     n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -68,10 +67,10 @@ namespace
     }
 
     __global__ void FEMLinearSubsystem_assemble_reporters_kernel(
-        cuda_tool::DenseVectorView<Float>         dst,
-        cuda_tool::CDoubletVectorView<Float, 3>   src,
-        cuda_tool::CBufferView<IndexT>            is_fixed,
-        int                                       n)
+        cuda_tool::DenseVectorView<Float>       dst,
+        cuda_tool::CDoubletVectorView<Float, 3> src,
+        cuda_tool::CBufferView<IndexT>          is_fixed,
+        int                                     n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -93,7 +92,7 @@ namespace
         if(I >= n)
             return;
         const auto& [g_i, G3] = dytopo_effect_gradient(I);
-        auto i = g_i - vertex_offset;  // from global to local
+        auto i                = g_i - vertex_offset;  // from global to local
 
         if(is_fixed(i))
             return;
@@ -117,9 +116,7 @@ namespace
     }
 
     __global__ void FEMLinearSubsystem_retrieve_solution_kernel(
-        cuda_tool::BufferView<Vector3>        dxs,
-        cuda_tool::CDenseVectorView<Float>    result,
-        int                                   n)
+        cuda_tool::BufferView<Vector3> dxs, cuda_tool::CDenseVectorView<Float> result, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -147,18 +144,17 @@ namespace
             return;
         if(i == j)
         {
-            auto a = abs(H3x3(0, 0));
-            auto b = abs(H3x3(1, 1));
-            auto c = abs(H3x3(2, 2));
+            auto a              = abs(H3x3(0, 0));
+            auto b              = abs(H3x3(1, 1));
+            auto c              = abs(H3x3(2, 2));
             diag_blocks_norm(i) = is_fixed(i) ? 0 : max(max(a, b), c);
         }
     }
 
-    __global__ void FEMLinearSubsystem_mass_norm_kernel(
-        cuda_tool::CBufferView<Float>  mass,
-        cuda_tool::BufferView<Float>   diag_blocks_norm,
-        cuda_tool::CBufferView<IndexT> is_fixed,
-        int                            n)
+    __global__ void FEMLinearSubsystem_mass_norm_kernel(cuda_tool::CBufferView<Float> mass,
+                                                        cuda_tool::BufferView<Float> diag_blocks_norm,
+                                                        cuda_tool::CBufferView<IndexT> is_fixed,
+                                                        int n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -516,8 +512,8 @@ Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info
     }
 
     cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
-                             reduced_diag_norm.data(),
-                             diag_blocks_norm.size());
+                                  reduced_diag_norm.data(),
+                                  diag_blocks_norm.size());
 
     return reduced_diag_norm;
 }
@@ -536,8 +532,8 @@ Float FEMLinearSubsystem::Impl::mass_norm(GlobalLinearSystem::DiagNormInfo& info
     }
 
     cuda_tool::DeviceReduce().Max(diag_blocks_norm.data(),
-                             reduced_diag_norm.data(),
-                             diag_blocks_norm.size());
+                                  reduced_diag_norm.data(),
+                                  diag_blocks_norm.size());
 
     return reduced_diag_norm;
 }

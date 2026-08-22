@@ -69,8 +69,8 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
 
     virtual cuda_tool::CBufferView<Vector2i> candidate_PTs() const noexcept override;
     virtual cuda_tool::CBufferView<Vector2i> candidate_EEs() const noexcept override;
-    virtual cuda_tool::CBufferView<Float>    toi_PTs() const noexcept override;
-    virtual cuda_tool::CBufferView<Float>    toi_EEs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_PTs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_EEs() const noexcept override;
 
   private:
     Impl m_impl;

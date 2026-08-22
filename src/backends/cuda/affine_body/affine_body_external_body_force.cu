@@ -64,10 +64,7 @@ class AffineBodyExternalBodyForce final : public AffineBodyExternalForceReporter
         {
             auto k = affine_body_external_body_force_do_step_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                info.external_forces(),
-                constraint->body_ids(),
-                constraint->forces(),
-                n);
+                info.external_forces(), constraint->body_ids(), constraint->forces(), n);
         }
     }
 };

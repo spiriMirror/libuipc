@@ -206,7 +206,7 @@ class LinearBVH
      * @param s The stream to execute the construction
      */
     void build(cuda_tool::CBufferView<LinearBVHAABB> aabbs,
-               cuda_tool::Stream&                    s = cuda_tool::Stream::Default());
+               cuda_tool::Stream& s = cuda_tool::Stream::Default());
 
     /**
      * @brief Keep the constructed LinearBVH Tree and update the AABBs.
@@ -219,7 +219,7 @@ class LinearBVH
      * @param s The stream to execute the update
      */
     void update(cuda_tool::CBufferView<LinearBVHAABB> aabbs,
-                cuda_tool::Stream&                    s = cuda_tool::Stream::Default());
+                cuda_tool::Stream& s = cuda_tool::Stream::Default());
 
     /**
      * @brief Get a query handler for the constructed LinearBVH tree.

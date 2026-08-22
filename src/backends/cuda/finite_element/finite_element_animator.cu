@@ -27,13 +27,12 @@ void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& i
     // compute the gradient and hessian
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeGradientHessianInfo this_info{
-            &m_impl,
-            constraint->m_index,
-            info.dt(),
-            info.gradients(),
-            info.hessians(),
-            info.gradient_only()};
+        ComputeGradientHessianInfo this_info{&m_impl,
+                                             constraint->m_index,
+                                             info.dt(),
+                                             info.gradients(),
+                                             info.hessians(),
+                                             info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }

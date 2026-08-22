@@ -10,8 +10,8 @@ namespace
 {
     __global__ void fused_dot_kernel(cuda_tool::CDenseVectorView<Float> x,
                                      cuda_tool::CDenseVectorView<Float> y,
-                                     cuda_tool::Dense<Float>            d_result,
-                                     int                                n)
+                                     cuda_tool::Dense<Float> d_result,
+                                     int                     n)
     {
         constexpr int block_dim = 256;
         constexpr int warp_size = 32;
@@ -31,8 +31,8 @@ namespace
             cuda_tool::atomic_add(d_result.data(), warp_sum);
     }
 
-    __global__ void fused_update_xr_kernel(cuda_tool::CDense<Float>  d_rz,
-                                           cuda_tool::CDense<Float>  d_pAp,
+    __global__ void fused_update_xr_kernel(cuda_tool::CDense<Float> d_rz,
+                                           cuda_tool::CDense<Float> d_pAp,
                                            cuda_tool::CDense<IndexT> d_converged,
                                            cuda_tool::DenseVectorView<Float>  x,
                                            cuda_tool::CDenseVectorView<Float> p,
@@ -55,7 +55,7 @@ namespace
                                           cuda_tool::CDense<IndexT> d_converged,
                                           cuda_tool::DenseVectorView<Float>  p,
                                           cuda_tool::CDenseVectorView<Float> z,
-                                          int n)
+                                          int                                n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -182,9 +182,9 @@ void LinearFusedPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
         auto norm_z = ctx().norm(z.cview());
         bool r_ok   = std::isfinite(norm_r);
         bool z_bad  = !std::isfinite(norm_z);
-        auto hint = (r_ok && z_bad) ?
-                        "preconditioner failed, likely due to inverse matrix calculation failure" :
-                        "PCG iteration diverged";
+        auto hint   = (r_ok && z_bad) ?
+                          "preconditioner failed, likely due to inverse matrix calculation failure" :
+                          "PCG iteration diverged";
         UIPC_ASSERT(false,
                     "Frame {}, Newton {}, FusedPCG Iter {}: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
                     "Hint: {}.",
@@ -228,17 +228,15 @@ void fused_update_xr(cuda_tool::CVarView<Float>         d_rz,
     int n = r.size();
     if(n > 0)
     {
-        fused_update_xr_kernel<<<cuda_tool::best_grid_dim(n, fused_update_xr_kernel),
-                                 cuda_tool::best_block_dim(fused_update_xr_kernel),
-                                 0,
-                                 nullptr>>>(d_rz.cviewer(),
-                                            d_pAp.cviewer(),
-                                            d_converged.cviewer(),
-                                            x.viewer(),
-                                            p.cviewer(),
-                                            r.viewer(),
-                                            Ap.cviewer(),
-                                            n);
+        fused_update_xr_kernel<<<cuda_tool::best_grid_dim(n, fused_update_xr_kernel), cuda_tool::best_block_dim(fused_update_xr_kernel), 0, nullptr>>>(
+            d_rz.cviewer(),
+            d_pAp.cviewer(),
+            d_converged.cviewer(),
+            x.viewer(),
+            p.cviewer(),
+            r.viewer(),
+            Ap.cviewer(),
+            n);
     }
 }
 
@@ -253,15 +251,8 @@ void fused_update_p(cuda_tool::CVarView<Float>         d_rz_new,
     int n = p.size();
     if(n > 0)
     {
-        fused_update_p_kernel<<<cuda_tool::best_grid_dim(n, fused_update_p_kernel),
-                                cuda_tool::best_block_dim(fused_update_p_kernel),
-                                0,
-                                nullptr>>>(d_rz_new.cviewer(),
-                                           d_rz.cviewer(),
-                                           d_converged.cviewer(),
-                                           p.viewer(),
-                                           z.cviewer(),
-                                           n);
+        fused_update_p_kernel<<<cuda_tool::best_grid_dim(n, fused_update_p_kernel), cuda_tool::best_block_dim(fused_update_p_kernel), 0, nullptr>>>(
+            d_rz_new.cviewer(), d_rz.cviewer(), d_converged.cviewer(), p.viewer(), z.cviewer(), n);
     }
 }
 
@@ -277,21 +268,16 @@ void fused_swap_rz(cuda_tool::CVarView<Float>  d_rz_new,
 
 void fused_update_converged(cuda_tool::CVarView<Float> d_rz_new,
                             cuda_tool::VarView<IndexT> d_converged,
-                            Float                 rz_tol)
+                            Float                      rz_tol)
 {
     int n = 1;
-    fused_update_converged_kernel<<<cuda_tool::best_grid_dim(n, fused_update_converged_kernel),
-                                    cuda_tool::best_block_dim(fused_update_converged_kernel),
-                                    0,
-                                    nullptr>>>(d_rz_new.cviewer(),
-                                               d_converged.viewer(),
-                                               rz_tol,
-                                               n);
+    fused_update_converged_kernel<<<cuda_tool::best_grid_dim(n, fused_update_converged_kernel), cuda_tool::best_block_dim(fused_update_converged_kernel), 0, nullptr>>>(
+        d_rz_new.cviewer(), d_converged.viewer(), rz_tol, n);
 }
 
 SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
                                 cuda_tool::CDenseVectorView<Float> b,
-                                SizeT                         max_iter)
+                                SizeT                              max_iter)
 {
     Timer pcg_timer{"FusedPCG"};
 

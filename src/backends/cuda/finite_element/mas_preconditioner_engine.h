@@ -43,8 +43,8 @@ class MASPreconditionerEngine
         }
     };
 
-    using ClusterMatrixSym  = ClusterMatrixSymT<double>;  // Hessian assembly
-    using ClusterMatrixSymF = ClusterMatrixSymT<float>;   // Inverted preconditioner
+    using ClusterMatrixSym = ClusterMatrixSymT<double>;  // Hessian assembly
+    using ClusterMatrixSymF = ClusterMatrixSymT<float>;  // Inverted preconditioner
 
     // Level traversal table per node
     struct LevelTable
@@ -64,9 +64,9 @@ class MASPreconditionerEngine
 
     // ---- Phase 1: Initialize neighbor structures (called once) ----
 
-    void init_neighbor(int                     vert_num,
-                       int                     total_neighbor_num,
-                       int                     part_map_size,
+    void init_neighbor(int                      vert_num,
+                       int                      total_neighbor_num,
+                       int                      part_map_size,
                        span<const unsigned int> h_neighbor_list,
                        span<const unsigned int> h_neighbor_start,
                        span<const unsigned int> h_neighbor_num,
@@ -80,11 +80,11 @@ class MASPreconditionerEngine
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
     void set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                            cuda_tool::CBufferView<int>             row_ids,
-                            cuda_tool::CBufferView<int>             col_ids,
-                            cuda_tool::CBufferView<uint32_t>        indices,
-                            int                                dof_offset,
-                            int                                cp_num);
+                            cuda_tool::CBufferView<int>      row_ids,
+                            cuda_tool::CBufferView<int>      col_ids,
+                            cuda_tool::CBufferView<uint32_t> indices,
+                            int                              dof_offset,
+                            int                              cp_num);
 
     // ---- Phase 3: Apply preconditioning z = M^{-1} r (per PCG iteration) ----
 
@@ -124,9 +124,7 @@ class MASPreconditionerEngine
      *   - `mas_cluster_inv.f<frame>.n<newton>.mtx`
      *   - `mas_cluster_meta.f<frame>.n<newton>.json`
      */
-    void dump_cluster_matrices_debug(std::string_view output_dir,
-                                     SizeT            frame,
-                                     SizeT            newton_iter);
+    void dump_cluster_matrices_debug(std::string_view output_dir, SizeT frame, SizeT newton_iter);
 
     // ===========================================================================
     // All methods below are public because NVCC on Windows requires
@@ -147,25 +145,27 @@ class MASPreconditionerEngine
 
     // Hessian assembly + inversion
     void scatter_hessian_to_clusters(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                                     cuda_tool::CBufferView<int>             row_ids,
-                                     cuda_tool::CBufferView<int>             col_ids,
-                                     cuda_tool::CBufferView<uint32_t>        indices,
-                                     int                                dof_offset);
+                                     cuda_tool::CBufferView<int>      row_ids,
+                                     cuda_tool::CBufferView<int>      col_ids,
+                                     cuda_tool::CBufferView<uint32_t> indices,
+                                     int dof_offset);
     void invert_cluster_matrices();
 
     // Preconditioning steps
-    void build_multi_level_R(cuda_tool::CDenseVectorView<Float> R, cuda_tool::CVarView<IndexT> converged);
+    void build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
+                             cuda_tool::CVarView<IndexT>        converged);
     void schwarz_local_solve(cuda_tool::CVarView<IndexT> converged);
-    void collect_final_Z(cuda_tool::DenseVectorView<Float> Z, cuda_tool::CVarView<IndexT> converged);
+    void collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
+                         cuda_tool::CVarView<IndexT>       converged);
 
   private:
     // ---- State ----
-    bool  m_initialized        = false;
-    int   m_total_nodes        = 0;
-    int   m_total_map_nodes    = 0;
-    int   m_level_num          = 0;
-    int   m_active_level_num   = 0;   // levels used during apply(); 0 = use m_level_num
-    int   m_total_num_clusters = 0;
+    bool m_initialized     = false;
+    int  m_total_nodes     = 0;
+    int  m_total_map_nodes = 0;
+    int  m_level_num       = 0;
+    int m_active_level_num = 0;  // levels used during apply(); 0 = use m_level_num
+    int  m_total_num_clusters = 0;
     Int2 m_h_level_size;
 
     // ---- GPU buffers: hierarchy ----
@@ -182,7 +182,7 @@ class MASPreconditionerEngine
     cuda_tool::DeviceBuffer<unsigned int> next_prefix_sums;
 
     // ---- GPU buffers: neighbor graph ----
-    int                              m_neighbor_list_size = 0;
+    int                                   m_neighbor_list_size = 0;
     cuda_tool::DeviceBuffer<unsigned int> neighbor_lists;
     cuda_tool::DeviceBuffer<unsigned int> neighbor_starts;
     cuda_tool::DeviceBuffer<unsigned int> neighbor_nums;
@@ -194,8 +194,8 @@ class MASPreconditionerEngine
     cuda_tool::DeviceBuffer<int> real_to_part;  // real vertex index -> partition-ordered index
 
     // ---- GPU buffers: cluster matrices ----
-    cuda_tool::DeviceBuffer<ClusterMatrixSym>  cluster_hessians;   // assembled Hessian blocks (double)
-    cuda_tool::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;   // inverted preconditioner (float, matches GIPC)
+    cuda_tool::DeviceBuffer<ClusterMatrixSym> cluster_hessians;  // assembled Hessian blocks (double)
+    cuda_tool::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;  // inverted preconditioner (float, matches GIPC)
 
     // ---- GPU buffers: multi-level residual / solution (float, matches GIPC) ----
     cuda_tool::DeviceBuffer<Eigen::Vector3f> multi_level_R;

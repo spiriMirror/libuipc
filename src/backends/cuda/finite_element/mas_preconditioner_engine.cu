@@ -119,8 +119,8 @@ namespace
 
         __shared__ unsigned int cache_mask_s[DEFAULT_BLOCKSIZE];
         __shared__ int          prefix_sum_s[DEFAULT_WARPNUM];
-        auto cache_mask = make_dense_1d(cache_mask_s);
-        auto prefix_sum = make_dense_1d(prefix_sum_s);
+        auto                    cache_mask = make_dense_1d(cache_mask_s);
+        auto                    prefix_sum = make_dense_1d(prefix_sum_s);
 
         if(idx >= 0)
         {
@@ -142,8 +142,7 @@ namespace
 
             fine_connect_mask(idx) = connect_msk;
 
-            unsigned int elected_prefix =
-                __popc(connect_msk & lanemask_lt(lane_id));
+            unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
             if(elected_prefix == 0)
                 atomicAdd(&prefix_sum(local_warp_id), 1);
             if(lane_id == 0)
@@ -152,7 +151,7 @@ namespace
     }
 
     __global__ void MASPreconditionerEngine_build_level1_kernel(
-        cuda_tool::BufferView<Int2>        level_size,
+        cuda_tool::BufferView<Int2>          level_size,
         cuda_tool::BufferView<int>           coarse_table,
         cuda_tool::BufferView<int>           going_next_L0,
         cuda_tool::CBufferView<unsigned int> fine_connect_mask,
@@ -174,8 +173,8 @@ namespace
 
         __shared__ unsigned int elected_mask_s[BANKSIZE];
         __shared__ unsigned int lane_prefix_s[BANKSIZE * BANKSIZE];
-        auto elected_mask = make_dense_1d(elected_mask_s);
-        auto lane_prefix  = make_dense_1d(lane_prefix_s);
+        auto                    elected_mask = make_dense_1d(elected_mask_s);
+        auto                    lane_prefix  = make_dense_1d(lane_prefix_s);
 
         if(lane_id == 0)
             elected_mask(local_warp_id) = 0;
@@ -202,7 +201,7 @@ namespace
             unsigned int the_lane_prefix =
                 lane_prefix(elected_lane + BANKSIZE * local_warp_id);
 
-            coarse_table(idx)   = the_lane_prefix;
+            coarse_table(idx)  = the_lane_prefix;
             going_next_L0(idx) = the_lane_prefix + level1_begin;
         }
     }
@@ -237,7 +236,7 @@ namespace
 
         unsigned int prefix_msk = fine_connect_mask(idx);
         unsigned int conn_msk   = 0;
-        int coarse_idx = coarse_table((level - 1) * vert_num + idx);
+        int          coarse_idx = coarse_table((level - 1) * vert_num + idx);
         if(coarse_idx < 0 || coarse_idx >= N)
         {
             return;
@@ -280,7 +279,8 @@ namespace
             if(conn_msk)
                 atomicOr(&cache_msk(local_warp_id * BANKSIZE + elected_lane),
                          static_cast<int>(conn_msk));
-            conn_msk = static_cast<unsigned int>(cache_msk(local_warp_id * BANKSIZE + elected_lane));
+            conn_msk = static_cast<unsigned int>(
+                cache_msk(local_warp_id * BANKSIZE + elected_lane));
         }
 
         unsigned int elected_prefix = __popc(prefix_msk & lanemask_lt(lane_id));
@@ -304,13 +304,13 @@ namespace
 
         __shared__ int          prefix_sum_raw[DEFAULT_WARPNUM];
         __shared__ unsigned int cached_msk_raw[DEFAULT_BLOCKSIZE];
-        auto prefix_sum_s = make_dense_1d(prefix_sum_raw);
-        auto cached_msk   = make_dense_1d(cached_msk_raw);
+        auto                    prefix_sum_s = make_dense_1d(prefix_sum_raw);
+        auto                    cached_msk   = make_dense_1d(cached_msk_raw);
 
         if(lane_id == 0)
             prefix_sum_s(local_warp_id) = 0;
 
-        unsigned int conn_msk = (1U << lane_id) | next_connect_mask(idx);
+        unsigned int conn_msk   = (1U << lane_id) | next_connect_mask(idx);
         cached_msk(threadIdx.x) = conn_msk;
         unsigned int visited    = (1U << lane_id);
 
@@ -324,7 +324,7 @@ namespace
             conn_msk |= cached_msk(next_visit + local_warp_id * BANKSIZE);
         }
 
-        next_connect_mask(idx) = conn_msk;
+        next_connect_mask(idx)      = conn_msk;
         unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
         if(elected_prefix == 0)
             atomicAdd(&prefix_sum_s(local_warp_id), 1);
@@ -333,14 +333,14 @@ namespace
     }
 
     __global__ void MASPreconditionerEngine_prefix_sum_Lx_kernel(
-        cuda_tool::BufferView<Int2>         level_size_ptr,
-        cuda_tool::CBufferView<unsigned int>  next_prefix,
-        cuda_tool::CBufferView<unsigned int>  next_prefix_sum,
-        cuda_tool::BufferView<unsigned int>   next_connect_mask,
-        cuda_tool::BufferView<int>            going_next_level,
-        int                                   level,
-        int                                   next_level_begin,
-        int                                   N)
+        cuda_tool::BufferView<Int2>          level_size_ptr,
+        cuda_tool::CBufferView<unsigned int> next_prefix,
+        cuda_tool::CBufferView<unsigned int> next_prefix_sum,
+        cuda_tool::BufferView<unsigned int>  next_connect_mask,
+        cuda_tool::BufferView<int>           going_next_level,
+        int                                  level,
+        int                                  next_level_begin,
+        int                                  N)
     {
         using namespace cuda_tool;
 
@@ -354,20 +354,19 @@ namespace
 
         __shared__ unsigned int elected_mask_s[BANKSIZE];
         __shared__ unsigned int lane_prefix_s[BANKSIZE * BANKSIZE];
-        auto elected_mask = make_dense_1d(elected_mask_s);
-        auto lane_prefix  = make_dense_1d(lane_prefix_s);
+        auto                    elected_mask = make_dense_1d(elected_mask_s);
+        auto                    lane_prefix  = make_dense_1d(lane_prefix_s);
 
         if(lane_id == 0)
             elected_mask(local_warp_id) = 0;
 
         if(idx == N - 1)
         {
-            level_size_ptr(level + 1).x =
-                next_prefix_sum(warp_id) + next_prefix(warp_id);
+            level_size_ptr(level + 1).x = next_prefix_sum(warp_id) + next_prefix(warp_id);
             level_size_ptr(level + 1).y = next_level_begin;
         }
 
-        unsigned int conn_msk = next_connect_mask(idx);
+        unsigned int conn_msk       = next_connect_mask(idx);
         unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
         if(elected_prefix == 0)
             atomicOr(&elected_mask(local_warp_id), (1U << lane_id));
@@ -377,11 +376,10 @@ namespace
         lane_prefix(threadIdx.x) += next_prefix_sum(warp_id);
 
         unsigned int elected_lane = __ffs(conn_msk) - 1;
-        unsigned int the_lane_prefix =
-            lane_prefix(elected_lane + BANKSIZE * local_warp_id);
+        unsigned int the_lane_prefix = lane_prefix(elected_lane + BANKSIZE * local_warp_id);
 
         next_connect_mask(idx) = the_lane_prefix;
-        going_next_level(idx) = the_lane_prefix + next_level_begin;
+        going_next_level(idx)  = the_lane_prefix + next_level_begin;
     }
 
     __global__ void MASPreconditionerEngine_compute_next_level_kernel(
@@ -408,7 +406,7 @@ namespace
     __global__ void MASPreconditionerEngine_aggregation_kernel_kernel(
         cuda_tool::BufferView<LevelTable> coarse_table,
         cuda_tool::CBufferView<int>       going_next,
-        cuda_tool::CBufferView<Int2>    level_size,
+        cuda_tool::CBufferView<Int2>      level_size,
         int                               level_num,
         int                               n)
     {
@@ -424,11 +422,12 @@ namespace
         int first = going_next(current_id);
         if(first >= 0)
         {
-            UIPC_KERNEL_ASSERT(first >= level_size(1).y
-                            && first < level_size(2).y,
-                        "aggregation: going_next[%d]=%d not in level 1 [%d, %d)",
-                        current_id, first,
-                        level_size(1).y, level_size(2).y);
+            UIPC_KERNEL_ASSERT(first >= level_size(1).y && first < level_size(2).y,
+                               "aggregation: going_next[%d]=%d not in level 1 [%d, %d)",
+                               current_id,
+                               first,
+                               level_size(1).y,
+                               level_size(2).y);
 
             current_id      = first;
             ctable.index[0] = first;
@@ -438,15 +437,20 @@ namespace
                 int next = going_next(current_id);
 
                 UIPC_KERNEL_ASSERT(next >= 0,
-                            "aggregation: partitioned vertex %d has "
-                            "going_next=%d at level %d (expected >= 0)",
-                            idx, next, l + 1);
+                                   "aggregation: partitioned vertex %d has "
+                                   "going_next=%d at level %d (expected >= 0)",
+                                   idx,
+                                   next,
+                                   l + 1);
 
                 UIPC_KERNEL_ASSERT(next >= level_size(l + 1).y
-                                && next < level_size(l + 2).y,
-                            "aggregation: going_next[%d]=%d not in level %d [%d, %d)",
-                            current_id, next, l + 1,
-                            level_size(l + 1).y, level_size(l + 2).y);
+                                       && next < level_size(l + 2).y,
+                                   "aggregation: going_next[%d]=%d not in level %d [%d, %d)",
+                                   current_id,
+                                   next,
+                                   l + 1,
+                                   level_size(l + 1).y,
+                                   level_size(l + 2).y);
 
                 current_id      = next;
                 ctable.index[l] = next;
@@ -457,18 +461,18 @@ namespace
     }
 
     __global__ void MASPreconditionerEngine_scatter_hessian_to_clusters_k1_kernel(
-        int                                  offset,
-        int                                  level_num,
-        cuda_tool::CBufferView<int>          going_next,
-        cuda_tool::CBufferView<Int2>       level_size,
+        int                                     offset,
+        int                                     level_num,
+        cuda_tool::CBufferView<int>             going_next,
+        cuda_tool::CBufferView<Int2>            level_size,
         cuda_tool::BufferView<ClusterMatrixSym> cluster_hess,
-        cuda_tool::CBufferView<int>          real_to_part,
-        cuda_tool::CBufferView<uint32_t>     indices,
+        cuda_tool::CBufferView<int>             real_to_part,
+        cuda_tool::CBufferView<uint32_t>        indices,
         cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-        cuda_tool::CBufferView<int>          row_ids,
-        cuda_tool::CBufferView<int>          col_ids,
-        int                                  total_nodes,
-        int                                  n)
+        cuda_tool::CBufferView<int>             row_ids,
+        cuda_tool::CBufferView<int>             col_ids,
+        int                                     total_nodes,
+        int                                     n)
     {
         using namespace cuda_tool;
 
@@ -529,13 +533,19 @@ namespace
                     return;
 
                 UIPC_KERNEL_ASSERT(vert_col >= level_size(level).y
-                                && vert_col < level_size(level + 1).y,
-                            "scatter P1: vert_col=%d not in level %d [%d, %d)",
-                            vert_col, level, level_size(level).y, level_size(level + 1).y);
+                                       && vert_col < level_size(level + 1).y,
+                                   "scatter P1: vert_col=%d not in level %d [%d, %d)",
+                                   vert_col,
+                                   level,
+                                   level_size(level).y,
+                                   level_size(level + 1).y);
                 UIPC_KERNEL_ASSERT(vert_row >= level_size(level).y
-                                && vert_row < level_size(level + 1).y,
-                            "scatter P1: vert_row=%d not in level %d [%d, %d)",
-                            vert_row, level, level_size(level).y, level_size(level + 1).y);
+                                       && vert_row < level_size(level + 1).y,
+                                   "scatter P1: vert_row=%d not in level %d [%d, %d)",
+                                   vert_row,
+                                   level,
+                                   level_size(level).y,
+                                   level_size(level + 1).y);
 
                 if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                 {
@@ -570,15 +580,15 @@ namespace
     }
 
     __global__ void MASPreconditionerEngine_scatter_hessian_to_clusters_k2_kernel(
-        int                               level_num,
-        cuda_tool::CBufferView<int>       going_next,
-        cuda_tool::CBufferView<Int2>    level_size,
+        int                                     level_num,
+        cuda_tool::CBufferView<int>             going_next,
+        cuda_tool::CBufferView<Int2>            level_size,
         cuda_tool::BufferView<ClusterMatrixSym> cluster_hess,
-        cuda_tool::CBufferView<int>       part_to_real,
-        cuda_tool::CBufferView<unsigned int> fine_connect,
-        cuda_tool::CBufferView<int>       prefix_orig,
-        int                               map_nodes,
-        int                               n)
+        cuda_tool::CBufferView<int>             part_to_real,
+        cuda_tool::CBufferView<unsigned int>    fine_connect,
+        cuda_tool::CBufferView<int>             prefix_orig,
+        int                                     map_nodes,
+        int                                     n)
     {
         using namespace cuda_tool;
 
@@ -628,14 +638,12 @@ namespace
         {
             // Full 32-lane reduction per hw warp; mat3 for invalid lanes = 0.
             using WarpReduceD = cub::WarpReduce<double>;
-            __shared__
-                typename WarpReduceD::TempStorage temp_reduce_d[BANKSIZE * BANKSIZE / 32];
+            __shared__ typename WarpReduceD::TempStorage temp_reduce_d[BANKSIZE * BANKSIZE / 32];
             int hw_warp = threadIdx.x / 32;
 
             for(int i = 0; i < 3; i++)
                 for(int j = 0; j < 3; j++)
-                    mat3(i, j) =
-                        WarpReduceD(temp_reduce_d[hw_warp]).Sum(mat3(i, j));
+                    mat3(i, j) = WarpReduceD(temp_reduce_d[hw_warp]).Sum(mat3(i, j));
 
             // Lane 0 of each hw warp writes the warp's sum to coarser levels,
             // but only if its own lane was valid (rdx >= 0).
@@ -648,17 +656,19 @@ namespace
                     level++;
 
                     UIPC_KERNEL_ASSERT(next_id >= level_size(level).y
-                                    && next_id < level_size(level + 1).y,
-                                "scatter P2 diag: next_id=%d not in level %d [%d, %d)",
-                                next_id, level, level_size(level).y, level_size(level + 1).y);
+                                           && next_id < level_size(level + 1).y,
+                                       "scatter P2 diag: next_id=%d not in level %d [%d, %d)",
+                                       next_id,
+                                       level,
+                                       level_size(level).y,
+                                       level_size(level + 1).y);
 
                     int cid = next_id / BANKSIZE;
                     int bv  = next_id % BANKSIZE;
                     int si  = sym_index(bv, bv);
                     for(int i = 0; i < 3; i++)
                         for(int j = 0; j < 3; j++)
-                            atomicAdd(&(cluster_hess(cid).M[si](i, j)),
-                                      mat3(i, j));
+                            atomicAdd(&(cluster_hess(cid).M[si](i, j)), mat3(i, j));
                     next_id = going_next(next_id);
                 }
             }
@@ -678,13 +688,19 @@ namespace
                     return;
 
                 UIPC_KERNEL_ASSERT(rdx >= level_size(level).y
-                                && rdx < level_size(level + 1).y,
-                            "scatter P2: rdx=%d not in level %d [%d, %d)",
-                            rdx, level, level_size(level).y, level_size(level + 1).y);
+                                       && rdx < level_size(level + 1).y,
+                                   "scatter P2: rdx=%d not in level %d [%d, %d)",
+                                   rdx,
+                                   level,
+                                   level_size(level).y,
+                                   level_size(level + 1).y);
                 UIPC_KERNEL_ASSERT(cdx >= level_size(level).y
-                                && cdx < level_size(level + 1).y,
-                            "scatter P2: cdx=%d not in level %d [%d, %d)",
-                            cdx, level, level_size(level).y, level_size(level + 1).y);
+                                       && cdx < level_size(level + 1).y,
+                                   "scatter P2: cdx=%d not in level %d [%d, %d)",
+                                   cdx,
+                                   level,
+                                   level_size(level).y,
+                                   level_size(level + 1).y);
 
                 int cid = cdx / BANKSIZE;
                 if(rdx / BANKSIZE == cdx / BANKSIZE)
@@ -694,8 +710,7 @@ namespace
                         int si = sym_index(rdx % BANKSIZE, cdx % BANKSIZE);
                         for(int i = 0; i < 3; i++)
                             for(int j = 0; j < 3; j++)
-                                atomicAdd(&(cluster_hess(cid).M[si](i, j)),
-                                          mat3(i, j));
+                                atomicAdd(&(cluster_hess(cid).M[si](i, j)), mat3(i, j));
                     }
                 }
                 level++;
@@ -731,12 +746,12 @@ namespace
             int node_col = col / 3;
             if(node_col >= node_row)
             {
-                int si = sym_index(node_row, node_col);
+                int si          = sym_index(node_row, node_col);
                 s_mat(row, col) = cluster_hess(mat_id).M[si](row % 3, col % 3);
             }
             else
             {
-                int si = sym_index(node_col, node_row);
+                int si          = sym_index(node_col, node_row);
                 s_mat(row, col) = cluster_hess(mat_id).M[si](col % 3, row % 3);
             }
             if(row == col && s_mat(row, col) == 0.0)
@@ -791,7 +806,7 @@ namespace
         cuda_tool::CDenseVectorView<Float>     R_view,
         cuda_tool::BufferView<Eigen::Vector3f> multi_lr,
         cuda_tool::CBufferView<int>            going_next,
-        cuda_tool::CBufferView<Int2>         level_size,
+        cuda_tool::CBufferView<Int2>           level_size,
         cuda_tool::CBufferView<int>            prefix_orig,
         cuda_tool::CBufferView<unsigned int>   fine_conn,
         cuda_tool::CBufferView<int>            part_to_real,
@@ -852,9 +867,12 @@ namespace
                     cur = going_next(cur);
 
                     UIPC_KERNEL_ASSERT(cur >= level_size(l + 1).y
-                                    && cur < level_size(l + 2).y,
-                                "build_R: cur=%d not in level %d [%d, %d)",
-                                cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
+                                           && cur < level_size(l + 2).y,
+                                       "build_R: cur=%d not in level %d [%d, %d)",
+                                       cur,
+                                       l + 1,
+                                       level_size(l + 1).y,
+                                       level_size(l + 2).y);
 
                     atomicAdd(&(multi_lr(cur)[0]), r[0]);
                     atomicAdd(&(multi_lr(cur)[1]), r[1]);
@@ -870,16 +888,13 @@ namespace
             sum_residual(threadIdx.x + DEFAULT_BLOCKSIZE)     = 0;
             sum_residual(threadIdx.x + 2 * DEFAULT_BLOCKSIZE) = 0;
 
-            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane),
-                      r[0]);
+            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane), r[0]);
             atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE),
                       r[1]);
-            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane
-                                    + 2 * DEFAULT_BLOCKSIZE),
+            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE),
                       r[2]);
 
-            unsigned int elected_prefix =
-                __popc(connect_msk & lanemask_lt(lane_id));
+            unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
             if(elected_prefix == 0)
             {
                 int cur = idx;
@@ -888,12 +903,14 @@ namespace
                     cur = going_next(cur);
 
                     UIPC_KERNEL_ASSERT(cur >= level_size(l + 1).y
-                                    && cur < level_size(l + 2).y,
-                                "build_R: cur=%d not in level %d [%d, %d)",
-                                cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
+                                           && cur < level_size(l + 2).y,
+                                       "build_R: cur=%d not in level %d [%d, %d)",
+                                       cur,
+                                       l + 1,
+                                       level_size(l + 1).y,
+                                       level_size(l + 2).y);
 
-                    atomicAdd(&(multi_lr(cur)[0]),
-                              sum_residual(threadIdx.x));
+                    atomicAdd(&(multi_lr(cur)[0]), sum_residual(threadIdx.x));
                     atomicAdd(&(multi_lr(cur)[1]),
                               sum_residual(threadIdx.x + DEFAULT_BLOCKSIZE));
                     atomicAdd(&(multi_lr(cur)[2]),
@@ -1024,18 +1041,18 @@ void MASPreconditionerEngine::compute_num_levels(int vert_num)
         level_sz = bank_align(level_sz);
     }
     n_level++;
-    m_level_num        = std::min(n_level, MAX_LEVELS);
+    m_level_num = std::min(n_level, MAX_LEVELS);
     m_active_level_num = 0;  // 0 = use full hierarchy (reset on each init_matrix)
 }
 
-void MASPreconditionerEngine::init_neighbor(int                     vert_num,
-                                            int                     total_neighbor_num,
-                                            int                     part_map_size,
+void MASPreconditionerEngine::init_neighbor(int vert_num,
+                                            int total_neighbor_num,
+                                            int part_map_size,
                                             span<const unsigned int> h_neighbor_list,
                                             span<const unsigned int> h_neighbor_start,
                                             span<const unsigned int> h_neighbor_num,
-                                            span<const int>          h_part_to_real,
-                                            span<const int>          h_real_to_part)
+                                            span<const int> h_part_to_real,
+                                            span<const int> h_real_to_part)
 {
     if(vert_num < 1)
         return;
@@ -1324,8 +1341,8 @@ void MASPreconditionerEngine::aggregation_kernel()
     if(N < 1 || m_total_num_clusters < 1)
         return;
 
-    int level_num = m_level_num;
-    auto k        = MASPreconditionerEngine_aggregation_kernel_kernel;
+    int  level_num = m_level_num;
+    auto k         = MASPreconditionerEngine_aggregation_kernel_kernel;
     k<<<cuda_tool::best_grid_dim(N, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
         coarse_tables.view(),
         going_next.cview(0, m_total_num_clusters),
@@ -1339,11 +1356,11 @@ void MASPreconditionerEngine::aggregation_kernel()
 // ============================================================================
 
 void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                                                 cuda_tool::CBufferView<int>             row_ids,
-                                                 cuda_tool::CBufferView<int>             col_ids,
-                                                 cuda_tool::CBufferView<uint32_t>        indices,
-                                                 int                                dof_offset,
-                                                 int                                cp_num)
+                                                 cuda_tool::CBufferView<int> row_ids,
+                                                 cuda_tool::CBufferView<int> col_ids,
+                                                 cuda_tool::CBufferView<uint32_t> indices,
+                                                 int dof_offset,
+                                                 int cp_num)
 {
     if(m_total_nodes < 1)
         return;
@@ -1385,11 +1402,12 @@ void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::M
 // ---------------------------------------------------------------------------
 // Scatter BCOO Hessian entries into cluster-level dense matrices
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::scatter_hessian_to_clusters(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                                                          cuda_tool::CBufferView<int>             row_ids,
-                                                          cuda_tool::CBufferView<int>             col_ids,
-                                                          cuda_tool::CBufferView<uint32_t>        indices,
-                                                          int dof_offset)
+void MASPreconditionerEngine::scatter_hessian_to_clusters(
+    cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
+    cuda_tool::CBufferView<int>             row_ids,
+    cuda_tool::CBufferView<int>             col_ids,
+    cuda_tool::CBufferView<uint32_t>        indices,
+    int                                     dof_offset)
 {
     using namespace cuda_tool;
 
@@ -1535,7 +1553,7 @@ void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> 
 
 void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
                                     cuda_tool::DenseVectorView<Float>  z,
-                                    cuda_tool::CVarView<IndexT>        converged)
+                                    cuda_tool::CVarView<IndexT> converged)
 {
     if(m_total_nodes < 1)
         return;
@@ -1567,8 +1585,8 @@ void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
 }
 
 void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view output_dir,
-                                                          SizeT            frame,
-                                                          SizeT            newton_iter)
+                                                          SizeT frame,
+                                                          SizeT newton_iter)
 {
     if(!m_initialized || cluster_hessians.size() == 0)
         return;
@@ -1578,7 +1596,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view outpu
     // Materialize the path once for the lambdas / std::ofstream consumers below.
     const std::filesystem::path output_dir_path{output_dir};
 
-    const size_t nb = cluster_hessians.size();
+    const size_t                   nb = cluster_hessians.size();
     std::vector<ClusterMatrixSym>  h_hess(nb);
     std::vector<ClusterMatrixSymF> h_inv(nb);
 
@@ -1594,11 +1612,10 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view outpu
     const int64_t total_nnz = static_cast<int64_t>(nb) * SYM_BLOCK_COUNT * 9;
 
     auto write_mtx = [&]<typename Scalar>(const std::vector<ClusterMatrixSymT<Scalar>>& clusters,
-                                          std::string_view                              kind)
+                                          std::string_view kind)
     {
-        auto path =
-            output_dir_path
-            / fmt::format("mas_cluster_{}.f{}.n{}.mtx", kind, frame, newton_iter);
+        auto path = output_dir_path
+                    / fmt::format("mas_cluster_{}.f{}.n{}.mtx", kind, frame, newton_iter);
         auto path_str = path.string();
 
         auto buf = fmt::memory_buffer();
@@ -1652,9 +1669,8 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view outpu
 
     // Partition metadata as JSON
     {
-        auto path =
-            output_dir_path
-            / fmt::format("mas_cluster_meta.f{}.n{}.json", frame, newton_iter);
+        auto path = output_dir_path
+                    / fmt::format("mas_cluster_meta.f{}.n{}.json", frame, newton_iter);
         std::ofstream out(path);
         if(!out)
         {

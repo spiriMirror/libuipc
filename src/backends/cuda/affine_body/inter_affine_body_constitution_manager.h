@@ -72,11 +72,11 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         {
         }
 
-        Float                                  dt() const noexcept;
-        cuda_tool::CBufferView<Vector12>            qs() const noexcept;
-        cuda_tool::CBufferView<Vector12>            q_prevs() const noexcept;
+        Float                            dt() const noexcept;
+        cuda_tool::CBufferView<Vector12> qs() const noexcept;
+        cuda_tool::CBufferView<Vector12> q_prevs() const noexcept;
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses() const noexcept;
-        cuda_tool::CBufferView<IndexT>              is_fixed() const noexcept;
+        cuda_tool::CBufferView<IndexT> is_fixed() const noexcept;
 
       protected:
         Impl* m_impl  = nullptr;
@@ -102,12 +102,12 @@ class InterAffineBodyConstitutionManager final : public SimSystem
     class GradientHessianInfo : public BaseInfo
     {
       public:
-        GradientHessianInfo(Impl*                              impl,
-                            IndexT                             index,
-                            Float                              dt,
+        GradientHessianInfo(Impl*                                   impl,
+                            IndexT                                  index,
+                            Float                                   dt,
                             cuda_tool::DoubletVectorView<Float, 12> gradients,
                             cuda_tool::TripletMatrixView<Float, 12> hessians,
-                            bool                               gradient_only)
+                            bool gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -117,13 +117,13 @@ class InterAffineBodyConstitutionManager final : public SimSystem
 
         cuda_tool::DoubletVectorView<Float, 12> gradients() const noexcept;
         cuda_tool::TripletMatrixView<Float, 12> hessians() const noexcept;
-        bool                               gradient_only() const noexcept;
+        bool                                    gradient_only() const noexcept;
 
       private:
         friend class InterAffineBodyConstitutionManager;
         cuda_tool::DoubletVectorView<Float, 12> m_gradients;
         cuda_tool::TripletMatrixView<Float, 12> m_hessians;
-        bool                               m_gradient_only = false;
+        bool                                    m_gradient_only = false;
     };
 
     class GradientHessianExtentInfo

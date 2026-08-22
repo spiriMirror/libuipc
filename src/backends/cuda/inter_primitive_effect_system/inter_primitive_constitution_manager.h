@@ -71,7 +71,7 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
         }
 
         cuda_tool::CBufferView<Vector3> positions() const noexcept;
-        Float                      dt() const noexcept;
+        Float                           dt() const noexcept;
 
       protected:
         Impl* m_impl  = nullptr;
@@ -97,10 +97,10 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
     class GradientHessianInfo : public BaseInfo
     {
       public:
-        GradientHessianInfo(Impl*                             impl,
-                            IndexT                            index,
-                            bool                              gradient_only,
-                            Float                             dt,
+        GradientHessianInfo(Impl*  impl,
+                            IndexT index,
+                            bool   gradient_only,
+                            Float  dt,
                             cuda_tool::DoubletVectorView<Float, 3> gradients,
                             cuda_tool::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index, dt)
@@ -112,13 +112,13 @@ class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
 
         cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept;
         cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept;
-        bool                              gradient_only() const noexcept;
+        bool                                   gradient_only() const noexcept;
 
       private:
         friend class InterPrimitiveConstitutionManager;
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
     class GradientHessianExtentInfo

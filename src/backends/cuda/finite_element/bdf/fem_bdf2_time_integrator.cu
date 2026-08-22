@@ -27,7 +27,7 @@ namespace
         if(i >= n)
             return;
         // x_n is tracked in x_prevs for current step.
-        x_ns(i) = xs(i);
+        x_ns(i)       = xs(i);
         auto&   x_n   = x_ns(i);
         Vector3 x_n_1 = x_n_1s(i);
         Vector3 v_n   = v_ns(i);
@@ -67,10 +67,10 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        Vector3 v;
+        Vector3     v;
         const auto& x     = xs(i);
         const auto& x_n   = x_ns(i);
-        auto&   x_n_1 = x_n_1s(i);
+        auto&       x_n_1 = x_n_1s(i);
         BDF2::compute_v(v, x, x_n, x_n_1, dt);
 
         // Update velocity history.

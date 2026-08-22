@@ -35,7 +35,7 @@ class DeviceTripletMatrix
 {
   public:
     static constexpr bool IsBlockMatrix = (M > 1 || N > 1);
-    using ValueT   = std::conditional_t<IsBlockMatrix, Eigen::Matrix<T, M, N>, T>;
+    using ValueT = std::conditional_t<IsBlockMatrix, Eigen::Matrix<T, M, N>, T>;
     using TripletT = MatrixTriplet<T, M, N>;
 
     void reshape(int rows, int cols)
@@ -141,7 +141,7 @@ class DeviceDenseVector
   public:
     using ValueT = T;
 
-    DeviceDenseVector() = default;
+    DeviceDenseVector()                               = default;
     DeviceDenseVector(DeviceDenseVector&&)            = default;
     DeviceDenseVector& operator=(DeviceDenseVector&&) = default;
     DeviceDenseVector(const DeviceDenseVector& o) { copy_from(o); }
@@ -154,8 +154,8 @@ class DeviceDenseVector
 
     DenseVectorView<T> view()
     {
-        return DenseVectorView<T>{m_values.data(), 0, (int)m_values.size(),
-                                  (int)m_values.size()};
+        return DenseVectorView<T>{
+            m_values.data(), 0, (int)m_values.size(), (int)m_values.size()};
     }
     CDenseVectorView<T> view() const
     {
@@ -178,7 +178,10 @@ class DeviceDenseVector
         m_values.copy_from(o.m_values);  // deep copy (PCG p = z)
         return *this;
     }
-    void copy_from(const DeviceDenseVector& o) { m_values.copy_from(o.m_values); }
+    void copy_from(const DeviceDenseVector& o)
+    {
+        m_values.copy_from(o.m_values);
+    }
 
     // download to host (muda parity)
     void copy_to(T* host, cudaStream_t s = default_stream()) const
@@ -244,8 +247,8 @@ class DeviceDoubletVector
 
     DoubletVectorView<T, N> view()
     {
-        return DoubletVectorView<T, N>{m_count, (int)m_values.size(),
-                                       m_indices.data(), m_values.data()};
+        return DoubletVectorView<T, N>{
+            m_count, (int)m_values.size(), m_indices.data(), m_values.data()};
     }
     CDoubletVectorView<T, N> view() const
     {
@@ -447,7 +450,8 @@ inline float LinearSystemContext::dot_view<float>(CBufferView<float> x, CBufferV
     return r;
 }
 template <>
-inline double LinearSystemContext::dot_view<double>(CBufferView<double> x, CBufferView<double> y)
+inline double LinearSystemContext::dot_view<double>(CBufferView<double> x,
+                                                    CBufferView<double> y)
 {
     double r;
     cublasDdot(m_handle, (int)x.size(), x.data(), 1, y.data(), 1, &r);

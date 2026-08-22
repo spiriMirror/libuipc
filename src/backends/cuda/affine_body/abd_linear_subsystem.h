@@ -21,10 +21,10 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(bool                          gradient_only,
+        ComputeGradientHessianInfo(bool gradient_only,
                                    cuda_tool::BufferView<Vector12>    gradient,
                                    cuda_tool::BufferView<Matrix12x12> hessians,
-                                   Float                         dt) noexcept
+                                   Float dt) noexcept
             : m_gradient_only(gradient_only)
             , m_gradients(gradient)
             , m_hessians(hessians)
@@ -38,10 +38,10 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        bool                          m_gradient_only = false;
+        bool                               m_gradient_only = false;
         cuda_tool::BufferView<Matrix12x12> m_hessians;
         cuda_tool::BufferView<Vector12>    m_gradients;
-        Float                         m_dt = 0.0;
+        Float                              m_dt = 0.0;
     };
 
     class ReportExtentInfo
@@ -75,7 +75,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         AssembleInfo(Impl* impl, IndexT index, bool gradient_only) noexcept;
         cuda_tool::DoubletVectorView<Float, 12>     gradients() const;
         cuda_tool::TripletMatrixView<Float, 12, 12> hessians() const;
-        bool                                   gradient_only() const noexcept;
+        bool gradient_only() const noexcept;
 
       private:
         friend class ABDLinearSubsystem;

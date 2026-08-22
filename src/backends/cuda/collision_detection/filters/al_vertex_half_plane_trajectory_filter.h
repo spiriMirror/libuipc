@@ -15,7 +15,7 @@ class ALVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectory
         void filter_toi(FilterTOIInfo& info);
 
         cuda_tool::DeviceVar<IndexT> num_collisions;
-        IndexT                  h_num_collisions;
+        IndexT                       h_num_collisions;
 
         /**
          * @brief [Vertex-HalfPlane] pairs
@@ -28,7 +28,7 @@ class ALVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectory
     };
 
     virtual cuda_tool::CBufferView<Vector2i> candidate_PHs() const noexcept override;
-    virtual cuda_tool::CBufferView<Float>    toi_PHs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_PHs() const noexcept override;
 
   private:
     Impl         m_impl;

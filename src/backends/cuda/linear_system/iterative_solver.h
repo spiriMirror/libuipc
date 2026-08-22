@@ -25,9 +25,14 @@ class IterativeSolver : public SimSystem
     * Util functions for derived classes
     ***********************************************************************************************/
 
-    void spmv(Float a, cuda_tool::CDenseVectorView<Float> x, Float b, cuda_tool::DenseVectorView<Float> y);
+    void spmv(Float                              a,
+              cuda_tool::CDenseVectorView<Float> x,
+              Float                              b,
+              cuda_tool::DenseVectorView<Float>  y);
     void spmv(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y);
-    void spmv_dot(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y, cuda_tool::VarView<Float> d_dot);
+    void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
+                  cuda_tool::DenseVectorView<Float>  y,
+                  cuda_tool::VarView<Float>          d_dot);
     void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                               cuda_tool::CDenseVectorView<Float> r,
                               cuda_tool::CVarView<IndexT>        converged);

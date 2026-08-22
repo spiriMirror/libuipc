@@ -21,16 +21,16 @@ struct ClothPatch
 {
     SimplicialComplex mesh;
     vector<Vector3>   rest_positions;
-    SizeT             v00 = 0;
-    SizeT             v10 = 0;
-    SizeT             v11 = 0;
-    SizeT             v01 = 0;
+    SizeT             v00       = 0;
+    SizeT             v10       = 0;
+    SizeT             v11       = 0;
+    SizeT             v01       = 0;
     Float             cell_span = 0.0;
 };
 
 ClothPatch load_center_patch()
 {
-    vector<Vector3> Vs;
+    vector<Vector3>  Vs;
     vector<Vector3i> Fs;
     Vs.reserve(SheetResolution * SheetResolution);
     Fs.reserve((SheetResolution - 1) * (SheetResolution - 1) * 2);
@@ -71,13 +71,7 @@ ClothPatch load_center_patch()
     const SizeT v01    = v00 + SheetResolution;
     const SizeT v11    = v01 + 1;
 
-    return ClothPatch{std::move(mesh),
-                      std::move(Vs),
-                      v00,
-                      v10,
-                      v11,
-                      v01,
-                      step};
+    return ClothPatch{std::move(mesh), std::move(Vs), v00, v10, v11, v01, step};
 }
 }  // namespace
 
@@ -93,24 +87,24 @@ TEST_CASE("82_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_p
     Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                             = test::Scene::default_config();
-    config["gravity"]                       = Vector3{0, 0, 0};
-    config["contact"]["enable"]             = false;
-    config["line_search"]["max_iter"]       = 8;
-    config["linear_system"]["tol_rate"]     = 1e-3;
-    config["dt"]                            = 0.01;
+    auto config                         = test::Scene::default_config();
+    config["gravity"]                   = Vector3{0, 0, 0};
+    config["contact"]["enable"]         = false;
+    config["line_search"]["max_iter"]   = 8;
+    config["linear_system"]["tol_rate"] = 1e-3;
+    config["dt"]                        = 0.01;
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
 
     auto object = scene.objects().create("strip");
 
-    NeoHookeanShell            nhs;
+    NeoHookeanShell                   nhs;
     StrainPlasticDiscreteShellBending pdsb;
-    SoftPositionConstraint     spc;
+    SoftPositionConstraint            spc;
 
-    auto patch = load_center_patch();
-    auto moduli         = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
+    auto patch  = load_center_patch();
+    auto moduli = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
     pdsb.apply_to(patch.mesh, 5.0_Pa, 0.02, 0.0);  // area measure: kappa*t(0.001)
     spc.apply_to(patch.mesh, 100.0);
@@ -121,8 +115,8 @@ TEST_CASE("82_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_p
     scene.animator().insert(
         *object,
         [rest_positions = std::move(patch.rest_positions),
-         moving_vertex = patch.v01,
-         amplitude     = 4.0 * patch.cell_span](Animation::UpdateInfo& info)
+         moving_vertex  = patch.v01,
+         amplitude      = 4.0 * patch.cell_span](Animation::UpdateInfo& info)
         {
             auto geo = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
 
@@ -132,7 +126,9 @@ TEST_CASE("82_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_p
             auto aim_position_view   = view(*aim_position);
 
             std::ranges::fill(is_constrained_view, 1);
-            std::copy(rest_positions.begin(), rest_positions.end(), aim_position_view.begin());
+            std::copy(rest_positions.begin(),
+                      rest_positions.end(),
+                      aim_position_view.begin());
 
             const Float t = static_cast<Float>(std::min<SizeT>(info.frame(), 60)) / 60.0;
             const Float y = amplitude * std::sin(std::numbers::pi_v<Float> * t);
@@ -152,13 +148,15 @@ TEST_CASE("82_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_p
         REQUIRE(world.is_valid());
 
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
-        auto sc = slot->geometry().as<SimplicialComplex>();
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+        auto       sc            = slot->geometry().as<SimplicialComplex>();
         const auto position_view = view(sc->positions());
         REQUIRE(std::ranges::all_of(position_view,
                                     [](const Vector3& p)
                                     {
-                                        return std::isfinite(p.x()) && std::isfinite(p.y())
+                                        return std::isfinite(p.x())
+                                               && std::isfinite(p.y())
                                                && std::isfinite(p.z());
                                     }));
     }

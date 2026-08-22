@@ -6,8 +6,8 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    __global__ void FEMExternalForceManager_clear_kernel(
-        cuda_tool::BufferView<Vector3> forces, int n)
+    __global__ void FEMExternalForceManager_clear_kernel(cuda_tool::BufferView<Vector3> forces,
+                                                         int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -15,11 +15,10 @@ namespace
         forces(i).setZero();
     }
 
-    __global__ void FEMExternalForceManager_step_kernel(
-        cuda_tool::CBufferView<Vector3> forces,
-        cuda_tool::BufferView<Vector3>  force_accs,
-        cuda_tool::CBufferView<Float>   masses,
-        int                             n)
+    __global__ void FEMExternalForceManager_step_kernel(cuda_tool::CBufferView<Vector3> forces,
+                                                        cuda_tool::BufferView<Vector3> force_accs,
+                                                        cuda_tool::CBufferView<Float> masses,
+                                                        int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -50,8 +49,7 @@ void FEMExternalForceManager::register_reporter(FiniteElementExternalForceReport
 
 void FEMExternalForceManager::Impl::clear()
 {
-    auto external_forces =
-        finite_element_method->m_impl.vertex_external_forces.view();
+    auto external_forces = finite_element_method->m_impl.vertex_external_forces.view();
 
     auto k = FEMExternalForceManager_clear_kernel;
     int  n = (int)external_forces.size();

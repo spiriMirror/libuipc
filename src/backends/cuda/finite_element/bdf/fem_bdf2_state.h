@@ -20,14 +20,20 @@ class FEMBDF2State final : public SimSystem
 
         // x^{n-1}
         cuda_tool::DeviceBuffer<Vector3> x_n_1s;
-        BufferDump                  dump_x_n_1s;
+        BufferDump                       dump_x_n_1s;
         // \dot{x}^{n-1}
         cuda_tool::DeviceBuffer<Vector3> v_n_1s;
-        BufferDump                  dump_v_n_1s;
+        BufferDump                       dump_v_n_1s;
     };
 
-    cuda_tool::CBufferView<Vector3> x_n_1s() const { return m_impl.x_n_1s.view(); }
-    cuda_tool::CBufferView<Vector3> v_n_1s() const { return m_impl.v_n_1s.view(); }
+    cuda_tool::CBufferView<Vector3> x_n_1s() const
+    {
+        return m_impl.x_n_1s.view();
+    }
+    cuda_tool::CBufferView<Vector3> v_n_1s() const
+    {
+        return m_impl.v_n_1s.view();
+    }
 
   private:
     void resize(SizeT size);

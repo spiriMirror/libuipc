@@ -36,10 +36,10 @@ class SimplexNormalContact : public ContactReporter
         cuda_tool::CBufferView<Vector3> prev_positions() const;
         cuda_tool::CBufferView<Vector3> rest_positions() const;
         cuda_tool::CBufferView<IndexT>  contact_element_ids() const;
-        Float                      d_hat() const;
+        Float                           d_hat() const;
         cuda_tool::CBufferView<Float>   d_hats() const;
-        Float                      dt() const;
-        Float                      eps_velocity() const;
+        Float                           dt() const;
+        Float                           eps_velocity() const;
 
       private:
         friend class SimplexNormalContact;
@@ -76,7 +76,7 @@ class SimplexNormalContact : public ContactReporter
 
         cuda_tool::DoubletVectorView<Float, 3> m_PP_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_PP_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
     class BuildInfo
@@ -134,7 +134,7 @@ class SimplexNormalContact : public ContactReporter
         SizeT PP_count = 0;
 
         S<const geometry::AttributeSlot<Float>> dt_attr;
-        cuda_tool::DeviceVar<IndexT>                 selected_count;
+        cuda_tool::DeviceVar<IndexT>            selected_count;
 
         Float reserve_ratio = 1.1;
 

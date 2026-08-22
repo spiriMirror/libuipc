@@ -167,11 +167,12 @@ namespace
 {
     using namespace cuda_tool;
 
-    __global__ void linear_bvh_build_internal_aabbs_kernel(cuda_tool::CBufferView<LinearBVHNode> nodes,
-                                                           cuda_tool::BufferView<LinearBVHAABB> aabbs,
-                                                           cuda_tool::BufferView<int> flags,
-                                                           int leaf_start,
-                                                           int n)
+    __global__ void linear_bvh_build_internal_aabbs_kernel(
+        cuda_tool::CBufferView<LinearBVHNode> nodes,
+        cuda_tool::BufferView<LinearBVHAABB>  aabbs,
+        cuda_tool::BufferView<int>            flags,
+        int                                   leaf_start,
+        int                                   n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -185,8 +186,7 @@ namespace
 
             // the memory fence is necessary to disable reordering of the memory access.
             // we need to ensure that this thread can get the updated value of AABB.
-            ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
-                                        ::cuda::thread_scope_system);
+            ::cuda::atomic_thread_fence(::cuda::memory_order_acquire, ::cuda::thread_scope_system);
 
             if(old == 0)
             {
@@ -364,7 +364,6 @@ UIPC_INLINE UIPC_DEVICE uint32_t find_split(cuda_tool::Dense1D<LinearBVHMortonIn
 }
 
 
-
 UIPC_INLINE void build_internal_aabbs(size_t num_objects,
                                       cuda_tool::CBufferView<LinearBVHNode> nodes,
                                       cuda_tool::BufferView<LinearBVHAABB> sorted_aabbs,
@@ -377,7 +376,7 @@ UIPC_INLINE void build_internal_aabbs(size_t num_objects,
     auto leaf_start         = num_internal_nodes;
 
     auto internal_aabbs = sorted_aabbs.subview(0, num_internal_nodes);
-    int n = (int)num_objects;
+    int  n              = (int)num_objects;
     if(n > 0)
     {
         auto k = linear_bvh_build_internal_aabbs_kernel;
@@ -407,22 +406,23 @@ namespace
         Eigen::Vector3f p    = aabb.center();
 
         UIPC_KERNEL_ASSERT(aabbs(i).volume() >= 0,
-                    "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
+                           "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
 
-                    i,
-                    aabb.max().x(),
-                    aabb.max().y(),
-                    aabb.max().z(),
-                    aabb.min().x(),
-                    aabb.min().y(),
-                    aabb.min().z());
+                           i,
+                           aabb.max().x(),
+                           aabb.max().y(),
+                           aabb.max().z(),
+                           aabb.min().x(),
+                           aabb.min().y(),
+                           aabb.min().z());
 
         p -= max_aabb->min();
         p.array() /= max_aabb->sizes().array();
         mortons(i) = detail::morton_code(p);
     }
 
-    __global__ void linear_bvh_build_init_indices_kernel(cuda_tool::BufferView<uint32_t> indices, int n)
+    __global__ void linear_bvh_build_init_indices_kernel(cuda_tool::BufferView<uint32_t> indices,
+                                                         int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -430,24 +430,26 @@ namespace
         indices(i) = i;
     }
 
-    __global__ void linear_bvh_build_expand_morton64_kernel(cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton64s,
-                                                            cuda_tool::CBufferView<uint32_t> mortons,
-                                                            cuda_tool::CBufferView<uint32_t> indices,
-                                                            int n)
+    __global__ void linear_bvh_build_expand_morton64_kernel(
+        cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton64s,
+        cuda_tool::CBufferView<uint32_t>                    mortons,
+        cuda_tool::CBufferView<uint32_t>                    indices,
+        int                                                 n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        uint32_t    idx = i;
+        uint32_t                     idx = i;
         detail::LinearBVHMortonIndex morton{mortons(i), idx};
         morton64s(i) = morton;
     }
 
-    __global__ void linear_bvh_build_leaf_nodes_kernel(cuda_tool::BufferView<LinearBVHNode> leaf_nodes,
-                                                       cuda_tool::CBufferView<uint32_t> indices,
-                                                       cuda_tool::CBufferView<LinearBVHAABB> aabbs,
-                                                       cuda_tool::BufferView<LinearBVHAABB> sorted_aabbs,
-                                                       int n)
+    __global__ void linear_bvh_build_leaf_nodes_kernel(
+        cuda_tool::BufferView<LinearBVHNode>  leaf_nodes,
+        cuda_tool::CBufferView<uint32_t>      indices,
+        cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+        cuda_tool::BufferView<LinearBVHAABB>  sorted_aabbs,
+        int                                   n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -461,10 +463,11 @@ namespace
         sorted_aabbs(i) = aabbs(node.object_idx);
     }
 
-    __global__ void linear_bvh_build_internal_nodes_kernel(cuda_tool::BufferView<LinearBVHNode> nodes,
-                                                           cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton_idx,
-                                                           int num_objects,
-                                                           int n)
+    __global__ void linear_bvh_build_internal_nodes_kernel(
+        cuda_tool::BufferView<LinearBVHNode>                nodes,
+        cuda_tool::BufferView<detail::LinearBVHMortonIndex> morton_idx,
+        int                                                 num_objects,
+        int                                                 n)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
@@ -472,8 +475,7 @@ namespace
         nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
 
         const uint2 ij = detail::determine_range(morton_idx, num_objects, idx);
-        const int gamma =
-            detail::find_split(morton_idx, num_objects, ij.x, ij.y);
+        const int gamma = detail::find_split(morton_idx, num_objects, ij.x, ij.y);
 
         nodes(idx).left_idx  = gamma;
         nodes(idx).right_idx = gamma + 1;
@@ -489,10 +491,11 @@ namespace
         nodes(nodes(idx).right_idx).parent_idx = idx;
     }
 
-    __global__ void linear_bvh_update_leaf_aabbs_kernel(cuda_tool::CBufferView<uint32_t> indices,
-                                                        cuda_tool::CBufferView<LinearBVHAABB> aabbs,
-                                                        cuda_tool::BufferView<LinearBVHAABB> leaf_aabbs,
-                                                        int n)
+    __global__ void linear_bvh_update_leaf_aabbs_kernel(
+        cuda_tool::CBufferView<uint32_t>      indices,
+        cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+        cuda_tool::BufferView<LinearBVHAABB>  leaf_aabbs,
+        int                                   n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -501,7 +504,8 @@ namespace
     }
 }  // namespace
 
-UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, cuda_tool::Stream& s)
+UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                  cuda_tool::Stream&                    s)
 {
     using namespace cuda_tool;
 
@@ -587,7 +591,11 @@ UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, c
         {
             auto k = linear_bvh_build_leaf_nodes_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, s>>>(
-                leaf_nodes.viewer(), m_new_to_old.viewer(), aabbs.viewer(), leaf_aabbs.viewer(), n);
+                leaf_nodes.viewer(),
+                m_new_to_old.viewer(),
+                aabbs.viewer(),
+                leaf_aabbs.viewer(),
+                n);
         }
     }
 
@@ -606,7 +614,8 @@ UIPC_INLINE void LinearBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs, c
     build_internal_aabbs(s);
 }
 
-UIPC_INLINE void LinearBVH::update(cuda_tool::CBufferView<LinearBVHAABB> aabbs, cuda_tool::Stream& s)
+UIPC_INLINE void LinearBVH::update(cuda_tool::CBufferView<LinearBVHAABB> aabbs,
+                                   cuda_tool::Stream&                    s)
 {
     using namespace cuda_tool;
 

@@ -51,7 +51,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
 
       private:
         friend class Impl;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
     };
@@ -71,12 +71,12 @@ class GlobalDyTopoEffectManager final : public SimSystem
     {
       public:
         cuda_tool::BufferView<Float> energies() const { return m_energies; }
-        bool                    is_initial() const { return m_is_initial; }
+        bool                         is_initial() const { return m_is_initial; }
 
       private:
         friend class DyTopoEffectLineSearchReporter;
         cuda_tool::BufferView<Float> m_energies;
-        bool                    m_is_initial = false;
+        bool                         m_is_initial = false;
     };
 
     using ClassifyInfo = DyTopoClassifyInfo;
@@ -143,7 +143,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
         cuda_tool::DeviceTripletMatrix<Float, 3> collected_dytopo_effect_hessian;
         cuda_tool::DeviceDoubletVector<Float, 3> collected_dytopo_effect_gradient;
 
-        MatrixConverter<Float, 3>        matrix_converter;
+        MatrixConverter<Float, 3>             matrix_converter;
         cuda_tool::DeviceBCOOMatrix<Float, 3> sorted_dytopo_effect_hessian;
         cuda_tool::DeviceBCOOVector<Float, 3> sorted_dytopo_effect_gradient;
 

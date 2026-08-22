@@ -8,7 +8,7 @@ namespace uipc::backend::cuda
 namespace sym::codim_ipc_simplex_contact
 {
     inline __device__ Float PT_kappa(const cuda_tool::CDense2D<ContactCoeff>& table,
-                                     const Vector4i&                     cids)
+                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
         for(int j = 1; j < 4; ++j)
@@ -20,7 +20,7 @@ namespace sym::codim_ipc_simplex_contact
     }
 
     inline __device__ Float EE_kappa(const cuda_tool::CDense2D<ContactCoeff>& table,
-                                     const Vector4i&                     cids)
+                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
         for(int j = 0; j < 2; ++j)
@@ -35,7 +35,7 @@ namespace sym::codim_ipc_simplex_contact
     }
 
     inline __device__ Float PE_kappa(const cuda_tool::CDense2D<ContactCoeff>& table,
-                                     const Vector3i&                     cids)
+                                     const Vector3i& cids)
     {
         Float kappa = 0.0;
         for(int j = 1; j < 3; ++j)
@@ -47,7 +47,7 @@ namespace sym::codim_ipc_simplex_contact
     }
 
     inline __device__ Float PP_kappa(const cuda_tool::CDense2D<ContactCoeff>& table,
-                                     const Vector2i&                     cids)
+                                     const Vector2i& cids)
     {
         ContactCoeff coeff = table(cids[0], cids[1]);
         return coeff.kappa;
@@ -310,15 +310,15 @@ namespace sym::codim_ipc_simplex_contact
                                                          const Vector4i& flag,
                                                          Float           kappa,
                                                          Float           d_hat,
-                                                         Float           thickness,
-                                                         const Vector3&  t0_Ea0,
-                                                         const Vector3&  t0_Ea1,
-                                                         const Vector3&  t0_Eb0,
-                                                         const Vector3&  t0_Eb1,
-                                                         const Vector3&  Ea0,
-                                                         const Vector3&  Ea1,
-                                                         const Vector3&  Eb0,
-                                                         const Vector3&  Eb1)
+                                                         Float thickness,
+                                                         const Vector3& t0_Ea0,
+                                                         const Vector3& t0_Ea1,
+                                                         const Vector3& t0_Eb0,
+                                                         const Vector3& t0_Eb1,
+                                                         const Vector3& Ea0,
+                                                         const Vector3& Ea1,
+                                                         const Vector3& Eb0,
+                                                         const Vector3& Eb1)
     {
         using namespace codim_ipc_contact;
         using namespace distance;

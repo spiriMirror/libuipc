@@ -58,8 +58,8 @@ namespace detail
         }
     }  // namespace
 
-    void build_coo_matrix(cuda_tool::LinearSystemContext&           ctx,
-                          cuda_tool::DeviceCOOMatrix<Float>&        total_coo,
+    void build_coo_matrix(cuda_tool::LinearSystemContext&    ctx,
+                          cuda_tool::DeviceCOOMatrix<Float>& total_coo,
                           cuda_tool::DeviceTripletMatrix<Float, 1>& total_triplet,
                           cuda_tool::DeviceTripletMatrix<Float, 1>& local_triplet)
     {
@@ -110,7 +110,7 @@ namespace detail
     }
 
     void copy_to_host(const cuda_tool::DeviceCOOMatrix<Float>& total_coo,
-                      GlobalDiffSimManager::SparseCOO&    host_coo)
+                      GlobalDiffSimManager::SparseCOO&         host_coo)
     {
         // copy row_inides, col_indices, values to host_coo
 

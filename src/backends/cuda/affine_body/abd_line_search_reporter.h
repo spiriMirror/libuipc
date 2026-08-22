@@ -20,19 +20,19 @@ class ABDLineSearchReporter final : public LineSearchReporter
 
       private:
         friend class ABDLineSearchReporter;
-        SizeT m_energy_count  = 0;
+        SizeT m_energy_count = 0;
     };
 
     class ComputeEnergyInfo
     {
       public:
         cuda_tool::BufferView<Float> energies() const { return m_energies; }
-        Float                   dt() const noexcept { return m_dt; }
+        Float                        dt() const noexcept { return m_dt; }
 
       private:
         friend class ABDLineSearchReporter;
         cuda_tool::BufferView<Float> m_energies;
-        Float                   m_dt = 0.0;
+        Float                        m_dt = 0.0;
     };
 
     class Impl
@@ -52,9 +52,9 @@ class ABDLineSearchReporter final : public LineSearchReporter
         cuda_tool::DeviceVar<Float>    abd_shape_energy;
 
         SimSystemSlotCollection<ABDLineSearchSubreporter> reporters;
-        OffsetCountCollection<IndexT> reporter_energy_offsets_counts;
-        cuda_tool::DeviceBuffer<Float>     reporter_energies;
-        cuda_tool::DeviceVar<Float>        total_reporter_energy;
+        OffsetCountCollection<IndexT>  reporter_energy_offsets_counts;
+        cuda_tool::DeviceBuffer<Float> reporter_energies;
+        cuda_tool::DeviceVar<Float>    total_reporter_energy;
 
         AffineBodyDynamics::Impl& abd() const
         {

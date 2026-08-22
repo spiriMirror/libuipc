@@ -28,7 +28,7 @@ inline UIPC_GENERIC Float triangle_thickness(const Float& thickness_T0,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(thickness_T0 == thickness_T1 && thickness_T1 == thickness_T2,
-                    "Triangle thickness should be the same");
+                           "Triangle thickness should be the same");
     }
 
     return thickness_T0;
@@ -45,7 +45,7 @@ inline UIPC_GENERIC Float PT_thickness(const Float& thickness_P,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(thickness_T0 == thickness_T1 && thickness_T1 == thickness_T2,
-                    "Triangle thickness should be the same");
+                           "Triangle thickness should be the same");
     }
 
     // return (thickness_P + thickness_T0) / 2.0;
@@ -63,7 +63,7 @@ inline UIPC_GENERIC Float EE_thickness(const Float& thickness_Ea0,
     if constexpr(RUNTIME_CHECK)
     {
         UIPC_KERNEL_ASSERT(thickness_Ea0 == thickness_Ea1 && thickness_Eb0 == thickness_Eb1,
-                    "Edge thickness should be the same");
+                           "Edge thickness should be the same");
     }
 
     // return (thickness_Ea0 + thickness_Eb0) / 2.0;

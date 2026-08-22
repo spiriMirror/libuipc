@@ -11,24 +11,23 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
+    namespace BWS   = sym::strainlimiting_baraff_witkin_shell_2d;
     namespace eigen = cuda_tool::eigen;
 
     constexpr SizeT StencilSize     = 3;
     constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     __global__ void StrainLimitingBaraffWitkinShell2D_do_init_kernel(
-        cuda_tool::CBufferView<Vector3i>  indices,
-        cuda_tool::CBufferView<Vector3>   x_bars,
-        cuda_tool::BufferView<Matrix2x2>  inv_Bs,
-        int                               n)
+        cuda_tool::CBufferView<Vector3i> indices,
+        cuda_tool::CBufferView<Vector3>  x_bars,
+        cuda_tool::BufferView<Matrix2x2> inv_Bs,
+        int                              n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
             return;
-        Vector3i  tri = indices(I);
-        Matrix2x2 Dm =
-            BWS::Dm2x2(x_bars(tri(0)), x_bars(tri(1)), x_bars(tri(2)));
+        Vector3i tri = indices(I);
+        Matrix2x2 Dm = BWS::Dm2x2(x_bars(tri(0)), x_bars(tri(1)), x_bars(tri(2)));
         inv_Bs(I) = eigen::inverse(Dm);
     }
 
@@ -77,20 +76,20 @@ namespace
     }
 
     __global__ void StrainLimitingBaraffWitkinShell2D_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Float>            mus,
-        cuda_tool::CBufferView<Float>            lambdas,
-        cuda_tool::CBufferView<Float>            strainRates,
-        cuda_tool::CBufferView<Vector3i>         indices,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Float>            thicknesses,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        cuda_tool::CBufferView<Float>            rest_areas,
-        Float                                    dt,
-        cuda_tool::CBufferView<Matrix2x2>        IBs,
-        SizeT                                    half_hessian_size,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::CBufferView<Float>          mus,
+        cuda_tool::CBufferView<Float>          lambdas,
+        cuda_tool::CBufferView<Float>          strainRates,
+        cuda_tool::CBufferView<Vector3i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Float>          thicknesses,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          rest_areas,
+        Float                                  dt,
+        cuda_tool::CBufferView<Matrix2x2>      IBs,
+        SizeT                                  half_hessian_size,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -283,7 +282,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         auto k = StrainLimitingBaraffWitkinShell2D_do_compute_gradient_hessian_kernel;
-        int  n = (int)info.indices().size();
+        int n = (int)info.indices().size();
         if(n > 0)
         {
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(

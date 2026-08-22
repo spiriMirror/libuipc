@@ -90,19 +90,19 @@ __host__ __device__ inline void debug_trap() noexcept
 #endif
 
 #ifdef __CUDA_ARCH__
-#define UIPC_KERNEL_PRINT(fmt, ...)                                           \
-    {                                                                         \
-        ::printf("(%d|%d)-(%d|%d):" fmt "\n",                                 \
-                 blockIdx.x,                                                  \
-                 gridDim.x,                                                   \
-                 threadIdx.x,                                                 \
-                 blockDim.x,                                                  \
-                 ##__VA_ARGS__);                                              \
+#define UIPC_KERNEL_PRINT(fmt, ...)                                            \
+    {                                                                          \
+        ::printf("(%d|%d)-(%d|%d):" fmt "\n",                                  \
+                 blockIdx.x,                                                   \
+                 gridDim.x,                                                    \
+                 threadIdx.x,                                                  \
+                 blockDim.x,                                                   \
+                 ##__VA_ARGS__);                                               \
     }
 #else
-#define UIPC_KERNEL_PRINT(fmt, ...)                                           \
-    {                                                                         \
-        ::printf("(host):" fmt "\n", ##__VA_ARGS__);                          \
+#define UIPC_KERNEL_PRINT(fmt, ...)                                            \
+    {                                                                          \
+        ::printf("(host):" fmt "\n", ##__VA_ARGS__);                           \
     }
 #endif
 
@@ -122,26 +122,18 @@ __host__ __device__ inline void debug_trap() noexcept
         }                                                                         \
     }
 
-#define UIPC_KERNEL_ERROR_WITH_LOCATION(fmt, ...)                                  \
-    {                                                                              \
-        UIPC_KERNEL_PRINT("%s(%d): %s:\n <error> " fmt,                            \
-                          __FILE__,                                                \
-                          __LINE__,                                                \
-                          UIPC_FUNCTION_SIG,                                       \
-                          ##__VA_ARGS__);                                          \
-        ::uipc::backend::cuda_tool::debug_trap();                                  \
+#define UIPC_KERNEL_ERROR_WITH_LOCATION(fmt, ...)                                                              \
+    {                                                                                                          \
+        UIPC_KERNEL_PRINT("%s(%d): %s:\n <error> " fmt, __FILE__, __LINE__, UIPC_FUNCTION_SIG, ##__VA_ARGS__); \
+        ::uipc::backend::cuda_tool::debug_trap();                                                              \
     }
 
-#define UIPC_KERNEL_WARN(fmt, ...)                                                \
-    {                                                                             \
-        UIPC_KERNEL_PRINT("<warn>" fmt, ##__VA_ARGS__);                           \
+#define UIPC_KERNEL_WARN(fmt, ...)                                             \
+    {                                                                          \
+        UIPC_KERNEL_PRINT("<warn>" fmt, ##__VA_ARGS__);                        \
     }
 
-#define UIPC_KERNEL_WARN_WITH_LOCATION(fmt, ...)                                  \
-    {                                                                             \
-        UIPC_KERNEL_PRINT("%s(%d): %s:\n <warn>" fmt,                             \
-                          __FILE__,                                               \
-                          __LINE__,                                               \
-                          UIPC_FUNCTION_SIG,                                      \
-                          ##__VA_ARGS__);                                         \
+#define UIPC_KERNEL_WARN_WITH_LOCATION(fmt, ...)                                                             \
+    {                                                                                                        \
+        UIPC_KERNEL_PRINT("%s(%d): %s:\n <warn>" fmt, __FILE__, __LINE__, UIPC_FUNCTION_SIG, ##__VA_ARGS__); \
     }

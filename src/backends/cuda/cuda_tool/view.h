@@ -48,7 +48,7 @@ namespace details
     // this header, where BufferView is complete
     template <typename T>
     __global__ void buffer_view_fill_kernel(BufferView<T> dst, T value);
-}
+}  // namespace details
 
 template <typename T>
 class CBufferView
@@ -68,16 +68,22 @@ class CBufferView
     {
         return m_data + m_offset + offset;
     }
-    __host__ __device__ size_t       offset() const { return m_offset; }
-    __host__ __device__ size_t       size() const { return m_size; }
+    __host__ __device__ size_t offset() const { return m_offset; }
+    __host__ __device__ size_t size() const { return m_size; }
     // muda viewer call-shape parity: a buffer view is its own (const) viewer
-    __host__ __device__ size_t       total_size() const { return m_size; }
+    __host__ __device__ size_t total_size() const { return m_size; }
     __host__ __device__ CBufferView<T> cviewer() const { return *this; }
     __host__ __device__ CBufferView<T> viewer() const { return *this; }
     __host__ __device__ CBufferView<T> cview() const { return *this; }
-    __host__ __device__ const T&     operator[](size_t i) const { return data()[i]; }
+    __host__ __device__ const T&       operator[](size_t i) const
+    {
+        return data()[i];
+    }
     // parenthesis indexing kept for muda-viewer call-shape parity
-    __host__ __device__ const T&     operator()(size_t i) const { return data()[i]; }
+    __host__ __device__ const T& operator()(size_t i) const
+    {
+        return data()[i];
+    }
     __host__ __device__ CBufferView<T> subview(size_t offset, size_t count = ~0ull) const
     {
         if(count == ~0ull)
@@ -138,12 +144,12 @@ class BufferView : public CBufferView<T>
         return BufferView<T>{data(), count, offset};
     }
     __host__ __device__ CBufferView<T> cview() const { return *this; }
-    __host__ __device__                operator CBufferView<T>() const { return *this; }
+    __host__ __device__ operator CBufferView<T>() const { return *this; }
     // muda viewer call-shape parity: a buffer view is its own viewer
-    __host__ __device__ BufferView<T>  viewer() const { return *this; }
+    __host__ __device__ BufferView<T> viewer() const { return *this; }
     __host__ __device__ CBufferView<T> cviewer() const { return *this; }
     __host__ __device__ auto           begin() const { return data(); }
-    __host__ __device__ auto           end() const { return data() + this->m_size; }
+    __host__ __device__ auto end() const { return data() + this->m_size; }
 
     // fill every element with `value`: async on stream `s`. Host-only
     // (matches cuda_tool::BufferView::fill semantics).
@@ -163,22 +169,16 @@ class BufferView : public CBufferView<T>
         if(src.size() != this->m_size)
             throw std::runtime_error{"BufferView::copy_from size mismatch"};
         if(this->m_size)
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(data(),
-                                            src.data(),
-                                            this->m_size * sizeof(T),
-                                            cudaMemcpyDeviceToDevice,
-                                            s));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                data(), src.data(), this->m_size * sizeof(T), cudaMemcpyDeviceToDevice, s));
     }
     // upload from host memory: async H2D copy on `s` + stream sync.
     void copy_from(const T* host, cudaStream_t s = default_stream()) const
     {
         if(this->m_size)
         {
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(data(),
-                                            host,
-                                            this->m_size * sizeof(T),
-                                            cudaMemcpyHostToDevice,
-                                            s));
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                data(), host, this->m_size * sizeof(T), cudaMemcpyHostToDevice, s));
             CUDA_TOOL_CHECK(cudaStreamSynchronize(s));
         }
     }
@@ -214,10 +214,13 @@ class Dense : public CDense<T>
         : CDense<T>(data)
     {
     }
-    __host__ __device__ T* data() const { return const_cast<T*>(CDense<T>::data()); }
+    __host__ __device__ T* data() const
+    {
+        return const_cast<T*>(CDense<T>::data());
+    }
     __host__ __device__ T& operator*() const { return *data(); }
     __host__ __device__ T* operator->() const { return data(); }
-    __host__ __device__   operator T&() const { return *data(); }
+    __host__ __device__    operator T&() const { return *data(); }
     // device-side write-through assignment / fill
     __host__ __device__ const Dense& operator=(const T& v) const
     {
@@ -273,18 +276,21 @@ class VarView : public CVarView<T>
     __host__ __device__ T* data() const { return const_cast<T*>(Base::data()); }
     __host__ __device__ T& operator*() const { return *data(); }
     __host__ __device__ T* operator->() const { return data(); }
-    __host__ __device__   operator T&() const { return *data(); }
+    __host__ __device__    operator T&() const { return *data(); }
     // dense viewer hooks (muda parity)
-    __host__ __device__ Dense<T>     viewer() const { return Dense<T>{data()}; }
-    __host__ __device__ CDense<T>    cviewer() const { return CDense<T>{data()}; }
-    __host__ __device__ CVarView<T>  cview() const { return *this; }
-    __host__ __device__              operator CVarView<T>() const { return *this; }
+    __host__ __device__ Dense<T> viewer() const { return Dense<T>{data()}; }
+    __host__ __device__ CDense<T> cviewer() const { return CDense<T>{data()}; }
+    __host__ __device__ CVarView<T> cview() const { return *this; }
+    __host__ __device__ operator CVarView<T>() const { return *this; }
     // host-side upload (H2D), muda parity
     void fill(const T& value, cudaStream_t s = default_stream()) const
     {
         CUDA_TOOL_CHECK(cudaMemcpyAsync(data(), &value, sizeof(T), cudaMemcpyHostToDevice, s));
     }
-    void copy_from(const T* host, cudaStream_t s = default_stream()) const { fill(*host, s); }
+    void copy_from(const T* host, cudaStream_t s = default_stream()) const
+    {
+        fill(*host, s);
+    }
     void copy_from(CVarView<T> o, cudaStream_t s = default_stream()) const
     {
         CUDA_TOOL_CHECK(cudaMemcpyAsync(data(), o.data(), sizeof(T), cudaMemcpyDeviceToDevice, s));

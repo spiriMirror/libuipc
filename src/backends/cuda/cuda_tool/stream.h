@@ -55,7 +55,7 @@ inline void check_cuda_error(cudaError_t e, const char* expr, const char* file, 
     }
 }
 
-#define CUDA_TOOL_CHECK(EXPR) \
+#define CUDA_TOOL_CHECK(EXPR)                                                  \
     ::uipc::backend::cuda_tool::check_cuda_error((EXPR), #EXPR, __FILE__, __LINE__)
 
 // Block size used by cuda_tool launches (matches muda's default_parallel_dim).

@@ -483,5 +483,5 @@ namespace sym::ipc_contact
         H = ddFddV;
     }
 
-}  // namespace sym::ipc_simplex_contact
+}  // namespace sym::ipc_contact
 }  // namespace uipc::backend::cuda

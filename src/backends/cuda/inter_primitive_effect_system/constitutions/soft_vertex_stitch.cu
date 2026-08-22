@@ -32,21 +32,21 @@ namespace
         {
             Float dist = dx.norm();
             Float diff = dist - L0;
-            Es(I)     = 0.5 * Kt2 * diff * diff;
+            Es(I)      = 0.5 * Kt2 * diff * diff;
         }
     }
 
     template <SizeT StencilSize, SizeT HalfHessianSize>
     __global__ void SoftVertexStitch_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Vector2i>         topos,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Float>            kappas,
-        cuda_tool::CBufferView<Float>            rest_lengths,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::CBufferView<Vector2i>          topos,
+        cuda_tool::CBufferView<Vector3>           xs,
+        cuda_tool::CBufferView<Float>             kappas,
+        cuda_tool::CBufferView<Float>             rest_lengths,
+        cuda_tool::DoubletVectorView<Float, 3>    G3s,
         cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
-        Float                                    dt,
-        bool                                     gradient_only,
-        int                                      n)
+        Float                                     dt,
+        bool                                      gradient_only,
+        int                                       n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -74,7 +74,7 @@ namespace
 
             if(!gradient_only)
             {
-                Matrix3x3 blk = Kt2 * Matrix3x3::Identity();
+                Matrix3x3 blk       = Kt2 * Matrix3x3::Identity();
                 H.block<3, 3>(0, 0) = blk;
                 H.block<3, 3>(0, 3) = -blk;
                 H.block<3, 3>(3, 0) = -blk;
@@ -253,9 +253,8 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        auto k = SoftVertexStitch_do_compute_gradient_hessian_kernel<StencilSize,
-                                                                     HalfHessianSize>;
-        int  n = (int)topos.size();
+        auto k = SoftVertexStitch_do_compute_gradient_hessian_kernel<StencilSize, HalfHessianSize>;
+        int n = (int)topos.size();
         if(n > 0)
         {
             k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(

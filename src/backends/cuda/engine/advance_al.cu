@@ -211,11 +211,11 @@ void SimEngine::advance_AL()
         if(iter >= m_line_searcher->max_iter())
         {
             // (alpha, E) is the last actually tried pair in this loop form
-            Float abs_E0 = std::abs(E0);
+            Float abs_E0         = std::abs(E0);
             Float rel_E_increase = (E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
-            auto detail = fmt::format(
+            auto  detail         = fmt::format(
                 "Line Search Exits with Max Iteration: {} (Frame={}, alpha_last={}, "
-                "E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e})",
+                         "E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e})",
                 m_line_searcher->max_iter(),
                 m_current_frame,
                 alpha,

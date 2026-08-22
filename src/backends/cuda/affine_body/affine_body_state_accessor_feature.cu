@@ -11,9 +11,7 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void affine_body_state_accessor_feature_copy_transform_to_kernel(
-        cuda_tool::CBufferView<Vector12> q_in,
-        cuda_tool::BufferView<Matrix4x4> dst,
-        int                              n)
+        cuda_tool::CBufferView<Vector12> q_in, cuda_tool::BufferView<Matrix4x4> dst, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -22,9 +20,7 @@ namespace
     }
 
     __global__ void affine_body_state_accessor_feature_copy_velocity_to_kernel(
-        cuda_tool::CBufferView<Vector12> q_in,
-        cuda_tool::BufferView<Matrix4x4> dst,
-        int                              n)
+        cuda_tool::CBufferView<Vector12> q_in, cuda_tool::BufferView<Matrix4x4> dst, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

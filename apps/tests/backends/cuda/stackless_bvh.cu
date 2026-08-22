@@ -73,7 +73,7 @@ void compare(cuda_tool::CBufferView<T> l, const T* r)
     l.copy_to(hl.data());
 
     cuda_tool::CBufferView<T> r_view(r, l.size());
-    std::vector<T>       hr;
+    std::vector<T>            hr;
     hr.resize(r_view.size());
     r_view.copy_to(hr.data());
 
@@ -323,4 +323,3 @@ TEST_CASE("stackless_bvh", "[collision detection]")
         stackless_bvh_test(mesh);
     }
 }
-

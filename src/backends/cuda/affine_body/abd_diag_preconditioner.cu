@@ -21,19 +21,18 @@ namespace
     }
 
     __global__ void abd_diag_preconditioner_do_apply_kernel(
-        cuda_tool::CDenseVectorView<Float>  r,
-        cuda_tool::DenseVectorView<Float>   z,
-        cuda_tool::CDense<IndexT>           converged,
-        cuda_tool::BufferView<Matrix12x12>  diag_inv,
-        int                                 n)
+        cuda_tool::CDenseVectorView<Float> r,
+        cuda_tool::DenseVectorView<Float>  z,
+        cuda_tool::CDense<IndexT>          converged,
+        cuda_tool::BufferView<Matrix12x12> diag_inv,
+        int                                n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
         if(*converged != 0)
             return;
-        z.segment<12>(i * 12).as_eigen() =
-            diag_inv(i) * r.segment<12>(i * 12).as_eigen();
+        z.segment<12>(i * 12).as_eigen() = diag_inv(i) * r.segment<12>(i * 12).as_eigen();
     }
 }  // namespace
 

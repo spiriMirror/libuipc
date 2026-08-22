@@ -20,14 +20,20 @@ class ABDBDF2State final : public SimSystem
 
         // q^{n-1}
         cuda_tool::DeviceBuffer<Vector12> q_n_1s;
-        BufferDump                   dump_q_n_1s;
+        BufferDump                        dump_q_n_1s;
         // \dot{q}^{n-1}
         cuda_tool::DeviceBuffer<Vector12> q_v_n_1s;
-        BufferDump                   dump_q_v_n_1s;
+        BufferDump                        dump_q_v_n_1s;
     };
 
-    cuda_tool::CBufferView<Vector12> q_n_1s() const { return m_impl.q_n_1s.view(); }
-    cuda_tool::CBufferView<Vector12> q_v_n_1s() const { return m_impl.q_v_n_1s.view(); }
+    cuda_tool::CBufferView<Vector12> q_n_1s() const
+    {
+        return m_impl.q_n_1s.view();
+    }
+    cuda_tool::CBufferView<Vector12> q_v_n_1s() const
+    {
+        return m_impl.q_v_n_1s.view();
+    }
 
   private:
     void resize(SizeT size);
@@ -40,7 +46,10 @@ class ABDBDF2State final : public SimSystem
     friend class ABDBDF2Integrator;
 
     cuda_tool::BufferView<Vector12> q_n_1s() { return m_impl.q_n_1s.view(); }
-    cuda_tool::BufferView<Vector12> q_v_n_1s() { return m_impl.q_v_n_1s.view(); }
+    cuda_tool::BufferView<Vector12> q_v_n_1s()
+    {
+        return m_impl.q_v_n_1s.view();
+    }
 
     Impl m_impl;
 

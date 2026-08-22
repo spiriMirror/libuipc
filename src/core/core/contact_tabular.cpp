@@ -65,24 +65,24 @@ class ContactTabular::Impl
 
         // check if the contact element id is valid.
         UIPC_ASSERT_THROW(L.id() < current_element_id() && L.id() >= 0
-                        && R.id() < current_element_id() && R.id() >= 0,
-                    "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
-                    0,
-                    current_element_id(),
-                    L.id(),
-                    R.id());
+                              && R.id() < current_element_id() && R.id() >= 0,
+                          "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
+                          0,
+                          current_element_id(),
+                          L.id(),
+                          R.id());
 
         // check if the name is matched.
         UIPC_ASSERT_THROW(m_elements[L.id()].name() == L.name()
-                        && m_elements[R.id()].name() == R.name(),
-                    "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
-                    "It seems the contact element and contact model don't come from the same ContactTabular.",
-                    L.id(),
-                    L.name(),
-                    m_elements[L.id()].name(),
-                    R.id(),
-                    R.name(),
-                    m_elements[R.id()].name());
+                              && m_elements[R.id()].name() == R.name(),
+                          "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
+                          "It seems the contact element and contact model don't come from the same ContactTabular.",
+                          L.id(),
+                          L.name(),
+                          m_elements[L.id()].name(),
+                          R.id(),
+                          R.name(),
+                          m_elements[R.id()].name());
 
         // ensure ids.x() < ids.y(), because the contact model is symmetric.
         if(ids.x() > ids.y())
@@ -184,8 +184,8 @@ class ContactTabular::Impl
     mutable S<geometry::AttributeSlot<Float>>    m_friction_rates;
     mutable S<geometry::AttributeSlot<Float>>    m_resistances;
 
-        bool m_default_model_user_set = false;
-    mutable S<geometry::AttributeSlot<IndexT>>   m_is_enabled;
+    bool                                       m_default_model_user_set = false;
+    mutable S<geometry::AttributeSlot<IndexT>> m_is_enabled;
 
     void _append_contact_models()
     {

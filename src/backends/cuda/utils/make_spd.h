@@ -17,4 +17,4 @@ UIPC_GENERIC void make_spd(Matrix<Float, N, N>& H)
     }
     H = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
 }
-}
+}  // namespace uipc::backend::cuda

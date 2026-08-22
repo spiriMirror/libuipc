@@ -16,11 +16,10 @@ namespace
     constexpr SizeT StencilSize     = 3;
     constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
-    __global__ void NeoHookeanShell2D_do_init_kernel(
-        cuda_tool::CBufferView<Vector3i>  prims,
-        cuda_tool::CBufferView<Vector3>   x_bars,
-        cuda_tool::BufferView<Matrix2x2>  inv_B_mats,
-        int                               n)
+    __global__ void NeoHookeanShell2D_do_init_kernel(cuda_tool::CBufferView<Vector3i> prims,
+                                                     cuda_tool::CBufferView<Vector3> x_bars,
+                                                     cuda_tool::BufferView<Matrix2x2> inv_B_mats,
+                                                     int n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -60,9 +59,8 @@ namespace
         Float mu     = mus(I);
 
         Float rest_area = rest_areas(I);
-        Float thickness = triangle_thickness(thicknesses(idx(0)),
-                                             thicknesses(idx(1)),
-                                             thicknesses(idx(2)));
+        Float thickness = triangle_thickness(
+            thicknesses(idx(0)), thicknesses(idx(1)), thicknesses(idx(2)));
         Float E;
         NH::E(E, lambda, mu, X, IB);
 
@@ -72,19 +70,19 @@ namespace
     }
 
     __global__ void NeoHookeanShell2D_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Float>            lambdas,
-        cuda_tool::CBufferView<Float>            mus,
-        cuda_tool::CBufferView<Vector3i>         indices,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Matrix2x2>        IBs,
-        cuda_tool::CBufferView<Float>            thicknesses,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        cuda_tool::CBufferView<Float>            rest_areas,
-        Float                                    dt,
-        SizeT                                    half_hessian_size,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::CBufferView<Float>          lambdas,
+        cuda_tool::CBufferView<Float>          mus,
+        cuda_tool::CBufferView<Vector3i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Matrix2x2>      IBs,
+        cuda_tool::CBufferView<Float>          thicknesses,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          rest_areas,
+        Float                                  dt,
+        SizeT                                  half_hessian_size,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -99,9 +97,8 @@ namespace
         Float lambda    = lambdas(I);
         Float mu        = mus(I);
         Float rest_area = rest_areas(I);
-        Float thickness = triangle_thickness(thicknesses(idx(0)),
-                                             thicknesses(idx(1)),
-                                             thicknesses(idx(2)));
+        Float thickness = triangle_thickness(
+            thicknesses(idx(0)), thicknesses(idx(1)), thicknesses(idx(2)));
 
         // thickness is one-sided so we multiply by 2
         Float Vdt2 = rest_area * 2 * thickness * dt * dt;

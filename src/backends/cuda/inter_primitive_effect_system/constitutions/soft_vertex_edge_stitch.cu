@@ -41,18 +41,18 @@ namespace
 
     template <SizeT StencilSize, SizeT HalfHessianSize>
     __global__ void SoftVertexEdgeStitch_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Vector3i>         topos,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Float>            mus,
-        cuda_tool::CBufferView<Float>            lambdas,
-        cuda_tool::CBufferView<Matrix2x2>        IBs,
-        cuda_tool::CBufferView<Float>            rest_areas,
-        cuda_tool::CBufferView<Float>            thick,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::CBufferView<Vector3i>          topos,
+        cuda_tool::CBufferView<Vector3>           xs,
+        cuda_tool::CBufferView<Float>             mus,
+        cuda_tool::CBufferView<Float>             lambdas,
+        cuda_tool::CBufferView<Matrix2x2>         IBs,
+        cuda_tool::CBufferView<Float>             rest_areas,
+        cuda_tool::CBufferView<Float>             thick,
+        cuda_tool::DoubletVectorView<Float, 3>    G3s,
         cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
-        Float                                    dt,
-        bool                                     gradient_only,
-        int                                      n)
+        Float                                     dt,
+        bool                                      gradient_only,
+        int                                       n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -82,8 +82,7 @@ namespace
         H *= Vdt2;
 
         TripletMatrixAssembler MA{H3x3s};
-        MA.half_block<StencilSize>(I * HalfHessianSize)
-            .write(tri, H);
+        MA.half_block<StencilSize>(I * HalfHessianSize).write(tri, H);
     }
 }  // namespace
 
@@ -134,27 +133,21 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
             [&](const ForEachInfo& I, geometry::Geometry& geo)
             {
                 auto topo = geo.instances().find<Vector3i>(builtin::topo);
-                UIPC_ASSERT(topo,
-                            "SoftVertexEdgeStitch requires attribute `topo` on instances()");
+                UIPC_ASSERT(topo, "SoftVertexEdgeStitch requires attribute `topo` on instances()");
                 auto geo_ids = geo.meta().find<Vector2i>("geo_ids");
-                UIPC_ASSERT(geo_ids,
-                            "SoftVertexEdgeStitch requires attribute `geo_ids` on meta()");
+                UIPC_ASSERT(geo_ids, "SoftVertexEdgeStitch requires attribute `geo_ids` on meta()");
                 auto mu_slot = geo.instances().find<Float>("mu");
-                UIPC_ASSERT(mu_slot,
-                            "SoftVertexEdgeStitch requires attribute `mu` on instances()");
+                UIPC_ASSERT(mu_slot, "SoftVertexEdgeStitch requires attribute `mu` on instances()");
                 auto lambda_slot = geo.instances().find<Float>("lambda");
-                UIPC_ASSERT(lambda_slot,
-                            "SoftVertexEdgeStitch requires attribute `lambda` on instances()");
+                UIPC_ASSERT(lambda_slot, "SoftVertexEdgeStitch requires attribute `lambda` on instances()");
                 auto thick_slot = geo.instances().find<Float>("thickness");
-                UIPC_ASSERT(thick_slot,
-                            "SoftVertexEdgeStitch requires attribute `thickness` on instances()");
+                UIPC_ASSERT(thick_slot, "SoftVertexEdgeStitch requires attribute `thickness` on instances()");
                 auto min_sep_slot = geo.instances().find<Float>("min_separate_distance");
-                UIPC_ASSERT(min_sep_slot,
-                            "SoftVertexEdgeStitch requires attribute `min_separate_distance` on instances()");
+                UIPC_ASSERT(min_sep_slot, "SoftVertexEdgeStitch requires attribute `min_separate_distance` on instances()");
 
-                Vector2i ids         = geo_ids->view()[0];
-                auto     l_slot      = info.geo_slot(ids[0]);
-                auto     r_slot      = info.geo_slot(ids[1]);
+                Vector2i ids    = geo_ids->view()[0];
+                auto     l_slot = info.geo_slot(ids[0]);
+                auto     r_slot = info.geo_slot(ids[1]);
                 auto l_geo = l_slot->geometry().as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(l_geo,
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
@@ -165,55 +158,54 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
                             r_slot->geometry().type(),
                             r_slot->id());
-                auto l_offset =
-                    l_geo->meta().find<IndexT>(builtin::global_vertex_offset);
+                auto l_offset = l_geo->meta().find<IndexT>(builtin::global_vertex_offset);
                 UIPC_ASSERT(l_offset,
                             "SoftVertexEdgeStitch requires `global_vertex_offset` on meta() of geometry {} ({})",
                             l_slot->geometry().type(),
                             l_slot->id());
                 IndexT l_offset_v = l_offset->view()[0];
-                auto   r_offset =
-                    r_geo->meta().find<IndexT>(builtin::global_vertex_offset);
+                auto r_offset = r_geo->meta().find<IndexT>(builtin::global_vertex_offset);
                 UIPC_ASSERT(r_offset,
                             "SoftVertexEdgeStitch requires `global_vertex_offset` on meta() of geometry {} ({})",
                             r_slot->geometry().type(),
                             r_slot->id());
                 IndexT r_offset_v = r_offset->view()[0];
 
-                auto aim0_pos     = l_geo->positions().view();
-                auto aim1_pos     = r_geo->positions().view();
+                auto aim0_pos = l_geo->positions().view();
+                auto aim1_pos = r_geo->positions().view();
 
                 Transform l_transform(l_geo->transforms().view()[0]);
                 Transform r_transform(r_geo->transforms().view()[0]);
 
-                auto topo_view    = topo->view();
-                auto mu_view      = mu_slot->view();
-                auto lambda_view  = lambda_slot->view();
-                auto thick_view   = thick_slot->view();
-                auto min_sep_view = min_sep_slot->view();
-                SizeT n           = topo_view.size();
+                auto  topo_view    = topo->view();
+                auto  mu_view      = mu_slot->view();
+                auto  lambda_view  = lambda_slot->view();
+                auto  thick_view   = thick_slot->view();
+                auto  min_sep_view = min_sep_slot->view();
+                SizeT n            = topo_view.size();
 
                 for(SizeT i = 0; i < n; ++i)
                 {
-                    const Vector3i& t = topo_view[i];
-                    IndexT  v_id = t(0), e0 = t(1), e1 = t(2);
-                    Vector3 x0 = l_transform * aim0_pos[v_id];
-                    Vector3 x1 = r_transform * aim1_pos[e0];
-                    Vector3 x2 = r_transform * aim1_pos[e1];
+                    const Vector3i& t    = topo_view[i];
+                    IndexT          v_id = t(0), e0 = t(1), e1 = t(2);
+                    Vector3         x0 = l_transform * aim0_pos[v_id];
+                    Vector3         x1 = r_transform * aim1_pos[e0];
+                    Vector3         x2 = r_transform * aim1_pos[e1];
 
                     constexpr Float geo_degeneracy_tol = 1e-12;
 
-                    Float   d    = min_sep_view[i];
-                    Vector3 edge = x2 - x1;
+                    Float   d        = min_sep_view[i];
+                    Vector3 edge     = x2 - x1;
                     Float   edge_len = edge.norm();
                     UIPC_ASSERT(edge_len >= geo_degeneracy_tol,
                                 "SoftVertexEdgeStitch: edge ({},{}) is degenerate",
-                                e0, e1);
+                                e0,
+                                e1);
                     Vector3 edge_dir = edge / edge_len;
 
                     // project vertex onto edge line to get closest point
-                    Float   proj = edge_dir.dot(x0 - x1);
-                    proj         = std::clamp(proj, Float(0), edge_len);
+                    Float proj      = edge_dir.dot(x0 - x1);
+                    proj            = std::clamp(proj, Float(0), edge_len);
                     Vector3 closest = x1 + proj * edge_dir;
                     Vector3 ve_dir  = x0 - closest;
                     Float   ve_dist = ve_dir.norm();
@@ -223,11 +215,10 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                         if(ve_dist < geo_degeneracy_tol)
                         {
                             // collinear: pick arbitrary perpendicular
-                            Vector3 arbitrary =
-                                std::abs(edge_dir(0)) < 0.9
-                                    ? Vector3{1, 0, 0}
-                                    : Vector3{0, 1, 0};
-                            ve_dir = edge_dir.cross(arbitrary);
+                            Vector3 arbitrary = std::abs(edge_dir(0)) < 0.9 ?
+                                                    Vector3{1, 0, 0} :
+                                                    Vector3{0, 1, 0};
+                            ve_dir            = edge_dir.cross(arbitrary);
                             ve_dir.normalize();
                         }
                         else
@@ -241,19 +232,17 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                     Vector3   e01 = x1 - x0;
                     Vector3   e02 = x2 - x0;
                     Matrix2x2 B;
-                    B(0, 0) = e01.dot(e01);
-                    B(0, 1) = e01.dot(e02);
-                    B(1, 0) = B(0, 1);
-                    B(1, 1) = e02.dot(e02);
+                    B(0, 0)      = e01.dot(e01);
+                    B(0, 1)      = e01.dot(e02);
+                    B(1, 0)      = B(0, 1);
+                    B(1, 1)      = e02.dot(e02);
                     Matrix2x2 IB = B.inverse();
 
                     // rest area = 0.5 * |e01 x e02|
-                    Float rest_area =
-                        0.5 * e01.cross(e02).norm();
+                    Float rest_area = 0.5 * e01.cross(e02).norm();
 
-                    topo_buffer.push_back(Vector3i{t(0) + l_offset_v,
-                                                   t(1) + r_offset_v,
-                                                   t(2) + r_offset_v});
+                    topo_buffer.push_back(
+                        Vector3i{t(0) + l_offset_v, t(1) + r_offset_v, t(2) + r_offset_v});
                     mu_buffer.push_back(mu_view[i]);
                     lambda_buffer.push_back(lambda_view[i]);
                     inv_B_buffer.push_back(IB);
@@ -325,9 +314,8 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        auto k = SoftVertexEdgeStitch_do_compute_gradient_hessian_kernel<StencilSize,
-                                                                         HalfHessianSize>;
-        int  n = (int)topos.size();
+        auto k = SoftVertexEdgeStitch_do_compute_gradient_hessian_kernel<StencilSize, HalfHessianSize>;
+        int n = (int)topos.size();
         if(n > 0)
         {
             k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(

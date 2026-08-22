@@ -35,10 +35,10 @@ class FiniteElementElastics final : public SimSystem
         friend class FiniteElementConstitution;
         friend class FiniteElementExtraConstitution;
 
-        SizeT m_energy_count   = 0;
-        SizeT m_gradient_count = 0;
-        SizeT m_hessian_count  = 0;
-        bool  m_gradient_only  = false;
+        SizeT        m_energy_count          = 0;
+        SizeT        m_gradient_count        = 0;
+        SizeT        m_hessian_count         = 0;
+        bool         m_gradient_only         = false;
         mutable bool m_gradient_only_checked = false;
     };
 
@@ -61,9 +61,9 @@ class FiniteElementElastics final : public SimSystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        Impl*                   m_impl  = nullptr;
-        SizeT                   m_index = 0;
-        Float                   m_dt    = 0.0;
+        Impl*                        m_impl  = nullptr;
+        SizeT                        m_index = 0;
+        Float                        m_dt    = 0.0;
         cuda_tool::BufferView<Float> m_energies;
     };
 
@@ -92,10 +92,10 @@ class FiniteElementElastics final : public SimSystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        Impl*                             m_impl          = nullptr;
-        SizeT                             m_index         = 0;
-        bool                              m_gradient_only = false;
-        Float                             m_dt            = 0.0;
+        Impl*                                  m_impl          = nullptr;
+        SizeT                                  m_index         = 0;
+        bool                                   m_gradient_only = false;
+        Float                                  m_dt            = 0.0;
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
     };

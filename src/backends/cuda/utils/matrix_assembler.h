@@ -111,12 +111,12 @@ class DoubletVectorAssembler
             , m_I(I)
         {
             UIPC_KERNEL_ASSERT(I + N <= m_assembler.m_doublet.doublet_count(),
-                        "Doublet out of range, I = %d, Count=%d, total=%d. %s(%d)",
-                        I,
-                        N,
-                        m_assembler.m_doublet.doublet_count(),
-                        m_assembler.m_doublet.kernel_file(),
-                        m_assembler.m_doublet.kernel_line());
+                               "Doublet out of range, I = %d, Count=%d, total=%d. %s(%d)",
+                               I,
+                               N,
+                               m_assembler.m_doublet.doublet_count(),
+                               m_assembler.m_doublet.kernel_file(),
+                               m_assembler.m_doublet.kernel_line());
         }
 
         UIPC_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
@@ -218,13 +218,13 @@ class TripletMatrixAssembler
             , m_I(I)
         {
             UIPC_KERNEL_ASSERT(I + (N * N) <= m_assembler.m_triplet.triplet_count(),
-                        "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
-                        I,
-                        N,
-                        N,
-                        m_assembler.m_triplet.triplet_count(),
-                        m_assembler.m_triplet.kernel_file(),
-                        m_assembler.m_triplet.kernel_line());
+                               "Triplet out of range, I = %d, Count=%d * %d, total=%d. %s(%d)",
+                               I,
+                               N,
+                               N,
+                               m_assembler.m_triplet.triplet_count(),
+                               m_assembler.m_triplet.kernel_file(),
+                               m_assembler.m_triplet.kernel_line());
         }
 
 
@@ -326,13 +326,13 @@ class TripletMatrixAssembler
             , m_I(I)
         {
             UIPC_KERNEL_ASSERT(I + (N * (N + 1)) / 2 <= m_assembler.m_triplet.triplet_count(),
-                        "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
-                        I,
-                        N,
-                        N,
-                        m_assembler.m_triplet.triplet_count(),
-                        m_assembler.m_triplet.kernel_file(),
-                        m_assembler.m_triplet.kernel_line());
+                               "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
+                               I,
+                               N,
+                               N,
+                               m_assembler.m_triplet.triplet_count(),
+                               m_assembler.m_triplet.kernel_file(),
+                               m_assembler.m_triplet.kernel_line());
         }
 
         /**
@@ -424,9 +424,9 @@ class TripletMatrixAssembler
         {
             auto submatrix_offset = m_assembler.m_triplet.submatrix_offset();
             UIPC_KERNEL_ASSERT(submatrix_offset.x == submatrix_offset.y,
-                        "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
-                        submatrix_offset.x,
-                        submatrix_offset.y);
+                               "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
+                               submatrix_offset.x,
+                               submatrix_offset.y);
             UpperLR ret;
             // keep it in upper triangular in the global matrix (not the submatrix)
             if(l_indices(I) + submatrix_offset.x

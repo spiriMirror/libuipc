@@ -33,11 +33,11 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         cuda_tool::CBufferView<Float>          thicknesses() const;
         cuda_tool::CBufferView<IndexT>         contact_element_ids() const;
         cuda_tool::CBufferView<IndexT>         subscene_element_ids() const;
-        Float                             d_hat() const;
+        Float                                  d_hat() const;
         cuda_tool::CBufferView<Float>          d_hats() const;
-        Float                             dt() const;
-        Float                             eps_velocity() const;
-        IndexT                            half_plane_vertex_offset() const;
+        Float                                  dt() const;
+        Float                                  eps_velocity() const;
+        IndexT                                 half_plane_vertex_offset() const;
 
       private:
         friend class VertexHalfPlaneNormalContact;
@@ -61,7 +61,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
 
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        bool                                   m_gradient_only = false;
     };
 
     class BuildInfo

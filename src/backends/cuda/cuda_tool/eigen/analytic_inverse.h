@@ -189,4 +189,4 @@ struct AnalyticalInverse
         dst[15] *= det;
     }
 };
-}  // namespace uipc::backend::cuda_tool::eigen::inverse
+}  // namespace uipc::backend::cuda_tool::eigen

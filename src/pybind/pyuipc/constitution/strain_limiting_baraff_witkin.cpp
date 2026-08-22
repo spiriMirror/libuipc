@@ -29,15 +29,14 @@ Returns:
     class_StrainLimitingBaraffWitkinShell.def(
         "apply_to",
         [](StrainLimitingBaraffWitkinShell& self,
-           SimplicialComplex& sc,
-           const ElasticModuli2D& stretch_moduli,
-           const ElasticModuli2D& shear_moduli,
-           Float mass_density,
-           Float thickness,
-           Float strain_rate)
+           SimplicialComplex&               sc,
+           const ElasticModuli2D&           stretch_moduli,
+           const ElasticModuli2D&           shear_moduli,
+           Float                            mass_density,
+           Float                            thickness,
+           Float                            strain_rate)
         {
-            self.apply_to(
-                sc, stretch_moduli, shear_moduli, mass_density, thickness, strain_rate);
+            self.apply_to(sc, stretch_moduli, shear_moduli, mass_density, thickness, strain_rate);
         },
         py::arg("sc"),
         py::arg("stretch_moduli"),
@@ -63,14 +62,14 @@ Args:
     class_StrainLimitingBaraffWitkinShell.def(
         "apply_to",
         [](StrainLimitingBaraffWitkinShell& self,
-           SimplicialComplex& sc,
-           const ElasticModuli2D& moduli,
-           Float mass_density,
-           Float thickness,
-           Float strain_rate)
+           SimplicialComplex&               sc,
+           const ElasticModuli2D&           moduli,
+           Float                            mass_density,
+           Float                            thickness,
+           Float                            strain_rate)
         { self.apply_to(sc, moduli, mass_density, thickness, strain_rate); },
         py::arg("sc"),
-        py::arg("moduli")       = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49),
+        py::arg("moduli") = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49),
         py::arg("mass_density") = 2.0e2,
         py::arg("thickness")    = 0.001_m,
         py::arg("strain_rate")  = 100.0,

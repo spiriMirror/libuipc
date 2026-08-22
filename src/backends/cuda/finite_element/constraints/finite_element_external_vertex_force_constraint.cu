@@ -30,9 +30,8 @@ cuda_tool::CBufferView<IndexT> FiniteElementExternalVertexForceConstraint::verte
     return m_impl.vertex_ids.view();
 }
 
-void FiniteElementExternalVertexForceConstraint::Impl::step(
-    backend::WorldVisitor&              world,
-    FiniteElementAnimator::FilteredInfo& info)
+void FiniteElementExternalVertexForceConstraint::Impl::step(backend::WorldVisitor& world,
+                                                            FiniteElementAnimator::FilteredInfo& info)
 {
     using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -46,18 +45,14 @@ void FiniteElementExternalVertexForceConstraint::Impl::step(
         geo_slots,
         [&](geometry::SimplicialComplex& sc)
         {
-            auto vertex_offset =
-                sc.meta().find<IndexT>(builtin::backend_fem_vertex_offset);
-            UIPC_ASSERT(vertex_offset,
-                        "`backend_fem_vertex_offset` attribute not found");
+            auto vertex_offset = sc.meta().find<IndexT>(builtin::backend_fem_vertex_offset);
+            UIPC_ASSERT(vertex_offset, "`backend_fem_vertex_offset` attribute not found");
             current_vertex_offset = vertex_offset->view().front();
 
             auto is_constrained = sc.vertices().find<IndexT>(builtin::is_constrained);
-            UIPC_ASSERT(is_constrained,
-                        "`is_constrained` attribute not found");
+            UIPC_ASSERT(is_constrained, "`is_constrained` attribute not found");
             auto external_force = sc.vertices().find<Vector3>("external_force");
-            UIPC_ASSERT(external_force,
-                        "`external_force` attribute not found");
+            UIPC_ASSERT(external_force, "`external_force` attribute not found");
 
             return zip(is_constrained->view(), external_force->view());
         },
@@ -89,16 +84,14 @@ void FiniteElementExternalVertexForceConstraint::do_step(FiniteElementAnimator::
     m_impl.step(world(), info);
 }
 
-void FiniteElementExternalVertexForceConstraint::do_report_extent(
-    FiniteElementAnimator::ReportExtentInfo& info)
+void FiniteElementExternalVertexForceConstraint::do_report_extent(FiniteElementAnimator::ReportExtentInfo& info)
 {
     info.energy_count(0);
     info.gradient_count(0);
     info.hessian_count(0);
 }
 
-void FiniteElementExternalVertexForceConstraint::do_compute_energy(
-    FiniteElementAnimator::ComputeEnergyInfo& info)
+void FiniteElementExternalVertexForceConstraint::do_compute_energy(FiniteElementAnimator::ComputeEnergyInfo& info)
 {
 }
 

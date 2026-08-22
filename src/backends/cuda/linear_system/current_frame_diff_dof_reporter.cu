@@ -81,13 +81,8 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
         int n = A.triplet_count();
         if(n > 0)
         {
-            CurrentFrameDiffDofReporter_do_assemble_kernel<<<
-                cuda_tool::best_grid_dim(n,
-                                         CurrentFrameDiffDofReporter_do_assemble_kernel),
-                cuda_tool::best_block_dim(
-                    CurrentFrameDiffDofReporter_do_assemble_kernel),
-                0,
-                nullptr>>>(A.cviewer(), sub_H.viewer(), n);
+            CurrentFrameDiffDofReporter_do_assemble_kernel<<<cuda_tool::best_grid_dim(n, CurrentFrameDiffDofReporter_do_assemble_kernel), cuda_tool::best_block_dim(CurrentFrameDiffDofReporter_do_assemble_kernel), 0, nullptr>>>(
+                A.cviewer(), sub_H.viewer(), n);
         }
     }
 };

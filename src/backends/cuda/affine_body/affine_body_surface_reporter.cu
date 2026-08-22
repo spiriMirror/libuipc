@@ -195,17 +195,19 @@ void AffinebodySurfaceReporter::Impl::init(backend::WorldVisitor& world)
                                 geo_vertex_offset_in_global + i * body_vertex_count;
 
                             auto surf_e = span{surf_edges}.subspan(
-                                geo_surf_edges_offsets[geoI] + i * surf_edge_cache.size(),
+                                geo_surf_edges_offsets[geoI]
+                                    + i * surf_edge_cache.size(),
                                 surf_edge_cache.size());
 
-                            std::ranges::transform(surf_edge_cache,
-                                                   surf_e.begin(),
-                                                   [&](const IndexT& local_surf_edge_id) -> Vector2i
-                                                   {
-                                                       auto edge = Es[local_surf_edge_id];
-                                                       Vector2i ret = edge.array() + body_vertex_offset_in_global;
-                                                       return ret;
-                                                   });
+                            std::ranges::transform(
+                                surf_edge_cache,
+                                surf_e.begin(),
+                                [&](const IndexT& local_surf_edge_id) -> Vector2i
+                                {
+                                    auto edge = Es[local_surf_edge_id];
+                                    Vector2i ret = edge.array() + body_vertex_offset_in_global;
+                                    return ret;
+                                });
                         }
                     }
                 }
@@ -252,14 +254,15 @@ void AffinebodySurfaceReporter::Impl::init(backend::WorldVisitor& world)
                                     + i * surf_triangle_cache.size(),
                                 surf_triangle_cache.size());
 
-                            std::ranges::transform(surf_triangle_cache,
-                                                   surf_f.begin(),
-                                                   [&](const IndexT& local_surf_tri_id) -> Vector3i
-                                                   {
-                                                       auto tri = Fs[local_surf_tri_id];
-                                                       Vector3i ret = tri.array() + body_vertex_offset_in_global;
-                                                       return ret;
-                                                   });
+                            std::ranges::transform(
+                                surf_triangle_cache,
+                                surf_f.begin(),
+                                [&](const IndexT& local_surf_tri_id) -> Vector3i
+                                {
+                                    auto tri = Fs[local_surf_tri_id];
+                                    Vector3i ret = tri.array() + body_vertex_offset_in_global;
+                                    return ret;
+                                });
                         }
                     }
                 }

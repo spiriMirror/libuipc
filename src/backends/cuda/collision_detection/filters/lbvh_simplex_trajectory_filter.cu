@@ -101,10 +101,8 @@ namespace
             return;
         auto eI = Es(i);
 
-        Float thickness =
-            edge_thickness(thicknesses(eI[0]), thicknesses(eI[1]));
-        Float d_hat_expansion =
-            edge_dcd_expansion(d_hats(eI[0]), d_hats(eI[1]));
+        Float thickness = edge_thickness(thicknesses(eI[0]), thicknesses(eI[1]));
+        Float d_hat_expansion = edge_dcd_expansion(d_hats(eI[0]), d_hats(eI[1]));
 
         const auto& pos0   = Ps(eI[0]);
         const auto& pos1   = Ps(eI[1]);
@@ -143,11 +141,10 @@ namespace
             return;
         auto fI = Fs(i);
 
-        Float thickness = triangle_thickness(thicknesses(fI[0]),
-                                             thicknesses(fI[1]),
-                                             thicknesses(fI[2]));
-        Float d_hat_expansion = triangle_dcd_expansion(
-            d_hats(fI[0]), d_hats(fI[1]), d_hats(fI[2]));
+        Float thickness = triangle_thickness(
+            thicknesses(fI[0]), thicknesses(fI[1]), thicknesses(fI[2]));
+        Float d_hat_expansion =
+            triangle_dcd_expansion(d_hats(fI[0]), d_hats(fI[1]), d_hats(fI[2]));
 
         const auto& pos0   = Ps(fI[0]);
         const auto& pos1   = Ps(fI[1]);
@@ -222,7 +219,7 @@ namespace
             Vector3 dP1 = alpha * dxs(codimV);
 
             Float thickness = PP_thickness(thicknesses(V), thicknesses(codimV));
-            Float d_hat = PP_d_hat(d_hats(V), d_hats(codimV));
+            Float d_hat     = PP_d_hat(d_hats(V), d_hats(codimV));
 
             Float expand = d_hat + thickness;
 
@@ -235,19 +232,19 @@ namespace
 
     struct LBVHSimplexTrajectoryFilter_detect_CodimP_AllE_pred
     {
-        cuda_tool::CBufferView<IndexT>  codimVs;
+        cuda_tool::CBufferView<IndexT>   codimVs;
         cuda_tool::CBufferView<Vector2i> Es;
-        cuda_tool::CBufferView<Vector3> Ps;
-        cuda_tool::CBufferView<Vector3> dxs;
-        cuda_tool::CBufferView<Float>   thicknesses;
-        cuda_tool::CBufferView<IndexT>  contact_element_ids;
-        cuda_tool::CDense2D<IndexT>     contact_mask_tabular;
-        cuda_tool::CBufferView<IndexT>  subscene_element_ids;
-        cuda_tool::CDense2D<IndexT>     subscene_mask_tabular;
-        cuda_tool::CBufferView<IndexT>  v2b;
-        cuda_tool::CBufferView<IndexT>  body_self_collision;
-        cuda_tool::CBufferView<Float>   d_hats;
-        Float                           alpha;
+        cuda_tool::CBufferView<Vector3>  Ps;
+        cuda_tool::CBufferView<Vector3>  dxs;
+        cuda_tool::CBufferView<Float>    thicknesses;
+        cuda_tool::CBufferView<IndexT>   contact_element_ids;
+        cuda_tool::CDense2D<IndexT>      contact_mask_tabular;
+        cuda_tool::CBufferView<IndexT>   subscene_element_ids;
+        cuda_tool::CDense2D<IndexT>      subscene_mask_tabular;
+        cuda_tool::CBufferView<IndexT>   v2b;
+        cuda_tool::CBufferView<IndexT>   body_self_collision;
+        cuda_tool::CBufferView<Float>    d_hats;
+        Float                            alpha;
 
         __device__ bool operator()(IndexT i, IndexT j) const
         {
@@ -286,9 +283,8 @@ namespace
             Vector3 P  = Ps(codimV);
             Vector3 dP = alpha * dxs(codimV);
 
-            Float thickness = PE_thickness(thicknesses(codimV),
-                                           thicknesses(E[0]),
-                                           thicknesses(E[1]));
+            Float thickness =
+                PE_thickness(thicknesses(codimV), thicknesses(E[0]), thicknesses(E[1]));
             Float d_hat = PE_d_hat(d_hats(codimV), d_hats(E[0]), d_hats(E[1]));
 
             Float expand = d_hat + thickness;
@@ -438,8 +434,7 @@ namespace
                                            thicknesses(F[1]),
                                            thicknesses(F[2]));
 
-            Float d_hat =
-                PT_d_hat(d_hats(V), d_hats(F[0]), d_hats(F[1]), d_hats(F[2]));
+            Float d_hat = PT_d_hat(d_hats(V), d_hats(F[0]), d_hats(F[1]), d_hats(F[2]));
 
             Float expand = d_hat + thickness;
 
@@ -477,7 +472,7 @@ namespace
         const auto& V1 = positions(P1);
 
         Float thickness = PP_thickness(thicknesses(P0), thicknesses(P1));
-        Float d_hat = PP_d_hat(d_hats(P0), d_hats(P1));
+        Float d_hat     = PP_d_hat(d_hats(P0), d_hats(P1));
 
         Vector2 range = D_range(thickness, d_hat);
 
@@ -487,7 +482,8 @@ namespace
 
         UIPC_KERNEL_ASSERT(D > range.x(),
                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
-                           D, range.x());
+                           D,
+                           range.x());
         if(!is_active_D(range, D))
             return;  // early return
 
@@ -518,16 +514,15 @@ namespace
         Vector2i E       = surf_edges(indices(1));
 
         Vector3i vIs = {V, E(0), E(1)};
-        Vector3  Ps[] = {positions(vIs(0)), positions(vIs(1)), positions(vIs(2))};
+        Vector3 Ps[] = {positions(vIs(0)), positions(vIs(1)), positions(vIs(2))};
 
-        Float thickness = PE_thickness(
-            thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+        Float thickness =
+            PE_thickness(thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
 
         Float d_hat = PE_d_hat(d_hats(V), d_hats(E(0)), d_hats(E(1)));
 
 
-        Vector3i flag =
-            distance::point_edge_distance_flag(Ps[0], Ps[1], Ps[2]);
+        Vector3i flag = distance::point_edge_distance_flag(Ps[0], Ps[1], Ps[2]);
 
         Vector2 range = D_range(thickness, d_hat);
 
@@ -536,12 +531,13 @@ namespace
 
         UIPC_KERNEL_ASSERT(D > range.x(),
                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
-                           D, range.x());
+                           D,
+                           range.x());
         if(!is_active_D(range, D))
             return;  // early return
 
         Vector3i offsets;
-        auto dim = distance::degenerate_point_edge(flag, offsets);
+        auto     dim = distance::degenerate_point_edge(flag, offsets);
 
         switch(dim)
         {
@@ -591,18 +587,13 @@ namespace
         Vector3i F       = surf_triangles(indices(1));
 
         Vector4i vIs  = {V, F(0), F(1), F(2)};
-        Vector3  Ps[] = {positions(vIs(0)),
-                         positions(vIs(1)),
-                         positions(vIs(2)),
-                         positions(vIs(3))};
+        Vector3  Ps[] = {
+            positions(vIs(0)), positions(vIs(1)), positions(vIs(2)), positions(vIs(3))};
 
-        Float thickness = PT_thickness(thicknesses(V),
-                                       thicknesses(F(0)),
-                                       thicknesses(F(1)),
-                                       thicknesses(F(2)));
+        Float thickness = PT_thickness(
+            thicknesses(V), thicknesses(F(0)), thicknesses(F(1)), thicknesses(F(2)));
 
-        Float d_hat =
-            PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
+        Float d_hat = PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
 
         Vector4i flag =
             distance::point_triangle_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
@@ -617,12 +608,13 @@ namespace
 
         UIPC_KERNEL_ASSERT(D > range.x(),
                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
-                           D, range.x());
+                           D,
+                           range.x());
         if(!is_active_D(range, D))
             return;  // early return
 
         Vector4i offsets;
-        auto dim = distance::degenerate_point_triangle(flag, offsets);
+        auto     dim = distance::degenerate_point_triangle(flag, offsets);
 
         switch(dim)
         {
@@ -680,30 +672,28 @@ namespace
         Vector2i E1      = surf_edges(indices(1));
 
         Vector4i vIs  = {E0(0), E0(1), E1(0), E1(1)};
-        Vector3  Ps[] = {positions(vIs(0)),
-                         positions(vIs(1)),
-                         positions(vIs(2)),
-                         positions(vIs(3))};
+        Vector3  Ps[] = {
+            positions(vIs(0)), positions(vIs(1)), positions(vIs(2)), positions(vIs(3))};
 
         Float thickness = EE_thickness(thicknesses(E0(0)),
                                        thicknesses(E0(1)),
                                        thicknesses(E1(0)),
                                        thicknesses(E1(1)));
 
-        Float d_hat = EE_d_hat(
-            d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
+        Float d_hat =
+            EE_d_hat(d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
 
         Vector2 range = D_range(thickness, d_hat);
 
-        Vector4i flag =
-            distance::edge_edge_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
+        Vector4i flag = distance::edge_edge_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
 
         Float D;
         distance::edge_edge_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
         UIPC_KERNEL_ASSERT(D > range.x(),
                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
-                           D, range.x());
+                           D,
+                           range.x());
         if(!is_active_D(range, D))
             return;  // early return
 
@@ -723,7 +713,7 @@ namespace
         else  // classify to EE/PE/PP
         {
             Vector4i offsets;
-            auto dim = distance::degenerate_edge_edge(flag, offsets);
+            auto     dim = distance::degenerate_edge_edge(flag, offsets);
 
             switch(dim)
             {
@@ -807,7 +797,7 @@ namespace
         IndexT V1      = codim_vertices(indices(1));
 
         Float thickness = PP_thickness(thicknesses(V0), thicknesses(V1));
-        Float d_hat = PP_d_hat(d_hats(V0), d_hats(V1));
+        Float d_hat     = PP_d_hat(d_hats(V0), d_hats(V1));
 
         Vector3 VP0  = positions(V0);
         Vector3 VP1  = positions(V1);
@@ -816,8 +806,8 @@ namespace
 
         Float toi = large_enough_toi;
 
-        bool faraway = !distance::point_point_ccd_broadphase(
-            VP0, VP1, dVP0, dVP1, d_hat + thickness);
+        bool faraway =
+            !distance::point_point_ccd_broadphase(VP0, VP1, dVP0, dVP1, d_hat + thickness);
 
         if(faraway)
         {
@@ -825,8 +815,8 @@ namespace
             return;
         }
 
-        bool hit = distance::point_point_ccd(
-            VP0, VP1, dVP0, dVP1, eta, thickness, max_iter, toi);
+        bool hit =
+            distance::point_point_ccd(VP0, VP1, dVP0, dVP1, eta, thickness, max_iter, toi);
 
         if(!hit)
             toi = large_enough_toi;
@@ -853,8 +843,8 @@ namespace
         IndexT   V       = codim_vertices(indices(0));
         Vector2i E       = surf_edges(indices(1));
 
-        Float thickness = PE_thickness(
-            thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+        Float thickness =
+            PE_thickness(thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
         Float d_hat = PE_d_hat(d_hats(V), d_hats(E(0)), d_hats(E(1)));
 
         Vector3 VP  = Ps(V);
@@ -904,12 +894,9 @@ namespace
         IndexT   V       = surf_vertices(indices(0));
         Vector3i F       = surf_triangles(indices(1));
 
-        Float thickness = PT_thickness(thicknesses(V),
-                                       thicknesses(F(0)),
-                                       thicknesses(F(1)),
-                                       thicknesses(F(2)));
-        Float d_hat =
-            PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
+        Float thickness = PT_thickness(
+            thicknesses(V), thicknesses(F(0)), thicknesses(F(1)), thicknesses(F(2)));
+        Float d_hat = PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
 
         Vector3 VP  = Ps(V);
         Vector3 dVP = alpha * dxs(V);
@@ -966,8 +953,8 @@ namespace
                                        thicknesses(E1(0)),
                                        thicknesses(E1(1)));
 
-        Float d_hat = EE_d_hat(
-            d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
+        Float d_hat =
+            EE_d_hat(d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
 
 
         Vector3 EP0  = Ps(E0[0]);
@@ -1099,7 +1086,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     {
         codim_point_aabbs.resize(codimVs.size());
 
-        int n = static_cast<int>(codimVs.size());
+        int  n = static_cast<int>(codimVs.size());
         auto k = LBVHSimplexTrajectoryFilter_detect_k1_kernel;
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
             codimVs, Ps, dxs, codim_point_aabbs.view(), info.thicknesses(), info.d_hats(), alpha, n);
@@ -1147,24 +1134,23 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         {
             lbvh_CodimP.build(codim_point_aabbs);
 
-            lbvh_CodimP.query(
-                point_aabbs,  // AllP
-                LBVHSimplexTrajectoryFilter_detect_AllP_CodimP_pred{
-                    Vs,      // AllP
-                    codimVs,  // CodimP
-                    Ps,
-                    dxs,
-                    info.thicknesses(),
-                    info.dimensions(),
-                    info.contact_element_ids(),
-                    info.contact_mask_tabular().viewer(),
-                    info.subscene_element_ids(),
-                    info.subscene_mask_tabular().viewer(),
-                    info.v2b(),
-                    info.body_self_collision(),
-                    info.d_hats(),
-                    alpha},
-                candidate_AllP_CodimP_pairs);
+            lbvh_CodimP.query(point_aabbs,  // AllP
+                              LBVHSimplexTrajectoryFilter_detect_AllP_CodimP_pred{
+                                  Vs,       // AllP
+                                  codimVs,  // CodimP
+                                  Ps,
+                                  dxs,
+                                  info.thicknesses(),
+                                  info.dimensions(),
+                                  info.contact_element_ids(),
+                                  info.contact_mask_tabular().viewer(),
+                                  info.subscene_element_ids(),
+                                  info.subscene_mask_tabular().viewer(),
+                                  info.v2b(),
+                                  info.body_self_collision(),
+                                  info.d_hats(),
+                                  alpha},
+                              candidate_AllP_CodimP_pairs);
         }
 
         // Use CodimP to query AllE
@@ -1191,20 +1177,21 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
     // Use AllE to query AllE
     {
-        lbvh_E.detect(LBVHSimplexTrajectoryFilter_detect_AllE_AllE_pred{
-                          Es,
-                          Ps,
-                          dxs,
-                          info.thicknesses(),
-                          info.contact_element_ids(),
-                          info.contact_mask_tabular().viewer(),
-                          info.subscene_element_ids(),
-                          info.subscene_mask_tabular().viewer(),
-                          info.v2b(),
-                          info.body_self_collision(),
-                          info.d_hats(),
-                          alpha},
-                      candidate_AllE_AllE_pairs);
+        lbvh_E.detect(
+            LBVHSimplexTrajectoryFilter_detect_AllE_AllE_pred{
+                Es,
+                Ps,
+                dxs,
+                info.thicknesses(),
+                info.contact_element_ids(),
+                info.contact_mask_tabular().viewer(),
+                info.subscene_element_ids(),
+                info.subscene_mask_tabular().viewer(),
+                info.v2b(),
+                info.body_self_collision(),
+                info.d_hats(),
+                alpha},
+            candidate_AllE_AllE_pairs);
     }
 
     // Use AllP to query AllT
@@ -1256,7 +1243,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     {
         auto PP_view = temp_PPs.view(temp_PP_offset, N_PCoimP);
 
-        int n = static_cast<int>(candidate_AllP_CodimP_pairs.size());
+        int  n = static_cast<int>(candidate_AllP_CodimP_pairs.size());
         auto k = LBVHSimplexTrajectoryFilter_filter_active_k1_kernel;
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
             positions,
@@ -1276,7 +1263,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         auto PP_view = temp_PPs.view(temp_PP_offset, N_CodimPE);
         auto PE_view = temp_PEs.view(temp_PE_offset, N_CodimPE);
 
-        int n = static_cast<int>(candidate_CodimP_AllE_pairs.size());
+        int  n = static_cast<int>(candidate_CodimP_AllE_pairs.size());
         auto k = LBVHSimplexTrajectoryFilter_filter_active_k2_kernel;
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
             positions,

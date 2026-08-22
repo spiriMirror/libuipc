@@ -53,8 +53,7 @@ namespace
             return;
         if(*converged != 0)
             return;
-        z.segment<3>(i * 3).as_eigen() =
-            diag_inv(i) * r.segment<3>(i * 3).as_eigen();
+        z.segment<3>(i * 3).as_eigen() = diag_inv(i) * r.segment<3>(i * 3).as_eigen();
     }
 }  // namespace
 
@@ -111,11 +110,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         if(n > 0)
         {
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                info.A(),
-                diag_inv.view(),
-                info.dof_offset() / 3,
-                info.dof_count() / 3,
-                n);
+                info.A(), diag_inv.view(), info.dof_offset() / 3, info.dof_count() / 3, n);
         }
     }
 

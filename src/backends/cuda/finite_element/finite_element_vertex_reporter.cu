@@ -10,14 +10,14 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void FiniteElementVertexReporter_init_attributes_kernel(
-        cuda_tool::BufferView<IndexT>    coindices,
-        cuda_tool::CBufferView<Vector3>  src_pos,
-        cuda_tool::BufferView<Vector3>   dst_pos,
-        cuda_tool::CBufferView<Vector3>  src_rest_pos,
-        IndexT                           body_offset,
-        cuda_tool::BufferView<IndexT>    dst_body_ids,
-        cuda_tool::BufferView<Vector3>   dst_rest_pos,
-        int                              n)
+        cuda_tool::BufferView<IndexT>   coindices,
+        cuda_tool::CBufferView<Vector3> src_pos,
+        cuda_tool::BufferView<Vector3>  dst_pos,
+        cuda_tool::CBufferView<Vector3> src_rest_pos,
+        IndexT                          body_offset,
+        cuda_tool::BufferView<IndexT>   dst_body_ids,
+        cuda_tool::BufferView<Vector3>  dst_rest_pos,
+        int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

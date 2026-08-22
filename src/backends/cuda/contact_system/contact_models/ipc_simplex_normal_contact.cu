@@ -47,11 +47,10 @@ namespace
                                        thicknesses(PT(2)),
                                        thicknesses(PT(3)));
 
-        Float d_hat = PT_d_hat(
-            d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
+        Float d_hat =
+            PT_d_hat(d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
 
-        Vector4i flag =
-            distance::point_triangle_distance_flag(P, T0, T1, T2);
+        Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
 
         if constexpr(RUNTIME_CHECK)
         {
@@ -61,14 +60,14 @@ namespace
             Vector2 range = D_range(thickness, d_hat);
 
             UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                        "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                        PT(0),
-                        PT(1),
-                        PT(2),
-                        PT(3),
-                        D,
-                        range(0),
-                        range(1));
+                               "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                               PT(0),
+                               PT(1),
+                               PT(2),
+                               PT(3),
+                               D,
+                               range(0),
+                               range(1));
         }
 
         Es(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
@@ -114,8 +113,8 @@ namespace
                                        thicknesses(EE(2)),
                                        thicknesses(EE(3)));
 
-        Float d_hat = EE_d_hat(
-            d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
+        Float d_hat =
+            EE_d_hat(d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
 
         Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
 
@@ -125,14 +124,14 @@ namespace
             distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
             Vector2 range = D_range(thickness, d_hat);
             UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                        "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                        EE(0),
-                        EE(1),
-                        EE(2),
-                        EE(3),
-                        D,
-                        range(0),
-                        range(1));
+                               "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                               EE(0),
+                               EE(1),
+                               EE(2),
+                               EE(3),
+                               D,
+                               range(0),
+                               range(1));
         }
 
 
@@ -170,21 +169,17 @@ namespace
 
         Vector3i PE = PEs(i);
 
-        Vector3i cids = {contact_ids(PE[0]),
-                         contact_ids(PE[1]),
-                         contact_ids(PE[2])};
-        Float    kt2  = PE_kappa(table, cids) * dt * dt;
+        Vector3i cids = {contact_ids(PE[0]), contact_ids(PE[1]), contact_ids(PE[2])};
+        Float kt2 = PE_kappa(table, cids) * dt * dt;
 
         const auto& P  = Ps(PE[0]);
         const auto& E0 = Ps(PE[1]);
         const auto& E1 = Ps(PE[2]);
 
-        Float thickness = PE_thickness(thicknesses(PE(0)),
-                                       thicknesses(PE(1)),
-                                       thicknesses(PE(2)));
+        Float thickness =
+            PE_thickness(thicknesses(PE(0)), thicknesses(PE(1)), thicknesses(PE(2)));
 
-        Float d_hat =
-            PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
+        Float d_hat = PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
 
         Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
 
@@ -196,13 +191,13 @@ namespace
             Vector2 range = D_range(thickness, d_hat);
 
             UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                        "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                        PE(0),
-                        PE(1),
-                        PE(2),
-                        D,
-                        range(0),
-                        range(1));
+                               "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                               PE(0),
+                               PE(1),
+                               PE(2),
+                               D,
+                               range(0),
+                               range(1));
         }
 
         Es(i) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
@@ -232,8 +227,7 @@ namespace
         const auto& Pa = Ps(PP[0]);
         const auto& Pb = Ps(PP[1]);
 
-        Float thickness =
-            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
+        Float thickness = PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
 
         Float d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
 
@@ -247,12 +241,12 @@ namespace
             Vector2 range = D_range(thickness, d_hat);
 
             UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                        "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
-                        PP(0),
-                        PP(1),
-                        D,
-                        range(0),
-                        range(1));
+                               "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
+                               PP(0),
+                               PP(1),
+                               D,
+                               range(0),
+                               range(1));
         }
 
         Es(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
@@ -264,8 +258,8 @@ namespace
                                        cuda_tool::CBufferView<Vector3> Ps,
                                        cuda_tool::CBufferView<Vector3> rest_Ps,
                                        cuda_tool::CBufferView<Float> thicknesses,
-                                       cuda_tool::CBufferView<Float> d_hats,
-                                       Float dt,
+                                       cuda_tool::CBufferView<Float>    d_hats,
+                                       Float                            dt,
                                        cuda_tool::CBufferView<Vector4i> PTs,
                                        cuda_tool::DoubletVectorView<Float, 3> PT_Gs,
                                        cuda_tool::TripletMatrixView<Float, 3> PT_Hs,
@@ -308,10 +302,9 @@ namespace
                                            thicknesses(PT(1)),
                                            thicknesses(PT(2)),
                                            thicknesses(PT(3)));
-            Float d_hat     = PT_d_hat(
-                d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
-            Vector4i flag =
-                distance::point_triangle_distance_flag(P, T0, T1, T2);
+            Float d_hat =
+                PT_d_hat(d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
+            Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
 
             Vector12 G;
             if(gradient_only)
@@ -323,8 +316,7 @@ namespace
             else
             {
                 Matrix12x12 H;
-                PT_barrier_gradient_hessian(
-                    G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+                PT_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
                 make_spd(H);
                 DoubletVectorAssembler DVA{PT_Gs};
                 DVA.segment<4>(i * 4).write(PT, G);
@@ -355,8 +347,8 @@ namespace
                                            thicknesses(EE(1)),
                                            thicknesses(EE(2)),
                                            thicknesses(EE(3)));
-            Float d_hat     = EE_d_hat(
-                d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
+            Float d_hat =
+                EE_d_hat(d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
             Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
 
             Vector12 G;
@@ -381,22 +373,18 @@ namespace
         }
         else if(idx < pp_offset)  // PE
         {
-            int      i    = idx - pe_offset;
-            Vector3i PE   = PEs(i);
-            Vector3i cids = {contact_ids(PE[0]),
-                             contact_ids(PE[1]),
-                             contact_ids(PE[2])};
-            Float    kt2  = PE_kappa(table, cids) * dt * dt;
+            int      i  = idx - pe_offset;
+            Vector3i PE = PEs(i);
+            Vector3i cids = {contact_ids(PE[0]), contact_ids(PE[1]), contact_ids(PE[2])};
+            Float kt2 = PE_kappa(table, cids) * dt * dt;
 
             const auto& P  = Ps(PE[0]);
             const auto& E0 = Ps(PE[1]);
             const auto& E1 = Ps(PE[2]);
 
-            Float thickness = PE_thickness(thicknesses(PE(0)),
-                                           thicknesses(PE(1)),
-                                           thicknesses(PE(2)));
-            Float d_hat =
-                PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
+            Float thickness =
+                PE_thickness(thicknesses(PE(0)), thicknesses(PE(1)), thicknesses(PE(2)));
+            Float d_hat = PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
             Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
 
             Vector9 G;
@@ -409,8 +397,7 @@ namespace
             else
             {
                 Matrix9x9 H;
-                PE_barrier_gradient_hessian(
-                    G, H, flag, kt2, d_hat, thickness, P, E0, E1);
+                PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
                 make_spd(H);
                 DoubletVectorAssembler DVA{PE_Gs};
                 DVA.segment<3>(i * 3).write(PE, G);
@@ -420,18 +407,17 @@ namespace
         }
         else  // PP
         {
-            int         i  = idx - pp_offset;
-            const auto& PP = PPs(i);
-            Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
-            Float kt2 = PP_kappa(table, cids) * dt * dt;
+            int         i    = idx - pp_offset;
+            const auto& PP   = PPs(i);
+            Vector2i    cids = {contact_ids(PP[0]), contact_ids(PP[1])};
+            Float       kt2  = PP_kappa(table, cids) * dt * dt;
 
             const auto& P0 = Ps(PP[0]);
             const auto& P1 = Ps(PP[1]);
 
-            Float thickness =
-                PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
-            Float d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
-            Vector2i flag = distance::point_point_distance_flag(P0, P1);
+            Float thickness = PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
+            Float    d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
+            Vector2i flag  = distance::point_point_distance_flag(P0, P1);
 
             Vector6 G;
             if(gradient_only)
@@ -443,8 +429,7 @@ namespace
             else
             {
                 Matrix6x6 H;
-                PP_barrier_gradient_hessian(
-                    G, H, flag, kt2, d_hat, thickness, P0, P1);
+                PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
                 make_spd(H);
                 DoubletVectorAssembler DVA{PP_Gs};
                 DVA.segment<2>(i * 2).write(PP, G);
@@ -473,71 +458,59 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Point-Triangle energy
         auto PT_count = info.PTs().size();
         if(PT_count > 0)
-            do_compute_energy_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_count,
-                                                                   do_compute_energy_k1_kernel),
-                                          cuda_tool::best_block_dim(do_compute_energy_k1_kernel),
-                                          0,
-                                          nullptr>>>(info.contact_tabular().viewer(),
-                                                     info.contact_element_ids().viewer(),
-                                                     info.PTs().viewer(),
-                                                     info.PT_energies().viewer(),
-                                                     info.positions().viewer(),
-                                                     info.thicknesses().viewer(),
-                                                     info.d_hats().viewer(),
-                                                     info.dt(),
-                                                     (int)PT_count);
+            do_compute_energy_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_count, do_compute_energy_k1_kernel), cuda_tool::best_block_dim(do_compute_energy_k1_kernel), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.PTs().viewer(),
+                info.PT_energies().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.dt(),
+                (int)PT_count);
 
         // Compute Edge-Edge energy
         auto EE_count = info.EEs().size();
         if(EE_count > 0)
-            do_compute_energy_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_count,
-                                                                   do_compute_energy_k2_kernel),
-                                          cuda_tool::best_block_dim(do_compute_energy_k2_kernel),
-                                          0,
-                                          nullptr>>>(info.contact_tabular().viewer(),
-                                                     info.contact_element_ids().viewer(),
-                                                     info.EEs().viewer(),
-                                                     info.EE_energies().viewer(),
-                                                     info.positions().viewer(),
-                                                     info.thicknesses().viewer(),
-                                                     info.rest_positions().viewer(),
-                                                     info.d_hats().viewer(),
-                                                     info.dt(),
-                                                     (int)EE_count);
+            do_compute_energy_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_count, do_compute_energy_k2_kernel), cuda_tool::best_block_dim(do_compute_energy_k2_kernel), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.EEs().viewer(),
+                info.EE_energies().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.rest_positions().viewer(),
+                info.d_hats().viewer(),
+                info.dt(),
+                (int)EE_count);
 
         // Compute Point-Edge energy
         auto PE_count = info.PEs().size();
         if(PE_count > 0)
-            do_compute_energy_k3_kernel<<<cuda_tool::best_grid_dim((int)PE_count,
-                                                                   do_compute_energy_k3_kernel),
-                                          cuda_tool::best_block_dim(do_compute_energy_k3_kernel),
-                                          0,
-                                          nullptr>>>(info.contact_tabular().viewer(),
-                                                     info.contact_element_ids().viewer(),
-                                                     info.PEs().viewer(),
-                                                     info.PE_energies().viewer(),
-                                                     info.positions().viewer(),
-                                                     info.thicknesses().viewer(),
-                                                     info.d_hats().viewer(),
-                                                     info.dt(),
-                                                     (int)PE_count);
+            do_compute_energy_k3_kernel<<<cuda_tool::best_grid_dim((int)PE_count, do_compute_energy_k3_kernel), cuda_tool::best_block_dim(do_compute_energy_k3_kernel), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.PEs().viewer(),
+                info.PE_energies().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.dt(),
+                (int)PE_count);
 
         // Compute Point-Point energy
         auto PP_count = info.PPs().size();
         if(PP_count > 0)
-            do_compute_energy_k4_kernel<<<cuda_tool::best_grid_dim((int)PP_count,
-                                                                   do_compute_energy_k4_kernel),
-                                          cuda_tool::best_block_dim(do_compute_energy_k4_kernel),
-                                          0,
-                                          nullptr>>>(info.contact_tabular().viewer(),
-                                                     info.contact_element_ids().viewer(),
-                                                     info.PPs().viewer(),
-                                                     info.PP_energies().viewer(),
-                                                     info.positions().viewer(),
-                                                     info.thicknesses().viewer(),
-                                                     info.d_hats().viewer(),
-                                                     info.dt(),
-                                                     (int)PP_count);
+            do_compute_energy_k4_kernel<<<cuda_tool::best_grid_dim((int)PP_count, do_compute_energy_k4_kernel), cuda_tool::best_block_dim(do_compute_energy_k4_kernel), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.PPs().viewer(),
+                info.PP_energies().viewer(),
+                info.positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.dt(),
+                (int)PP_count);
     }
 
     virtual void do_assemble(ContactInfo& info) override
@@ -561,38 +534,36 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         IndexT pe_offset = ee_offset + ee_count;
         IndexT pp_offset = pe_offset + pe_count;
 
-        do_assemble_kernel<<<cuda_tool::best_grid_dim(total, do_assemble_kernel),
-                             cuda_tool::best_block_dim(do_assemble_kernel),
-                             0,
-                             nullptr>>>(info.gradient_only(),
-                                        info.contact_tabular().viewer(),
-                                        info.contact_element_ids().viewer(),
-                                        info.positions().viewer(),
-                                        info.rest_positions().viewer(),
-                                        info.thicknesses().viewer(),
-                                        info.d_hats().viewer(),
-                                        info.dt(),
-                                        // PT
-                                        info.PTs().viewer(),
-                                        info.PT_gradients().viewer(),
-                                        info.PT_hessians().viewer(),
-                                        // EE
-                                        info.EEs().viewer(),
-                                        info.EE_gradients().viewer(),
-                                        info.EE_hessians().viewer(),
-                                        // PE
-                                        info.PEs().viewer(),
-                                        info.PE_gradients().viewer(),
-                                        info.PE_hessians().viewer(),
-                                        // PP
-                                        info.PPs().viewer(),
-                                        info.PP_gradients().viewer(),
-                                        info.PP_hessians().viewer(),
-                                        // offsets
-                                        ee_offset,
-                                        pe_offset,
-                                        pp_offset,
-                                        total);
+        do_assemble_kernel<<<cuda_tool::best_grid_dim(total, do_assemble_kernel), cuda_tool::best_block_dim(do_assemble_kernel), 0, nullptr>>>(
+            info.gradient_only(),
+            info.contact_tabular().viewer(),
+            info.contact_element_ids().viewer(),
+            info.positions().viewer(),
+            info.rest_positions().viewer(),
+            info.thicknesses().viewer(),
+            info.d_hats().viewer(),
+            info.dt(),
+            // PT
+            info.PTs().viewer(),
+            info.PT_gradients().viewer(),
+            info.PT_hessians().viewer(),
+            // EE
+            info.EEs().viewer(),
+            info.EE_gradients().viewer(),
+            info.EE_hessians().viewer(),
+            // PE
+            info.PEs().viewer(),
+            info.PE_gradients().viewer(),
+            info.PE_hessians().viewer(),
+            // PP
+            info.PPs().viewer(),
+            info.PP_gradients().viewer(),
+            info.PP_hessians().viewer(),
+            // offsets
+            ee_offset,
+            pe_offset,
+            pp_offset,
+            total);
     }
 };
 

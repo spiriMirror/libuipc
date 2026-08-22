@@ -16,15 +16,15 @@ namespace
     constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     __global__ void KirchhoffRodBending_do_compute_energy_kernel(
-        cuda_tool::BufferView<Vector3i>  hinges,
-        cuda_tool::BufferView<Float>     bending_stiffnesses,
-        cuda_tool::CBufferView<Float>    thicknesses,
-        cuda_tool::CBufferView<Vector3>  xs,
-        cuda_tool::CBufferView<Vector3>  x_bars,
-        cuda_tool::BufferView<Float>     energies,
-        Float                            dt,
-        Float                            Pi,
-        int                              n)
+        cuda_tool::BufferView<Vector3i> hinges,
+        cuda_tool::BufferView<Float>    bending_stiffnesses,
+        cuda_tool::CBufferView<Float>   thicknesses,
+        cuda_tool::CBufferView<Vector3> xs,
+        cuda_tool::CBufferView<Vector3> x_bars,
+        cuda_tool::BufferView<Float>    energies,
+        Float                           dt,
+        Float                           Pi,
+        int                             n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -32,7 +32,7 @@ namespace
         Vector3i hinge = hinges(I);
         Float    k     = bending_stiffnesses(I) * dt * dt;
         // thicknesses is indexed by global vertex id, not hinge id.
-        Float    r     = thicknesses(hinge[1]);
+        Float r = thicknesses(hinge[1]);
 
         Vector9 X;
         X.segment<3>(0) = xs(hinge[0]);
@@ -53,17 +53,17 @@ namespace
     }
 
     __global__ void KirchhoffRodBending_do_compute_gradient_hessian_kernel(
-        cuda_tool::BufferView<Vector3i>          hinges,
-        cuda_tool::BufferView<Float>             bending_stiffnesses,
-        cuda_tool::CBufferView<Float>            thicknesses,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Vector3>          x_bars,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        Float                                    dt,
-        Float                                    Pi,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::BufferView<Vector3i>        hinges,
+        cuda_tool::BufferView<Float>           bending_stiffnesses,
+        cuda_tool::CBufferView<Float>          thicknesses,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Vector3>        x_bars,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        Float                                  dt,
+        Float                                  Pi,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -71,7 +71,7 @@ namespace
         Vector3i hinge = hinges(I);
         Float    k     = bending_stiffnesses(I);
         // thicknesses is indexed by global vertex id, not hinge id.
-        Float    r     = thicknesses(hinge[1]);
+        Float r = thicknesses(hinge[1]);
 
         Vector9 X;
         X.segment<3>(0) = xs(hinge[0]);

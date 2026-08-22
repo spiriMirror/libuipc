@@ -19,7 +19,7 @@ void test_engine(std::string_view name)
     Engine engine{name, this_output_path};
     World  world{engine};
 
-    auto config                       = Scene::default_config();
+    auto config                      = Scene::default_config();
     config["sanity_check"]["enable"] = 0;
     Scene scene{config};
 
@@ -75,4 +75,3 @@ TEST_CASE("engine", "[world]")
 {
     test_engine("none");
 }
-

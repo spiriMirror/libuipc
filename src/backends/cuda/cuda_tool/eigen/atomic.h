@@ -32,7 +32,7 @@ UIPC_GENERIC Eigen::Matrix<T, M, N> atomic_add(Eigen::Map<Eigen::Matrix<T, M, N>
         {
             ret(i, j) = cuda_tool::atomic_add(&dst(i, j), src(i, j));
         }
-    
+
     return ret;
 }
 }  // namespace uipc::backend::cuda_tool::eigen

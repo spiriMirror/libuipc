@@ -39,7 +39,8 @@ namespace detail
         }
         else
         {
-            UIPC_KERNEL_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+            UIPC_KERNEL_ERROR_WITH_LOCATION(
+                "Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
         }
         return offsets;
     }
@@ -47,11 +48,11 @@ namespace detail
     inline UIPC_GENERIC Vector<IndexT, 3> pe_from_pt(const Vector<IndexT, 4>& flag)
     {
         UIPC_KERNEL_ASSERT(detail::active_count(flag) == 3,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 3> offsets;
         if(flag[0] == 0)
@@ -81,11 +82,11 @@ namespace detail
     inline UIPC_GENERIC Vector<IndexT, 2> pp_from_pt(const Vector<IndexT, 4>& flag)
     {
         UIPC_KERNEL_ASSERT(detail::active_count(flag) == 2,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 2> offsets;
         constexpr IndexT  N = 4;
@@ -108,11 +109,11 @@ namespace detail
     inline UIPC_GENERIC Vector<IndexT, 3> pe_from_ee(const Vector<IndexT, 4>& flag)
     {
         UIPC_KERNEL_ASSERT(detail::active_count(flag) == 3,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 3> offsets;  // [P, E0, E1]
         if(flag[0] == 0)
@@ -137,11 +138,11 @@ namespace detail
     inline UIPC_GENERIC Vector<IndexT, 2> pp_from_ee(const Vector<IndexT, 4>& flag)
     {
         UIPC_KERNEL_ASSERT(detail::active_count(flag) == 2,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 2> offsets;
         constexpr IndexT  N = 4;
@@ -284,7 +285,7 @@ UIPC_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
 
     basis.row(1)                        = basis.row(0).cross(nVec);
     Eigen::Matrix<T, 2, 2> basis_basisT = basis * basis.transpose();
-    auto                   invBasis     = cuda_tool::eigen::inverse(basis_basisT);
+    auto                   invBasis = cuda_tool::eigen::inverse(basis_basisT);
 
     param.col(0) = invBasis * (basis * (p - t0));
 
@@ -301,7 +302,7 @@ UIPC_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
         basis.row(1) = basis.row(0).cross(nVec);
 
         Eigen::Matrix<T, 2, 2> basis_basisT = basis * basis.transpose();
-        auto                   invBasis = cuda_tool::eigen::inverse(basis_basisT);
+        auto invBasis = cuda_tool::eigen::inverse(basis_basisT);
 
         param.col(1) = invBasis * (basis * (p - t1));
 

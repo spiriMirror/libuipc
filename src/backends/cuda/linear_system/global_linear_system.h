@@ -85,7 +85,7 @@ class GlobalLinearSystem : public SimSystem
       private:
         friend class Impl;
         cuda_tool::DenseVectorView<Float> m_gradients;
-        ComponentFlags               m_flags = ComponentFlags::All;
+        ComponentFlags                    m_flags = ComponentFlags::All;
     };
 
     class DiagInfo
@@ -108,7 +108,7 @@ class GlobalLinearSystem : public SimSystem
         DenseVectorView   m_gradients;
         bool              m_gradient_only   = false;
         ComponentFlags    m_component_flags = ComponentFlags::All;
-        Impl*             m_impl = nullptr;
+        Impl*             m_impl            = nullptr;
     };
 
     class OffDiagExtentInfo
@@ -188,16 +188,16 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        DenseVectorView  z() { return m_z; }
-        CDenseVectorView r() { return m_r; }
+        DenseVectorView             z() { return m_z; }
+        CDenseVectorView            r() { return m_r; }
         cuda_tool::CVarView<IndexT> converged() { return m_converged; }
 
       private:
         friend class Impl;
-        DenseVectorView  m_z;
-        CDenseVectorView m_r;
+        DenseVectorView             m_z;
+        CDenseVectorView            m_r;
         cuda_tool::CVarView<IndexT> m_converged;
-        Impl*            m_impl = nullptr;
+        Impl*                       m_impl = nullptr;
     };
 
     class AccuracyInfo
@@ -310,14 +310,17 @@ class GlobalLinearSystem : public SimSystem
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
 
-        bool initialized = false;
+        bool initialized  = false;
         bool empty_system = true;
 
         void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                   cuda_tool::CDenseVectorView<Float> r,
                                   cuda_tool::CVarView<IndexT>        converged);
 
-        void spmv(Float a, cuda_tool::CDenseVectorView<Float> x, Float b, cuda_tool::DenseVectorView<Float> y);
+        void spmv(Float                              a,
+                  cuda_tool::CDenseVectorView<Float> x,
+                  Float                              b,
+                  cuda_tool::DenseVectorView<Float>  y);
         void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                       cuda_tool::DenseVectorView<Float>  y,
                       cuda_tool::VarView<Float>          d_dot);

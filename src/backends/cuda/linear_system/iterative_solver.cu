@@ -12,15 +12,16 @@ void IterativeSolver::do_build()
     m_system->add_solver(this);
 }
 
-void IterativeSolver::spmv(Float                         a,
+void IterativeSolver::spmv(Float                              a,
                            cuda_tool::CDenseVectorView<Float> x,
-                           Float                         b,
+                           Float                              b,
                            cuda_tool::DenseVectorView<Float>  y)
 {
     m_system->m_impl.spmv(a, x, b, y);
 }
 
-void IterativeSolver::spmv(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y)
+void IterativeSolver::spmv(cuda_tool::CDenseVectorView<Float> x,
+                           cuda_tool::DenseVectorView<Float>  y)
 {
     spmv(1.0, x, 0.0, y);
 }
@@ -34,7 +35,7 @@ void IterativeSolver::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
 
 void IterativeSolver::apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                            cuda_tool::CDenseVectorView<Float> r,
-                                           cuda_tool::CVarView<IndexT>        converged)
+                                           cuda_tool::CVarView<IndexT> converged)
 {
     m_system->m_impl.apply_preconditioner(z, r, converged);
 }

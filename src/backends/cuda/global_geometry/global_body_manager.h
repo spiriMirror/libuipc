@@ -64,7 +64,8 @@ class GlobalBodyManager final : public SimSystem
         void rebuild();
 
         template <typename T>
-        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
+        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer,
+                                         SizeT index) const noexcept;
 
         cuda_tool::DeviceBuffer<IndexT> coindices;
         cuda_tool::DeviceBuffer<IndexT> self_collision;

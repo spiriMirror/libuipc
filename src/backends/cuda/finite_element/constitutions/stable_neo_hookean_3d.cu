@@ -54,17 +54,17 @@ namespace
     }
 
     __global__ void StableNeoHookean3D_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Float>            mus,
-        cuda_tool::CBufferView<Float>            lambdas,
-        cuda_tool::CBufferView<Vector4i>         indices,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Matrix3x3>        Dm_invs,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        cuda_tool::CBufferView<Float>            volumes,
-        Float                                    dt,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::CBufferView<Float>          mus,
+        cuda_tool::CBufferView<Float>          lambdas,
+        cuda_tool::CBufferView<Vector4i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Matrix3x3>      Dm_invs,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          volumes,
+        Float                                  dt,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -105,7 +105,7 @@ namespace
         SNH::ddEddVecF(ddEddF, mu, lambda, F);
         ddEddF *= Vdt2;
         make_spd(ddEddF);
-        Matrix12x12 H = dFdx.transpose() * ddEddF * dFdx;
+        Matrix12x12            H = dFdx.transpose() * ddEddF * dFdx;
         TripletMatrixAssembler TMA{H3x3s};
         TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
     }

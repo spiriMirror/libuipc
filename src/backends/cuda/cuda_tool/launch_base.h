@@ -26,14 +26,22 @@ class LaunchCore
         CUDA_TOOL_CHECK(cudaStreamAddCallback(
             m_stream,
             [](cudaStream_t s, cudaError_t e, void* user)
-            { (*static_cast<std::function<void(cudaStream_t, cudaError_t)>*>(user))(s, e); },
+            {
+                (*static_cast<std::function<void(cudaStream_t, cudaError_t)>*>(user))(s, e);
+            },
             const_cast<std::function<void(cudaStream_t, cudaError_t)>*>(&cb),
             0));
     }
 
-    static void wait_stream(cudaStream_t s) { CUDA_TOOL_CHECK(cudaStreamSynchronize(s)); }
+    static void wait_stream(cudaStream_t s)
+    {
+        CUDA_TOOL_CHECK(cudaStreamSynchronize(s));
+    }
     static void wait_device() { CUDA_TOOL_CHECK(cudaDeviceSynchronize()); }
-    static void wait_event(cudaEvent_t e) { CUDA_TOOL_CHECK(cudaEventSynchronize(e)); }
+    static void wait_event(cudaEvent_t e)
+    {
+        CUDA_TOOL_CHECK(cudaEventSynchronize(e));
+    }
 
   protected:
     void init_stream(cudaStream_t s) { m_stream = s; }
@@ -85,6 +93,12 @@ class LaunchBase : public LaunchCore
 };
 
 // free helpers matching muda's wait_device()/wait_stream()
-inline void wait_device() { LaunchCore::wait_device(); }
-inline void wait_stream(cudaStream_t s) { LaunchCore::wait_stream(s); }
+inline void wait_device()
+{
+    LaunchCore::wait_device();
+}
+inline void wait_stream(cudaStream_t s)
+{
+    LaunchCore::wait_stream(s);
+}
 }  // namespace uipc::backend::cuda_tool

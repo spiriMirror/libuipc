@@ -85,7 +85,7 @@ class InfoStacklessBVH
 
       public:
         friend class InfoStacklessBVH;
-        SizeT                            m_size = 0;
+        SizeT                                 m_size = 0;
         cuda_tool::DeviceBuffer<Vector2i>     m_pairs;
         cuda_tool::DeviceBuffer<unsigned int> m_queryMtCode;
         cuda_tool::DeviceVar<AABB>            m_querySceneBox;
@@ -125,9 +125,9 @@ class InfoStacklessBVH
                cuda_tool::CBufferView<IndexT>   query_BIDs,
                cuda_tool::CBufferView<IndexT>   query_CIDs,
                cuda_tool::CBuffer2DView<IndexT> cmts,
-               NodePred                    np,
-               LeafPred                    lp,
-               QueryBuffer&                qbuffer);
+               NodePred                         np,
+               LeafPred                         lp,
+               QueryBuffer&                     qbuffer);
 
     Config&       config() noexcept { return m_impl.config; }
     const Config& config() const noexcept { return m_impl.config; }
@@ -156,16 +156,16 @@ class InfoStacklessBVH
         // Pre-loads query bid/cid into shared memory before the traversal loop.
         // node_cull receives NodePredInfo with query_bid/query_cid from SMem.
         template <typename NodeCull, typename PairPred>
-        void stacklessSelf(NodeCull                   node_cull,
-                           PairPred                   pair_pred,
+        void stacklessSelf(NodeCull                        node_cull,
+                           PairPred                        pair_pred,
                            cuda_tool::VarView<int>         cpNum,
                            cuda_tool::BufferView<Vector2i> buffer);
 
         // Pre-loads query_bids/query_cids into shared memory before the traversal loop.
         // node_cull receives NodePredInfo with query_bid/query_cid from SMem.
         template <typename NodeCull, typename PairPred>
-        void stacklessOther(NodeCull                   node_cull,
-                            PairPred                   pair_pred,
+        void stacklessOther(NodeCull                        node_cull,
+                            PairPred                        pair_pred,
                             cuda_tool::CBufferView<AABB>    query_aabbs,
                             cuda_tool::CBufferView<IndexT>  query_bids,
                             cuda_tool::CBufferView<IndexT>  query_cids,
@@ -202,14 +202,14 @@ class InfoStacklessBVH
         cuda_tool::DeviceVector<IndexT>   int_bid;
         cuda_tool::DeviceVector<IndexT>   int_cid;
         cuda_tool::DeviceVector<Node>     nodes;
-        Config                       config;
+        Config                            config;
     };
 
   private:
     cuda_tool::CBufferView<AABB>   m_aabbs;
     cuda_tool::CBufferView<IndexT> m_BIDs;
     cuda_tool::CBufferView<IndexT> m_CIDs;
-    Impl                      m_impl;
+    Impl                           m_impl;
 };
 }  // namespace uipc::backend::cuda
 

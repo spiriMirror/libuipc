@@ -6,16 +6,16 @@ namespace uipc::backend::cuda
 namespace
 {
     __global__ void SoftPositionConstraint_do_compute_energy_kernel(
-        Float                            substep_ratio,
-        cuda_tool::BufferView<IndexT>    indices,
-        cuda_tool::CBufferView<Vector3>  xs,
-        cuda_tool::CBufferView<Vector3>  x_prevs,
-        cuda_tool::BufferView<Vector3>   aim_positions,
-        cuda_tool::BufferView<Float>     strength_ratio,
-        cuda_tool::CBufferView<Float>    masses,
-        cuda_tool::BufferView<Float>     energies,
-        cuda_tool::CBufferView<IndexT>   is_fixed,
-        int                              n)
+        Float                           substep_ratio,
+        cuda_tool::BufferView<IndexT>   indices,
+        cuda_tool::CBufferView<Vector3> xs,
+        cuda_tool::CBufferView<Vector3> x_prevs,
+        cuda_tool::BufferView<Vector3>  aim_positions,
+        cuda_tool::BufferView<Float>    strength_ratio,
+        cuda_tool::CBufferView<Float>   masses,
+        cuda_tool::BufferView<Float>    energies,
+        cuda_tool::CBufferView<IndexT>  is_fixed,
+        int                             n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -31,28 +31,28 @@ namespace
         {
             Vector3 x      = xs(i);
             Vector3 x_prev = x_prevs(i);
-            Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
-            Float   m  = masses(i);
-            Float   s  = strength_ratio(I);
-            Vector3 dx = x - aim_x;
+            Vector3 aim_x  = lerp(x_prev, aim_positions(I), substep_ratio);
+            Float   m      = masses(i);
+            Float   s      = strength_ratio(I);
+            Vector3 dx     = x - aim_x;
 
             E = 0.5 * s * m * dx.dot(dx);
         }
     }
 
     __global__ void SoftPositionConstraint_do_compute_gradient_hessian_kernel(
-        Float                                    substep_ratio,
-        cuda_tool::BufferView<IndexT>            indices,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Vector3>          x_prevs,
-        cuda_tool::BufferView<Vector3>           aim_positions,
-        cuda_tool::BufferView<Float>             strength_ratio,
-        cuda_tool::CBufferView<Float>            masses,
-        cuda_tool::DoubletVectorView<Float, 3>   gradients,
-        cuda_tool::TripletMatrixView<Float, 3>   hessians,
-        cuda_tool::CBufferView<IndexT>           is_fixed,
-        bool                                     gradient_only,
-        int                                      n)
+        Float                                  substep_ratio,
+        cuda_tool::BufferView<IndexT>          indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Vector3>        x_prevs,
+        cuda_tool::BufferView<Vector3>         aim_positions,
+        cuda_tool::BufferView<Float>           strength_ratio,
+        cuda_tool::CBufferView<Float>          masses,
+        cuda_tool::DoubletVectorView<Float, 3> gradients,
+        cuda_tool::TripletMatrixView<Float, 3> hessians,
+        cuda_tool::CBufferView<IndexT>         is_fixed,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -69,10 +69,10 @@ namespace
         {
             Vector3 x      = xs(i);
             Vector3 x_prev = x_prevs(i);
-            Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
-            m          = masses(i);
-            s          = strength_ratio(I);
-            Vector3 dx = x - aim_x;
+            Vector3 aim_x  = lerp(x_prev, aim_positions(I), substep_ratio);
+            m              = masses(i);
+            s              = strength_ratio(I);
+            Vector3 dx     = x - aim_x;
 
             G = s * m * dx;
         }

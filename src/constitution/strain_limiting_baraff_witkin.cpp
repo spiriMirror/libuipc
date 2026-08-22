@@ -37,8 +37,7 @@ void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
     //   shearStiff   = E_shear / (2*(1 + nu_shear))        [= mu_shear]
     // The backend membrane measure is the triangle AREA (no thickness), so
     // these attribute values are used literally as the effective stiffnesses.
-    Float stretch_stiff =
-        (stretch_moduli.lambda() + 2 * stretch_moduli.mu()) * thickness;
+    Float stretch_stiff = (stretch_moduli.lambda() + 2 * stretch_moduli.mu()) * thickness;
     Float shear_stiff = shear_moduli.mu();
 
     UIPC_ASSERT_THROW(sc.dim() == 2, "StrainLimitingBaraffWitkinShell only supports 2D simplicial complex");

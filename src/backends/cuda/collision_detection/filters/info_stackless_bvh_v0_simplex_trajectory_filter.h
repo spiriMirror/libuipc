@@ -24,10 +24,10 @@ class InfoStacklessBVHV0SimplexTrajectoryFilter final : public SimplexTrajectory
         *                   Broad Phase
         ****************************************************/
 
-        cuda_tool::DeviceBuffer<AABB> codim_point_aabbs;
-        cuda_tool::DeviceBuffer<AABB> point_aabbs;
-        cuda_tool::DeviceBuffer<AABB> edge_aabbs;
-        cuda_tool::DeviceBuffer<AABB> triangle_aabbs;
+        cuda_tool::DeviceBuffer<AABB>   codim_point_aabbs;
+        cuda_tool::DeviceBuffer<AABB>   point_aabbs;
+        cuda_tool::DeviceBuffer<AABB>   edge_aabbs;
+        cuda_tool::DeviceBuffer<AABB>   triangle_aabbs;
         cuda_tool::DeviceBuffer<IndexT> codim_point_bids;
         cuda_tool::DeviceBuffer<IndexT> point_bids;
         cuda_tool::DeviceBuffer<IndexT> edge_bids;
@@ -77,8 +77,8 @@ class InfoStacklessBVHV0SimplexTrajectoryFilter final : public SimplexTrajectory
 
     virtual cuda_tool::CBufferView<Vector2i> candidate_PTs() const noexcept override;
     virtual cuda_tool::CBufferView<Vector2i> candidate_EEs() const noexcept override;
-    virtual cuda_tool::CBufferView<Float>    toi_PTs() const noexcept override;
-    virtual cuda_tool::CBufferView<Float>    toi_EEs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_PTs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_EEs() const noexcept override;
 
   private:
     Impl m_impl;

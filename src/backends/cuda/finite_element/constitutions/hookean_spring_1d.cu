@@ -37,9 +37,8 @@ namespace
         for(int i = 0; i < 2; ++i)
             X.segment<3>(3 * i) = xs(idx(i));
 
-        Float L0 = rest_lengths(I);
-        Float r =
-            edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
+        Float L0    = rest_lengths(I);
+        Float r     = edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
         Float kappa = kappas(I);
 
         Float Vdt2 = L0 * r * r * Pi * dt * dt;
@@ -50,17 +49,17 @@ namespace
     }
 
     __global__ void HookeanSpring1D_do_compute_gradient_hessian_kernel(
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        cuda_tool::CBufferView<Float>            kappas,
-        cuda_tool::CBufferView<Float>            rest_lengths,
-        cuda_tool::CBufferView<Float>            thicknesses,
-        cuda_tool::CBufferView<Vector2i>         indices,
-        cuda_tool::CBufferView<Vector3>          xs,
-        Float                                    dt,
-        double                                   Pi,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          kappas,
+        cuda_tool::CBufferView<Float>          rest_lengths,
+        cuda_tool::CBufferView<Float>          thicknesses,
+        cuda_tool::CBufferView<Vector2i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        Float                                  dt,
+        double                                 Pi,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -70,9 +69,8 @@ namespace
         for(int i = 0; i < 2; ++i)
             X.segment<3>(3 * i) = xs(idx(i));
 
-        Float L0 = rest_lengths(I);
-        Float r =
-            edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
+        Float L0    = rest_lengths(I);
+        Float r     = edge_thickness(thicknesses(idx(0)), thicknesses(idx(1)));
         Float kappa = kappas(I);
 
         Float Vdt2 = L0 * r * r * Pi * dt * dt;
@@ -105,7 +103,7 @@ class HookeanSpring1D final : public Codim1DConstitution
 
     using Codim1DConstitution::Codim1DConstitution;
 
-    vector<Float>             h_kappas;
+    vector<Float>                  h_kappas;
     cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }

@@ -29,7 +29,7 @@ namespace
             const auto& q_tilde = q_tildes(i);
             const auto& M       = masses(i);
             const auto  dq      = q - q_tilde;
-            K = (0.5 * inv_beta) * dq.dot(M * dq);
+            K                   = (0.5 * inv_beta) * dq.dot(M * dq);
         }
     }
 

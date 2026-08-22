@@ -17,7 +17,7 @@ UIPC_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
 
 UIPC_GENERIC Matrix3x3 unflatten(const Vector9& v) noexcept
 {
-    Matrix3x3      A;
+    Matrix3x3    A;
     unsigned int index = 0;
     for(unsigned int j = 0; j < A.cols(); j++)
         for(unsigned int i = 0; i < A.rows(); i++, index++)
@@ -68,7 +68,7 @@ UIPC_GENERIC Matrix9x9 clamp_to_spd(const Matrix9x9& A) noexcept
 {
     // clamp directly
     Matrix9x9 Q;
-    Vector9 values;
+    Vector9   values;
     cuda_tool::eigen::evd(A, values, Q);
     for(int x = 0; x < 9; x++)
         values[x] = (values[x] > 0.0) ? values[x] : 0.0;
@@ -80,11 +80,11 @@ UIPC_GENERIC Matrix12x12 clamp_to_spd(const Matrix12x12& A) noexcept
 {
     // clamp directly
     Matrix12x12 Q;
-    Vector12 values;
+    Vector12    values;
     cuda_tool::eigen::evd(A, values, Q);
     for(int x = 0; x < 12; x++)
         values[x] = (values[x] > 0.0) ? values[x] : 0.0;
     Matrix12x12 B = Q * values.asDiagonal() * Q.transpose();
     return B;
 }
-}  // namespace apba
+}  // namespace uipc::backend::cuda

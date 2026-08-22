@@ -57,23 +57,23 @@ namespace
         Vector3 x2 = xs(stencil[2]);
         Vector3 x3 = xs(stencil[3]);
 
-        Float E = DSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
+        Float E     = DSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
         energies(I) = E * V_bar * dt * dt;
     }
 
     __global__ void DiscreteShellBending_do_compute_gradient_hessian_kernel(
-        cuda_tool::BufferView<Vector4i>          stencils,
-        cuda_tool::BufferView<Float>             bending_stiffnesses,
-        cuda_tool::BufferView<Float>             theta_bars,
-        cuda_tool::BufferView<Float>             h_bars,
-        cuda_tool::BufferView<Float>             V_bars,
-        cuda_tool::BufferView<Float>             L0s,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
-        cuda_tool::TripletMatrixView<Float, 3>   H3x3s,
-        Float                                    dt,
-        bool                                     gradient_only,
-        int                                      n)
+        cuda_tool::BufferView<Vector4i>        stencils,
+        cuda_tool::BufferView<Float>           bending_stiffnesses,
+        cuda_tool::BufferView<Float>           theta_bars,
+        cuda_tool::BufferView<Float>           h_bars,
+        cuda_tool::BufferView<Float>           V_bars,
+        cuda_tool::BufferView<Float>           L0s,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        Float                                  dt,
+        bool                                   gradient_only,
+        int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)

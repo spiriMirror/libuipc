@@ -77,9 +77,7 @@ class TripletMatrixViewT
       public:
         __host__ __device__ CTriplet read() && { return m_viewer.at(m_index); }
 
-        __host__ __device__ void write(int row_index,
-                                       int col_index,
-                                       const ValueT& block) &&
+        __host__ __device__ void write(int row_index, int col_index, const ValueT& block) &&
         {
             auto index = m_viewer.get_index(m_index);
             m_viewer.check_in_submatrix(row_index, col_index);
@@ -115,15 +113,15 @@ class TripletMatrixViewT
   public:
     __host__ __device__ TripletMatrixViewT() = default;
 
-    __host__ __device__ TripletMatrixViewT(int total_block_rows,
-                                           int total_block_cols,
-                                           int triplet_index_offset,
-                                           int triplet_count,
-                                           int total_triplet_count,
+    __host__ __device__ TripletMatrixViewT(int  total_block_rows,
+                                           int  total_block_cols,
+                                           int  triplet_index_offset,
+                                           int  triplet_count,
+                                           int  total_triplet_count,
                                            int2 submatrix_offset,
                                            int2 submatrix_extent,
-                                           auto_const_t<int>* row_indices,
-                                           auto_const_t<int>* col_indices,
+                                           auto_const_t<int>*    row_indices,
+                                           auto_const_t<int>*    col_indices,
                                            auto_const_t<ValueT>* values)
         : m_total_rows(total_block_rows)
         , m_total_cols(total_block_cols)
@@ -169,8 +167,8 @@ class TripletMatrixViewT
     __host__ __device__ TripletMatrixViewT(int total_block_rows,
                                            int total_block_cols,
                                            int total_triplet_count,
-                                           auto_const_t<int>*    block_row_indices,
-                                           auto_const_t<int>*    block_col_indices,
+                                           auto_const_t<int>* block_row_indices,
+                                           auto_const_t<int>* block_col_indices,
                                            auto_const_t<ValueT>* block_values)
         : TripletMatrixViewT(total_block_rows,
                              total_block_cols,
@@ -187,8 +185,7 @@ class TripletMatrixViewT
 
     // non-const -> const conversion
     template <bool OtherIsConst>
-    __host__ __device__ TripletMatrixViewT(
-        const TripletMatrixViewT<OtherIsConst, Ty, M, N>& other) noexcept
+    __host__ __device__ TripletMatrixViewT(const TripletMatrixViewT<OtherIsConst, Ty, M, N>& other) noexcept
         requires(IsConst)
         : m_total_rows(other.m_total_rows)
         , m_total_cols(other.m_total_cols)
@@ -282,7 +279,10 @@ class TripletMatrixViewT
     // viewers are the views themselves
     __host__ __device__ ThisView viewer() const noexcept { return *this; }
 
-    __host__ __device__ ConstView cviewer() const noexcept { return as_const(); }
+    __host__ __device__ ConstView cviewer() const noexcept
+    {
+        return as_const();
+    }
 
     __host__ __device__ int total_rows() const noexcept { return m_total_rows; }
     __host__ __device__ int total_cols() const noexcept { return m_total_cols; }
@@ -295,9 +295,15 @@ class TripletMatrixViewT
     {
         return m_submatrix_offset;
     }
-    __host__ __device__ int2 extent() const noexcept { return m_submatrix_extent; }
+    __host__ __device__ int2 extent() const noexcept
+    {
+        return m_submatrix_extent;
+    }
 
-    __host__ __device__ int triplet_count() const noexcept { return m_triplet_count; }
+    __host__ __device__ int triplet_count() const noexcept
+    {
+        return m_triplet_count;
+    }
     __host__ __device__ int tripet_index_offset() const noexcept
     {
         return m_triplet_index_offset;
@@ -326,9 +332,7 @@ class TripletMatrixViewT
     __host__ __device__ auto values() const noexcept
     {
         return std::conditional_t<IsConst, CBufferView<ValueT>, BufferView<ValueT>>{
-            m_values,
-            static_cast<size_t>(m_triplet_count),
-            static_cast<size_t>(m_triplet_index_offset)};
+            m_values, static_cast<size_t>(m_triplet_count), static_cast<size_t>(m_triplet_index_offset)};
     }
 
     // const view -> CTriplet (read); non-const view -> Proxy (read/write)
@@ -347,7 +351,7 @@ class TripletMatrixViewT
     // trivial stubs: backend assert messages reference these through the
     // viewer aliases; cuda_tool views do not track launch labels
     __host__ __device__ const char* kernel_file() const noexcept { return ""; }
-    __host__ __device__ int kernel_line() const noexcept { return 0; }
+    __host__ __device__ int         kernel_line() const noexcept { return 0; }
 
   protected:
     __host__ __device__ CTriplet at(int i) const noexcept
@@ -520,7 +524,7 @@ class DoubletVectorViewT
 
     __host__ __device__ DoubletVectorViewT(int total_segment_count,
                                            int total_doublet_count,
-                                           auto_const_t<int>*    segment_indices,
+                                           auto_const_t<int>* segment_indices,
                                            auto_const_t<ValueT>* segment_values)
         : DoubletVectorViewT(total_segment_count,
                              0,
@@ -535,8 +539,7 @@ class DoubletVectorViewT
 
     // non-const -> const conversion
     template <bool OtherIsConst>
-    __host__ __device__ DoubletVectorViewT(
-        const DoubletVectorViewT<OtherIsConst, T, N>& other) noexcept
+    __host__ __device__ DoubletVectorViewT(const DoubletVectorViewT<OtherIsConst, T, N>& other) noexcept
         requires(IsConst)
         : m_total_segment_count(other.m_total_segment_count)
         , m_doublet_index_offset(other.m_doublet_index_offset)
@@ -608,9 +611,15 @@ class DoubletVectorViewT
     // viewers are the views themselves
     __host__ __device__ ThisView viewer() const noexcept { return *this; }
 
-    __host__ __device__ ConstView cviewer() const noexcept { return as_const(); }
+    __host__ __device__ ConstView cviewer() const noexcept
+    {
+        return as_const();
+    }
 
-    __host__ __device__ int extent() const noexcept { return m_subvector_extent; }
+    __host__ __device__ int extent() const noexcept
+    {
+        return m_subvector_extent;
+    }
 
     __host__ __device__ int total_extent() const noexcept
     {
@@ -622,7 +631,10 @@ class DoubletVectorViewT
         return m_subvector_offset;
     }
 
-    __host__ __device__ int doublet_count() const noexcept { return m_doublet_count; }
+    __host__ __device__ int doublet_count() const noexcept
+    {
+        return m_doublet_count;
+    }
 
     __host__ __device__ int total_doublet_count() const noexcept
     {
@@ -640,9 +652,7 @@ class DoubletVectorViewT
     __host__ __device__ auto values() const noexcept
     {
         return std::conditional_t<IsConst, CBufferView<ValueT>, BufferView<ValueT>>{
-            m_values,
-            static_cast<size_t>(m_doublet_count),
-            static_cast<size_t>(m_doublet_index_offset)};
+            m_values, static_cast<size_t>(m_doublet_count), static_cast<size_t>(m_doublet_index_offset)};
     }
 
     // const view -> CDoublet (read); non-const view -> Proxy (read/write)
@@ -661,7 +671,7 @@ class DoubletVectorViewT
     // trivial stubs: backend assert messages reference these through the
     // viewer aliases; cuda_tool views do not track launch labels
     __host__ __device__ const char* kernel_file() const noexcept { return ""; }
-    __host__ __device__ int kernel_line() const noexcept { return 0; }
+    __host__ __device__ int         kernel_line() const noexcept { return 0; }
 
   protected:
     __host__ __device__ CDoublet at(int i) const noexcept
@@ -751,10 +761,7 @@ class DenseVectorViewT
   public:
     __host__ __device__ DenseVectorViewT() = default;
 
-    __host__ __device__ DenseVectorViewT(auto_const_t<T>* data,
-                                         int              offset,
-                                         int              size,
-                                         int              origin_size)
+    __host__ __device__ DenseVectorViewT(auto_const_t<T>* data, int offset, int size, int origin_size)
         : m_data(data)
         , m_offset(offset)
         , m_size(size)
@@ -782,13 +789,14 @@ class DenseVectorViewT
     // viewers are the views themselves
     __host__ __device__ ThisView viewer() const noexcept { return *this; }
 
-    __host__ __device__ ConstView cviewer() const noexcept { return as_const(); }
+    __host__ __device__ ConstView cviewer() const noexcept
+    {
+        return as_const();
+    }
 
     __host__ __device__ ThisBufferView buffer_view() const noexcept
     {
-        return ThisBufferView{m_data,
-                              static_cast<size_t>(m_size),
-                              static_cast<size_t>(m_offset)};
+        return ThisBufferView{m_data, static_cast<size_t>(m_size), static_cast<size_t>(m_offset)};
     }
 
     __host__ __device__ auto_const_t<T>* data() const noexcept
@@ -796,13 +804,19 @@ class DenseVectorViewT
         return m_data + m_offset;
     }
 
-    __host__ __device__ auto_const_t<T>* origin_data() const noexcept { return m_data; }
+    __host__ __device__ auto_const_t<T>* origin_data() const noexcept
+    {
+        return m_data;
+    }
 
     __host__ __device__ int offset() const noexcept { return m_offset; }
 
     __host__ __device__ int size() const noexcept { return m_size; }
 
-    __host__ __device__ int origin_size() const noexcept { return m_origin_size; }
+    __host__ __device__ int origin_size() const noexcept
+    {
+        return m_origin_size;
+    }
 
     __host__ __device__ ThisView subview(int offset, int size) const
     {
@@ -863,7 +877,8 @@ class DenseVectorViewT
     }
 
     // device-side atomic add (non-const views only); returns the old value
-    __device__ T atomic_add(int i, T val) const requires(!IsConst)
+    __device__ T atomic_add(int i, T val) const
+        requires(!IsConst)
     {
         return cuda_tool::atomic_add(&this->operator()(i), val);
     }
@@ -883,11 +898,10 @@ class DenseVectorViewT
         return ret;
     }
 
-    __device__ T atomic_add(const T& val) const requires(!IsConst)
+    __device__ T atomic_add(const T& val) const
+        requires(!IsConst)
     {
-        UIPC_KERNEL_ASSERT(m_size == 1,
-                           "DenseVectorView: size mismatch, size=%d, expected 1",
-                           m_size);
+        UIPC_KERNEL_ASSERT(m_size == 1, "DenseVectorView: size mismatch, size=%d, expected 1", m_size);
         return atomic_add(0, val);
     }
 };

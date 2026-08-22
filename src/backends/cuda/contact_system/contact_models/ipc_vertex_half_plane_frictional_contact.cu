@@ -24,8 +24,8 @@ namespace
                                              Float eps_v,
                                              cuda_tool::CBufferView<Float> d_hats,
                                              IndexT half_plane_vertex_offset,
-                                             Float dt,
-                                             int   n)
+                                             Float  dt,
+                                             int    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -52,8 +52,7 @@ namespace
 
         Float thickness = thicknesses(vI);
 
-        Es(I) = PH_friction_energy(
-            kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+        Es(I) = PH_friction_energy(kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
     }
 
     __global__ void do_assemble_kernel(bool gradient_only,
@@ -67,11 +66,11 @@ namespace
                                        cuda_tool::CBufferView<Vector3> Ps,
                                        cuda_tool::CBufferView<Vector3> prev_Ps,
                                        cuda_tool::CBufferView<Float> thicknesses,
-                                       Float eps_v,
+                                       Float                         eps_v,
                                        cuda_tool::CBufferView<Float> d_hats,
                                        IndexT half_plane_vertex_offset,
-                                       Float dt,
-                                       int   n)
+                                       Float  dt,
+                                       int    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -101,8 +100,7 @@ namespace
         Vector3 G;
         if(gradient_only)
         {
-            PH_friction_gradient(
-                G, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+            PH_friction_gradient(G, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
             Grad(I).write(vI, G);
         }
         else
@@ -134,24 +132,24 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
         using namespace sym::ipc_vertex_half_contact;
 
         if(info.friction_PHs().size() > 0)
-            do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)info.friction_PHs().size(),
-                                                                do_compute_energy_kernel),
-                                       cuda_tool::best_block_dim(do_compute_energy_kernel),
-                                       0,
-                                       nullptr>>>(info.energies().viewer(),
-                                                  info.friction_PHs().viewer(),
-                                                  half_plane->positions().viewer(),
-                                                  half_plane->normals().viewer(),
-                                                  info.contact_tabular().viewer(),
-                                                  info.contact_element_ids().viewer(),
-                                                  info.positions().viewer(),
-                                                  info.prev_positions().viewer(),
-                                                  info.thicknesses().viewer(),
-                                                  info.eps_velocity(),
-                                                  info.d_hats().viewer(),
-                                                  info.half_plane_vertex_offset(),
-                                                  info.dt(),
-                                                  (int)info.friction_PHs().size());
+            do_compute_energy_kernel<<<
+                cuda_tool::best_grid_dim((int)info.friction_PHs().size(), do_compute_energy_kernel),
+                cuda_tool::best_block_dim(do_compute_energy_kernel),
+                0,
+                nullptr>>>(info.energies().viewer(),
+                           info.friction_PHs().viewer(),
+                           half_plane->positions().viewer(),
+                           half_plane->normals().viewer(),
+                           info.contact_tabular().viewer(),
+                           info.contact_element_ids().viewer(),
+                           info.positions().viewer(),
+                           info.prev_positions().viewer(),
+                           info.thicknesses().viewer(),
+                           info.eps_velocity(),
+                           info.d_hats().viewer(),
+                           info.half_plane_vertex_offset(),
+                           info.dt(),
+                           (int)info.friction_PHs().size());
     }
 
     virtual void do_assemble(ContactInfo& info) override
@@ -161,8 +159,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
         if(info.friction_PHs().size())
         {
-            do_assemble_kernel<<<cuda_tool::best_grid_dim((int)info.friction_PHs().size(),
-                                                          do_assemble_kernel),
+            do_assemble_kernel<<<cuda_tool::best_grid_dim(
+                                     (int)info.friction_PHs().size(), do_assemble_kernel),
                                  cuda_tool::best_block_dim(do_assemble_kernel),
                                  0,
                                  nullptr>>>(info.gradient_only(),

@@ -30,8 +30,7 @@ namespace
             return;
         Vector2i bids  = body_ids(I);
         Float    kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -82,8 +81,7 @@ namespace
             return;
         Vector2i bids  = body_ids(I);
         Float    kappa = strength_ratio(I)
-                      * (body_masses(bids(0)).mass()
-                         + body_masses(bids(1)).mass());
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
@@ -128,10 +126,7 @@ namespace
         FJ::dEdFt(dEdFt_val, kappa, Ft_val);
 
         Vector24 JtT_Gt_val;
-        FJ::JtT_Gt<Float>(JtT_Gt_val,
-                          dEdFt_val,
-                          rest_c.segment<3>(0),
-                          rest_c.segment<3>(3));
+        FJ::JtT_Gt<Float>(JtT_Gt_val, dEdFt_val, rest_c.segment<3>(0), rest_c.segment<3>(3));
 
         Vector24               G = JrT_Gr_val + JtT_Gt_val;
         DoubletVectorAssembler DVA{G12s};
@@ -161,12 +156,10 @@ namespace
             make_spd(ddEdFt_val);
 
             Matrix24x24 JtT_Ht_Jt_val;
-            FJ::JtT_Ht_Jt<Float>(JtT_Ht_Jt_val,
-                                 ddEdFt_val,
-                                 rest_c.segment<3>(0),
-                                 rest_c.segment<3>(3));
+            FJ::JtT_Ht_Jt<Float>(
+                JtT_Ht_Jt_val, ddEdFt_val, rest_c.segment<3>(0), rest_c.segment<3>(3));
 
-            Matrix24x24 H = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
+            Matrix24x24            H = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
             TripletMatrixAssembler TMA{H12x12s};
             TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
         }
@@ -221,13 +214,13 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
             {
                 auto sc = geo.as<geometry::SimplicialComplex>();
 
-                auto l_geo_id = sc->vertices().find<IndexT>("l_geo_id");
-                auto l_geo_id_view = l_geo_id->view();
-                auto r_geo_id = sc->vertices().find<IndexT>("r_geo_id");
-                auto r_geo_id_view = r_geo_id->view();
-                auto l_inst_id = sc->vertices().find<IndexT>("l_inst_id");
+                auto l_geo_id       = sc->vertices().find<IndexT>("l_geo_id");
+                auto l_geo_id_view  = l_geo_id->view();
+                auto r_geo_id       = sc->vertices().find<IndexT>("r_geo_id");
+                auto r_geo_id_view  = r_geo_id->view();
+                auto l_inst_id      = sc->vertices().find<IndexT>("l_inst_id");
                 auto l_inst_id_view = l_inst_id->view();
-                auto r_inst_id = sc->vertices().find<IndexT>("r_inst_id");
+                auto r_inst_id      = sc->vertices().find<IndexT>("r_inst_id");
                 auto r_inst_id_view = r_inst_id->view();
                 auto strength_ratio_view =
                     sc->vertices().find<Float>("strength_ratio")->view();
@@ -236,7 +229,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                 auto pos1_attr = sc->vertices().find<Vector3>("r_position");
                 const bool use_local_positions = pos0_attr && pos1_attr;
 
-                auto Ps = sc->positions().view();
+                auto        Ps       = sc->positions().view();
                 const SizeT n_joints = sc->vertices().size();
                 for(SizeT i = 0; i < n_joints; ++i)
                 {
@@ -248,10 +241,8 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                     body_ids_list.push_back({info.body_id(l_gid, l_iid),
                                              info.body_id(r_gid, r_iid)});
 
-                    Transform LT{
-                        info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
-                    Transform RT{
-                        info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
+                    Transform LT{info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
+                    Transform RT{info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
 
                     // rest_cs: matching attachment points in each body's local frame
                     Vector6 rest_c;
@@ -262,7 +253,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                     }
                     else
                     {
-                        Vector3 mid_point = Ps[i];
+                        Vector3 mid_point    = Ps[i];
                         rest_c.segment<3>(0) = LT.inverse() * mid_point;
                         rest_c.segment<3>(3) = RT.inverse() * mid_point;
                     }

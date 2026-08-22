@@ -22,7 +22,7 @@ class DyTopoEffectLineSearchReporter final : public LineSearchReporter
 
         cuda_tool::DeviceVar<Float>    energy;
         cuda_tool::DeviceBuffer<Float> energies;
-        Float                     reserve_ratio = 1.5;
+        Float                          reserve_ratio = 1.5;
 
         template <typename T>
         void loose_resize(cuda_tool::DeviceBuffer<T>& buffer, SizeT size)

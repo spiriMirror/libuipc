@@ -61,42 +61,62 @@ void DistanceDiagnoserFeatureOverrider::do_compute_point_point_distance(
 void DistanceDiagnoser::do_build()
 {
     auto overrider = std::make_shared<DistanceDiagnoserFeatureOverrider>(this);
-    auto feature   = std::make_shared<core::DistanceDiagnoserFeature>(overrider);
+    auto feature = std::make_shared<core::DistanceDiagnoserFeature>(overrider);
     features().insert(feature);
 }
 
 namespace detail
 {
     template <typename T>
-    UIPC_GENERIC void point_triangle_closest_point_coord(
-        const Vector4i&            flag,
-        const Eigen::Vector<T, 3>& p,
-        const Eigen::Vector<T, 3>& t0,
-        const Eigen::Vector<T, 3>& t1,
-        const Eigen::Vector<T, 3>& t2,
-        Eigen::Vector<T, 4>&       coord)
+    UIPC_GENERIC void point_triangle_closest_point_coord(const Vector4i& flag,
+                                                         const Eigen::Vector<T, 3>& p,
+                                                         const Eigen::Vector<T, 3>& t0,
+                                                         const Eigen::Vector<T, 3>& t1,
+                                                         const Eigen::Vector<T, 3>& t2,
+                                                         Eigen::Vector<T, 4>& coord)
     {
         coord.setZero();
         IndexT dim = distance::detail::active_count(flag);
 
         if(dim == 2)
         {
-            if(flag[1]) coord[1] = T(1);
-            else if(flag[2]) coord[2] = T(1);
-            else if(flag[3]) coord[3] = T(1);
+            if(flag[1])
+                coord[1] = T(1);
+            else if(flag[2])
+                coord[2] = T(1);
+            else if(flag[3])
+                coord[3] = T(1);
         }
         else if(dim == 3)
         {
             Eigen::Vector<T, 3> e0, e1;
-            IndexT idx0 = -1;
-            IndexT idx1 = -1;
-            if(flag[1] && flag[2])      { e0 = t0; e1 = t1; idx0 = 1; idx1 = 2; }
-            else if(flag[2] && flag[3]) { e0 = t1; e1 = t2; idx0 = 2; idx1 = 3; }
-            else if(flag[3] && flag[1]) { e0 = t2; e1 = t0; idx0 = 3; idx1 = 1; }
+            IndexT              idx0 = -1;
+            IndexT              idx1 = -1;
+            if(flag[1] && flag[2])
+            {
+                e0   = t0;
+                e1   = t1;
+                idx0 = 1;
+                idx1 = 2;
+            }
+            else if(flag[2] && flag[3])
+            {
+                e0   = t1;
+                e1   = t2;
+                idx0 = 2;
+                idx1 = 3;
+            }
+            else if(flag[3] && flag[1])
+            {
+                e0   = t2;
+                e1   = t0;
+                idx0 = 3;
+                idx1 = 1;
+            }
 
-            Eigen::Vector<T, 3> edge = e1 - e0;
-            T len2 = edge.squaredNorm();
-            T t_param = T(0);
+            Eigen::Vector<T, 3> edge    = e1 - e0;
+            T                   len2    = edge.squaredNorm();
+            T                   t_param = T(0);
             if(len2 > T(0))
                 t_param = (p - e0).dot(edge) / len2;
             t_param = max(T(0), min(T(1), t_param));
@@ -117,9 +137,9 @@ namespace detail
             T d21 = v2.dot(v1);
 
             T denom = d00 * d11 - d01 * d01;
-            T v = (d11 * d20 - d01 * d21) / denom;
-            T w = (d00 * d21 - d01 * d20) / denom;
-            T u = T(1) - v - w;
+            T v     = (d11 * d20 - d01 * d21) / denom;
+            T w     = (d00 * d21 - d01 * d20) / denom;
+            T u     = T(1) - v - w;
 
             coord[1] = u;
             coord[2] = v;
@@ -128,62 +148,77 @@ namespace detail
     }
 
     template <typename T>
-    UIPC_GENERIC void edge_edge_closest_point_coord(
-        const Vector4i&            flag,
-        const Eigen::Vector<T, 3>& ea0,
-        const Eigen::Vector<T, 3>& ea1,
-        const Eigen::Vector<T, 3>& eb0,
-        const Eigen::Vector<T, 3>& eb1,
-        Eigen::Vector<T, 4>&       coord)
+    UIPC_GENERIC void edge_edge_closest_point_coord(const Vector4i& flag,
+                                                    const Eigen::Vector<T, 3>& ea0,
+                                                    const Eigen::Vector<T, 3>& ea1,
+                                                    const Eigen::Vector<T, 3>& eb0,
+                                                    const Eigen::Vector<T, 3>& eb1,
+                                                    Eigen::Vector<T, 4>& coord)
     {
         coord.setZero();
         IndexT dim = distance::detail::active_count(flag);
 
         if(dim == 2)
         {
-            if(flag[0]) coord[0] = T(1);
-            else        coord[1] = T(1);
+            if(flag[0])
+                coord[0] = T(1);
+            else
+                coord[1] = T(1);
 
-            if(flag[2]) coord[2] = T(1);
-            else        coord[3] = T(1);
+            if(flag[2])
+                coord[2] = T(1);
+            else
+                coord[3] = T(1);
         }
         else if(dim == 3)
         {
             Eigen::Vector<T, 3> point, e0, e1;
-            IndexT pt_idx = -1;
-            IndexT e0_idx = -1;
-            IndexT e1_idx = -1;
+            IndexT              pt_idx = -1;
+            IndexT              e0_idx = -1;
+            IndexT              e1_idx = -1;
 
             if(!flag[0])
             {
-                point = ea1; pt_idx = 1;
-                e0 = eb0; e0_idx = 2;
-                e1 = eb1; e1_idx = 3;
+                point  = ea1;
+                pt_idx = 1;
+                e0     = eb0;
+                e0_idx = 2;
+                e1     = eb1;
+                e1_idx = 3;
             }
             else if(!flag[1])
             {
-                point = ea0; pt_idx = 0;
-                e0 = eb0; e0_idx = 2;
-                e1 = eb1; e1_idx = 3;
+                point  = ea0;
+                pt_idx = 0;
+                e0     = eb0;
+                e0_idx = 2;
+                e1     = eb1;
+                e1_idx = 3;
             }
             else if(!flag[2])
             {
-                point = eb1; pt_idx = 3;
-                e0 = ea0; e0_idx = 0;
-                e1 = ea1; e1_idx = 1;
+                point  = eb1;
+                pt_idx = 3;
+                e0     = ea0;
+                e0_idx = 0;
+                e1     = ea1;
+                e1_idx = 1;
             }
             else
             {
-                point = eb0; pt_idx = 2;
-                e0 = ea0; e0_idx = 0;
-                e1 = ea1; e1_idx = 1;
+                point  = eb0;
+                pt_idx = 2;
+                e0     = ea0;
+                e0_idx = 0;
+                e1     = ea1;
+                e1_idx = 1;
             }
 
             coord[pt_idx] = T(1);
 
-            Eigen::Vector<T, 3> edge = e1 - e0;
-            T len2 = edge.squaredNorm();
-            T t_param = T(0);
+            Eigen::Vector<T, 3> edge    = e1 - e0;
+            T                   len2    = edge.squaredNorm();
+            T                   t_param = T(0);
             if(len2 > T(0))
                 t_param = (point - e0).dot(edge) / len2;
             t_param = max(T(0), min(T(1), t_param));
@@ -221,26 +256,27 @@ namespace detail
     }
 
     template <typename T>
-    UIPC_GENERIC void point_edge_closest_point_coord(
-        const Vector3i&            flag,
-        const Eigen::Vector<T, 3>& p,
-        const Eigen::Vector<T, 3>& e0,
-        const Eigen::Vector<T, 3>& e1,
-        Eigen::Vector<T, 3>&       coord)
+    UIPC_GENERIC void point_edge_closest_point_coord(const Vector3i& flag,
+                                                     const Eigen::Vector<T, 3>& p,
+                                                     const Eigen::Vector<T, 3>& e0,
+                                                     const Eigen::Vector<T, 3>& e1,
+                                                     Eigen::Vector<T, 3>& coord)
     {
         coord.setZero();
         IndexT dim = distance::detail::active_count(flag);
 
         if(dim == 2)
         {
-            if(flag[1]) coord[1] = T(1);
-            else        coord[2] = T(1);
+            if(flag[1])
+                coord[1] = T(1);
+            else
+                coord[2] = T(1);
         }
         else if(dim == 3)
         {
-            Eigen::Vector<T, 3> edge = e1 - e0;
-            T len2 = edge.squaredNorm();
-            T t_param = T(0);
+            Eigen::Vector<T, 3> edge    = e1 - e0;
+            T                   len2    = edge.squaredNorm();
+            T                   t_param = T(0);
             if(len2 > T(0))
                 t_param = (p - e0).dot(edge) / len2;
             t_param = max(T(0), min(T(1), t_param));
@@ -251,27 +287,25 @@ namespace detail
     }
 
     template <typename T>
-    void upload_vertex_attribute(cuda_tool::DeviceBuffer<T>&             dst,
+    void upload_vertex_attribute(cuda_tool::DeviceBuffer<T>&        dst,
                                  const geometry::SimplicialComplex& sc,
                                  std::string_view                   name)
     {
         auto attr = sc.vertices().find<T>(std::string{name});
-        UIPC_ASSERT(attr,
-                     "Vertex attribute '{}' not found on SimplicialComplex",
-                     name);
+        UIPC_ASSERT(attr, "Vertex attribute '{}' not found on SimplicialComplex", name);
         auto v = attr->view();
         dst.resize(v.size());
         dst.view().copy_from(v.data());
     }
 
     template <typename T, typename D>
-    void copy_back(geometry::Geometry&    R,
-                   std::string_view       name,
-                   const D&               default_val,
-                   cuda_tool::BufferView<T>    buf)
+    void copy_back(geometry::Geometry&      R,
+                   std::string_view         name,
+                   const D&                 default_val,
+                   cuda_tool::BufferView<T> buf)
     {
         std::string n{name};
-        auto attr = R.instances().find<T>(n);
+        auto        attr = R.instances().find<T>(n);
         if(!attr)
             attr = R.instances().create<T>(n, T(default_val));
         buf.copy_to(view(*attr).data());
@@ -325,12 +359,14 @@ namespace
         Vector4 coord;
         detail::point_triangle_closest_point_coord(flag, P, T0, T1, T2, coord);
 
-        Float d_hat_pair = PT_d_hat(dhat_p(pi), dhat_t(TI[0]), dhat_t(TI[1]), dhat_t(TI[2]));
-        Float xi         = PT_thickness(thickness_p(pi), thickness_t(TI[0]), thickness_t(TI[1]), thickness_t(TI[2]));
+        Float d_hat_pair =
+            PT_d_hat(dhat_p(pi), dhat_t(TI[0]), dhat_t(TI[1]), dhat_t(TI[2]));
+        Float xi = PT_thickness(
+            thickness_p(pi), thickness_t(TI[0]), thickness_t(TI[1]), thickness_t(TI[2]));
         Vector2 dr = D_range(xi, d_hat_pair);
 
-        Float B = Float(0);
-        Vector12 GradB = Vector12::Zero();
+        Float       B     = Float(0);
+        Vector12    GradB = Vector12::Zero();
         Matrix12x12 HessB = Matrix12x12::Zero();
 
         if(is_active_D(dr, D))
@@ -436,14 +472,16 @@ namespace
         detail::edge_edge_closest_point_coord(flag, ea0, ea1, eb0, eb1, coord);
 
         // Barrier: E = e_k * B(D)
-        Float d_hat_pair = EE_d_hat(dhat_a(EA[0]), dhat_a(EA[1]),
-                                    dhat_b(EB[0]), dhat_b(EB[1]));
-        Float xi = EE_thickness(thickness_a(EA[0]), thickness_a(EA[1]),
-                                thickness_b(EB[0]), thickness_b(EB[1]));
+        Float d_hat_pair =
+            EE_d_hat(dhat_a(EA[0]), dhat_a(EA[1]), dhat_b(EB[0]), dhat_b(EB[1]));
+        Float   xi = EE_thickness(thickness_a(EA[0]),
+                                thickness_a(EA[1]),
+                                thickness_b(EB[0]),
+                                thickness_b(EB[1]));
         Vector2 dr = D_range(xi, d_hat_pair);
 
-        Float E = Float(0);
-        Vector12 GradE = Vector12::Zero();
+        Float       E     = Float(0);
+        Vector12    GradE = Vector12::Zero();
         Matrix12x12 HessE = Matrix12x12::Zero();
 
         if(is_active_D(dr, D))
@@ -456,11 +494,11 @@ namespace
             Float ddBddD;
             sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
 
-            E = ek * B;
+            E     = ek * B;
             GradE = ek * dBdD * GradD + B * Gradek;
             HessE = ek * (ddBddD * GradD * GradD.transpose() + dBdD * HessD)
-                  + dBdD * (GradD * Gradek.transpose() + Gradek * GradD.transpose())
-                  + B * Hessek;
+                    + dBdD * (GradD * Gradek.transpose() + Gradek * GradD.transpose())
+                    + B * Hessek;
         }
 
         dist2(i)        = D;
@@ -478,23 +516,23 @@ namespace
     }
 
     __global__ void DistanceDiagnoser_compute_point_edge_distance_kernel(
-        cuda_tool::BufferView<Vector3>    point_pos,
-        cuda_tool::BufferView<Vector3>    edge_pos,
-        cuda_tool::BufferView<Vector2i>   edge_topo,
-        cuda_tool::CBufferView<Float>     dhat_p,
-        cuda_tool::CBufferView<Float>     dhat_e,
-        cuda_tool::CBufferView<Float>     thickness_p,
-        cuda_tool::CBufferView<Float>     thickness_e,
-        cuda_tool::BufferView<Float>      dist2,
-        cuda_tool::BufferView<Vector9>    dist2_grad,
-        cuda_tool::BufferView<Matrix9x9>  dist2_hess,
-        cuda_tool::BufferView<Vector3i>   flags,
-        cuda_tool::BufferView<Vector3>    coords,
-        cuda_tool::BufferView<Float>      barrier,
-        cuda_tool::BufferView<Vector9>    barrier_grad,
-        cuda_tool::BufferView<Matrix9x9>  barrier_hess,
-        SizeT                             M,
-        int                               n)
+        cuda_tool::BufferView<Vector3>   point_pos,
+        cuda_tool::BufferView<Vector3>   edge_pos,
+        cuda_tool::BufferView<Vector2i>  edge_topo,
+        cuda_tool::CBufferView<Float>    dhat_p,
+        cuda_tool::CBufferView<Float>    dhat_e,
+        cuda_tool::CBufferView<Float>    thickness_p,
+        cuda_tool::CBufferView<Float>    thickness_e,
+        cuda_tool::BufferView<Float>     dist2,
+        cuda_tool::BufferView<Vector9>   dist2_grad,
+        cuda_tool::BufferView<Matrix9x9> dist2_hess,
+        cuda_tool::BufferView<Vector3i>  flags,
+        cuda_tool::BufferView<Vector3>   coords,
+        cuda_tool::BufferView<Float>     barrier,
+        cuda_tool::BufferView<Vector9>   barrier_grad,
+        cuda_tool::BufferView<Matrix9x9> barrier_hess,
+        SizeT                            M,
+        int                              n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -502,8 +540,8 @@ namespace
         IndexT pi = i / M;
         IndexT ei = i % M;
 
-        const Vector3& P = point_pos(pi);
-        Vector2i EI = edge_topo(ei);
+        const Vector3& P  = point_pos(pi);
+        Vector2i       EI = edge_topo(ei);
         const Vector3& E0 = edge_pos(EI[0]);
         const Vector3& E1 = edge_pos(EI[1]);
 
@@ -522,11 +560,12 @@ namespace
         detail::point_edge_closest_point_coord(flag, P, E0, E1, coord);
 
         Float d_hat_pair = PE_d_hat(dhat_p(pi), dhat_e(EI[0]), dhat_e(EI[1]));
-        Float xi         = PE_thickness(thickness_p(pi), thickness_e(EI[0]), thickness_e(EI[1]));
+        Float xi =
+            PE_thickness(thickness_p(pi), thickness_e(EI[0]), thickness_e(EI[1]));
         Vector2 dr = D_range(xi, d_hat_pair);
 
-        Float B = Float(0);
-        Vector9 GradB = Vector9::Zero();
+        Float     B     = Float(0);
+        Vector9   GradB = Vector9::Zero();
         Matrix9x9 HessB = Matrix9x9::Zero();
 
         if(is_active_D(dr, D))
@@ -552,20 +591,20 @@ namespace
     }
 
     __global__ void DistanceDiagnoser_compute_point_point_distance_kernel(
-        cuda_tool::BufferView<Vector3>    pos_a,
-        cuda_tool::BufferView<Vector3>    pos_b,
-        cuda_tool::CBufferView<Float>     dhat_a,
-        cuda_tool::CBufferView<Float>     dhat_b,
-        cuda_tool::CBufferView<Float>     thickness_a,
-        cuda_tool::CBufferView<Float>     thickness_b,
-        cuda_tool::BufferView<Float>      dist2,
-        cuda_tool::BufferView<Vector6>    dist2_grad,
-        cuda_tool::BufferView<Matrix6x6>  dist2_hess,
-        cuda_tool::BufferView<Float>      barrier,
-        cuda_tool::BufferView<Vector6>    barrier_grad,
-        cuda_tool::BufferView<Matrix6x6>  barrier_hess,
-        SizeT                             M,
-        int                               n)
+        cuda_tool::BufferView<Vector3>   pos_a,
+        cuda_tool::BufferView<Vector3>   pos_b,
+        cuda_tool::CBufferView<Float>    dhat_a,
+        cuda_tool::CBufferView<Float>    dhat_b,
+        cuda_tool::CBufferView<Float>    thickness_a,
+        cuda_tool::CBufferView<Float>    thickness_b,
+        cuda_tool::BufferView<Float>     dist2,
+        cuda_tool::BufferView<Vector6>   dist2_grad,
+        cuda_tool::BufferView<Matrix6x6> dist2_hess,
+        cuda_tool::BufferView<Float>     barrier,
+        cuda_tool::BufferView<Vector6>   barrier_grad,
+        cuda_tool::BufferView<Matrix6x6> barrier_hess,
+        SizeT                            M,
+        int                              n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -585,12 +624,12 @@ namespace
         Matrix6x6 HessD;
         distance::point_point_distance2_hessian(A, B, HessD);
 
-        Float d_hat_pair = PP_d_hat(dhat_a(ai), dhat_b(bi));
-        Float xi         = PP_thickness(thickness_a(ai), thickness_b(bi));
-        Vector2 dr = D_range(xi, d_hat_pair);
+        Float   d_hat_pair = PP_d_hat(dhat_a(ai), dhat_b(bi));
+        Float   xi         = PP_thickness(thickness_a(ai), thickness_b(bi));
+        Vector2 dr         = D_range(xi, d_hat_pair);
 
-        Float Bv = Float(0);
-        Vector6 GradB = Vector6::Zero();
+        Float     Bv    = Float(0);
+        Vector6   GradB = Vector6::Zero();
         Matrix6x6 HessB = Matrix6x6::Zero();
 
         if(is_active_D(dr, D))
@@ -617,10 +656,9 @@ namespace
 // =====================================================================
 // Point-Triangle Distance (+ Barrier)
 // =====================================================================
-void DistanceDiagnoser::compute_point_triangle_distance(
-    geometry::Geometry&                R,
-    const geometry::SimplicialComplex& points,
-    const geometry::SimplicialComplex& triangles)
+void DistanceDiagnoser::compute_point_triangle_distance(geometry::Geometry& R,
+                                                        const geometry::SimplicialComplex& points,
+                                                        const geometry::SimplicialComplex& triangles)
 {
     using namespace cuda_tool;
 
@@ -649,19 +687,19 @@ void DistanceDiagnoser::compute_point_triangle_distance(
     point_pos.view().copy_from(h_point_pos.data());
     tri_pos.view().copy_from(h_tri_pos.data());
     tri_topo.view().copy_from(h_tri_topo.data());
-    detail::upload_vertex_attribute(dhat_p, points,    "d_hat");
+    detail::upload_vertex_attribute(dhat_p, points, "d_hat");
     detail::upload_vertex_attribute(dhat_t, triangles, "d_hat");
-    detail::upload_vertex_attribute(thickness_p,   points,    "thickness");
-    detail::upload_vertex_attribute(thickness_t,   triangles, "thickness");
+    detail::upload_vertex_attribute(thickness_p, points, "thickness");
+    detail::upload_vertex_attribute(thickness_t, triangles, "thickness");
 
-    DeviceBuffer<Float>        dist2(num_pairs);
-    DeviceBuffer<Vector12>     dist2_grad(num_pairs);
-    DeviceBuffer<Matrix12x12>  dist2_hess(num_pairs);
-    DeviceBuffer<Vector4i>     flags(num_pairs);
-    DeviceBuffer<Vector4>      coords(num_pairs);
-    DeviceBuffer<Float>        barrier(num_pairs);
-    DeviceBuffer<Vector12>     barrier_grad(num_pairs);
-    DeviceBuffer<Matrix12x12>  barrier_hess(num_pairs);
+    DeviceBuffer<Float>       dist2(num_pairs);
+    DeviceBuffer<Vector12>    dist2_grad(num_pairs);
+    DeviceBuffer<Matrix12x12> dist2_hess(num_pairs);
+    DeviceBuffer<Vector4i>    flags(num_pairs);
+    DeviceBuffer<Vector4>     coords(num_pairs);
+    DeviceBuffer<Float>       barrier(num_pairs);
+    DeviceBuffer<Vector12>    barrier_grad(num_pairs);
+    DeviceBuffer<Matrix12x12> barrier_hess(num_pairs);
 
     SizeT M = num_triangles;
     {
@@ -692,13 +730,13 @@ void DistanceDiagnoser::compute_point_triangle_distance(
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),            dist2.view());
-    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    dist2_grad.view());
-    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), dist2_hess.view());
-    detail::copy_back(R, "flag",         Vector4i::Zero(),    flags.view());
-    detail::copy_back(R, "coord",        Vector4::Zero(),     coords.view());
-    detail::copy_back(R, "barrier",      Float(0),            barrier.view());
-    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad.view());
+    detail::copy_back(R, "dist2", Float(0), dist2.view());
+    detail::copy_back(R, "dist2/grad", Vector12::Zero(), dist2_grad.view());
+    detail::copy_back(R, "dist2/hess", Matrix12x12::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag", Vector4i::Zero(), flags.view());
+    detail::copy_back(R, "coord", Vector4::Zero(), coords.view());
+    detail::copy_back(R, "barrier", Float(0), barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector12::Zero(), barrier_grad.view());
     detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess.view());
 }
 
@@ -721,8 +759,8 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     auto h_rest_pos_a = rest_edges_a.positions().view();
     auto h_rest_pos_b = rest_edges_b.positions().view();
 
-    SizeT num_ea = h_topo_a.size();
-    SizeT num_eb = h_topo_b.size();
+    SizeT num_ea    = h_topo_a.size();
+    SizeT num_eb    = h_topo_b.size();
     SizeT num_pairs = num_ea * num_eb;
 
     if(num_pairs == 0)
@@ -731,7 +769,7 @@ void DistanceDiagnoser::compute_edge_edge_distance(
         return;
     }
 
-    auto mc_attr = R.instances().find<Float>("mollifier_coeff");
+    auto  mc_attr             = R.instances().find<Float>("mollifier_coeff");
     Float mollifier_coeff_val = Float(1e-3);
     if(mc_attr)
     {
@@ -759,23 +797,23 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     rest_pos_b.view().copy_from(h_rest_pos_b.data());
     detail::upload_vertex_attribute(dhat_a, edges_a, "d_hat");
     detail::upload_vertex_attribute(dhat_b, edges_b, "d_hat");
-    detail::upload_vertex_attribute(thickness_a,   edges_a, "thickness");
-    detail::upload_vertex_attribute(thickness_b,   edges_b, "thickness");
+    detail::upload_vertex_attribute(thickness_a, edges_a, "thickness");
+    detail::upload_vertex_attribute(thickness_b, edges_b, "thickness");
 
-    DeviceBuffer<Float>        dist2(num_pairs);
-    DeviceBuffer<Vector12>     dist2_grad(num_pairs);
-    DeviceBuffer<Matrix12x12>  dist2_hess(num_pairs);
-    DeviceBuffer<Vector4i>     flags(num_pairs);
-    DeviceBuffer<Vector4>      coords(num_pairs);
-    DeviceBuffer<Float>        eps_xs(num_pairs);
-    DeviceBuffer<Float>        e_ks(num_pairs);
-    DeviceBuffer<Vector12>     ek_grad(num_pairs);
-    DeviceBuffer<Matrix12x12>  ek_hess(num_pairs);
-    DeviceBuffer<Float>        barrier(num_pairs);
-    DeviceBuffer<Vector12>     barrier_grad(num_pairs);
-    DeviceBuffer<Matrix12x12>  barrier_hess(num_pairs);
+    DeviceBuffer<Float>       dist2(num_pairs);
+    DeviceBuffer<Vector12>    dist2_grad(num_pairs);
+    DeviceBuffer<Matrix12x12> dist2_hess(num_pairs);
+    DeviceBuffer<Vector4i>    flags(num_pairs);
+    DeviceBuffer<Vector4>     coords(num_pairs);
+    DeviceBuffer<Float>       eps_xs(num_pairs);
+    DeviceBuffer<Float>       e_ks(num_pairs);
+    DeviceBuffer<Vector12>    ek_grad(num_pairs);
+    DeviceBuffer<Matrix12x12> ek_hess(num_pairs);
+    DeviceBuffer<Float>       barrier(num_pairs);
+    DeviceBuffer<Vector12>    barrier_grad(num_pairs);
+    DeviceBuffer<Matrix12x12> barrier_hess(num_pairs);
 
-    SizeT M = num_eb;
+    SizeT M     = num_eb;
     Float coeff = mollifier_coeff_val;
 
     {
@@ -814,17 +852,17 @@ void DistanceDiagnoser::compute_edge_edge_distance(
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),            dist2.view());
-    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    dist2_grad.view());
-    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), dist2_hess.view());
-    detail::copy_back(R, "flag",         Vector4i::Zero(),    flags.view());
-    detail::copy_back(R, "coord",        Vector4::Zero(),     coords.view());
-    detail::copy_back(R, "eps_x",        Float(0),            eps_xs.view());
-    detail::copy_back(R, "e_k",          Float(1),            e_ks.view());
-    detail::copy_back(R, "e_k/grad",     Vector12::Zero(),    ek_grad.view());
-    detail::copy_back(R, "e_k/hess",     Matrix12x12::Zero(), ek_hess.view());
-    detail::copy_back(R, "barrier",      Float(0),            barrier.view());
-    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad.view());
+    detail::copy_back(R, "dist2", Float(0), dist2.view());
+    detail::copy_back(R, "dist2/grad", Vector12::Zero(), dist2_grad.view());
+    detail::copy_back(R, "dist2/hess", Matrix12x12::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag", Vector4i::Zero(), flags.view());
+    detail::copy_back(R, "coord", Vector4::Zero(), coords.view());
+    detail::copy_back(R, "eps_x", Float(0), eps_xs.view());
+    detail::copy_back(R, "e_k", Float(1), e_ks.view());
+    detail::copy_back(R, "e_k/grad", Vector12::Zero(), ek_grad.view());
+    detail::copy_back(R, "e_k/hess", Matrix12x12::Zero(), ek_hess.view());
+    detail::copy_back(R, "barrier", Float(0), barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector12::Zero(), barrier_grad.view());
     detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess.view());
 
     if(!mc_attr)
@@ -834,10 +872,9 @@ void DistanceDiagnoser::compute_edge_edge_distance(
 // =====================================================================
 // Point-Edge Distance (+ Barrier)
 // =====================================================================
-void DistanceDiagnoser::compute_point_edge_distance(
-    geometry::Geometry&                R,
-    const geometry::SimplicialComplex& points,
-    const geometry::SimplicialComplex& edges)
+void DistanceDiagnoser::compute_point_edge_distance(geometry::Geometry& R,
+                                                    const geometry::SimplicialComplex& points,
+                                                    const geometry::SimplicialComplex& edges)
 {
     using namespace cuda_tool;
 
@@ -867,9 +904,9 @@ void DistanceDiagnoser::compute_point_edge_distance(
     edge_pos.view().copy_from(h_edge_pos.data());
     edge_topo.view().copy_from(h_edge_topo.data());
     detail::upload_vertex_attribute(dhat_p, points, "d_hat");
-    detail::upload_vertex_attribute(dhat_e, edges,  "d_hat");
-    detail::upload_vertex_attribute(thickness_p,   points, "thickness");
-    detail::upload_vertex_attribute(thickness_e,   edges,  "thickness");
+    detail::upload_vertex_attribute(dhat_e, edges, "d_hat");
+    detail::upload_vertex_attribute(thickness_p, points, "thickness");
+    detail::upload_vertex_attribute(thickness_e, edges, "thickness");
 
     DeviceBuffer<Float>     dist2(num_pairs);
     DeviceBuffer<Vector9>   dist2_grad(num_pairs);
@@ -909,31 +946,30 @@ void DistanceDiagnoser::compute_point_edge_distance(
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),          dist2.view());
-    detail::copy_back(R, "dist2/grad",   Vector9::Zero(),   dist2_grad.view());
-    detail::copy_back(R, "dist2/hess",   Matrix9x9::Zero(), dist2_hess.view());
-    detail::copy_back(R, "flag",         Vector3i::Zero(),  flags.view());
-    detail::copy_back(R, "coord",        Vector3::Zero(),   coords.view());
-    detail::copy_back(R, "barrier",      Float(0),          barrier.view());
-    detail::copy_back(R, "barrier/grad", Vector9::Zero(),   barrier_grad.view());
+    detail::copy_back(R, "dist2", Float(0), dist2.view());
+    detail::copy_back(R, "dist2/grad", Vector9::Zero(), dist2_grad.view());
+    detail::copy_back(R, "dist2/hess", Matrix9x9::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag", Vector3i::Zero(), flags.view());
+    detail::copy_back(R, "coord", Vector3::Zero(), coords.view());
+    detail::copy_back(R, "barrier", Float(0), barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector9::Zero(), barrier_grad.view());
     detail::copy_back(R, "barrier/hess", Matrix9x9::Zero(), barrier_hess.view());
 }
 
 // =====================================================================
 // Point-Point Distance (+ Barrier)
 // =====================================================================
-void DistanceDiagnoser::compute_point_point_distance(
-    geometry::Geometry&                R,
-    const geometry::SimplicialComplex& points_a,
-    const geometry::SimplicialComplex& points_b)
+void DistanceDiagnoser::compute_point_point_distance(geometry::Geometry& R,
+                                                     const geometry::SimplicialComplex& points_a,
+                                                     const geometry::SimplicialComplex& points_b)
 {
     using namespace cuda_tool;
 
     auto h_pos_a = points_a.positions().view();
     auto h_pos_b = points_b.positions().view();
 
-    SizeT num_a = h_pos_a.size();
-    SizeT num_b = h_pos_b.size();
+    SizeT num_a     = h_pos_a.size();
+    SizeT num_b     = h_pos_b.size();
     SizeT num_pairs = num_a * num_b;
 
     if(num_pairs == 0)
@@ -953,8 +989,8 @@ void DistanceDiagnoser::compute_point_point_distance(
     pos_b.view().copy_from(h_pos_b.data());
     detail::upload_vertex_attribute(dhat_a, points_a, "d_hat");
     detail::upload_vertex_attribute(dhat_b, points_b, "d_hat");
-    detail::upload_vertex_attribute(thickness_a,   points_a, "thickness");
-    detail::upload_vertex_attribute(thickness_b,   points_b, "thickness");
+    detail::upload_vertex_attribute(thickness_a, points_a, "thickness");
+    detail::upload_vertex_attribute(thickness_b, points_b, "thickness");
 
     DeviceBuffer<Float>     dist2(num_pairs);
     DeviceBuffer<Vector6>   dist2_grad(num_pairs);
@@ -989,11 +1025,11 @@ void DistanceDiagnoser::compute_point_point_distance(
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),          dist2.view());
-    detail::copy_back(R, "dist2/grad",   Vector6::Zero(),   dist2_grad.view());
-    detail::copy_back(R, "dist2/hess",   Matrix6x6::Zero(), dist2_hess.view());
-    detail::copy_back(R, "barrier",      Float(0),          barrier.view());
-    detail::copy_back(R, "barrier/grad", Vector6::Zero(),   barrier_grad.view());
+    detail::copy_back(R, "dist2", Float(0), dist2.view());
+    detail::copy_back(R, "dist2/grad", Vector6::Zero(), dist2_grad.view());
+    detail::copy_back(R, "dist2/hess", Matrix6x6::Zero(), dist2_hess.view());
+    detail::copy_back(R, "barrier", Float(0), barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector6::Zero(), barrier_grad.view());
     detail::copy_back(R, "barrier/hess", Matrix6x6::Zero(), barrier_hess.view());
 }
 }  // namespace uipc::backend::cuda

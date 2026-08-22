@@ -15,8 +15,7 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        mu_vertices(i) =
-            body_masses(body_id(i)).mass() * mu_scale_abd * dt * dt;
+        mu_vertices(i) = body_masses(body_id(i)).mass() * mu_scale_abd * dt * dt;
     }
 }  // namespace
 
@@ -37,8 +36,7 @@ void ABDALStiffnessEstimator::Impl::estimate_mu(EstimateInfo& info)
     {
         auto k = abd_al_stiffness_estimator_estimate_mu_kernel;
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            info.mu_vertices(vertex_reporter->vertex_offset(),
-                             vertex_reporter->vertex_count()),
+            info.mu_vertices(vertex_reporter->vertex_offset(), vertex_reporter->vertex_count()),
             affine_body_dynamics->v2b().cview(),
             affine_body_dynamics->body_masses().cview(),
             mu_scale_abd,

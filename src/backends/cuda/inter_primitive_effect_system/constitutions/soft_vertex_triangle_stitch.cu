@@ -43,17 +43,17 @@ namespace
 
     template <SizeT StencilSize, SizeT HalfHessianSize>
     __global__ void SoftVertexTriangleStitch_do_compute_gradient_hessian_kernel(
-        cuda_tool::CBufferView<Vector4i>         topos,
-        cuda_tool::CBufferView<Vector3>          xs,
-        cuda_tool::CBufferView<Float>            mus,
-        cuda_tool::CBufferView<Float>            lambdas,
-        cuda_tool::CBufferView<Matrix3x3>        Dm_invs,
-        cuda_tool::CBufferView<Float>            rest_vols,
-        cuda_tool::DoubletVectorView<Float, 3>   G3s,
+        cuda_tool::CBufferView<Vector4i>          topos,
+        cuda_tool::CBufferView<Vector3>           xs,
+        cuda_tool::CBufferView<Float>             mus,
+        cuda_tool::CBufferView<Float>             lambdas,
+        cuda_tool::CBufferView<Matrix3x3>         Dm_invs,
+        cuda_tool::CBufferView<Float>             rest_vols,
+        cuda_tool::DoubletVectorView<Float, 3>    G3s,
         cuda_tool::TripletMatrixView<Float, 3, 3> H3x3s,
-        Float                                    dt,
-        bool                                     gradient_only,
-        int                                      n)
+        Float                                     dt,
+        bool                                      gradient_only,
+        int                                       n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
         if(I >= n)
@@ -88,7 +88,7 @@ namespace
         SVTS::ddEddVecF(ddEddVecF, mus(I), lambdas(I), VecF);
         ddEddVecF *= Vdt2;
         make_spd(ddEddVecF);
-        Matrix12x12 H = dFdx.transpose() * ddEddVecF * dFdx;
+        Matrix12x12            H = dFdx.transpose() * ddEddVecF * dFdx;
         TripletMatrixAssembler MA{H3x3s};
         MA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
     }
@@ -130,7 +130,7 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         list<Float>     lambda_buffer;
         list<Matrix3x3> Dm_inv_buffer;
         list<Float>     rest_volume_buffer;
-        auto geo_slots    = world().scene().geometries();
+        auto            geo_slots = world().scene().geometries();
         using ForEachInfo = InterPrimitiveConstitutionManager::ForEachInfo;
         info.for_each(
             geo_slots,
@@ -145,9 +145,9 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                 auto lambda_slot = geo.instances().find<Float>("lambda");
                 UIPC_ASSERT(lambda_slot, "SoftVertexTriangleStitch requires attribute `lambda` on instances()");
 
-                Vector2i ids         = geo_ids->view()[0];
-                auto     l_slot      = info.geo_slot(ids[0]);
-                auto     r_slot      = info.geo_slot(ids[1]);
+                Vector2i ids    = geo_ids->view()[0];
+                auto     l_slot = info.geo_slot(ids[0]);
+                auto     r_slot = info.geo_slot(ids[1]);
                 auto l_geo = l_slot->geometry().as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(l_geo,
                             "SoftVertexTriangleStitch requires simplicial complex geometry, but got {} ({})",
@@ -195,12 +195,12 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     Vector3 x2 = r_transform * aim1_pos[tri1];
                     Vector3 x3 = r_transform * aim1_pos[tri2];
 
-                    Float   d  = min_sep_view[i];
-                    Vector3 e1 = x2 - x1, e2 = x3 - x1;
-                    Vector3 normal = e1.cross(e2);
+                    Float           d  = min_sep_view[i];
+                    Vector3         e1 = x2 - x1, e2 = x3 - x1;
+                    Vector3         normal             = e1.cross(e2);
                     constexpr Float geo_degeneracy_tol = 1e-12;
 
-                    Float   nrm    = normal.norm();
+                    Float nrm = normal.norm();
                     UIPC_ASSERT(nrm >= geo_degeneracy_tol,
                                 "SoftVertexTriangleStitch: triangle ({},{},{}) is degenerate",
                                 tri0,
@@ -217,9 +217,9 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     }
 
                     Matrix3x3 Dm;
-                    Dm.col(0)      = x1 - x0;
-                    Dm.col(1)      = x2 - x0;
-                    Dm.col(2)      = x3 - x0;
+                    Dm.col(0) = x1 - x0;
+                    Dm.col(1) = x2 - x0;
+                    Dm.col(2) = x3 - x0;
 
                     Float det = Dm.determinant();
                     if(det < 0)
@@ -228,9 +228,9 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                         std::swap(tri0, tri1);
                         Dm.col(0) = x1 - x0;
                         Dm.col(1) = x2 - x0;
-                        det = -det;
+                        det       = -det;
                     }
-                    
+
                     Float rest_vol = (1.0 / 6.0) * det;
 
                     topo_buffer.push_back(Vector4i{v_id + l_offset_v,
@@ -241,7 +241,6 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     lambda_buffer.push_back(lambda_view[i]);
                     Dm_inv_buffer.push_back(Dm.inverse());
                     rest_volume_buffer.push_back(rest_vol);
-
                 }
             });
 
@@ -256,7 +255,6 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         lambdas.copy_from(h_lambdas);
         Dm_invs.copy_from(h_Dm_invs);
         rest_volumes.copy_from(h_rest_volumes);
-
     }
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
@@ -306,9 +304,8 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         gradients = info.gradients();
         hessians  = info.hessians();
 
-        auto k = SoftVertexTriangleStitch_do_compute_gradient_hessian_kernel<StencilSize,
-                                                                             HalfHessianSize>;
-        int  n = (int)topos.size();
+        auto k = SoftVertexTriangleStitch_do_compute_gradient_hessian_kernel<StencilSize, HalfHessianSize>;
+        int n = (int)topos.size();
         if(n > 0)
         {
             k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(

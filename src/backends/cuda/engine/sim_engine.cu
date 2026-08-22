@@ -107,8 +107,8 @@ void SimEngine::event_write_scene()
 void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};
-    auto            output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-    auto            file_path = fmt::format("{}global_surface.{}.{}.{}.obj",
+    auto output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto file_path     = fmt::format("{}global_surface.{}.{}.{}.obj",
                                  output_folder.string(),
                                  frame(),
                                  newton_iter(),
@@ -149,11 +149,9 @@ void SimEngine::dump_global_surface()
 void SimEngine::dump_global_surface_pre_ccd(SizeT newton_iter)
 {
     BackendPathTool tool{workspace()};
-    auto            output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-    auto            file_path = fmt::format("{}global_surface.pre_ccd.{}.{}.obj",
-                                 output_folder.string(),
-                                 frame(),
-                                 newton_iter);
+    auto output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto file_path     = fmt::format(
+        "{}global_surface.pre_ccd.{}.{}.obj", output_folder.string(), frame(), newton_iter);
 
     std::vector<Vector3>  global_positions;
     std::vector<Vector3>  global_displacements;

@@ -18,12 +18,12 @@ class GlobalTrajectoryFilter final : public SimSystem
     class FilterTOIInfo
     {
       public:
-        Float                alpha() const noexcept { return m_alpha; }
+        Float                     alpha() const noexcept { return m_alpha; }
         cuda_tool::VarView<Float> toi() const noexcept { return m_toi; }
 
       private:
         friend class GlobalTrajectoryFilter;
-        Float                m_alpha = 0.0;
+        Float                     m_alpha = 0.0;
         cuda_tool::VarView<Float> m_toi;
     };
 
@@ -83,7 +83,7 @@ class GlobalTrajectoryFilter final : public SimSystem
 
 
         cuda_tool::DeviceBuffer<Float> tois;
-        vector<Float>             h_tois;
+        vector<Float>                  h_tois;
     };
 
     template <std::derived_from<SimSystem> T>

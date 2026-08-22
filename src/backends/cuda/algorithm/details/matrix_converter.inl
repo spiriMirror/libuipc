@@ -30,9 +30,9 @@ namespace
 
     // MatrixConverter::_radix_sort_indices_and_blocks(from, to) #2: unpack ij hash
     __global__ void matrix_converter_radix_sort_indices_and_blocks_k2_kernel(
-        cuda_tool::BufferView<uint64_t>              ij_hash,
+        cuda_tool::BufferView<uint64_t>               ij_hash,
         cuda_tool::BufferView<MatrixConverterIntPair> ij_pairs,
-        int                                          n)
+        int                                           n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -69,16 +69,15 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        ij_hash(i) =
-            (uint64_t{row_indices(i)} << 32) + uint64_t{col_indices(i)};
+        ij_hash(i) = (uint64_t{row_indices(i)} << 32) + uint64_t{col_indices(i)};
         sort_index(i) = i;
     }
 
     // MatrixConverter::_radix_sort_indices_and_blocks(to) #2: unpack ij hash
     __global__ void matrix_converter_radix_sort_indices_and_blocks_in_place_k2_kernel(
-        cuda_tool::BufferView<uint64_t>              ij_hash,
+        cuda_tool::BufferView<uint64_t>               ij_hash,
         cuda_tool::BufferView<MatrixConverterIntPair> ij_pairs,
-        int                                          n)
+        int                                           n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -155,9 +154,7 @@ namespace
 
     // MatrixConverter::_make_unique_indices(doublet -> bcoo vector) #1
     __global__ void matrix_converter_make_unique_vector_indices_k1_kernel(
-        cuda_tool::BufferView<int> unique_indices,
-        cuda_tool::BufferView<int> dst_indices,
-        int                        n)
+        cuda_tool::BufferView<int> unique_indices, cuda_tool::BufferView<int> dst_indices, int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -184,13 +181,13 @@ namespace
     // MatrixConverter::ge2sym(bcoo) #1: find the upper triangular part (i <= j)
     template <typename T, int N>
     __global__ void matrix_converter_ge2sym_bcoo_k1_kernel(
-        cuda_tool::CBufferView<int>                        row_indices,
-        cuda_tool::CBufferView<int>                        col_indices,
-        cuda_tool::BufferView<MatrixConverterIntPair>      ij_pairs,
+        cuda_tool::CBufferView<int>                         row_indices,
+        cuda_tool::CBufferView<int>                         col_indices,
+        cuda_tool::BufferView<MatrixConverterIntPair>       ij_pairs,
         cuda_tool::CBufferView<MatrixConverterBlockT<T, N>> blocks,
         cuda_tool::BufferView<MatrixConverterBlockT<T, N>>  block_temp,
-        cuda_tool::BufferView<int>                         counts,
-        int                                                n)
+        cuda_tool::BufferView<int>                          counts,
+        int                                                 n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -237,13 +234,13 @@ namespace
     // MatrixConverter::ge2sym(triplet) #1: find the upper triangular part (i <= j)
     template <typename T, int N>
     __global__ void matrix_converter_ge2sym_triplet_k1_kernel(
-        cuda_tool::CBufferView<int>                        row_indices,
-        cuda_tool::CBufferView<int>                        col_indices,
-        cuda_tool::BufferView<MatrixConverterIntPair>      ij_pairs,
+        cuda_tool::CBufferView<int>                         row_indices,
+        cuda_tool::CBufferView<int>                         col_indices,
+        cuda_tool::BufferView<MatrixConverterIntPair>       ij_pairs,
         cuda_tool::CBufferView<MatrixConverterBlockT<T, N>> blocks,
         cuda_tool::BufferView<MatrixConverterBlockT<T, N>>  block_temp,
-        cuda_tool::BufferView<int>                         counts,
-        int                                                n)
+        cuda_tool::BufferView<int>                          counts,
+        int                                                 n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -288,29 +285,27 @@ namespace
     }
 
     // MatrixConverter::sym2ge #1: setup select flag
-    __global__ void matrix_converter_sym2ge_k1_kernel(
-        cuda_tool::BufferView<int>  flags,
-        cuda_tool::CBufferView<int> row_indices,
-        cuda_tool::CBufferView<int> col_indices,
-        cuda_tool::BufferView<int>  partition_index,
-        int                         n)
+    __global__ void matrix_converter_sym2ge_k1_kernel(cuda_tool::BufferView<int> flags,
+                                                      cuda_tool::CBufferView<int> row_indices,
+                                                      cuda_tool::CBufferView<int> col_indices,
+                                                      cuda_tool::BufferView<int> partition_index,
+                                                      int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        flags(i) = (row_indices(i) == col_indices(i)) ? 1 : 0;
+        flags(i)           = (row_indices(i) == col_indices(i)) ? 1 : 0;
         partition_index(i) = i;
     }
 
     // MatrixConverter::sym2ge #2: copy blocks and ij as [ Diag | Upper | Lower ]
     template <typename T, int N>
-    __global__ void matrix_converter_sym2ge_k2_kernel(
-        cuda_tool::BCOOMatrixView<T, N>  to,
-        cuda_tool::CBCOOMatrixView<T, N> from,
-        cuda_tool::CBufferView<int>      partition_index,
-        int                              diag_count,
-        int                              sym_size,
-        int                              n)
+    __global__ void matrix_converter_sym2ge_k2_kernel(cuda_tool::BCOOMatrixView<T, N> to,
+                                                      cuda_tool::CBCOOMatrixView<T, N> from,
+                                                      cuda_tool::CBufferView<int> partition_index,
+                                                      int diag_count,
+                                                      int sym_size,
+                                                      int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -330,7 +325,7 @@ namespace
 
 template <typename T, int N>
 void MatrixConverter<T, N>::convert(const cuda_tool::DeviceTripletMatrix<T, N>& from,
-                                    cuda_tool::DeviceBCOOMatrix<T, N>&          to)
+                                    cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
     to.reshape(from.rows(), from.cols());
     to.resize_triplets(from.triplet_count());
@@ -366,10 +361,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     // hash ij
     int n_hash_ij = (int)src_row_indices.size();
     if(n_hash_ij > 0)
-        matrix_converter_radix_sort_indices_and_blocks_k1_kernel<<<(n_hash_ij + 256 - 1) / 256,
-                                                                   256,
-                                                                   0,
-                                                                   nullptr>>>(
+        matrix_converter_radix_sort_indices_and_blocks_k1_kernel<<<(n_hash_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
             src_row_indices,
             src_col_indices,
             ij_hash_input.view(),
@@ -389,10 +381,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
 
     int n_unpack_ij = (int)dst_row_indices.size();
     if(n_unpack_ij > 0)
-        matrix_converter_radix_sort_indices_and_blocks_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256,
-                                                                   256,
-                                                                   0,
-                                                                   nullptr>>>(
+        matrix_converter_radix_sort_indices_and_blocks_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
             ij_hash.view(), ij_pairs.view(), n_unpack_ij);
 
     // sort the block values
@@ -427,10 +416,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
     // hash ij
     int n_hash_ij = (int)src_row_indices.size();
     if(n_hash_ij > 0)
-        matrix_converter_radix_sort_indices_and_blocks_in_place_k1_kernel<<<(n_hash_ij + 256 - 1) / 256,
-                                                                            256,
-                                                                            0,
-                                                                            nullptr>>>(
+        matrix_converter_radix_sort_indices_and_blocks_in_place_k1_kernel<<<(n_hash_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
             src_row_indices.cview(),
             src_col_indices.cview(),
             ij_hash_input.view(),
@@ -450,10 +436,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
 
     int n_unpack_ij = (int)dst_row_indices.size();
     if(n_unpack_ij > 0)
-        matrix_converter_radix_sort_indices_and_blocks_in_place_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256,
-                                                                            256,
-                                                                            0,
-                                                                            nullptr>>>(
+        matrix_converter_radix_sort_indices_and_blocks_in_place_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
             ij_hash.view(), ij_pairs.view(), n_unpack_ij);
 
     // sort the block values
@@ -508,10 +491,7 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceTripletM
 
     int n_unique = (int)unique_counts.size();
     if(n_unique > 0)
-        matrix_converter_make_unique_indices_k1_kernel<<<(n_unique + 256 - 1) / 256,
-                                                         256,
-                                                         0,
-                                                         nullptr>>>(
+        matrix_converter_make_unique_indices_k1_kernel<<<(n_unique + 256 - 1) / 256, 256, 0, nullptr>>>(
             unique_ij_pairs.view(), row_indices, col_indices, n_unique);
 
     to.resize_triplets(h_count);
@@ -544,15 +524,14 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
 
     auto blocks = to.values();
 
-    FastSegmentalReduce<>()
-        .reduce(std::as_const(sorted_partition_output).view(),
-                std::as_const(blocks_sorted).view(),
-                blocks);
+    FastSegmentalReduce<>().reduce(std::as_const(sorted_partition_output).view(),
+                                   std::as_const(blocks_sorted).view(),
+                                   blocks);
 }
 
 template <typename T, int N>
 void MatrixConverter<T, N>::convert(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
-                                    cuda_tool::DeviceBSRMatrix<T, N>&        to)
+                                    cuda_tool::DeviceBSRMatrix<T, N>& to)
 {
     // calculate the row offsets
     _calculate_block_offsets(from, to);
@@ -567,8 +546,8 @@ void MatrixConverter<T, N>::convert(const cuda_tool::DeviceBCOOMatrix<T, N>& fro
 }
 
 template <typename T, int N>
-void MatrixConverter<T, N>::_calculate_block_offsets(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
-                                                     cuda_tool::DeviceBSRMatrix<T, N>& to)
+void MatrixConverter<T, N>::_calculate_block_offsets(
+    const cuda_tool::DeviceBCOOMatrix<T, N>& from, cuda_tool::DeviceBSRMatrix<T, N>& to)
 {
     //Timer timer{__FUNCTION__};
 
@@ -598,14 +577,8 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const cuda_tool::DeviceBCOO
 
     int n_scatter = (int)unique_counts.size();
     if(n_scatter > 0)
-        matrix_converter_calculate_block_offsets_k1_kernel<<<(n_scatter + 256 - 1) / 256,
-                                                             256,
-                                                             0,
-                                                             nullptr>>>(
-            unique_indices.cview(),
-            unique_counts.view(),
-            col_counts_per_row.view(),
-            n_scatter);
+        matrix_converter_calculate_block_offsets_k1_kernel<<<(n_scatter + 256 - 1) / 256, 256, 0, nullptr>>>(
+            unique_indices.cview(), unique_counts.view(), col_counts_per_row.view(), n_scatter);
 
     // calculate the offsets
     DeviceScan().ExclusiveSum(col_counts_per_row.data(),
@@ -618,7 +591,7 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const cuda_tool::DeviceBCOO
 
 template <typename T, int N>
 void MatrixConverter<T, N>::convert(const cuda_tool::DeviceDoubletVector<T, N>& from,
-                                    cuda_tool::DeviceBCOOVector<T, N>&          to)
+                                    cuda_tool::DeviceBCOOVector<T, N>& to)
 {
     to.reshape(from.count());
     to.resize_doublets(from.doublet_count());
@@ -679,10 +652,7 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceDoubletV
 
     int n_unique = (int)unique_counts.size();
     if(n_unique > 0)
-        matrix_converter_make_unique_vector_indices_k1_kernel<<<(n_unique + 256 - 1) / 256,
-                                                                256,
-                                                                0,
-                                                                nullptr>>>(
+        matrix_converter_make_unique_vector_indices_k1_kernel<<<(n_unique + 256 - 1) / 256, 256, 0, nullptr>>>(
             unique_indices.view(), dst_indices, n_unique);
 
     to.resize_doublets(h_count);
@@ -714,10 +684,9 @@ void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
 
     auto segments = to.values();
 
-    FastSegmentalReduce<64, 32>()
-        .reduce(std::as_const(sorted_partition_output).view(),
-                std::as_const(segments_sorted).view(),
-                segments);
+    FastSegmentalReduce<64, 32>().reduce(std::as_const(sorted_partition_output).view(),
+                                         std::as_const(segments_sorted).view(),
+                                         segments);
 }
 
 template <typename T, int N>
@@ -835,7 +804,7 @@ void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceTripletMatrix<T, N>& to)
 
 template <typename T, int N>
 void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
-                                   cuda_tool::DeviceBCOOMatrix<T, N>&       to)
+                                   cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
     using namespace cuda_tool;
 
@@ -868,10 +837,10 @@ void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from
 
 
     cuda_tool::DevicePartition().Flagged(partition_index_input.data(),
-                                    flags.data(),
-                                    partition_index.data(),
-                                    selected_count.data(),
-                                    sym_size);
+                                         flags.data(),
+                                         partition_index.data(),
+                                         selected_count.data(),
+                                         sym_size);
 
 
     auto general_bcoo_size = 2 * (sym_size - diag_count) + diag_count;

@@ -13,12 +13,12 @@ namespace
 {
     namespace abd_arap = sym::abd_arap;
 
-    __global__ void arap_compute_energy_kernel(cuda_tool::BufferView<Float>     shape_energies,
+    __global__ void arap_compute_energy_kernel(cuda_tool::BufferView<Float> shape_energies,
                                                cuda_tool::CBufferView<Vector12> qs,
                                                cuda_tool::CBufferView<Float> kappas,
                                                cuda_tool::CBufferView<Float> volumes,
-                                               Float                         dt,
-                                               int                           n)
+                                               Float dt,
+                                               int   n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)

@@ -13,14 +13,18 @@ class AffineBodyStateAccessorFeatureOverrider final : public core::AffineBodySta
   public:
     AffineBodyStateAccessorFeatureOverrider(AffineBodyDynamics& abd,
                                             AffineBodyVertexReporter& vertex_reporter,
-                                            GlobalJointDofManager&    joint_dof_manager);
+                                            GlobalJointDofManager& joint_dof_manager);
 
     SizeT get_body_count() override;
     void  do_copy_from(const geometry::SimplicialComplex& state_geo) override;
     void  do_copy_to(geometry::SimplicialComplex& state_geo) override;
 
-    void do_copy_transform_to(backend::BufferView buffer_view, IndexT body_offset, SizeT body_count) override;
-    void do_copy_velocity_to(backend::BufferView buffer_view, IndexT body_offset, SizeT body_count) override;
+    void do_copy_transform_to(backend::BufferView buffer_view,
+                              IndexT              body_offset,
+                              SizeT               body_count) override;
+    void do_copy_velocity_to(backend::BufferView buffer_view,
+                             IndexT              body_offset,
+                             SizeT               body_count) override;
 
   private:
     AffineBodyDynamics&       m_abd;
