@@ -155,10 +155,9 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   min_alpha 0.15-0.72（此前 ~1e-3 爬行）；帧均 132ms（原 3-18s）；
   自由摆动段（f0-80）轨迹与 Stiff 平移对齐后差 <3mm；全套件
   95 用例/14214 断言全绿。
-- **已知剩余差距（~5× 帧时）**：PCG 76 次/解 vs Stiff 15，按压帧 PCG
-  在 15-50 与 150-565 尖峰间交替（Stiff 全程 20-60 均匀）；每迭代固定
-  开销：DCD 检测 4.3ms + DyTopo 装配 3.7ms（接触对数两侧同量级：
-  Stiff cpNum ~25k vs libuipc 30-50k）。
+- **本节"剩余差距"已被后续修复超越**：当时记录的 PCG 尖峰/按压帧爬行，
+  根因是 d_hat_relative 未传播（见下节"最大隐藏 bug"），修复后消失。
+  最终对比口径见"⚠ 对比口径纠正"一节的**第二次修正**（净跑数据）。
 - **测量陷阱备忘**：
   1. post-build 只在 pyuipc 重链接时同步 dll —— 仅改后端 .cu 时
      site-packages 的 `uipc_backend_cuda.dll` 不会更新，必须手动同步
@@ -193,7 +192,8 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   传播进逐顶点缓冲（compare-and-set 只覆盖持绝对默认值的条目，逐几何 meta
   d_hat 保留；`global_vertex_manager.{h,cu}`）。修后 wrecking ball：
   **牛顿 mean 1.88/max 6（Stiff 3.44/7）、sum_pcg 56（Stiff 53）、min_alpha
-  恒 1.0、帧均 73.0ms（Stiff 57.6ms，1.27×）**；set_case2 移植场景自接触
+  恒 1.0、帧均 73.0ms（Stiff 净跑 42.8ms/帧 GPU 计时，~1.7×）**；
+  set_case2 移植场景自接触
   对数从 45 万（虚假）塌缩到 ~3.7k（与 Stiff 3.5k 同量级）。
 - **CFL 语义修正**：原实现仅统计"已激活接触顶点"的位移（`vert_is_active_contact`
   掩码）——实测 wrecking ball 120 帧零触发，正在高速冲向接触的顶点恰好
@@ -202,8 +202,9 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   回退全顶点）；且在 `advance_ipc.cu` 线搜中仅当 CCD 命中（ccd_alpha<1）才
   施加——避免自由飞行帧被无谓限步。本场景实测仍不触发（接触迭代内顶点
   步长多在 5cm 以下），属语义对齐，价值在高速冲击类场景。
-- **剩余帧时差距的当前状态**：d_hat 修复后 wrecking ball 已达 Stiff 的
-  1.27×（73.0 vs 57.6ms/帧）。早期"PCG 尖峰"（150-565 次/解）实为小
+- **剩余帧时差距的当前状态**：d_hat 修复后 wrecking ball 帧均 73.0ms，
+  对 Stiff 净跑的 42.8ms/帧（GPU 事件计时，frames 2-120）约 **1.7×**。
+  早期"PCG 尖峰"（150-565 次/解）实为小
   d_hat 深间隙所致，已随 d_hat 修复消失（现 sum_pcg 56 ≈ Stiff 53）。
   验证手段备查：线性系统 dump（config `extras/debug/dump_linear_system=1`）
   + scipy 复算。
@@ -221,15 +222,18 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   非标准 7 字段变体，libigl 读不了；四面体内容逐位一致）并拷入 samples
   assets（tetmesh/bunny2.msh + trimesh/cloth_high.obj）。
 - **结果（250 帧）**：libuipc 帧均 301ms（堆叠段稳定 ~310ms，无尖峰），
-  牛顿封顶 ~6（=Kmin）；Stiff 侧同场景 ~50-61ms/帧、牛顿 mean ~2.5。
-  剩余 ~5× 在每迭代吞吐：本场景稠密兔面（0.2 缩放后 6mm 间距）使每次
-  detect 的 AABB 候选 ~45 万（距离过滤后仅 ~3-8k 激活）——候选生成与
-  激活过滤分离是结构开销，融合/距离感知查询是后续优化线索。
+  牛顿封顶 ~6（=Kmin）；Stiff 净跑同场景 **142.8ms/帧**（GPU 事件计时，
+  447 帧平均；frames 2-250 为 171.8ms）、牛顿 mean ~2.4（统计口径下）。
+  即 case2 差距约 **1.8-2.1×**（非此前误算的 5×——那来自对插桩运行做
+  边际量重算时帧分组错位）。剩余差距在每迭代吞吐：本场景稠密兔面
+  （0.2 缩放后 6mm 间距）使每次 detect 的 AABB 候选 ~45 万（距离过滤后仅
+  ~3-8k 激活）——候选生成与激活过滤分离是结构开销，融合/距离感知查询是
+  后续优化线索；另有 PCG 迭代数与 kernel 吞吐的均匀差距（见下节解剖）。
 - 注意：布料接触在 libuipc 走厚度偏移屏障（ξ=1e-3>0 分支），238df28e 起
   屏障形状统一为 log²（厚度分支用 (D-ξ²) 移位距离的 log² 形式）；Stiff 无
   厚度概念统一 log²——语义最接近的等价物即为此。
 
-## case2 剩余 ~5× 差距的 kernel 级解剖（nsys 实证，238df28e 之后仍适用）
+## case2 剩余 ~2× 差距的 kernel 级解剖（nsys 实证）
 
 帧时 ~245ms/帧（堆叠段），其中 GPU kernel 忙 ~115ms，**主机侧 API 开销约
 一半**：每帧 7429 次 kernel 启动 + 522 次 memcpy + 1787 次 memset +
@@ -248,15 +252,17 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
 - 否定记录：`linear_system/check_interval` 5→25 对帧时无影响（206 vs
   205.7ms）——PCG 的流水线排空停顿不是主因，别在这里花时间；PCG 的成本
   主要在迭代次数本身（83/解 vs Stiff 27/解，由系统条件数决定）。
-结论：case2 的 5× 是结构性主机开销 + 多 kernel 吞吐的乘积，需要一轮专门
+结论：case2 的 ~2× 是结构性主机开销 + 多 kernel 吞吐的乘积，需要一轮专门
 的 kernel 融合/图化工程（每个改动都必须过全套件回归）。
-- **⚠ 对比口径纠正**：Stiff 日志的 "average time cost" = totalTime/totalNT
-  （GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间（totalNT/ totalTime/
-  total_Frames 是文件级全局量，跨帧累积），不是每帧时间！用 PAIRCOUNT
-  插桩日志按边际量重算：Stiff 帧时 mean 57.6ms / median 54.3ms（按压帧
-  63-98ms）。**当前最终状态（全部对齐后）：libuipc 帧均 114.5ms / 牛顿
-  mean 3.70，对 Stiff 57.6ms / 3.44 —— 帧时 ~2.0×，牛顿数 ~1.08×。**
-  剩余差距在每迭代成本（PCG 尖峰 + 检测/装配吞吐，见上条分解）。
+- **⚠ 对比口径纠正（第二次，最终）**：Stiff 日志的 "average time cost" =
+  totalTime/totalNT（GIPC.cu:11262），是**每牛顿迭代**的 GPU 时间
+  （totalNT/totalTime/total_Frames 是文件级全局量，跨帧累积），不是每帧
+  时间！且我对参考副本加的 PAIRCOUNT printf/fflush 会抬高其 GPU 事件计时。
+  **干净的参考数字（去掉插桩后净跑）：wrecking ball 42.8ms/帧
+  （frames 2-120，GPU 事件计时；全程 1654 帧平均 50.4ms）、case2
+  142.8ms/帧（447 帧平均）。** 对应最终对比：wrecking ball libuipc 73.0ms
+  vs 42.8-50.4ms ≈ **1.5-1.7×**；case2 libuipc 301ms vs 142.8ms ≈
+  **2.1×**（同 250 帧窗口 171.8ms → 1.75×）。
 
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
 
