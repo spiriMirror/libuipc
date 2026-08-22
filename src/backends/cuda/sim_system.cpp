@@ -33,6 +33,18 @@ void SimSystem::on_write_scene(std::function<void()>&& action) noexcept
     engine().m_on_write_scene.register_action(*this, std::move(action));
 }
 
+void SimSystem::on_before_collision_detection(std::function<void()>&& action) noexcept
+{
+    check_state(SimEngineState::BuildSystems, "on_before_collision_detection()");
+    engine().m_on_before_collision_detection.register_action(*this, std::move(action));
+}
+
+void SimSystem::on_after_contact_assembly(std::function<void()>&& action) noexcept
+{
+    check_state(SimEngineState::BuildSystems, "on_after_contact_assembly()");
+    engine().m_on_after_contact_assembly.register_action(*this, std::move(action));
+}
+
 SimEngine& SimSystem::engine() noexcept
 {
     return static_cast<SimEngine&>(Base::engine());
