@@ -8,6 +8,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 | File | Content |
 |---|---|
+| **`rule.md`** | **Owner-mandated working agreements — read first, they override habit** (branch/commit policy, minimal diffs, doc sync, English-only artifacts, CMake+XMake parity, raw kernels, no muda/ccache/geigen) |
 | `01-project-overview.md` | Project positioning, top-level directories, three core concepts, typical simulation workflow |
 | `02-core-architecture.md` | Three-layer architecture, Engine/World/Scene lifecycle, RMR pattern, backend plugin ABI |
 | `03-geometry-and-io.md` | SimplicialComplex, attribute system, geometry algorithms, IO classes |
@@ -32,7 +33,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 ## Onboarding Checklist for New Agents
 
-1. Read the documents in this directory to build understanding (about 15 minutes): start with `handoff.md`'s post-merge note, `09-known-issues-and-roadmap.md` (what's open), and `08-pitfalls-and-debugging.md` (what not to step on).
+1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then `handoff.md`'s post-merge note, `09-known-issues-and-roadmap.md` (what's open), and `08-pitfalls-and-debugging.md` (what not to step on).
 2. Before coding, must read `.cursor/rules/cpp-format.mdc` (C++ style) and the conventions summary in `agent_docs/07-build-test-workflow.md`.
 3. Before modifying solver/constraints/GPU kernels, read `.cursor/skills/simulation-dev/SKILL.md` (index safety, NaN checks, debugging workflow).
 4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization see `.cursor/skills/gpu-optimization/SKILL.md`.
