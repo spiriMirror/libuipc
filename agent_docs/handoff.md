@@ -245,6 +245,9 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   FEM 装配 kernel 0.77ms/次——2.75× 差距；make_spd 9×9 EVD 是嫌疑但去掉
   它收敛反而变差，勿简单删）；布料 DSB 8.8ms。
 - Stiff 同场景 nsys：~900 次启动/帧（libuipc 8 倍），FEM 装配 0.77ms/次。
+- 否定记录：`linear_system/check_interval` 5→25 对帧时无影响（206 vs
+  205.7ms）——PCG 的流水线排空停顿不是主因，别在这里花时间；PCG 的成本
+  主要在迭代次数本身（83/解 vs Stiff 27/解，由系统条件数决定）。
 结论：case2 的 5× 是结构性主机开销 + 多 kernel 吞吐的乘积，需要一轮专门
 的 kernel 融合/图化工程（每个改动都必须过全套件回归）。
 - **⚠ 对比口径纠正**：Stiff 日志的 "average time cost" = totalTime/totalNT
