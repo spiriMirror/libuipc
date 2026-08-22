@@ -1,5 +1,6 @@
 #include <dytopo_effect_system/dytopo_effect_line_search_reporter.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
+#include <cuda_tool/cub.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(DyTopoEffectLineSearchReporter);
@@ -54,7 +55,7 @@ void DyTopoEffectLineSearchReporter::do_step_forward(LineSearcher::StepInfo& inf
 
 void DyTopoEffectLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     m_impl.compute_energy(info.is_initial());
 

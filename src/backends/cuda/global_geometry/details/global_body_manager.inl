@@ -1,8 +1,8 @@
 namespace uipc::backend::cuda
 {
 template <typename T>
-muda::BufferView<T> GlobalBodyManager::Impl::subview(muda::DeviceBuffer<T>& buffer,
-                                                     SizeT index) const noexcept
+cuda_tool::BufferView<T> GlobalBodyManager::Impl::subview(cuda_tool::DeviceBuffer<T>& buffer,
+                                                          SizeT index) const noexcept
 {
     span<const IndexT> reporter_body_offsets = reporter_body_offsets_counts.offsets();
     span<const IndexT> reporter_body_counts = reporter_body_offsets_counts.counts();

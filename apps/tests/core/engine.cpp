@@ -20,7 +20,7 @@ void test_engine(std::string_view name)
     World  world{engine};
 
     auto config                      = Scene::default_config();
-    config["sanity_check"]["method"] = "none";
+    config["sanity_check"]["enable"] = 0;
     Scene scene{config};
 
     AffineBodyConstitution abd;
@@ -75,4 +75,3 @@ TEST_CASE("engine", "[world]")
 {
     test_engine("none");
 }
-

@@ -11,11 +11,488 @@
 #include <affine_body/utils.h>
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <joint_dof_system/joint_dof_reporter.h>
-#include <muda/ext/eigen/atomic.h>
+#include <cuda_tool/cuda_tool.h>
 
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    using namespace cuda_tool;  // for eigen:: / view aliases used inside kernel bodies
+
+    // Hoisted from the constitution classes below (AffineBodyRevoluteJoint,
+    // AffineBodyDrivingRevoluteJoint, AffineBodyRevoluteJointLimit all define
+    // StencilSize = 2 and HalfHessianSize = 3) so kernel bodies can reference
+    // the same names verbatim.
+    constexpr SizeT StencilSize     = 2;
+    constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
+
+    using Vector24    = Vector<Float, 24>;
+    using Matrix24x24 = Matrix<Float, 24, 24>;
+    using Matrix6x6   = Matrix<Float, 6, 6>;
+
+    namespace RJ  = sym::affine_body_revolute_joint;
+    namespace DRJ = sym::affine_body_driving_revolute_joint;
+    namespace ERJ = sym::affine_body_revolute_joint_limit;
+
+    __global__ void affine_body_revolute_joint_compute_current_angles_kernel(
+        cuda_tool::CBufferView<Vector2i> body_ids,
+        cuda_tool::CBufferView<Vector6>  l_basis,
+        cuda_tool::CBufferView<Vector6>  r_basis,
+        cuda_tool::CBufferView<Vector12> qs,
+        cuda_tool::BufferView<Float>     current_angles,
+        cuda_tool::CBufferView<Float>    init_angles,
+        Float                            PI,
+        int                              n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids = body_ids(I);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+        Vector6  lb  = l_basis(I);
+        Vector6  rb  = r_basis(I);
+
+        Float theta;
+        compute_relative_angle(theta, lb, q_i, rb, q_j);
+
+        // Unwrap the (-pi, pi] atan2 angle against the stored multi-turn angle; exact while per-frame rotation < pi.
+        Float prev_rel = current_angles(I) - init_angles(I);
+        Float rel      = unwrap_angle(theta, prev_rel);
+        // Wrong winding is silent and never self-corrects; warn near the pi aliasing limit.
+        if(::fabs(rel - prev_rel) > 0.9 * PI)
+        {
+            UIPC_KERNEL_WARN_WITH_LOCATION(
+                "revolute joint %d: per-frame rotation %f rad is "
+                "close to the pi unwrap limit; current_angle may "
+                "alias onto a wrong turn",
+                I,
+                rel - prev_rel);
+        }
+        current_angles(I) = rel + init_angles(I);
+        UIPC_KERNEL_ASSERT(::isfinite(current_angles(I)),
+                           "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
+                           current_angles(I),
+                           theta,
+                           prev_rel);
+    }
+
+    __global__ void affine_body_revolute_joint_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector12>            rest_positions,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::BufferView<Float>                Es,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids = body_ids(I);
+
+        Float kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        const Vector12& X_bar = rest_positions(I);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        // qi0_bar, qi1_bar, qj0_bar, qj1_bar
+        Vector3 qi0_bar = X_bar.segment<3>(0);
+        Vector3 qi1_bar = X_bar.segment<3>(3);
+        Vector3 qj0_bar = X_bar.segment<3>(6);
+        Vector3 qj1_bar = X_bar.segment<3>(9);
+
+        // Compute constraint violation in F-space
+        Vector6 F;
+        RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
+
+        // Compute energy: E = 0.5 * kappa * (||d0||^2 + ||d1||^2)
+        Float E;
+        RJ::Eaxis<Float>(E, kappa, F);
+        Es(I) = E;
+    }
+
+    __global__ void affine_body_revolute_joint_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector12>            rest_positions,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::DoubletVectorView<Float, 12>     G12s,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        bool                                        gradient_only,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i        bids  = body_ids(I);
+        const Vector12& X_bar = rest_positions(I);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        // Extract rest positions
+        Vector3 qi0_bar = X_bar.segment<3>(0);
+        Vector3 qi1_bar = X_bar.segment<3>(3);
+        Vector3 qj0_bar = X_bar.segment<3>(6);
+        Vector3 qj1_bar = X_bar.segment<3>(9);
+
+        Float K = strength_ratio(I)
+                  * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        // Compute constraint violation in F-space
+        Vector6 F;
+        RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
+
+        // Compute gradient in F-space
+        Vector6 dEdF;
+        RJ::dEaxisdFaxis<Float>(dEdF, K, F);
+
+        // Map gradient back to ABD space: G24 = J^T * dEdF
+        Vector24 G24;
+        RJ::JaxisT_Gaxis<Float>(G24, dEdF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+
+        // Fill Body Gradient
+        DoubletVectorAssembler DVA{G12s};
+        DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
+        if(gradient_only)
+        {
+            return;
+        }
+        // Fill Body Hessian
+        Matrix6x6 ddEddF;
+        RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
+        make_spd(ddEddF);
+
+        // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
+        Matrix24x24 H24;
+        RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+
+        TripletMatrixAssembler TMA{H12x12s};
+        TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
+    }
+
+    __global__ void affine_body_driving_revolute_joint_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             l_basis,
+        cuda_tool::CBufferView<Vector6>             r_basis,
+        cuda_tool::CBufferView<IndexT>              is_constrained,
+        cuda_tool::CBufferView<Float>               strength_ratios,
+        cuda_tool::CBufferView<IndexT>              is_passive,
+        cuda_tool::CBufferView<Float>               init_angles,
+        cuda_tool::CBufferView<Float>               aim_angles,
+        cuda_tool::CBufferView<Float>               current_angles,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::BufferView<Float>                Es,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids        = body_ids(I);
+        auto     constrained = is_constrained(I);
+        // disable driving effect
+        if(constrained == 0)
+        {
+            Es(I) = 0.0;
+            return;
+        }
+
+        auto  passive = is_passive(I);
+        Float kappa   = strength_ratios(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        auto aim_angle = aim_angles(I);
+        if(passive == 1)
+        {
+            // resist external forces passively
+            aim_angle = current_angles(I);
+        }
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+        Vector6  lb  = l_basis(I);
+        Vector6  rb  = r_basis(I);
+
+        Vector12 F01_q;
+        DRJ::F01_q<Float>(
+            F01_q, lb.segment<3>(0), lb.segment<3>(3), q_i, rb.segment<3>(0), rb.segment<3>(3), q_j);
+
+        // Fold the frame-start unwrap shift into theta_tilde (gradient unaffected; see driving_theta_tilde).
+        Float theta_tilde =
+            driving_theta_tilde(F01_q, aim_angle, init_angles(I), current_angles(I));
+
+        Float E;
+        DRJ::E(E, kappa, F01_q, theta_tilde);
+        Es(I) = E;
+    }
+
+    __global__ void affine_body_driving_revolute_joint_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             l_basis,
+        cuda_tool::CBufferView<Vector6>             r_basis,
+        cuda_tool::CBufferView<IndexT>              is_constrained,
+        cuda_tool::CBufferView<Float>               strength_ratios,
+        cuda_tool::CBufferView<IndexT>              is_passive,
+        cuda_tool::CBufferView<Float>               init_angles,
+        cuda_tool::CBufferView<Float>               aim_angles,
+        cuda_tool::CBufferView<Float>               current_angles,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::DoubletVectorView<Float, 12>     G12s,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        bool                                        gradient_only,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids        = body_ids(I);
+        auto     constrained = is_constrained(I);
+        if(constrained == 0)
+        {
+            // no gradient and Hessian
+            DoubletVectorAssembler DVA{G12s};
+            DVA.segment<StencilSize>(I * StencilSize).write(bids, Vector24::Zero());
+
+            TripletMatrixAssembler TMA{H12x12s};
+            TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
+            return;
+        }
+
+        auto passive = is_passive(I);
+        auto kappa   = strength_ratios(I)
+                     * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        auto aim_angle = aim_angles(I);
+        if(passive == 1)
+        {
+            // resist external forces passively
+            aim_angle = current_angles(I);
+        }
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        Vector6 lb = l_basis(I);
+        Vector6 rb = r_basis(I);
+
+        Vector12 F01_q;
+        DRJ::F01_q<Float>(
+            F01_q, lb.segment<3>(0), lb.segment<3>(3), q_i, rb.segment<3>(0), rb.segment<3>(3), q_j);
+
+        // Same unwrap as do_compute_energy (must be bit-identical).
+        Float theta_tilde =
+            driving_theta_tilde(F01_q, aim_angle, init_angles(I), current_angles(I));
+
+        // G12s
+        Vector12 G01;
+        DRJ::dEdF01<Float>(G01, kappa, F01_q, theta_tilde);
+        Vector24 J01T_G01;
+        DRJ::J01T_G01<Float>(J01T_G01,
+                             G01,
+                             lb.segment<3>(0),
+                             lb.segment<3>(3),
+                             rb.segment<3>(0),
+                             rb.segment<3>(3));
+
+        DoubletVectorAssembler DVA{G12s};
+        DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
+
+        if(gradient_only)
+        {
+            return;
+        }
+        // H12x12s
+        Matrix12x12 H01;
+        DRJ::ddEddF01<Float>(H01, kappa, F01_q, theta_tilde);
+        // H01 SPD to ensure the Hessian is positive definite
+        make_spd(H01);
+        Matrix24x24 J01T_H01_J01;
+        DRJ::J01T_H01_J01<Float>(J01T_H01_J01,
+                                 H01,
+                                 lb.segment<3>(0),
+                                 lb.segment<3>(3),
+                                 rb.segment<3>(0),
+                                 rb.segment<3>(3));
+
+        TripletMatrixAssembler TMA{H12x12s};
+        TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, J01T_H01_J01);
+    }
+
+    __global__ void affine_body_revolute_joint_external_force_step_kernel(
+        cuda_tool::BufferView<Vector12>  external_forces,
+        cuda_tool::CBufferView<Vector2i> body_ids,
+        cuda_tool::CBufferView<Float>    torques,
+        cuda_tool::CBufferView<Vector12> rest_positions,
+        cuda_tool::CBufferView<IndexT>   constrained_flags,
+        cuda_tool::CBufferView<Vector12> qs,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(constrained_flags(i) == 0)
+            return;
+
+        Vector2i bids = body_ids(i);
+        Float    tau  = torques(i);
+
+        const Vector12& X_bar = rest_positions(i);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        // position direction of the applied torque on body j (right-hand rule)
+        ABDJacobi e_bar[2] = {ABDJacobi{X_bar.segment<3>(3) - X_bar.segment<3>(0)},
+                              ABDJacobi{X_bar.segment<3>(9) - X_bar.segment<3>(6)}};
+        Vector3 e_i = e_bar[0].vec_x(q_i).normalized();
+        Vector3 e_j = e_bar[1].vec_x(q_j).normalized();
+
+        // symmetrize to avoid numerical issues when the joint is near singularity
+        e_j = 0.5 * (e_j + e_i);
+        e_i = -e_j;
+
+        // affine-body rotational DOF (virtual-work form),
+        // see torque_to_F in affine_body/utils.h
+        Vector12 F_i = torque_to_F(tau, e_i, q_i);
+        Vector12 F_j = torque_to_F(tau, e_j, q_j);
+
+        eigen::atomic_add(external_forces(bids(0)), F_i);
+        eigen::atomic_add(external_forces(bids(1)), F_j);
+    }
+
+    __global__ void affine_body_revolute_joint_limit_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i> body_ids,
+        cuda_tool::CBufferView<Vector6>  l_basis,
+        cuda_tool::CBufferView<Vector6>  r_basis,
+        cuda_tool::CBufferView<Float>    init_angles,
+        cuda_tool::CBufferView<Float>    current_angles,
+        cuda_tool::CBufferView<Float>    lowers,
+        cuda_tool::CBufferView<Float>    uppers,
+        cuda_tool::CBufferView<Float>    strengths,
+        cuda_tool::CBufferView<Vector12> qs,
+        cuda_tool::CBufferView<Vector12> q_prevs,
+        cuda_tool::BufferView<Float>     Es,
+        int                              n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bid = body_ids(I);
+
+        Vector6 lb = l_basis(I);
+        Vector6 rb = r_basis(I);
+
+        Vector12 qk      = qs(bid[0]);
+        Vector12 ql      = qs(bid[1]);
+        Vector12 q_prevk = q_prevs(bid[0]);
+        Vector12 q_prevl = q_prevs(bid[1]);
+
+        Float init_a = init_angles(I);
+
+        // Unwrapped relative angle at the last committed state; valid past +-pi and across turns.
+        Float theta_prev = current_angles(I) - init_a;
+
+        Float delta = 0.0f;
+        ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
+
+        Float x        = theta_prev + delta;
+        Float lower    = lowers(I) - init_a;
+        Float upper    = uppers(I) - init_a;
+        Float strength = strengths(I);
+
+        Float E = joint_limit::eval_penalty_energy<Float>(x, lower, upper, strength);
+
+        Es(I) = E;
+    }
+
+    __global__ void affine_body_revolute_joint_limit_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>        body_ids,
+        cuda_tool::CBufferView<Vector6>         l_basis,
+        cuda_tool::CBufferView<Vector6>         r_basis,
+        cuda_tool::CBufferView<Float>           init_angles,
+        cuda_tool::CBufferView<Float>           current_angles,
+        cuda_tool::CBufferView<Float>           lowers,
+        cuda_tool::CBufferView<Float>           uppers,
+        cuda_tool::CBufferView<Float>           strengths,
+        cuda_tool::CBufferView<Vector12>        qs,
+        cuda_tool::CBufferView<Vector12>        q_prevs,
+        cuda_tool::DoubletVectorView<Float, 12> G12s,
+        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
+        bool                                    gradient_only,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bid = body_ids(I);
+
+        Vector6 lb = l_basis(I);
+        Vector6 rb = r_basis(I);
+
+        Vector12 qk      = qs(bid[0]);
+        Vector12 ql      = qs(bid[1]);
+        Vector12 q_prevk = q_prevs(bid[0]);
+        Vector12 q_prevl = q_prevs(bid[1]);
+
+        Float init_a = init_angles(I);
+
+        // Same unwrapped frame-start angle as do_compute_energy.
+        Float theta_prev = current_angles(I) - init_a;
+
+        Float delta = 0.0f;
+        ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
+
+        Float x        = theta_prev + delta;
+        Float lower    = lowers(I) - init_a;
+        Float upper    = uppers(I) - init_a;
+        Float strength = strengths(I);
+
+        Float dE_dx   = 0.0f;
+        Float d2E_dx2 = 0.0f;
+        joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
+
+        Vector24 dx_dq;
+        ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
+
+        Vector24               G = dE_dx * dx_dq;
+        DoubletVectorAssembler DVA{G12s};
+        DVA.segment<2>(2 * I).write(bid, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
+
+        if(dE_dx != 0.0f)
+        {
+            Vector12 F;
+            Vector12 F_prev;
+            ERJ::F<Float>(F, lb, qk, rb, ql);
+            ERJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
+
+            Matrix12x12 ddx_ddF;
+            ERJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
+
+            Matrix12x12 H_F = dE_dx * ddx_ddF;
+            make_spd(H_F);
+
+            Matrix24x24 JT_H_J;
+            ERJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
+            H += JT_H_J;
+        }
+
+        TripletMatrixAssembler TMA{H12x12s};
+        TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
+    }
+}  // namespace
+
 class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 {
   public:
@@ -42,14 +519,14 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
     vector<Float>                 h_current_angles;
     vector<Float>                 h_adopted_angles;
 
-    muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector12> rest_positions;
-    muda::DeviceBuffer<Float>    strength_ratio;
+    cuda_tool::DeviceBuffer<Vector2i> body_ids;
+    cuda_tool::DeviceBuffer<Vector12> rest_positions;
+    cuda_tool::DeviceBuffer<Float>    strength_ratio;
 
-    muda::DeviceBuffer<Vector6> l_basis;  // [n_L, b_L] per joint
-    muda::DeviceBuffer<Vector6> r_basis;  // [n_R, b_R] per joint
-    muda::DeviceBuffer<Float>   init_angles;
-    muda::DeviceBuffer<Float>   current_angles;
+    cuda_tool::DeviceBuffer<Vector6> l_basis;  // [n_L, b_L] per joint
+    cuda_tool::DeviceBuffer<Vector6> r_basis;  // [n_R, b_R] per joint
+    cuda_tool::DeviceBuffer<Float>   init_angles;
+    cuda_tool::DeviceBuffer<Float>   current_angles;
 
     BufferDump curr_angles_dump;
 
@@ -254,49 +731,20 @@ Edge             = ({}, {}))",
 
     void compute_current_angles()
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    l_basis  = l_basis.cviewer().name("l_basis"),
-                    r_basis  = r_basis.cviewer().name("r_basis"),
-                    qs       = affine_body_dynamics->qs().cviewer().name("qs"),
-                    current_angles = current_angles.viewer().name("current_angles"),
-                    init_angles = init_angles.cviewer().name("init_angles"),
-                    PI          = std::numbers::pi] __device__(int I)
-                   {
-                       Vector2i bids = body_ids(I);
-
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
-                       Vector6  lb  = l_basis(I);
-                       Vector6  rb  = r_basis(I);
-
-                       Float theta;
-                       compute_relative_angle(theta, lb, q_i, rb, q_j);
-
-                       // Unwrap the (-pi, pi] atan2 angle against the stored multi-turn angle; exact while per-frame rotation < pi.
-                       Float prev_rel = current_angles(I) - init_angles(I);
-                       Float rel      = unwrap_angle(theta, prev_rel);
-                       // Wrong winding is silent and never self-corrects; warn near the pi aliasing limit.
-                       if(::fabs(rel - prev_rel) > 0.9 * PI)
-                       {
-                           MUDA_KERNEL_WARN_WITH_LOCATION(
-                               "revolute joint %d: per-frame rotation %f rad is "
-                               "close to the pi unwrap limit; current_angle may "
-                               "alias onto a wrong turn",
-                               I,
-                               rel - prev_rel);
-                       }
-                       current_angles(I) = rel + init_angles(I);
-                       MUDA_ASSERT(::isfinite(current_angles(I)),
-                                   "current_angle is not finite: %f (theta=%f, prev_rel=%f)",
-                                   current_angles(I),
-                                   theta,
-                                   prev_rel);
-                   });
+        auto k = affine_body_revolute_joint_compute_current_angles_kernel;
+        int  n = (int)body_ids.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                l_basis.cview(),
+                r_basis.cview(),
+                affine_body_dynamics->qs(),
+                current_angles.view(),
+                init_angles.cview(),
+                std::numbers::pi,
+                n);
     }
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
@@ -306,44 +754,19 @@ Edge             = ({}, {}))",
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace RJ = sym::affine_body_revolute_joint;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_positions = rest_positions.cviewer().name("rest_positions"),
-                    strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    qs = info.qs().viewer().name("qs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
-                   {
-                       Vector2i bids = body_ids(I);
-
-                       Float kappa = strength_ratio(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-
-                       const Vector12& X_bar = rest_positions(I);
-
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
-
-                       // qi0_bar, qi1_bar, qj0_bar, qj1_bar
-                       Vector3 qi0_bar = X_bar.segment<3>(0);
-                       Vector3 qi1_bar = X_bar.segment<3>(3);
-                       Vector3 qj0_bar = X_bar.segment<3>(6);
-                       Vector3 qj1_bar = X_bar.segment<3>(9);
-
-                       // Compute constraint violation in F-space
-                       Vector6 F;
-                       RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
-
-                       // Compute energy: E = 0.5 * kappa * (||d0||^2 + ||d1||^2)
-                       Float E;
-                       RJ::Eaxis<Float>(E, kappa, F);
-                       Es(I) = E;
-                   });
+        auto k       = affine_body_revolute_joint_compute_energy_kernel;
+        int  n       = (int)body_ids.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_positions.cview(),
+                strength_ratio.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.energies(),
+                n);
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -357,73 +780,27 @@ Edge             = ({}, {}))",
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         using Vector24    = Vector<Float, 24>;
         using Matrix24x24 = Matrix<Float, 24, 24>;
         using Matrix6x6   = Matrix<Float, 6, 6>;
 
         namespace RJ       = sym::affine_body_revolute_joint;
         auto gradient_only = info.gradient_only();
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(
-                body_ids.size(),
-                [body_ids = body_ids.cviewer().name("body_ids"),
-                 rest_positions = rest_positions.cviewer().name("rest_positions"),
-                 strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                 body_masses = info.body_masses().viewer().name("body_masses"),
-                 qs          = info.qs().viewer().name("qs"),
-                 G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s     = info.hessians().viewer().name("H12x12s"),
-                 gradient_only] __device__(int I)
-                {
-                    Vector2i        bids  = body_ids(I);
-                    const Vector12& X_bar = rest_positions(I);
 
-                    Vector12 q_i = qs(bids(0));
-                    Vector12 q_j = qs(bids(1));
-
-                    // Extract rest positions
-                    Vector3 qi0_bar = X_bar.segment<3>(0);
-                    Vector3 qi1_bar = X_bar.segment<3>(3);
-                    Vector3 qj0_bar = X_bar.segment<3>(6);
-                    Vector3 qj1_bar = X_bar.segment<3>(9);
-
-                    Float K =
-                        strength_ratio(I)
-                        * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
-
-                    // Compute constraint violation in F-space
-                    Vector6 F;
-                    RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
-
-                    // Compute gradient in F-space
-                    Vector6 dEdF;
-                    RJ::dEaxisdFaxis<Float>(dEdF, K, F);
-
-                    // Map gradient back to ABD space: G24 = J^T * dEdF
-                    Vector24 G24;
-                    RJ::JaxisT_Gaxis<Float>(G24, dEdF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
-
-                    // Fill Body Gradient
-                    DoubletVectorAssembler DVA{G12s};
-                    DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
-                    if(gradient_only)
-                    {
-                        return;
-                    }
-                    // Fill Body Hessian
-                    Matrix6x6 ddEddF;
-                    RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
-                    make_spd(ddEddF);
-
-                    // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
-                    Matrix24x24 H24;
-                    RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
-
-                    TripletMatrixAssembler TMA{H12x12s};
-                    TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
-                });
+        auto k = affine_body_revolute_joint_compute_gradient_hessian_kernel;
+        int  n = (int)body_ids.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_positions.cview(),
+                strength_ratio.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.gradients(),
+                info.hessians(),
+                gradient_only,
+                n);
     }
 
     void write_scene()
@@ -613,10 +990,10 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
     vector<Float>  h_aim_angles;
 
     // Device
-    muda::DeviceBuffer<IndexT> is_constrained;
-    muda::DeviceBuffer<Float>  strength_ratios;
-    muda::DeviceBuffer<IndexT> is_passive;
-    muda::DeviceBuffer<Float>  aim_angles;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT> is_passive;
+    cuda_tool::DeviceBuffer<Float>  aim_angles;
 
     void do_build(BuildInfo& info) override
     {
@@ -792,67 +1169,26 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
 
     void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DRJ = sym::affine_body_driving_revolute_joint;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(is_constrained.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    is_constrained = is_constrained.cviewer().name("is_constrained"),
-                    strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                    is_passive = is_passive.cviewer().name("is_passive"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    aim_angles = aim_angles.cviewer().name("aim_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    qs = info.qs().cviewer().name("qs"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
-                   {
-                       Vector2i bids        = body_ids(I);
-                       auto     constrained = is_constrained(I);
-                       // disable driving effect
-                       if(constrained == 0)
-                       {
-                           Es(I) = 0.0;
-                           return;
-                       }
-
-                       auto  passive = is_passive(I);
-                       Float kappa   = strength_ratios(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-                       auto aim_angle = aim_angles(I);
-                       if(passive == 1)
-                       {
-                           // resist external forces passively
-                           aim_angle = current_angles(I);
-                       }
-
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
-                       Vector6  lb  = l_basis(I);
-                       Vector6  rb  = r_basis(I);
-
-                       Vector12 F01_q;
-                       DRJ::F01_q<Float>(F01_q,
-                                         lb.segment<3>(0),
-                                         lb.segment<3>(3),
-                                         q_i,
-                                         rb.segment<3>(0),
-                                         rb.segment<3>(3),
-                                         q_j);
-
-                       // Fold the frame-start unwrap shift into theta_tilde (gradient unaffected; see driving_theta_tilde).
-                       Float theta_tilde = driving_theta_tilde(
-                           F01_q, aim_angle, init_angles(I), current_angles(I));
-
-                       Float E;
-                       DRJ::E(E, kappa, F01_q, theta_tilde);
-                       Es(I) = E;
-                   });
+        auto k = affine_body_driving_revolute_joint_compute_energy_kernel;
+        int  n = (int)is_constrained.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                is_constrained.cview(),
+                strength_ratios.cview(),
+                is_passive.cview(),
+                revolute_joint->init_angles.cview(),
+                aim_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                info.qs(),
+                info.body_masses(),
+                info.energies(),
+                n);
     };
 
 
@@ -861,104 +1197,28 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         using Vector24    = Vector<Float, 24>;
         using Matrix24x24 = Matrix<Float, 24, 24>;
 
-        using namespace muda;
+        using namespace cuda_tool;
         namespace DRJ = sym::affine_body_driving_revolute_joint;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(
-                is_constrained.size(),
-                [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                 l_basis  = revolute_joint->l_basis.cviewer().name("l_basis"),
-                 r_basis  = revolute_joint->r_basis.cviewer().name("r_basis"),
-                 is_constrained = is_constrained.cviewer().name("is_constrained"),
-                 strength_ratios = strength_ratios.cviewer().name("strength_ratios"),
-                 is_passive = is_passive.cviewer().name("is_passive"),
-                 init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                 aim_angles = aim_angles.cviewer().name("aim_angles"),
-                 current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                 qs          = info.qs().cviewer().name("qs"),
-                 body_masses = info.body_masses().cviewer().name("body_masses"),
-                 G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s     = info.hessians().viewer().name("H12x12s"),
-                 gradient_only = info.gradient_only()] __device__(int I)
-                {
-                    Vector2i bids        = body_ids(I);
-                    auto     constrained = is_constrained(I);
-                    if(constrained == 0)
-                    {
-                        // no gradient and Hessian
-                        DoubletVectorAssembler DVA{G12s};
-                        DVA.segment<StencilSize>(I * StencilSize).write(bids, Vector24::Zero());
 
-                        TripletMatrixAssembler TMA{H12x12s};
-                        TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
-                        return;
-                    }
-
-                    auto passive = is_passive(I);
-                    auto kappa =
-                        strength_ratios(I)
-                        * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
-                    auto aim_angle = aim_angles(I);
-                    if(passive == 1)
-                    {
-                        // resist external forces passively
-                        aim_angle = current_angles(I);
-                    }
-
-                    Vector12 q_i = qs(bids(0));
-                    Vector12 q_j = qs(bids(1));
-
-                    Vector6 lb = l_basis(I);
-                    Vector6 rb = r_basis(I);
-
-                    Vector12 F01_q;
-                    DRJ::F01_q<Float>(F01_q,
-                                      lb.segment<3>(0),
-                                      lb.segment<3>(3),
-                                      q_i,
-                                      rb.segment<3>(0),
-                                      rb.segment<3>(3),
-                                      q_j);
-
-                    // Same unwrap as do_compute_energy (must be bit-identical).
-                    Float theta_tilde = driving_theta_tilde(
-                        F01_q, aim_angle, init_angles(I), current_angles(I));
-
-                    // G12s
-                    Vector12 G01;
-                    DRJ::dEdF01<Float>(G01, kappa, F01_q, theta_tilde);
-                    Vector24 J01T_G01;
-                    DRJ::J01T_G01<Float>(J01T_G01,
-                                         G01,
-                                         lb.segment<3>(0),
-                                         lb.segment<3>(3),
-                                         rb.segment<3>(0),
-                                         rb.segment<3>(3));
-
-                    DoubletVectorAssembler DVA{G12s};
-                    DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
-
-                    if(gradient_only)
-                    {
-                        return;
-                    }
-                    // H12x12s
-                    Matrix12x12 H01;
-                    DRJ::ddEddF01<Float>(H01, kappa, F01_q, theta_tilde);
-                    // H01 SPD to ensure the Hessian is positive definite
-                    make_spd(H01);
-                    Matrix24x24 J01T_H01_J01;
-                    DRJ::J01T_H01_J01<Float>(J01T_H01_J01,
-                                             H01,
-                                             lb.segment<3>(0),
-                                             lb.segment<3>(3),
-                                             rb.segment<3>(0),
-                                             rb.segment<3>(3));
-
-                    TripletMatrixAssembler TMA{H12x12s};
-                    TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, J01T_H01_J01);
-                });
+        auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_kernel;
+        int n = (int)is_constrained.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                is_constrained.cview(),
+                strength_ratios.cview(),
+                is_passive.cview(),
+                revolute_joint->init_angles.cview(),
+                aim_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                info.qs(),
+                info.body_masses(),
+                info.gradients(),
+                info.hessians(),
+                info.gradient_only(),
+                n);
     };
 
     U64 get_uid() const noexcept override { return ConstraintUID; }
@@ -982,8 +1242,8 @@ class AffineBodyRevoluteJointExternalForceConstraint final : public InterAffineB
     vector<Float>  h_torques;
     vector<IndexT> h_is_constrained;
 
-    muda::DeviceBuffer<Float>  torques;
-    muda::DeviceBuffer<IndexT> is_constrained;
+    cuda_tool::DeviceBuffer<Float>  torques;
+    cuda_tool::DeviceBuffer<IndexT> is_constrained;
 
     void do_build(BuildInfo& info) override
     {
@@ -1112,48 +1372,17 @@ class AffineBodyRevoluteJointExternalForce final : public AffineBodyExternalForc
 
         auto abd = constraint->revolute_joint->affine_body_dynamics;
 
-        using namespace muda;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(torque_count,
-                   [external_forces = info.external_forces().viewer().name("external_forces"),
-                    body_ids = constraint->revolute_joint->body_ids.cviewer().name("body_ids"),
-                    torques = constraint->torques.cviewer().name("torques"),
-                    rest_positions =
-                        constraint->revolute_joint->rest_positions.cviewer().name("rest_positions"),
-                    constrained_flags = constraint->is_constrained.cviewer().name("constrained_flags"),
-                    qs = abd->qs().cviewer().name("qs")] __device__(int i) mutable
-                   {
-                       if(constrained_flags(i) == 0)
-                           return;
-
-                       Vector2i bids = body_ids(i);
-                       Float    tau  = torques(i);
-
-                       const Vector12& X_bar = rest_positions(i);
-
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
-
-                       // position direction of the applied torque on body j (right-hand rule)
-                       ABDJacobi e_bar[2] = {
-                           ABDJacobi{X_bar.segment<3>(3) - X_bar.segment<3>(0)},
-                           ABDJacobi{X_bar.segment<3>(9) - X_bar.segment<3>(6)}};
-                       Vector3 e_i = e_bar[0].vec_x(q_i).normalized();
-                       Vector3 e_j = e_bar[1].vec_x(q_j).normalized();
-
-                       // symmetrize to avoid numerical issues when the joint is near singularity
-                       e_j = 0.5 * (e_j + e_i);
-                       e_i = -e_j;
-
-                       // affine-body rotational DOF (virtual-work form),
-                       // see torque_to_F in affine_body/utils.h
-                       Vector12 F_i = torque_to_F(tau, e_i, q_i);
-                       Vector12 F_j = torque_to_F(tau, e_j, q_j);
-
-                       eigen::atomic_add(external_forces(bids(0)), F_i);
-                       eigen::atomic_add(external_forces(bids(1)), F_j);
-                   });
+        using namespace cuda_tool;
+        auto k = affine_body_revolute_joint_external_force_step_kernel;
+        int  n = (int)torque_count;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.external_forces(),
+            constraint->revolute_joint->body_ids.cview(),
+            constraint->torques.cview(),
+            constraint->revolute_joint->rest_positions.cview(),
+            constraint->is_constrained.cview(),
+            abd->qs(),
+            n);
     }
 };
 REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointExternalForce);
@@ -1186,9 +1415,9 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     vector<Float> h_uppers;
     vector<Float> h_strengths;
 
-    muda::DeviceBuffer<Float> lowers;
-    muda::DeviceBuffer<Float> uppers;
-    muda::DeviceBuffer<Float> strengths;
+    cuda_tool::DeviceBuffer<Float> lowers;
+    cuda_tool::DeviceBuffer<Float> uppers;
+    cuda_tool::DeviceBuffer<Float> strengths;
 
     void do_build(BuildInfo& info) override
     {
@@ -1262,50 +1491,24 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ = sym::affine_body_revolute_joint_limit;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(lowers.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
-                   {
-                       Vector2i bid = body_ids(I);
-
-                       Vector6 lb = l_basis(I);
-                       Vector6 rb = r_basis(I);
-
-                       Vector12 qk      = qs(bid[0]);
-                       Vector12 ql      = qs(bid[1]);
-                       Vector12 q_prevk = q_prevs(bid[0]);
-                       Vector12 q_prevl = q_prevs(bid[1]);
-
-                       Float init_a = init_angles(I);
-
-                       // Unwrapped relative angle at the last committed state; valid past +-pi and across turns.
-                       Float theta_prev = current_angles(I) - init_a;
-
-                       Float delta = 0.0f;
-                       ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
-
-                       Float x        = theta_prev + delta;
-                       Float lower    = lowers(I) - init_a;
-                       Float upper    = uppers(I) - init_a;
-                       Float strength = strengths(I);
-
-                       Float E = joint_limit::eval_penalty_energy<Float>(x, lower, upper, strength);
-
-                       Es(I) = E;
-                   });
+        auto k        = affine_body_revolute_joint_limit_compute_energy_kernel;
+        int  n        = (int)lowers.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                revolute_joint->init_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                lowers.cview(),
+                uppers.cview(),
+                strengths.cview(),
+                info.qs(),
+                info.q_prevs(),
+                info.energies(),
+                n);
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -1319,88 +1522,28 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         namespace ERJ      = sym::affine_body_revolute_joint_limit;
         auto gradient_only = info.gradient_only();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(lowers.size(),
-                   [body_ids = revolute_joint->body_ids.cviewer().name("body_ids"),
-                    l_basis = revolute_joint->l_basis.cviewer().name("l_basis"),
-                    r_basis = revolute_joint->r_basis.cviewer().name("r_basis"),
-                    init_angles = revolute_joint->init_angles.cviewer().name("init_angles"),
-                    current_angles = revolute_joint->current_angles.cviewer().name("current_angles"),
-                    lowers    = lowers.cviewer().name("lowers"),
-                    uppers    = uppers.cviewer().name("uppers"),
-                    strengths = strengths.cviewer().name("strengths"),
-                    qs        = info.qs().cviewer().name("qs"),
-                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
-                    G12s      = info.gradients().viewer().name("G12s"),
-                    H12x12s   = info.hessians().viewer().name("H12x12s"),
-                    gradient_only] __device__(int I) mutable
-                   {
-                       Vector2i bid = body_ids(I);
-
-                       Vector6 lb = l_basis(I);
-                       Vector6 rb = r_basis(I);
-
-                       Vector12 qk      = qs(bid[0]);
-                       Vector12 ql      = qs(bid[1]);
-                       Vector12 q_prevk = q_prevs(bid[0]);
-                       Vector12 q_prevl = q_prevs(bid[1]);
-
-                       Float init_a = init_angles(I);
-
-                       // Same unwrapped frame-start angle as do_compute_energy.
-                       Float theta_prev = current_angles(I) - init_a;
-
-                       Float delta = 0.0f;
-                       ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
-
-                       Float x        = theta_prev + delta;
-                       Float lower    = lowers(I) - init_a;
-                       Float upper    = uppers(I) - init_a;
-                       Float strength = strengths(I);
-
-                       Float dE_dx   = 0.0f;
-                       Float d2E_dx2 = 0.0f;
-                       joint_limit::eval_penalty_derivatives<Float>(
-                           x, lower, upper, strength, dE_dx, d2E_dx2);
-
-                       Vector24 dx_dq;
-                       ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
-
-                       Vector24               G = dE_dx * dx_dq;
-                       DoubletVectorAssembler DVA{G12s};
-                       DVA.segment<2>(2 * I).write(bid, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
-
-                       if(dE_dx != 0.0f)
-                       {
-                           Vector12 F;
-                           Vector12 F_prev;
-                           ERJ::F<Float>(F, lb, qk, rb, ql);
-                           ERJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
-
-                           Matrix12x12 ddx_ddF;
-                           ERJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
-
-                           Matrix12x12 H_F = dE_dx * ddx_ddF;
-                           make_spd(H_F);
-
-                           Matrix24x24 JT_H_J;
-                           ERJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
-                           H += JT_H_J;
-                       }
-
-                       TripletMatrixAssembler TMA{H12x12s};
-                       TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
-                   });
+        auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_kernel;
+        int n = (int)lowers.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                revolute_joint->init_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                lowers.cview(),
+                uppers.cview(),
+                strengths.cview(),
+                info.qs(),
+                info.q_prevs(),
+                info.gradients(),
+                info.hessians(),
+                gradient_only,
+                n);
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

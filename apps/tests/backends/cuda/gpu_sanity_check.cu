@@ -16,7 +16,8 @@
 #include <uipc/common/timer.h>
 #include <chrono>
 
-using namespace muda;
+namespace cuda_tool = uipc::backend::cuda_tool;
+using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
@@ -25,6 +26,195 @@ namespace test_gpu_sanity_check
 {
 using Clock    = std::chrono::high_resolution_clock;
 using Duration = std::chrono::duration<double, std::milli>;
+
+namespace
+{
+    __global__ void gpu_intersection_check_build_tri_aabbs_kernel(
+        cuda_tool::BufferView<Vector3i> Fs,
+        cuda_tool::BufferView<Vector3>  Ps,
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto F = Fs(i);
+        AABB aabb;
+        aabb.extend(Ps(F[0]).cast<float>());
+        aabb.extend(Ps(F[1]).cast<float>());
+        aabb.extend(Ps(F[2]).cast<float>());
+        aabbs(i) = aabb;
+        bids(i)  = 0;
+        cids(i)  = 0;
+    }
+
+    __global__ void gpu_intersection_check_build_edge_aabbs_kernel(
+        cuda_tool::BufferView<Vector2i> Es,
+        cuda_tool::BufferView<Vector3>  Ps,
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto E = Es(i);
+        AABB aabb;
+        aabb.extend(Ps(E[0]).cast<float>());
+        aabb.extend(Ps(E[1]).cast<float>());
+        aabbs(i) = aabb;
+        bids(i)  = 0;
+        cids(i)  = 0;
+    }
+
+    __global__ void gpu_distance_check_build_tri_aabbs_kernel(
+        cuda_tool::BufferView<Vector3i> Fs,
+        cuda_tool::BufferView<Vector3>  Ps,
+        cuda_tool::BufferView<AABB>     aabbs,
+        cuda_tool::BufferView<IndexT>   bids,
+        cuda_tool::BufferView<IndexT>   cids,
+        float                           expand,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto F = Fs(i);
+        AABB aabb;
+        aabb.extend(Ps(F[0]).cast<float>());
+        aabb.extend(Ps(F[1]).cast<float>());
+        aabb.extend(Ps(F[2]).cast<float>());
+        aabb.min().array() -= expand;
+        aabb.max().array() += expand;
+        aabbs(i) = aabb;
+        bids(i)  = 0;
+        cids(i)  = 0;
+    }
+
+    __global__ void gpu_distance_check_build_point_aabbs_kernel(
+        cuda_tool::BufferView<Vector3> Ps,
+        cuda_tool::BufferView<AABB>    aabbs,
+        cuda_tool::BufferView<IndexT>  bids,
+        cuda_tool::BufferView<IndexT>  cids,
+        float                          expand,
+        int                            n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        AABB aabb;
+        aabb.extend(Ps(i).cast<float>());
+        aabb.min().array() -= expand;
+        aabb.max().array() += expand;
+        aabbs(i) = aabb;
+        bids(i)  = 0;
+        cids(i)  = 0;
+    }
+
+    __global__ void gpu_halfplane_check_kernel(cuda_tool::BufferView<Vector3> Ps,
+                                               cuda_tool::Dense<IndexT> violation,
+                                               Vector3 plane_P,
+                                               Vector3 plane_N,
+                                               Float   thickness,
+                                               int     n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Vector3& V = Ps(i);
+        Float          d = (V - plane_P).dot(plane_N) - thickness;
+        if(d <= 0.0)
+            atomicAdd(violation.data(), IndexT(1));
+    }
+
+    __global__ void gpu_volume_check_kernel(cuda_tool::BufferView<Vector4i> Ts,
+                                            cuda_tool::BufferView<Vector3>  Ps,
+                                            cuda_tool::Dense<IndexT> violation,
+                                            int                      n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto    T   = Ts(i);
+        Vector3 e1  = Ps(T[1]) - Ps(T[0]);
+        Vector3 e2  = Ps(T[2]) - Ps(T[0]);
+        Vector3 e3  = Ps(T[3]) - Ps(T[0]);
+        Float   vol = e1.cross(e2).dot(e3) / 6.0;
+        if(vol <= 0.0)
+            atomicAdd(violation.data(), IndexT(1));
+    }
+
+    struct GpuIntersectionLeafPred
+    {
+        cuda_tool::BufferView<Vector2i> Es;
+        cuda_tool::BufferView<Vector3i> Fs;
+        cuda_tool::BufferView<Vector3>  Ps;
+
+        __device__ bool operator()(InfoStacklessBVH::LeafPredInfo leaf) const
+        {
+            auto E = Es(leaf.i);
+            auto F = Fs(leaf.j);
+
+            if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2] || E[1] == F[0]
+               || E[1] == F[1] || E[1] == F[2])
+                return false;
+
+            // Moeller-Trumbore
+            constexpr Float eps  = 1e-12;
+            Vector3         T0   = Ps(F[0]);
+            Vector3         T1   = Ps(F[1]);
+            Vector3         T2   = Ps(F[2]);
+            Vector3         E0p  = Ps(E[0]);
+            Vector3         E1p  = Ps(E[1]);
+            Vector3         edge = E1p - E0p;
+            Vector3         e1   = T1 - T0;
+            Vector3         e2   = T2 - T0;
+            Vector3         h    = edge.cross(e2);
+            Float           a    = e1.dot(h);
+            if(a > -eps && a < eps)
+                return false;
+            Float   f = 1.0 / a;
+            Vector3 s = E0p - T0;
+            Float   u = f * s.dot(h);
+            if(u < 0.0 || u > 1.0)
+                return false;
+            Vector3 q = s.cross(e1);
+            Float   v = f * edge.dot(q);
+            if(v < 0.0 || u + v > 1.0)
+                return false;
+            Float t = f * e2.dot(q);
+            return (t >= 0.0 && t <= 1.0);
+        }
+    };
+
+    struct GpuDistanceLeafPred
+    {
+        cuda_tool::BufferView<Vector3i> Fs;
+        cuda_tool::BufferView<Vector3>  Ps;
+        cuda_tool::Dense<IndexT>        violation;
+        Float                           thickness2;
+
+        __device__ bool operator()(InfoStacklessBVH::LeafPredInfo leaf) const
+        {
+            auto P = leaf.i;
+            auto F = Fs(leaf.j);
+
+            if(P == F[0] || P == F[1] || P == F[2])
+                return false;
+
+            Float D;
+            distance::point_triangle_distance2(Ps(P), Ps(F[0]), Ps(F[1]), Ps(F[2]), D);
+
+            if(D <= thickness2)
+                atomicAdd(violation.data(), IndexT(1));
+
+            return false;
+        }
+    };
+}  // namespace
 
 // ============================================================
 // CPU intersection check (reference)
@@ -66,7 +256,7 @@ SizeT cpu_intersection_check(span<const Vector3> Vs, span<const Vector2i> Es, sp
 // ============================================================
 struct NodePredAllow
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const
     {
         return true;
     }
@@ -92,47 +282,40 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
     DeviceBuffer<IndexT> tri_bids(h_Fs.size());
     DeviceBuffer<IndexT> tri_cids(h_Fs.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Fs.size(),
-               [Fs    = d_Fs.viewer().name("Fs"),
-                Ps    = d_Ps.viewer().name("Ps"),
-                aabbs = tri_aabbs.viewer().name("aabbs"),
-                bids  = tri_bids.viewer().name("bids"),
-                cids = tri_cids.viewer().name("cids")] __device__(int i) mutable
-               {
-                   auto F = Fs(i);
-                   AABB aabb;
-                   aabb.extend(Ps(F[0]).cast<float>());
-                   aabb.extend(Ps(F[1]).cast<float>());
-                   aabb.extend(Ps(F[2]).cast<float>());
-                   aabbs(i) = aabb;
-                   bids(i)  = 0;
-                   cids(i)  = 0;
-               });
+    {
+        auto k = gpu_intersection_check_build_tri_aabbs_kernel;
+        int  n = (int)h_Fs.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Fs.viewer(),
+                d_Ps.viewer(),
+                tri_aabbs.viewer(),
+                tri_bids.viewer(),
+                tri_cids.viewer(),
+                n);
+        }
+    }
 
     // Build edge AABBs
     DeviceBuffer<AABB>   edge_aabbs(h_Es.size());
     DeviceBuffer<IndexT> edge_bids(h_Es.size());
     DeviceBuffer<IndexT> edge_cids(h_Es.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Es.size(),
-               [Es    = d_Es.viewer().name("Es"),
-                Ps    = d_Ps.viewer().name("Ps"),
-                aabbs = edge_aabbs.viewer().name("aabbs"),
-                bids  = edge_bids.viewer().name("bids"),
-                cids = edge_cids.viewer().name("cids")] __device__(int i) mutable
-               {
-                   auto E = Es(i);
-                   AABB aabb;
-                   aabb.extend(Ps(E[0]).cast<float>());
-                   aabb.extend(Ps(E[1]).cast<float>());
-                   aabbs(i) = aabb;
-                   bids(i)  = 0;
-                   cids(i)  = 0;
-               });
+    {
+        auto k = gpu_intersection_check_build_edge_aabbs_kernel;
+        int  n = (int)h_Es.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Es.viewer(),
+                d_Ps.viewer(),
+                edge_aabbs.viewer(),
+                edge_bids.viewer(),
+                edge_cids.viewer(),
+                n);
+        }
+    }
 
     // Build BVH and query
     constexpr IndexT       cid_count = 1;
@@ -145,50 +328,13 @@ SizeT gpu_intersection_check(span<const Vector3>  h_Ps,
 
     tri_bvh.build(tri_aabbs.view(), tri_bids.view(), tri_cids.view());
 
-    tri_bvh.query(
-        edge_aabbs.view(),
-        edge_bids.view(),
-        edge_cids.view(),
-        d_cmts.view(),
-        NodePredAllow{},
-        [Es = d_Es.viewer().name("Es"),
-         Fs = d_Fs.viewer().name("Fs"),
-         Ps = d_Ps.viewer().name("Ps")] __device__(InfoStacklessBVH::LeafPredInfo leaf)
-        {
-            auto E = Es(leaf.i);
-            auto F = Fs(leaf.j);
-
-            if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2] || E[1] == F[0]
-               || E[1] == F[1] || E[1] == F[2])
-                return false;
-
-            // Moeller-Trumbore
-            constexpr Float eps  = 1e-12;
-            Vector3         T0   = Ps(F[0]);
-            Vector3         T1   = Ps(F[1]);
-            Vector3         T2   = Ps(F[2]);
-            Vector3         E0p  = Ps(E[0]);
-            Vector3         E1p  = Ps(E[1]);
-            Vector3         edge = E1p - E0p;
-            Vector3         e1   = T1 - T0;
-            Vector3         e2   = T2 - T0;
-            Vector3         h    = edge.cross(e2);
-            Float           a    = e1.dot(h);
-            if(a > -eps && a < eps)
-                return false;
-            Float   f = 1.0 / a;
-            Vector3 s = E0p - T0;
-            Float   u = f * s.dot(h);
-            if(u < 0.0 || u > 1.0)
-                return false;
-            Vector3 q = s.cross(e1);
-            Float   v = f * edge.dot(q);
-            if(v < 0.0 || u + v > 1.0)
-                return false;
-            Float t = f * e2.dot(q);
-            return (t >= 0.0 && t <= 1.0);
-        },
-        qbuffer);
+    tri_bvh.query(edge_aabbs.view(),
+                  edge_bids.view(),
+                  edge_cids.view(),
+                  d_cmts.view(),
+                  NodePredAllow{},
+                  GpuIntersectionLeafPred{d_Es.viewer(), d_Fs.viewer(), d_Ps.viewer()},
+                  qbuffer);
 
     return qbuffer.size();
 }
@@ -266,50 +412,41 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
     DeviceBuffer<IndexT> tri_bids(h_Fs.size());
     DeviceBuffer<IndexT> tri_cids(h_Fs.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Fs.size(),
-               [Fs     = d_Fs.viewer().name("Fs"),
-                Ps     = d_Ps.viewer().name("Ps"),
-                aabbs  = tri_aabbs.viewer().name("aabbs"),
-                bids   = tri_bids.viewer().name("bids"),
-                cids   = tri_cids.viewer().name("cids"),
-                expand = static_cast<float>(expand_f)] __device__(int i) mutable
-               {
-                   auto F = Fs(i);
-                   AABB aabb;
-                   aabb.extend(Ps(F[0]).cast<float>());
-                   aabb.extend(Ps(F[1]).cast<float>());
-                   aabb.extend(Ps(F[2]).cast<float>());
-                   aabb.min().array() -= expand;
-                   aabb.max().array() += expand;
-                   aabbs(i) = aabb;
-                   bids(i)  = 0;
-                   cids(i)  = 0;
-               });
+    {
+        auto k = gpu_distance_check_build_tri_aabbs_kernel;
+        int  n = (int)h_Fs.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Fs.viewer(),
+                d_Ps.viewer(),
+                tri_aabbs.viewer(),
+                tri_bids.viewer(),
+                tri_cids.viewer(),
+                static_cast<float>(expand_f),
+                n);
+        }
+    }
 
     // Build point AABBs
     DeviceBuffer<AABB>   point_aabbs(h_Ps.size());
     DeviceBuffer<IndexT> point_bids(h_Ps.size());
     DeviceBuffer<IndexT> point_cids(h_Ps.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Ps.size(),
-               [Ps     = d_Ps.viewer().name("Ps"),
-                aabbs  = point_aabbs.viewer().name("aabbs"),
-                bids   = point_bids.viewer().name("bids"),
-                cids   = point_cids.viewer().name("cids"),
-                expand = static_cast<float>(expand_f)] __device__(int i) mutable
-               {
-                   AABB aabb;
-                   aabb.extend(Ps(i).cast<float>());
-                   aabb.min().array() -= expand;
-                   aabb.max().array() += expand;
-                   aabbs(i) = aabb;
-                   bids(i)  = 0;
-                   cids(i)  = 0;
-               });
+    {
+        auto k = gpu_distance_check_build_point_aabbs_kernel;
+        int  n = (int)h_Ps.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Ps.viewer(),
+                point_aabbs.viewer(),
+                point_bids.viewer(),
+                point_cids.viewer(),
+                static_cast<float>(expand_f),
+                n);
+        }
+    }
 
     constexpr IndexT       cid_count = 1;
     std::vector<IndexT>    h_cmts(cid_count * cid_count, 1);
@@ -324,32 +461,14 @@ SizeT gpu_distance_check(span<const Vector3>  h_Ps,
 
     tri_bvh.build(tri_aabbs.view(), tri_bids.view(), tri_cids.view());
 
-    tri_bvh.query(
-        point_aabbs.view(),
-        point_bids.view(),
-        point_cids.view(),
-        d_cmts.view(),
-        NodePredAllow{},
-        [Fs        = d_Fs.viewer().name("Fs"),
-         Ps        = d_Ps.viewer().name("Ps"),
-         violation = violation_count.viewer().name("violation"),
-         thickness2] __device__(InfoStacklessBVH::LeafPredInfo leaf)
-        {
-            auto P = leaf.i;
-            auto F = Fs(leaf.j);
-
-            if(P == F[0] || P == F[1] || P == F[2])
-                return false;
-
-            Float D;
-            distance::point_triangle_distance2(Ps(P), Ps(F[0]), Ps(F[1]), Ps(F[2]), D);
-
-            if(D <= thickness2)
-                atomicAdd(violation.data(), IndexT(1));
-
-            return false;
-        },
-        qbuffer);
+    tri_bvh.query(point_aabbs.view(),
+                  point_bids.view(),
+                  point_cids.view(),
+                  d_cmts.view(),
+                  NodePredAllow{},
+                  GpuDistanceLeafPred{
+                      d_Fs.viewer(), d_Ps.viewer(), violation_count.viewer(), thickness2},
+                  qbuffer);
 
     IndexT h_count = violation_count;
     return h_count;
@@ -384,20 +503,15 @@ SizeT gpu_halfplane_check(span<const Vector3> h_Ps,
     DeviceVar<IndexT> violation_count;
     violation_count = 0;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Ps.size(),
-               [Ps        = d_Ps.viewer().name("Ps"),
-                violation = violation_count.viewer().name("violation"),
-                plane_P,
-                plane_N,
-                thickness] __device__(int i) mutable
-               {
-                   const Vector3& V = Ps(i);
-                   Float          d = (V - plane_P).dot(plane_N) - thickness;
-                   if(d <= 0.0)
-                       atomicAdd(violation.data(), IndexT(1));
-               });
+    {
+        auto k = gpu_halfplane_check_kernel;
+        int  n = (int)h_Ps.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Ps.viewer(), violation_count.viewer(), plane_P, plane_N, thickness, n);
+        }
+    }
 
     IndexT h_count = violation_count;
     return h_count;
@@ -434,21 +548,15 @@ SizeT gpu_volume_check(span<const Vector3> h_Ps, span<const Vector4i> h_Ts)
     DeviceVar<IndexT> violation_count;
     violation_count = 0;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(h_Ts.size(),
-               [Ts = d_Ts.viewer().name("Ts"),
-                Ps = d_Ps.viewer().name("Ps"),
-                violation = violation_count.viewer().name("violation")] __device__(int i) mutable
-               {
-                   auto    T   = Ts(i);
-                   Vector3 e1  = Ps(T[1]) - Ps(T[0]);
-                   Vector3 e2  = Ps(T[2]) - Ps(T[0]);
-                   Vector3 e3  = Ps(T[3]) - Ps(T[0]);
-                   Float   vol = e1.cross(e2).dot(e3) / 6.0;
-                   if(vol <= 0.0)
-                       atomicAdd(violation.data(), IndexT(1));
-               });
+    {
+        auto k = gpu_volume_check_kernel;
+        int  n = (int)h_Ts.size();
+        if(n > 0)
+        {
+            k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                d_Ts.viewer(), d_Ps.viewer(), violation_count.viewer(), n);
+        }
+    }
 
     IndexT h_count = violation_count;
     return h_count;

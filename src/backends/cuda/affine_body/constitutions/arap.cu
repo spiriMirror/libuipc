@@ -4,12 +4,75 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
-#include <muda/cub/device/device_reduce.h>
-#include <muda/ext/eigen/svd.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace abd_arap = sym::abd_arap;
+
+    __global__ void arap_compute_energy_kernel(cuda_tool::BufferView<Float> shape_energies,
+                                               cuda_tool::CBufferView<Vector12> qs,
+                                               cuda_tool::CBufferView<Float> kappas,
+                                               cuda_tool::CBufferView<Float> volumes,
+                                               Float dt,
+                                               int   n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto& q      = qs(i);
+        auto& volume = volumes(i);
+        auto  kappa  = kappas(i);
+
+        Float Vdt2 = volume * dt * dt;
+
+        Float E;
+        abd_arap::E(E, kappa, q);
+
+        shape_energies(i) = E * Vdt2;
+    }
+
+    __global__ void arap_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector12>   qs,
+        cuda_tool::CBufferView<Float>      volumes,
+        cuda_tool::BufferView<Vector12>    gradients,
+        cuda_tool::BufferView<Matrix12x12> hessians,
+        cuda_tool::CBufferView<Float>      kappas,
+        Float                              dt,
+        bool                               gradient_only,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Matrix12x12 H = Matrix12x12::Zero();
+        Vector12    G = Vector12::Zero();
+
+        const auto& q      = qs(i);
+        Float       kappa  = kappas(i);
+        const auto& volume = volumes(i);
+
+        Float Vdt2 = volume * dt * dt;
+
+        Vector9 G9;
+        abd_arap::dEdq(G9, kappa, q);
+        G.segment<9>(3) = G9 * Vdt2;
+        gradients(i)    = G;
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 H9x9;
+        abd_arap::ddEddq(H9x9, kappa, q);
+        H.block<9, 9>(3, 3) = H9x9 * Vdt2;
+
+        hessians(i) = H;
+    }
+}  // namespace
+
 class ARAP final : public AffineBodyConstitution
 {
   public:
@@ -19,7 +82,7 @@ class ARAP final : public AffineBodyConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
@@ -46,10 +109,10 @@ class ARAP final : public AffineBodyConstitution
 
     void _build_on_device()
     {
-        auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
+        auto async_copy = []<typename T>(span<T> src, cuda_tool::DeviceBuffer<T>& dst)
         {
-            muda::BufferLaunch().resize<T>(dst, src.size());
-            muda::BufferLaunch().copy<T>(dst.view(), src.data());
+            cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+            cuda_tool::BufferLaunch().copy<T>(dst.view(), src.data());
         };
 
         async_copy(span{h_kappas}, kappas);
@@ -57,75 +120,36 @@ class ARAP final : public AffineBodyConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-        namespace abd_arap = sym::abd_arap;
-
         auto body_count = info.qs().size();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_count,
-                   [shape_energies = info.energies().viewer().name("energies"),
-                    qs             = info.qs().cviewer().name("qs"),
-                    kappas         = kappas.cviewer().name("kappas"),
-                    volumes        = info.volumes().cviewer().name("volumes"),
-                    dt             = info.dt()] __device__(int i) mutable
-                   {
-                       auto& q      = qs(i);
-                       auto& volume = volumes(i);
-                       auto  kappa  = kappas(i);
-
-                       Float Vdt2 = volume * dt * dt;
-
-                       Float E;
-                       abd_arap::E(E, kappa, q);
-
-                       shape_energies(i) = E * Vdt2;
-                   });
+        int n = (int)body_count;
+        if(n > 0)
+        {
+            auto k = arap_compute_energy_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.energies(), info.qs(), kappas.cview(), info.volumes(), info.dt(), n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-        namespace abd_arap = sym::abd_arap;
-
         auto N             = info.qs().size();
         auto gradient_only = info.gradient_only();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(N,
-                   [qs      = info.qs().cviewer().name("qs"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.gradients().viewer().name("shape_gradients"),
-                    hessians = info.hessians().viewer().name("shape_hessian"),
-                    kappas   = kappas.cviewer().name("kappas"),
-                    dt       = info.dt(),
-                    gradient_only] __device__(int i) mutable
-                   {
-                       Matrix12x12 H = Matrix12x12::Zero();
-                       Vector12    G = Vector12::Zero();
-
-                       const auto& q      = qs(i);
-                       Float       kappa  = kappas(i);
-                       const auto& volume = volumes(i);
-
-                       Float Vdt2 = volume * dt * dt;
-
-                       Vector9 G9;
-                       abd_arap::dEdq(G9, kappa, q);
-                       G.segment<9>(3) = G9 * Vdt2;
-                       gradients(i)    = G;
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 H9x9;
-                       abd_arap::ddEddq(H9x9, kappa, q);
-                       H.block<9, 9>(3, 3) = H9x9 * Vdt2;
-
-                       hessians(i) = H;
-                   });
+        int n = (int)N;
+        if(n > 0)
+        {
+            auto k = arap_compute_gradient_hessian_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.qs(),
+                info.volumes(),
+                info.gradients(),
+                info.hessians(),
+                kappas.cview(),
+                info.dt(),
+                gradient_only,
+                n);
+        }
     }
 };
 

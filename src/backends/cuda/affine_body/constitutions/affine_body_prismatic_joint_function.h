@@ -13,7 +13,7 @@ namespace sym::affine_body_driving_prismatic_joint
 #include "sym/affine_body_driving_prismatic_joint.inl"
 }
 
-MUDA_DEVICE MUDA_INLINE void compute_absolute_distance(Float& out_distance,
+UIPC_DEVICE UIPC_INLINE void compute_absolute_distance(Float& out_distance,
                                                        const Vector6&  C_bar,
                                                        const Vector6&  t_bar,
                                                        const Vector12& q_i,
@@ -32,7 +32,7 @@ MUDA_DEVICE MUDA_INLINE void compute_absolute_distance(Float& out_distance,
     DPJ::Distance<Float>(out_distance, F01_q);
 }
 
-MUDA_DEVICE MUDA_INLINE void compute_absolute_distance_derivative(Eigen::Vector<Float, 24>& out_dx_dq,
+UIPC_DEVICE UIPC_INLINE void compute_absolute_distance_derivative(Eigen::Vector<Float, 24>& out_dx_dq,
                                                                   const Vector6& C_bar,
                                                                   const Vector6& t_bar,
                                                                   const Vector12& q_i,
@@ -60,7 +60,7 @@ MUDA_DEVICE MUDA_INLINE void compute_absolute_distance_derivative(Eigen::Vector<
                          t_bar.segment<3>(3));
 }
 
-MUDA_DEVICE MUDA_INLINE void compute_absolute_distance_hessian(Eigen::Matrix<Float, 24, 24>& out_H,
+UIPC_DEVICE UIPC_INLINE void compute_absolute_distance_hessian(Eigen::Matrix<Float, 24, 24>& out_H,
                                                                const Float& dE_dx,
                                                                const Vector6& C_bar,
                                                                const Vector6& t_bar,

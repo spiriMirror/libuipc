@@ -5,7 +5,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <utils/report_extent_check.h>
 #include <uipc/common/enumerate.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -27,13 +27,12 @@ void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& i
     // compute the gradient and hessian
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeGradientHessianInfo this_info{
-            &m_impl,
-            constraint->m_index,
-            info.dt(),
-            info.gradients(),
-            info.hessians(),
-            info.gradient_only()};
+        ComputeGradientHessianInfo this_info{&m_impl,
+                                             constraint->m_index,
+                                             info.dt(),
+                                             info.gradients(),
+                                             info.hessians(),
+                                             info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -158,7 +157,7 @@ void FiniteElementAnimator::Impl::step()
 
 void FiniteElementAnimator::compute_energy(FEMLineSearchSubreporter::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
     for(auto constraint : m_impl.constraints.view())
     {
         ComputeEnergyInfo this_info{&m_impl, constraint->m_index, info.dt(), info.energies()};
@@ -177,39 +176,39 @@ Float FiniteElementAnimator::BaseInfo::substep_ratio() const noexcept
     return m_impl->global_animator->substep_ratio();
 }
 
-muda::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::xs() const noexcept
+cuda_tool::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::xs() const noexcept
 {
     return m_impl->finite_element_method->xs();
 }
 
-muda::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::x_prevs() const noexcept
+cuda_tool::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::x_prevs() const noexcept
 {
     return m_impl->finite_element_method->x_prevs();
 }
 
-muda::CBufferView<Float> FiniteElementAnimator::BaseInfo::masses() const noexcept
+cuda_tool::CBufferView<Float> FiniteElementAnimator::BaseInfo::masses() const noexcept
 {
     return m_impl->finite_element_method->masses();
 }
 
-muda::CBufferView<IndexT> FiniteElementAnimator::BaseInfo::is_fixed() const noexcept
+cuda_tool::CBufferView<IndexT> FiniteElementAnimator::BaseInfo::is_fixed() const noexcept
 {
     return m_impl->finite_element_method->is_fixed();
 }
 
-muda::BufferView<Float> FiniteElementAnimator::ComputeEnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> FiniteElementAnimator::ComputeEnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::gradients() const noexcept
+cuda_tool::DoubletVectorView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::hessians() const noexcept
+cuda_tool::TripletMatrixView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constraint_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);

@@ -8,7 +8,7 @@ namespace uipc::backend::cuda
 namespace sym::codim_ipc_contact
 {
 
-    inline __device__ ContactCoeff PT_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PT_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
@@ -22,7 +22,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 3.0, mu / 3.0};
     }
 
-    inline __device__ ContactCoeff EE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff EE_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector4i& cids)
     {
         Float kappa = 0.0;
@@ -39,7 +39,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 4.0, mu / 4.0};
     }
 
-    inline __device__ ContactCoeff PE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PE_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector3i& cids)
     {
         Float kappa = 0.0;
@@ -53,7 +53,7 @@ namespace sym::codim_ipc_contact
         return {kappa / 2.0, mu / 2.0};
     }
 
-    inline __device__ ContactCoeff PP_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+    inline __device__ ContactCoeff PP_contact_coeff(const cuda_tool::CDense2D<ContactCoeff>& table,
                                                     const Vector2i& cids)
     {
         return table(cids[0], cids[1]);
@@ -201,12 +201,12 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ void PT_friction_gradient(Vector12&    G,
-                                                Float        kappa,
-                                                Float        d_hat,
-                                                Float        thickness,
-                                                Float        mu,
-                                                Float        eps_vh,
+    inline __device__ void PT_friction_gradient(Vector12&      G,
+                                                Float          kappa,
+                                                Float          d_hat,
+                                                Float          thickness,
+                                                Float          mu,
+                                                Float          eps_vh,
                                                 const Vector3& prev_P,
                                                 const Vector3& prev_T0,
                                                 const Vector3& prev_T1,
@@ -389,12 +389,12 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ void EE_friction_gradient(Vector12&    G,
-                                                Float        kappa,
-                                                Float        d_hat,
-                                                Float        thickness,
-                                                Float        mu,
-                                                Float        eps_vh,
+    inline __device__ void EE_friction_gradient(Vector12&      G,
+                                                Float          kappa,
+                                                Float          d_hat,
+                                                Float          thickness,
+                                                Float          mu,
+                                                Float          eps_vh,
                                                 const Vector3& prev_Ea0,
                                                 const Vector3& prev_Ea1,
                                                 const Vector3& prev_Eb0,
@@ -569,12 +569,12 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ void PE_friction_gradient(Vector9&   G,
-                                                Float      kappa,
-                                                Float      d_hat,
-                                                Float      thickness,
-                                                Float      mu,
-                                                Float      eps_vh,
+    inline __device__ void PE_friction_gradient(Vector9&       G,
+                                                Float          kappa,
+                                                Float          d_hat,
+                                                Float          thickness,
+                                                Float          mu,
+                                                Float          eps_vh,
                                                 const Vector3& prev_P,
                                                 const Vector3& prev_E0,
                                                 const Vector3& prev_E1,
@@ -728,12 +728,12 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ void PP_friction_gradient(Vector6&   G,
-                                                Float      kappa,
-                                                Float      d_hat,
-                                                Float      thickness,
-                                                Float      mu,
-                                                Float      eps_vh,
+    inline __device__ void PP_friction_gradient(Vector6&       G,
+                                                Float          kappa,
+                                                Float          d_hat,
+                                                Float          thickness,
+                                                Float          mu,
+                                                Float          eps_vh,
                                                 const Vector3& prev_P0,
                                                 const Vector3& prev_P1,
                                                 const Vector3& P0,

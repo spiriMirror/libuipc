@@ -23,26 +23,39 @@ StrainLimitingBaraffWitkinShell::StrainLimitingBaraffWitkinShell(const Json& con
 }
 
 void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
-                                               const ElasticModuli2D& moduli,
+                                               const ElasticModuli2D& stretch_moduli,
+                                               const ElasticModuli2D& shear_moduli,
                                                Float mass_density,
-                                               Float thickness) const
+                                               Float thickness,
+                                               Float strain_rate) const
 {
     Base::apply_to(sc, mass_density, thickness);
 
-    auto lambda = moduli.lambda();
-    auto mu     = moduli.mu();
+    // Cloth stiffness model (same convention as mas-pncg), with independent
+    // stretch / shear material parameters:
+    //   stretchStiff = E_stretch * t / (1 - nu_stretch^2)  [= (lambda_s + 2*mu_s) * t]
+    //   shearStiff   = E_shear / (2*(1 + nu_shear))        [= mu_shear]
+    // The backend membrane measure is the triangle AREA (no thickness), so
+    // these attribute values are used literally as the effective stiffnesses.
+    Float stretch_stiff = (stretch_moduli.lambda() + 2 * stretch_moduli.mu()) * thickness;
+    Float shear_stiff = shear_moduli.mu();
 
     UIPC_ASSERT_THROW(sc.dim() == 2, "StrainLimitingBaraffWitkinShell only supports 2D simplicial complex");
 
     auto lambda_attr = sc.triangles().find<Float>("lambda");
     if(!lambda_attr)
-        lambda_attr = sc.triangles().create<Float>("lambda", lambda);
-    std::ranges::fill(geometry::view(*lambda_attr), lambda);
+        lambda_attr = sc.triangles().create<Float>("lambda", stretch_stiff);
+    std::ranges::fill(geometry::view(*lambda_attr), stretch_stiff);
 
     auto mu_attr = sc.triangles().find<Float>("mu");
     if(!mu_attr)
-        mu_attr = sc.triangles().create<Float>("mu", mu);
-    std::ranges::fill(geometry::view(*mu_attr), mu);
+        mu_attr = sc.triangles().create<Float>("mu", shear_stiff);
+    std::ranges::fill(geometry::view(*mu_attr), shear_stiff);
+
+    auto strain_rate_attr = sc.triangles().find<Float>("strain_rate");
+    if(!strain_rate_attr)
+        strain_rate_attr = sc.triangles().create<Float>("strain_rate", strain_rate);
+    std::ranges::fill(geometry::view(*strain_rate_attr), strain_rate);
 }
 
 Json StrainLimitingBaraffWitkinShell::default_config() noexcept

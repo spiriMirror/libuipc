@@ -20,25 +20,25 @@ class FEMLineSearchReporter final : public LineSearchReporter
 
       private:
         friend class FEMLineSearchReporter;
-        SizeT m_energy_count  = 0;
+        SizeT m_energy_count = 0;
     };
 
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(muda::BufferView<Float> energies, Float dt)
+        ComputeEnergyInfo(cuda_tool::BufferView<Float> energies, Float dt)
             : m_energies(energies)
             , m_dt(dt)
         {
         }
 
-        muda::BufferView<Float> energies() const { return m_energies; }
-        Float                   dt() const noexcept { return m_dt; }
+        cuda_tool::BufferView<Float> energies() const { return m_energies; }
+        Float                        dt() const noexcept { return m_dt; }
 
       private:
         friend class FEMLineSearchReporter;
-        muda::BufferView<Float> m_energies;
-        Float                   m_dt = 0.0;
+        cuda_tool::BufferView<Float> m_energies;
+        Float                        m_dt = 0.0;
     };
 
     class Impl
@@ -52,13 +52,13 @@ class FEMLineSearchReporter final : public LineSearchReporter
         SimSystemSlot<FiniteElementMethod> finite_element_method;
 
         SimSystemSlot<FiniteElementKinetic> finite_element_kinetic;
-        muda::DeviceBuffer<Float>           kinetic_energies;
-        muda::DeviceVar<Float>              total_kinetic_energy;
+        cuda_tool::DeviceBuffer<Float>      kinetic_energies;
+        cuda_tool::DeviceVar<Float>         total_kinetic_energy;
 
         SimSystemSlotCollection<FEMLineSearchSubreporter> reporters;
-        OffsetCountCollection<IndexT> reporter_energy_offsets_counts;
-        muda::DeviceBuffer<Float>     reporter_energies;
-        muda::DeviceVar<Float>        total_reporter_energy;
+        OffsetCountCollection<IndexT>  reporter_energy_offsets_counts;
+        cuda_tool::DeviceBuffer<Float> reporter_energies;
+        cuda_tool::DeviceVar<Float>    total_reporter_energy;
 
         FiniteElementMethod::Impl& fem()
         {

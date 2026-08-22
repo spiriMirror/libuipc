@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <uipc/diff_sim/sparse_coo_view.h>
@@ -30,7 +30,7 @@ class GlobalDiffSimManager final : public SimSystem
     class Impl
     {
       public:
-        muda::LinearSystemContext& ctx();
+        cuda_tool::LinearSystemContext& ctx();
 
         void init(WorldVisitor& world);
         void update();
@@ -51,7 +51,7 @@ class GlobalDiffSimManager final : public SimSystem
 
         SizeT total_parm_count = 0;
 
-        muda::DeviceBuffer<Float> parameters;
+        cuda_tool::DeviceBuffer<Float> parameters;
 
         // NOTE:
         // local_triplet_pGpP only consider the triplet at current frame.
@@ -66,7 +66,7 @@ class GlobalDiffSimManager final : public SimSystem
         // T^{[i]} \\
         //\end{bmatrix}
         //$$
-        muda::DeviceTripletMatrix<Float, 1> local_triplet_pGpP;
+        cuda_tool::DeviceTripletMatrix<Float, 1> local_triplet_pGpP;
         //tex:
         //$$
         //T = \begin{bmatrix}
@@ -75,8 +75,8 @@ class GlobalDiffSimManager final : public SimSystem
         // T^{[i]} \\
         //\end{bmatrix}
         //$$
-        muda::DeviceTripletMatrix<Float, 1> total_triplet_pGpP;
-        muda::DeviceCOOMatrix<Float>        total_coo_pGpP;
+        cuda_tool::DeviceTripletMatrix<Float, 1> total_triplet_pGpP;
+        cuda_tool::DeviceCOOMatrix<Float>        total_coo_pGpP;
 
         // NOTE:
         // local_triplet_H only consider the triplet at current frame.
@@ -91,7 +91,7 @@ class GlobalDiffSimManager final : public SimSystem
         // H^{[i]} \\
         //\end{bmatrix}
         //$$
-        muda::DeviceTripletMatrix<Float, 1> local_triplet_H;
+        cuda_tool::DeviceTripletMatrix<Float, 1> local_triplet_H;
         //tex:
         //$$
         //T = \begin{bmatrix}
@@ -100,8 +100,8 @@ class GlobalDiffSimManager final : public SimSystem
         // H^{[i]} \\
         //\end{bmatrix}
         //$$
-        muda::DeviceTripletMatrix<Float, 1> total_triplet_H;
-        muda::DeviceCOOMatrix<Float>        total_coo_H;
+        cuda_tool::DeviceTripletMatrix<Float, 1> total_triplet_H;
+        cuda_tool::DeviceCOOMatrix<Float>        total_coo_H;
 
         SizeT current_frame_dof_count = 0;
         SizeT total_frame_dof_count   = 0;
@@ -145,7 +145,7 @@ class GlobalDiffSimManager final : public SimSystem
     {
       public:
         using BaseInfo::BaseInfo;
-        muda::TripletMatrixView<Float, 1> pGpP() const;
+        cuda_tool::TripletMatrixView<Float, 1> pGpP() const;
     };
 
     class DiffDofExtentInfo : public BaseInfo
@@ -166,7 +166,7 @@ class GlobalDiffSimManager final : public SimSystem
         using BaseInfo::BaseInfo;
 
         friend class Impl;
-        muda::TripletMatrixView<Float, 1> H() const;
+        cuda_tool::TripletMatrixView<Float, 1> H() const;
     };
 
     class DiffParmUpdateInfo
@@ -177,7 +177,7 @@ class GlobalDiffSimManager final : public SimSystem
         {
         }
 
-        muda::CBufferView<Float> parameters() const noexcept;
+        cuda_tool::CBufferView<Float> parameters() const noexcept;
 
       private:
         friend class Impl;

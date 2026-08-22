@@ -23,11 +23,11 @@ class FEM3DConstitution : public FiniteElementConstitution
         {
         }
 
-        muda::CBufferView<Vector3>   xs() const noexcept;
-        muda::CBufferView<Vector3>   x_bars() const noexcept;
-        muda::CBufferView<Matrix3x3> Dm_invs() const noexcept;
-        muda::CBufferView<Float>     rest_volumes() const noexcept;
-        muda::CBufferView<Vector4i>  indices() const noexcept;
+        cuda_tool::CBufferView<Vector3>   xs() const noexcept;
+        cuda_tool::CBufferView<Vector3>   x_bars() const noexcept;
+        cuda_tool::CBufferView<Matrix3x3> Dm_invs() const noexcept;
+        cuda_tool::CBufferView<Float>     rest_volumes() const noexcept;
+        cuda_tool::CBufferView<Vector4i>  indices() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
         auto dt() const noexcept { return m_dt; }
 
@@ -40,10 +40,10 @@ class FEM3DConstitution : public FiniteElementConstitution
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(FEM3DConstitution*      impl,
-                          SizeT                   index_in_dim,
-                          Float                   dt,
-                          muda::BufferView<Float> energies)
+        ComputeEnergyInfo(FEM3DConstitution*           impl,
+                          SizeT                        index_in_dim,
+                          Float                        dt,
+                          cuda_tool::BufferView<Float> energies)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
         {
@@ -52,7 +52,7 @@ class FEM3DConstitution : public FiniteElementConstitution
         auto energies() const noexcept { return m_energies; }
 
       private:
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -62,8 +62,8 @@ class FEM3DConstitution : public FiniteElementConstitution
                                    SizeT              index_in_dim,
                                    bool               gradient_only,
                                    Float              dt,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians)
+                                   cuda_tool::DoubletVectorView<Float, 3> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index_in_dim, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
@@ -76,9 +76,9 @@ class FEM3DConstitution : public FiniteElementConstitution
         auto gradient_only() const noexcept { return m_gradient_only; }
 
       private:
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
+        bool                                   m_gradient_only = false;
     };
 
   protected:

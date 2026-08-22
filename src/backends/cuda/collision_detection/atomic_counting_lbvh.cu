@@ -3,12 +3,12 @@
 
 namespace uipc::backend::cuda
 {
-AtomicCountingLBVH::AtomicCountingLBVH(muda::Stream& stream) noexcept
+AtomicCountingLBVH::AtomicCountingLBVH(cuda_tool::Stream& stream) noexcept
     : m_stream(stream)
 {
 }
 
-void AtomicCountingLBVH::build(muda::CBufferView<LinearBVHAABB> aabbs)
+void AtomicCountingLBVH::build(cuda_tool::CBufferView<LinearBVHAABB> aabbs)
 {
     m_aabbs = aabbs;
     m_lbvh.build(aabbs);

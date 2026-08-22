@@ -1,2 +1,2 @@
-file(GLOB SOURCES "*.cpp" "*.cu" "*.h" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cu" "*.h" "details/*.inl")
 target_sources(cuda PRIVATE ${SOURCES})

@@ -34,7 +34,7 @@ uipc_target_add_include_files(uipc_core)
 target_include_directories(uipc_core PRIVATE "${DYLIB_INCLUDE_DIRS}")
 target_include_directories(uipc_core PRIVATE "${TINYGLTF_INCLUDE_DIRS}")
 # add the source files in the current directory to the target uipc
-file(GLOB SOURCE "*.h" "*.cpp")
+file(GLOB SOURCE CONFIGURE_DEPENDS "*.h" "*.cpp")
 target_sources(uipc_core PRIVATE ${SOURCE})
 
 
@@ -89,7 +89,7 @@ uipc_target_set_rpath(uipc_core)
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 # ------------------------------------------------------------------------------

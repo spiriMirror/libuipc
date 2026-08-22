@@ -2,13 +2,97 @@
 #include <finite_element/constitutions/arap_function.h>
 #include <finite_element/fem_utils.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace ARAP = sym::arap_3d;
+
+    constexpr SizeT StencilSize     = 4;
+    constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
+    __global__ void ARAP3D_do_compute_energy_kernel(cuda_tool::CBufferView<Float> kappas,
+                                                    cuda_tool::BufferView<Float> energies,
+                                                    cuda_tool::CBufferView<Vector4i> indices,
+                                                    cuda_tool::CBufferView<Vector3> xs,
+                                                    cuda_tool::CBufferView<Matrix3x3> Dm_invs,
+                                                    cuda_tool::CBufferView<Float> volumes,
+                                                    Float dt,
+                                                    int   n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector4i&  tet    = indices(I);
+        const Matrix3x3& Dm_inv = Dm_invs(I);
+
+        const Vector3& x0 = xs(tet(0));
+        const Vector3& x1 = xs(tet(1));
+        const Vector3& x2 = xs(tet(2));
+        const Vector3& x3 = xs(tet(3));
+
+        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+        Float E;
+
+        ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
+        energies(I) = E;
+    }
+
+    __global__ void ARAP3D_do_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Float>          kappas,
+        cuda_tool::CBufferView<Vector4i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Matrix3x3>      Dm_invs,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          volumes,
+        Float                                  dt,
+        bool                                   gradient_only,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector4i&  tet    = indices(I);
+        const Matrix3x3& Dm_inv = Dm_invs(I);
+
+        const Vector3& x0 = xs(tet(0));
+        const Vector3& x1 = xs(tet(1));
+        const Vector3& x2 = xs(tet(2));
+        const Vector3& x3 = xs(tet(3));
+
+        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+        auto kt2 = kappas(I) * dt * dt;
+        auto v   = volumes(I);
+
+        Vector9 dEdF;
+        ARAP::dEdF(dEdF, kt2, v, F);
+
+        Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+        Vector12   G12  = dFdx.transpose() * dEdF;
+
+        DoubletVectorAssembler DVA{G3s};
+        DVA.segment<StencilSize>(I * StencilSize).write(tet, G12);
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 ddEddF;
+        ARAP::ddEddF(ddEddF, kt2, v, F);
+        make_spd(ddEddF);
+        Matrix12x12            H12x12 = dFdx.transpose() * ddEddF * dFdx;
+        TripletMatrixAssembler TMA{H3x3s};
+        TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H12x12);
+    }
+}  // namespace
+
 class ARAP3D final : public FEM3DConstitution
 {
   public:
@@ -21,7 +105,7 @@ class ARAP3D final : public FEM3DConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
@@ -63,87 +147,40 @@ class ARAP3D final : public FEM3DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-        namespace ARAP = sym::arap_3d;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [kappas   = kappas.cviewer().name("mus"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
-                    volumes  = info.rest_volumes().viewer().name("volumes"),
-                    dt       = info.dt()] __device__(int I)
-                   {
-                       const Vector4i&  tet    = indices(I);
-                       const Matrix3x3& Dm_inv = Dm_invs(I);
-
-                       const Vector3& x0 = xs(tet(0));
-                       const Vector3& x1 = xs(tet(1));
-                       const Vector3& x2 = xs(tet(2));
-                       const Vector3& x3 = xs(tet(3));
-
-                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
-
-                       Float E;
-
-                       ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
-                       energies(I) = E;
-                   });
+        auto k = ARAP3D_do_compute_energy_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                kappas.cview(),
+                info.energies(),
+                info.indices(),
+                info.xs(),
+                info.Dm_invs(),
+                info.rest_volumes(),
+                info.dt(),
+                n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-        namespace ARAP = sym::arap_3d;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [kappas  = kappas.cviewer().name("mus"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G3s     = info.gradients().viewer().name("gradients"),
-                    H3x3s   = info.hessians().viewer().name("hessians"),
-                    volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt(),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       const Vector4i&  tet    = indices(I);
-                       const Matrix3x3& Dm_inv = Dm_invs(I);
-
-                       const Vector3& x0 = xs(tet(0));
-                       const Vector3& x1 = xs(tet(1));
-                       const Vector3& x2 = xs(tet(2));
-                       const Vector3& x3 = xs(tet(3));
-
-                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
-
-                       auto kt2 = kappas(I) * dt * dt;
-                       auto v   = volumes(I);
-
-                       Vector9 dEdF;
-                       ARAP::dEdF(dEdF, kt2, v, F);
-
-                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
-                       Vector12   G12  = dFdx.transpose() * dEdF;
-
-                       DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<StencilSize>(I * StencilSize).write(tet, G12);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 ddEddF;
-                       ARAP::ddEddF(ddEddF, kt2, v, F);
-                       make_spd(ddEddF);
-                       Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
-                       TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H12x12);
-                   });
+        auto k = ARAP3D_do_compute_gradient_hessian_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                kappas.cview(),
+                info.indices(),
+                info.xs(),
+                info.Dm_invs(),
+                info.gradients(),
+                info.hessians(),
+                info.rest_volumes(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

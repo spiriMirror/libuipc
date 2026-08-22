@@ -206,17 +206,27 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto check_line_search_iter = [this](SizeT iter)
+    auto check_line_search_iter = [&](SizeT iter, Float E0, Float E)
     {
         if(iter >= m_line_searcher->max_iter())
         {
-            logger::warn("Line Search Exits with Max Iteration: {} (Frame={})",
-                         m_line_searcher->max_iter(),
-                         m_current_frame);
+            // (alpha, E) is the last actually tried pair in this loop form
+            Float abs_E0         = std::abs(E0);
+            Float rel_E_increase = (E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
+            auto  detail         = fmt::format(
+                "Line Search Exits with Max Iteration: {} (Frame={}, alpha_last={}, "
+                         "E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e})",
+                m_line_searcher->max_iter(),
+                m_current_frame,
+                alpha,
+                E0,
+                E,
+                rel_E_increase);
+            logger::warn("{}", detail);
 
             if(m_strict_mode->view()[0])
             {
-                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+                throw SimEngineException("StrictMode: " + detail);
             }
         }
     };
@@ -392,7 +402,7 @@ void SimEngine::advance_AL()
 
                         // Check Line Search Iteration
                         // report warnings or throw exceptions if needed
-                        check_line_search_iter(line_search_iter);
+                        check_line_search_iter(line_search_iter, E0, E);
                     }
                 }
 

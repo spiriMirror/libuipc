@@ -59,7 +59,7 @@ void VertexHalfPlaneFrictionalContact::do_report_energy_extent(GlobalContactMana
 
 void VertexHalfPlaneFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     EnergyInfo this_info{&m_impl};
     this_info.m_energies = info.energies();
@@ -82,42 +82,42 @@ void VertexHalfPlaneFrictionalContact::do_assemble(GlobalContactManager::Gradien
     do_assemble(this_info);
 }
 
-muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneFrictionalContact::BaseInfo::contact_tabular() const
+cuda_tool::CBuffer2DView<ContactCoeff> VertexHalfPlaneFrictionalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::BaseInfo::friction_PHs() const
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::BaseInfo::friction_PHs() const
 {
     return m_impl->veretx_half_plane_trajectory_filter->friction_PHs();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::thicknesses() const
+cuda_tool::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::thicknesses() const
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::prev_positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::rest_positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::contact_element_ids() const
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::subscene_element_ids() const
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::subscene_element_ids() const
 {
     return m_impl->global_vertex_manager->subscene_element_ids();
 }
@@ -127,7 +127,7 @@ Float VertexHalfPlaneFrictionalContact::BaseInfo::d_hat() const
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::d_hats() const
+cuda_tool::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::d_hats() const
 {
     return m_impl->global_vertex_manager->d_hats();
 }
@@ -147,27 +147,27 @@ IndexT VertexHalfPlaneFrictionalContact::BaseInfo::half_plane_vertex_offset() co
     return m_impl->vertex_reporter->vertex_offset();
 }
 
-muda::BufferView<Float> VertexHalfPlaneFrictionalContact::EnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> VertexHalfPlaneFrictionalContact::EnergyInfo::energies() const noexcept
 {
     return m_energies;
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::PHs() const noexcept
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::PHs() const noexcept
 {
     return m_impl.veretx_half_plane_trajectory_filter->friction_PHs();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::energies() const noexcept
+cuda_tool::CBufferView<Float> VertexHalfPlaneFrictionalContact::energies() const noexcept
 {
     return m_impl.energies;
 }
 
-muda::CDoubletVectorView<Float, 3> VertexHalfPlaneFrictionalContact::gradients() const noexcept
+cuda_tool::CDoubletVectorView<Float, 3> VertexHalfPlaneFrictionalContact::gradients() const noexcept
 {
     return m_impl.gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> VertexHalfPlaneFrictionalContact::hessians() const noexcept
+cuda_tool::CTripletMatrixView<Float, 3> VertexHalfPlaneFrictionalContact::hessians() const noexcept
 {
     return m_impl.hessians;
 }

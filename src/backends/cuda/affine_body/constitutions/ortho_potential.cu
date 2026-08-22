@@ -5,6 +5,71 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace AOP = sym::abd_ortho_potential;
+
+    __global__ void ortho_potential_compute_energy_kernel(
+        cuda_tool::BufferView<Float>     shape_energies,
+        cuda_tool::CBufferView<Vector12> qs,
+        cuda_tool::CBufferView<Float>    kappas,
+        cuda_tool::CBufferView<Float>    volumes,
+        Float                            dt,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto& q      = qs(i);
+        auto& volume = volumes(i);
+        auto  kappa  = kappas(i);
+        Float Vdt2   = volume * dt * dt;
+
+        Float E;
+        AOP::E(E, kappa, q);
+
+        shape_energies(i) = E * Vdt2;
+    }
+
+    __global__ void ortho_potential_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector12>   qs,
+        cuda_tool::CBufferView<Float>      volumes,
+        cuda_tool::BufferView<Vector12>    gradients,
+        cuda_tool::BufferView<Matrix12x12> body_hessian,
+        cuda_tool::CBufferView<Float>      kappas,
+        Float                              dt,
+        bool                               gradient_only,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        Matrix12x12 H = Matrix12x12::Zero();
+        Vector12    G = Vector12::Zero();
+
+        const auto& q      = qs(i);
+        Float       kappa  = kappas(i);
+        const auto& volume = volumes(i);
+
+        Float Vdt2 = volume * dt * dt;
+
+        Vector9 G9;
+        AOP::dEdq(G9, kappa, q);
+        G.segment<9>(3) = G9 * Vdt2;
+        gradients(i)    = G;
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 H9x9;
+        AOP::ddEddq(H9x9, kappa, q);
+        make_spd(H9x9);
+
+        H.block<9, 9>(3, 3) = H9x9 * Vdt2;
+        body_hessian(i)     = H;
+    }
+}  // namespace
+
 class OrthoPotential final : public AffineBodyConstitution
 {
   public:
@@ -14,7 +79,7 @@ class OrthoPotential final : public AffineBodyConstitution
 
     vector<Float> h_kappas;
 
-    muda::DeviceBuffer<Float> kappas;
+    cuda_tool::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
@@ -38,10 +103,10 @@ class OrthoPotential final : public AffineBodyConstitution
                 h_kappas[bodyI] = kappa;
             });
 
-        auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
+        auto async_copy = []<typename T>(span<T> src, cuda_tool::DeviceBuffer<T>& dst)
         {
-            muda::BufferLaunch().resize<T>(dst, src.size());
-            muda::BufferLaunch().copy<T>(dst.view(), src.data());
+            cuda_tool::BufferLaunch().resize<T>(dst, src.size());
+            cuda_tool::BufferLaunch().copy<T>(dst.view(), src.data());
         };
 
         async_copy(span{h_kappas}, kappas);
@@ -49,76 +114,39 @@ class OrthoPotential final : public AffineBodyConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
 
         auto body_count = info.qs().size();
 
         namespace AOP = sym::abd_ortho_potential;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_count,
-                   [shape_energies = info.energies().viewer().name("energies"),
-                    qs             = info.qs().cviewer().name("qs"),
-                    kappas         = kappas.cviewer().name("kappas"),
-                    volumes        = info.volumes().cviewer().name("volumes"),
-                    dt             = info.dt()] __device__(int i) mutable
-                   {
-                       auto& q      = qs(i);
-                       auto& volume = volumes(i);
-                       auto  kappa  = kappas(i);
-                       Float Vdt2   = volume * dt * dt;
-
-                       Float E;
-                       AOP::E(E, kappa, q);
-
-                       shape_energies(i) = E * Vdt2;
-                   });
+        auto k = ortho_potential_compute_energy_kernel;
+        int  n = (int)body_count;
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.energies(), info.qs(), kappas.cview(), info.volumes(), info.dt(), n);
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
+        using namespace cuda_tool;
         auto N             = info.qs().size();
         auto gradient_only = info.gradient_only();
 
         namespace AOP = sym::abd_ortho_potential;
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(N,
-                   [qs      = info.qs().cviewer().name("qs"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.gradients().viewer().name("shape_gradients"),
-                    body_hessian = info.hessians().viewer().name("shape_hessian"),
-                    kappas = kappas.cviewer().name("kappas"),
-                    dt     = info.dt(),
-                    gradient_only] __device__(int i) mutable
-                   {
-                       Matrix12x12 H = Matrix12x12::Zero();
-                       Vector12    G = Vector12::Zero();
-
-                       const auto& q      = qs(i);
-                       Float       kappa  = kappas(i);
-                       const auto& volume = volumes(i);
-
-                       Float Vdt2 = volume * dt * dt;
-
-                       Vector9 G9;
-                       AOP::dEdq(G9, kappa, q);
-                       G.segment<9>(3) = G9 * Vdt2;
-                       gradients(i)    = G;
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 H9x9;
-                       AOP::ddEddq(H9x9, kappa, q);
-                       make_spd(H9x9);
-
-                       H.block<9, 9>(3, 3) = H9x9 * Vdt2;
-                       body_hessian(i)     = H;
-                   });
+        auto k = ortho_potential_compute_gradient_hessian_kernel;
+        int  n = (int)N;
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.qs(),
+                info.volumes(),
+                info.gradients(),
+                info.hessians(),
+                kappas.cview(),
+                info.dt(),
+                gradient_only,
+                n);
     }
 };
 

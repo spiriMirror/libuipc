@@ -52,7 +52,8 @@ namespace sym::stress_plastic_discrete_shell_bending
     template <typename T>
     inline UIPC_GENERIC bool is_finite_vec3(const Eigen::Matrix<T, 3, 1>& v)
     {
-        return is_finite_scalar(v[0]) && is_finite_scalar(v[1]) && is_finite_scalar(v[2]);
+        return is_finite_scalar(v[0]) && is_finite_scalar(v[1])
+               && is_finite_scalar(v[2]);
     }
 
     template <typename T>
@@ -81,7 +82,7 @@ namespace sym::stress_plastic_discrete_shell_bending
                                                  const Eigen::Matrix<T, 3, 1>& v1,
                                                  const Eigen::Matrix<T, 3, 1>& v2,
                                                  const Eigen::Matrix<T, 3, 1>& v3,
-                                                 T&                            theta)
+                                                 T& theta)
     {
         if(!is_finite_vec3(v0) || !is_finite_vec3(v1) || !is_finite_vec3(v2)
            || !is_finite_vec3(v3))
@@ -129,10 +130,10 @@ namespace sym::stress_plastic_discrete_shell_bending
                                              T& theta_y,
                                              T& delta_gamma)
     {
-        if(!is_finite_scalar(theta) || !is_finite_scalar(theta_bar) || !is_finite_scalar(kappa)
-           || !is_finite_scalar(L0) || !is_finite_scalar(h_bar)
-           || !is_finite_scalar(yield_stress) || yield_stress < T(0) || L0 <= T(0)
-           || h_bar <= T(0))
+        if(!is_finite_scalar(theta) || !is_finite_scalar(theta_bar)
+           || !is_finite_scalar(kappa) || !is_finite_scalar(L0)
+           || !is_finite_scalar(h_bar) || !is_finite_scalar(yield_stress)
+           || yield_stress < T(0) || L0 <= T(0) || h_bar <= T(0))
             return false;
 
         const T elastic_slope = static_cast<T>(2.0) * kappa * L0 / h_bar;
@@ -150,22 +151,16 @@ namespace sym::stress_plastic_discrete_shell_bending
     }
 
     template <typename T>
-    inline UIPC_GENERIC bool augmented_response_from_angle_delta(T  delta,
-                                                                 T  kappa,
-                                                                 T  L0,
-                                                                 T  h_bar,
-                                                                 T  yield_stress,
-                                                                 T& energy,
-                                                                 T& dEdtheta,
-                                                                 T& ddEddtheta)
+    inline UIPC_GENERIC bool augmented_response_from_angle_delta(
+        T delta, T kappa, T L0, T h_bar, T yield_stress, T& energy, T& dEdtheta, T& ddEddtheta)
     {
         energy     = T(0);
         dEdtheta   = T(0);
         ddEddtheta = T(0);
 
         if(!is_finite_scalar(delta) || !is_finite_scalar(kappa) || !is_finite_scalar(L0)
-           || !is_finite_scalar(h_bar) || !is_finite_scalar(yield_stress) || yield_stress < T(0)
-           || L0 <= T(0) || h_bar <= T(0))
+           || !is_finite_scalar(h_bar) || !is_finite_scalar(yield_stress)
+           || yield_stress < T(0) || L0 <= T(0) || h_bar <= T(0))
             return false;
 
         const T elastic_scale = kappa * L0 / h_bar;
@@ -187,9 +182,9 @@ namespace sym::stress_plastic_discrete_shell_bending
         else
         {
             const T delta_gamma = abs_value(delta) - theta_y;
-            energy              = elastic_scale * theta_y * theta_y + yield_stress * delta_gamma;
-            dEdtheta            = sign_value(delta) * yield_stress;
-            ddEddtheta          = T(0);
+            energy = elastic_scale * theta_y * theta_y + yield_stress * delta_gamma;
+            dEdtheta   = sign_value(delta) * yield_stress;
+            ddEddtheta = T(0);
         }
 
         return is_finite_scalar(energy) && is_finite_scalar(dEdtheta)
@@ -197,25 +192,19 @@ namespace sym::stress_plastic_discrete_shell_bending
     }
 
     template <typename T>
-    inline UIPC_GENERIC bool update_plastic_state(T  theta,
-                                                  T& theta_bar,
-                                                  T& yield_stress,
-                                                  T  hardening_modulus,
-                                                  T  kappa,
-                                                  T  L0,
-                                                  T  h_bar)
+    inline UIPC_GENERIC bool update_plastic_state(
+        T theta, T& theta_bar, T& yield_stress, T hardening_modulus, T kappa, T L0, T h_bar)
     {
         if(!is_finite_scalar(theta) || !is_finite_scalar(theta_bar)
-           || !is_finite_scalar(yield_stress) || !is_finite_scalar(hardening_modulus)
-           || hardening_modulus < T(0))
+           || !is_finite_scalar(yield_stress)
+           || !is_finite_scalar(hardening_modulus) || hardening_modulus < T(0))
             return false;
 
         T delta       = T(0);
         T tau_trial   = T(0);
         T theta_y     = T(0);
         T delta_gamma = T(0);
-        if(!try_trial_state(
-               theta, theta_bar, kappa, L0, h_bar, yield_stress, delta, tau_trial, theta_y, delta_gamma))
+        if(!try_trial_state(theta, theta_bar, kappa, L0, h_bar, yield_stress, delta, tau_trial, theta_y, delta_gamma))
             return false;
 
         if(delta_gamma <= plasticity_write_threshold<T>())
@@ -233,9 +222,9 @@ namespace sym::stress_plastic_discrete_shell_bending
                                              const Eigen::Matrix<T, 3, 1>& x1,
                                              const Eigen::Matrix<T, 3, 1>& x2,
                                              const Eigen::Matrix<T, 3, 1>& x3,
-                                             T                            theta_bar,
-                                             T&                           theta,
-                                             T&                           delta)
+                                             T  theta_bar,
+                                             T& theta,
+                                             T& delta)
     {
         if(!is_finite_scalar(theta_bar))
             return false;
@@ -267,8 +256,9 @@ namespace sym::stress_plastic_discrete_shell_bending
         h_bar      = A / 3.0 / L0;
         dihedral_angle(x0_bar, x1_bar, x2_bar, x3_bar, theta_bar);
 
-        Float thickness = (thickness0 + thickness1 + thickness2 + thickness3) / 4.0;
-        V_bar = A * thickness;
+        // Shell element weight is the AREA: the bending_stiffness attribute
+        // carries the full thickness dependence (kappa = E*t^3/(12*(1-nu^2))).
+        V_bar = A;
     }
 
     inline UIPC_GENERIC Float E(const Vector3& x0,
@@ -282,8 +272,8 @@ namespace sym::stress_plastic_discrete_shell_bending
                                 Float          yield_stress)
     {
         namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-        Float theta = 0.0;
-        Float delta = 0.0;
+        Float theta     = 0.0;
+        Float delta     = 0.0;
         if(!SPDSB::try_angle_delta(x0, x1, x2, x3, theta_bar, theta, delta))
             return 0.0;
 
@@ -309,8 +299,8 @@ namespace sym::stress_plastic_discrete_shell_bending
                                   Float          yield_stress)
     {
         namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-        Float theta = 0.0;
-        Float delta = 0.0;
+        Float theta     = 0.0;
+        Float delta     = 0.0;
         if(!SPDSB::try_angle_delta(x0, x1, x2, x3, theta_bar, theta, delta))
         {
             G.setZero();
@@ -345,8 +335,8 @@ namespace sym::stress_plastic_discrete_shell_bending
                                     Float          yield_stress)
     {
         namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
-        Float theta = 0.0;
-        Float delta = 0.0;
+        Float theta     = 0.0;
+        Float delta     = 0.0;
         if(!SPDSB::try_angle_delta(x0, x1, x2, x3, theta_bar, theta, delta))
         {
             H.setZero();

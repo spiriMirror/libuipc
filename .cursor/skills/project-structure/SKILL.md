@@ -13,7 +13,7 @@ Overview of the main directories and important files in the repository.
 - `assets/` - Scene assets and simulation data.
 - `cmake/` - Shared CMake utilities and macros.
 - `docs/` - Documentation, specs, and site assets.
-- `external/` - Third-party dependencies (e.g., `external/muda/`).
+- `external/` - Third-party dependencies bundled in-tree (GKlib, METIS). muda is vendored under `src/backends/cuda/cuda_tool/muda/`.
 - `include/` - Public C++ headers.
 - `output/` - Generated outputs from simulations. (the contents is ignored by git)
 - `python/` - Python package, tests, and metadata.

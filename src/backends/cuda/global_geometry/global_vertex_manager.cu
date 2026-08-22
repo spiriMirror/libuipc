@@ -3,7 +3,8 @@
 #include <joint_dof_system/global_joint_dof_manager.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/cub.h>
+#include <cuda_tool/cuda_tool.h>
 #include <global_geometry/vertex_reporter.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <sim_engine.h>
@@ -13,12 +14,84 @@
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void GlobalVertexManager_step_forward_kernel(
+        cuda_tool::BufferView<Vector3> pos,
+        cuda_tool::BufferView<Vector3> safe_pos,
+        cuda_tool::BufferView<Vector3> disp,
+        Float                          alpha,
+        int                            n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        pos(i) = safe_pos(i) + alpha * disp(i);
+    }
+
+    __global__ void GlobalVertexManager_setup_ccd_kernel(
+        cuda_tool::BufferView<Vector3>  pos,
+        cuda_tool::BufferView<Vector3>  tmp_pos,
+        cuda_tool::BufferView<Vector3>  disp,
+        cuda_tool::CBufferView<Vector3> base_pos,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        disp(i)    = pos(i) - base_pos(i);
+        tmp_pos(i) = pos(i);
+        pos(i)     = base_pos(i);
+    }
+
+    struct GlobalVertexManager_MaxAbsOp
+    {
+        CUB_RUNTIME_FUNCTION Float operator()(const Float& L, const Float& R) const
+        {
+            auto absL = std::abs(L);
+            auto absR = std::abs(R);
+            return absL > absR ? absL : absR;
+        }
+    };
+
+    struct GlobalVertexManager_CwiseMinOp
+    {
+        CUB_RUNTIME_FUNCTION Vector3 operator()(const Vector3& L, const Vector3& R) const
+        {
+            return L.cwiseMin(R);
+        }
+    };
+
+    struct GlobalVertexManager_CwiseMaxOp
+    {
+        CUB_RUNTIME_FUNCTION Vector3 operator()(const Vector3& L, const Vector3& R) const
+        {
+            return L.cwiseMax(R);
+        }
+    };
+
+    __global__ void GlobalVertexManager_propagate_relative_d_hat_kernel(
+        cuda_tool::BufferView<Float> d_hats, Float old_default, Float new_d_hat, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        // only rewrite entries still holding the absolute contact/d_hat default;
+        // per-geometry meta d_hat values are left untouched
+        if(d_hats(i) == old_default)
+            d_hats(i) = new_d_hat;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalVertexManager);
 
 void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
     m_impl.default_d_hat = d_hat->view()[0];
+
+    auto d_hat_relative = world().scene().config().find<Float>("contact/d_hat_relative");
+    m_impl.d_hat_relative = d_hat_relative ? d_hat_relative->view()[0] : 0.0;
 
     m_impl.global_trajectory_filter  = find<GlobalTrajectoryFilter>();
     m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
@@ -87,6 +160,35 @@ void GlobalVertexManager::Impl::init()
 
     // 6) Other initializations
     axis_max_disp = 0.0;
+
+    // 7) Scene diagonal of the rest configuration, for scene-relative
+    //    parameter adaptation (contact/d_hat_relative etc.)
+    {
+        auto box       = compute_vertex_bounding_box();
+        scene_diagonal = (box.max() - box.min()).norm();
+        logger::info("Scene diagonal: {}", scene_diagonal);
+    }
+
+    // 8) Propagate the scene-relative d_hat (contact/d_hat_relative, Stiff-GIPC
+    //    convention) into the per-vertex d_hats buffer: entries still holding
+    //    the absolute contact/d_hat default are replaced, per-geometry meta
+    //    d_hat values are untouched. Without this, the relative override only
+    //    affected GlobalContactManager's scalar (CFL/logging) while the contact
+    //    kernels kept using the absolute default.
+    if(d_hat_relative > 0.0)
+    {
+        Float rel_d_hat = d_hat_relative * scene_diagonal;
+        logger::info("Per-vertex d_hat (relative): {} = {} x scene_diagonal({})",
+                     rel_d_hat,
+                     d_hat_relative,
+                     scene_diagonal);
+        auto k = GlobalVertexManager_propagate_relative_d_hat_kernel;
+        int  n = (int)d_hats.size();
+        if(n > 0)
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                d_hats.view(), default_d_hat, rel_d_hat, n);
+        default_d_hat = rel_d_hat;
+    }
 }
 
 void GlobalVertexManager::Impl::update_attributes(SizeT frame)
@@ -113,16 +215,15 @@ void GlobalVertexManager::add_reporter(VertexReporter* reporter)
 
 void GlobalVertexManager::Impl::step_forward(Float alpha)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(positions.size(),
-               [pos      = positions.viewer().name("pos"),
-                safe_pos = safe_positions.viewer().name("safe_pos"),
-                disp     = displacements.viewer().name("disp"),
-                alpha    = alpha] __device__(int i) mutable
-               { pos(i) = safe_pos(i) + alpha * disp(i); });
+    auto k = GlobalVertexManager_step_forward_kernel;
+    int  n = (int)positions.size();
+    if(n > 0)
+    {
+        k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+            positions.view(), safe_positions.view(), displacements.view(), alpha, n);
+    }
 }
 
 void GlobalVertexManager::Impl::collect_vertex_displacements()
@@ -134,35 +235,30 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
     }
 }
 
-void GlobalVertexManager::Impl::setup_ccd(muda::CBufferView<Vector3> base_positions)
+void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_positions)
 {
     auto& tmp_pos = safe_positions;
     UIPC_ASSERT(base_positions.size() == positions.size(),
                 "Base positions size not equal to vertex count");
-    muda::ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(positions.size(),
-               [pos     = positions.viewer().name("pos"),
-                tmp_pos = tmp_pos.viewer().name("tmp_pos"),
-                disp    = displacements.viewer().name("disp"),
-                base_pos = base_positions.cviewer().name("base_pos")] __device__(int i) mutable
-               {
-                   disp(i)    = pos(i) - base_pos(i);
-                   tmp_pos(i) = pos(i);
-                   pos(i)     = base_pos(i);
-               });
+    auto k = GlobalVertexManager_setup_ccd_kernel;
+    int  n = (int)positions.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            positions.view(), tmp_pos.view(), displacements.view(), base_positions, n);
+    }
 }
 
 void GlobalVertexManager::Impl::restore_ccd()
 {
-    muda::BufferLaunch().copy<Vector3>(positions.view(),
-                                       std::as_const(safe_positions).view());
+    cuda_tool::BufferLaunch().copy<Vector3>(positions.view(),
+                                            std::as_const(safe_positions).view());
 }
 
-void GlobalVertexManager::Impl::overwrite_positions(muda::CBufferView<Vector3> src)
+void GlobalVertexManager::Impl::overwrite_positions(cuda_tool::CBufferView<Vector3> src)
 {
     UIPC_ASSERT(src.size() == positions.size(), "Source size not equal to vertex count");
-    muda::BufferLaunch().copy<Vector3>(positions.view(), src);
+    cuda_tool::BufferLaunch().copy<Vector3>(positions.view(), src);
 }
 
 void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
@@ -180,49 +276,40 @@ void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const 
 
 void GlobalVertexManager::Impl::record_prev_positions()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     BufferLaunch().copy<Vector3>(prev_positions.view(), std::as_const(positions).view());
 }
 
 void GlobalVertexManager::Impl::record_start_point()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
 }
 
 Float GlobalVertexManager::Impl::compute_axis_max_displacement()
 {
-    muda::DeviceReduce().Reduce((Float*)displacements.data(),
-                                axis_max_disp.data(),
-                                displacements.size() * 3,
-                                [] CUB_RUNTIME_FUNCTION(const Float& L, const Float& R)
-                                {
-                                    auto absL = std::abs(L);
-                                    auto absR = std::abs(R);
-                                    return absL > absR ? absL : absR;
-                                },
-                                0.0);
+    cuda_tool::DeviceReduce().Reduce((Float*)displacements.data(),
+                                     axis_max_disp.data(),
+                                     displacements.size() * 3,
+                                     GlobalVertexManager_MaxAbsOp{},
+                                     0.0);
     return axis_max_disp;
 }
 
 AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
 {
     Float max_float = std::numeric_limits<Float>::max();
-    muda::DeviceReduce()
-        .Reduce(
-            positions.data(),
-            min_pos.data(),
-            positions.size(),
-            [] CUB_RUNTIME_FUNCTION(const Vector3& L, const Vector3& R) -> Vector3
-            { return L.cwiseMin(R); },
-            Vector3{max_float, max_float, max_float})
-        .Reduce(
-            positions.data(),
-            max_pos.data(),
-            positions.size(),
-            [] CUB_RUNTIME_FUNCTION(const Vector3& L, const Vector3& R) -> Vector3
-            { return L.cwiseMax(R); },
-            Vector3{-max_float, -max_float, -max_float});
+    cuda_tool::DeviceReduce()
+        .Reduce(positions.data(),
+                min_pos.data(),
+                positions.size(),
+                GlobalVertexManager_CwiseMinOp{},
+                Vector3{max_float, max_float, max_float})
+        .Reduce(positions.data(),
+                max_pos.data(),
+                positions.size(),
+                GlobalVertexManager_CwiseMaxOp{},
+                Vector3{-max_float, -max_float, -max_float});
 
     Vector3 min_pos_host, max_pos_host;
     min_pos_host = min_pos;
@@ -290,47 +377,47 @@ GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT 
 {
 }
 
-muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::rest_positions() const noexcept
+cuda_tool::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::rest_positions() const noexcept
 {
     return m_impl->subview(m_impl->rest_positions, m_index);
 }
 
-muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::thicknesses() const noexcept
+cuda_tool::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::thicknesses() const noexcept
 {
     return m_impl->subview(m_impl->thicknesses, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept
+cuda_tool::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept
 {
     return m_impl->subview(m_impl->coindices, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::dimensions() const noexcept
+cuda_tool::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::dimensions() const noexcept
 {
     return m_impl->subview(m_impl->dimensions, m_index);
 }
 
-muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() const noexcept
+cuda_tool::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() const noexcept
 {
     return m_impl->subview(m_impl->positions, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_element_ids() const noexcept
+cuda_tool::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_element_ids() const noexcept
 {
     return m_impl->subview(m_impl->contact_element_ids, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::subscene_element_ids() const noexcept
+cuda_tool::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::subscene_element_ids() const noexcept
 {
     return m_impl->subview(m_impl->subscene_element_ids, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() const noexcept
+cuda_tool::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() const noexcept
 {
     return m_impl->subview(m_impl->body_ids, m_index);
 }
 
-muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
+cuda_tool::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
 {
     return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
 }
@@ -346,12 +433,12 @@ GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, 
 {
 }
 
-muda::BufferView<Vector3> GlobalVertexManager::VertexDisplacementInfo::displacements() const noexcept
+cuda_tool::BufferView<Vector3> GlobalVertexManager::VertexDisplacementInfo::displacements() const noexcept
 {
     return m_impl->subview(m_impl->displacements, m_index);
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices() const noexcept
 {
     return m_impl->subview(m_impl->coindices, m_index);
 }
@@ -401,57 +488,57 @@ void GlobalVertexManager::collect_vertex_displacements()
     m_impl.collect_vertex_displacements();
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 {
     return m_impl.coindices;
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::body_ids() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::body_ids() const noexcept
 {
     return m_impl.body_ids;
 }
 
-muda::CBufferView<Float> GlobalVertexManager::d_hats() const noexcept
+cuda_tool::CBufferView<Float> GlobalVertexManager::d_hats() const noexcept
 {
     return m_impl.d_hats;
 }
 
-muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
+cuda_tool::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 {
     return m_impl.positions;
 }
 
-muda::CBufferView<Vector3> GlobalVertexManager::prev_positions() const noexcept
+cuda_tool::CBufferView<Vector3> GlobalVertexManager::prev_positions() const noexcept
 {
     return m_impl.prev_positions;
 }
 
-muda::CBufferView<Vector3> GlobalVertexManager::rest_positions() const noexcept
+cuda_tool::CBufferView<Vector3> GlobalVertexManager::rest_positions() const noexcept
 {
     return m_impl.rest_positions;
 }
 
-muda::CBufferView<Vector3> GlobalVertexManager::safe_positions() const noexcept
+cuda_tool::CBufferView<Vector3> GlobalVertexManager::safe_positions() const noexcept
 {
     return m_impl.safe_positions;
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexcept
 {
     return m_impl.contact_element_ids;
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::subscene_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::subscene_element_ids() const noexcept
 {
     return m_impl.subscene_element_ids;
 }
 
-muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
+cuda_tool::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
 {
     return m_impl.displacements;
 }
 
-muda::CBufferView<Float> GlobalVertexManager::thicknesses() const noexcept
+cuda_tool::CBufferView<Float> GlobalVertexManager::thicknesses() const noexcept
 {
     return m_impl.thicknesses;
 }
@@ -466,6 +553,11 @@ AABB GlobalVertexManager::compute_vertex_bounding_box()
     return m_impl.compute_vertex_bounding_box();
 }
 
+Float GlobalVertexManager::scene_diagonal() const noexcept
+{
+    return m_impl.scene_diagonal;
+}
+
 void GlobalVertexManager::step_forward(Float alpha)
 {
     m_impl.step_forward(alpha);
@@ -476,7 +568,7 @@ void GlobalVertexManager::record_start_point()
     m_impl.record_start_point();
 }
 
-void GlobalVertexManager::setup_ccd(muda::CBufferView<Vector3> base_positions)
+void GlobalVertexManager::setup_ccd(cuda_tool::CBufferView<Vector3> base_positions)
 {
     m_impl.setup_ccd(base_positions);
 }
@@ -486,12 +578,12 @@ void GlobalVertexManager::restore_ccd()
     m_impl.restore_ccd();
 }
 
-void GlobalVertexManager::overwrite_positions(muda::CBufferView<Vector3> src)
+void GlobalVertexManager::overwrite_positions(cuda_tool::CBufferView<Vector3> src)
 {
     m_impl.overwrite_positions(src);
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept
 {
     return m_impl.dimensions;
 }

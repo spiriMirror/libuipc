@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_buffer.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/vector.h>
 #include <fmt/printf.h>
 #include <uipc/common/log.h>
@@ -51,7 +51,7 @@ class BufferDump
      * @return true for success, false for failure
      */
     template <typename T>
-    bool dump(std::string_view path, muda::CBufferView<T> buffer)
+    bool dump(std::string_view path, cuda_tool::CBufferView<T> buffer)
     {
         std::size_t size_bytes = buffer.size() * sizeof(T);
         byte_buffer.resize(size_bytes);
@@ -65,7 +65,7 @@ class BufferDump
      * @return true for success, false for failure
      */
     template <typename T>
-    bool dump(std::string_view path, const muda::DeviceBuffer<T>& buffer)
+    bool dump(std::string_view path, const cuda_tool::DeviceBuffer<T>& buffer)
     {
         std::size_t size_bytes = buffer.size() * sizeof(T);
         byte_buffer.resize(size_bytes);
@@ -88,7 +88,7 @@ class BufferDump
      * @param buffer
      */
     template <typename T>
-    void apply_to(muda::DeviceBuffer<T>& buffer)
+    void apply_to(cuda_tool::DeviceBuffer<T>& buffer)
     {
         buffer.resize(byte_buffer.size() / sizeof(T));
         buffer.view().copy_from((const T*)byte_buffer.data());

@@ -5,6 +5,66 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void affine_body_vertex_reporter_init_attributes_kernel(
+        cuda_tool::BufferView<IndexT>     coindices,
+        cuda_tool::CBufferView<ABDJacobi> src_pos,
+        cuda_tool::BufferView<Vector3>    dst_pos,
+        cuda_tool::CBufferView<IndexT>    v2b,
+        IndexT                            body_offset,
+        cuda_tool::BufferView<IndexT>     dst_v2b,
+        cuda_tool::CBufferView<Vector12>  qs,
+        cuda_tool::BufferView<Vector3>    dst_rest_pos,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i) = i;
+
+        auto        body_id = v2b(i);
+        const auto& q       = qs(body_id);
+        dst_pos(i)          = src_pos(i).point_x(q);
+        dst_rest_pos(i)     = src_pos(i).x_bar();
+        dst_v2b(i) = body_id + body_offset;  // offset by the global body offset
+    }
+
+    __global__ void affine_body_vertex_reporter_update_attributes_kernel(
+        cuda_tool::BufferView<IndexT>     coindices,
+        cuda_tool::CBufferView<ABDJacobi> src_pos,
+        cuda_tool::BufferView<Vector3>    dst_pos,
+        cuda_tool::CBufferView<IndexT>    v2b,
+        cuda_tool::CBufferView<Vector12>  qs,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i)        = i;
+        auto        body_id = v2b(i);
+        const auto& q       = qs(body_id);
+        dst_pos(i)          = src_pos(i).point_x(q);
+    }
+
+    __global__ void affine_body_vertex_reporter_report_displacements_kernel(
+        cuda_tool::BufferView<Vector3>    displacements,
+        cuda_tool::CBufferView<IndexT>    v2b,
+        cuda_tool::CBufferView<Vector12>  dqs,
+        cuda_tool::CBufferView<ABDJacobi> Js,
+        int                               n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto             body_id = v2b(i);
+        const Vector12&  dq      = dqs(body_id);
+        const ABDJacobi& J       = Js(i);
+        auto&            dx      = displacements(i);
+        dx                       = J * dq;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 
 constexpr static U64 AffineBodyVertexReporterUID = 0;
@@ -27,8 +87,6 @@ void AffineBodyVertexReporter::Impl::report_count(VertexCountInfo& info)
 
 void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
-
     auto N = info.positions().size();
 
 
@@ -36,29 +94,24 @@ void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
                 "AffineBodyBodyReporter is not ready, body_offset={}, lifecycle issue?",
                 body_reporter->body_offset());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(N,
-               [coindices   = info.coindices().viewer().name("coindices"),
-                src_pos     = abd().vertex_id_to_J.cviewer().name("src_pos"),
-                dst_pos     = info.positions().viewer().name("dst_pos"),
-                v2b         = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                body_offset = body_reporter->body_offset(),
-                dst_v2b     = info.body_ids().viewer().name("dst_v2b"),
-                qs          = abd().body_id_to_q.cviewer().name("qs"),
-                dst_rest_pos = info.rest_positions().viewer().name("rest_pos")] __device__(int i) mutable
-               {
-                   coindices(i) = i;
+    int n = (int)N;
+    if(n > 0)
+    {
+        auto k = affine_body_vertex_reporter_init_attributes_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.coindices(),
+            abd().vertex_id_to_J.cview(),
+            info.positions(),
+            abd().vertex_id_to_body_id.cview(),
+            body_reporter->body_offset(),
+            info.body_ids(),
+            abd().body_id_to_q.cview(),
+            info.rest_positions(),
+            n);
+    }
 
-                   auto        body_id = v2b(i);
-                   const auto& q       = qs(body_id);
-                   dst_pos(i)          = src_pos(i).point_x(q);
-                   dst_rest_pos(i)     = src_pos(i).x_bar();
-                   dst_v2b(i) = body_id + body_offset;  // offset by the global body offset
-               });
-
-    auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
-    { muda::BufferLaunch().copy<T>(dst, src.data()); };
+    auto async_copy = []<typename T>(span<T> src, cuda_tool::BufferView<T> dst)
+    { cuda_tool::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
     async_copy(span{abd().h_vertex_id_to_subscene_contact_element_id},
@@ -68,25 +121,21 @@ void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 
 void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
-
     auto N = info.positions().size();
 
     // only update positions
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(N,
-               [coindices = info.coindices().viewer().name("coindices"),
-                src_pos   = abd().vertex_id_to_J.cviewer().name("src_pos"),
-                dst_pos   = info.positions().viewer().name("dst_pos"),
-                v2b       = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                qs = abd().body_id_to_q.cviewer().name("qs")] __device__(int i) mutable
-               {
-                   coindices(i)        = i;
-                   auto        body_id = v2b(i);
-                   const auto& q       = qs(body_id);
-                   dst_pos(i)          = src_pos(i).point_x(q);
-               });
+    int n = (int)N;
+    if(n > 0)
+    {
+        auto k = affine_body_vertex_reporter_update_attributes_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.coindices(),
+            abd().vertex_id_to_J.cview(),
+            info.positions(),
+            abd().vertex_id_to_body_id.cview(),
+            abd().body_id_to_q.cview(),
+            n);
+    }
 
     // This update will ruin the friction force computed in previous step, so we need to discard it.
     // ref: https://github.com/spiriMirror/libuipc/issues/303
@@ -95,23 +144,18 @@ void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info
 
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
 {
-    using namespace muda;
     auto N = info.coindices().size();
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(N,
-               [coindices = info.coindices().viewer().name("coindices"),
-                displacements = info.displacements().viewer().name("displacements"),
-                v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                dqs = abd().body_id_to_dq.cviewer().name("dqs"),
-                Js = abd().vertex_id_to_J.cviewer().name("Js")] __device__(int vI) mutable
-               {
-                   auto             body_id = v2b(vI);
-                   const Vector12&  dq      = dqs(body_id);
-                   const ABDJacobi& J       = Js(vI);
-                   auto&            dx      = displacements(vI);
-                   dx                       = J * dq;
-               });
+    int  n = (int)N;
+    if(n > 0)
+    {
+        auto k = affine_body_vertex_reporter_report_displacements_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.displacements(),
+            abd().vertex_id_to_body_id.cview(),
+            abd().body_id_to_dq.cview(),
+            abd().vertex_id_to_J.cview(),
+            n);
+    }
 }
 
 void AffineBodyVertexReporter::do_report_count(VertexCountInfo& info)

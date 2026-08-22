@@ -1,7 +1,7 @@
 namespace uipc::backend::cuda::distance
 {
 template <typename T>
-MUDA_GENERIC void point_point_distance2(const Eigen::Vector<T, 3>& a,
+UIPC_GENERIC void point_point_distance2(const Eigen::Vector<T, 3>& a,
                                         const Eigen::Vector<T, 3>& b,
                                         T&                         dist2)
 {
@@ -9,7 +9,7 @@ MUDA_GENERIC void point_point_distance2(const Eigen::Vector<T, 3>& a,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance2_gradient(const Eigen::Vector<T, 3>& a,
+UIPC_GENERIC void point_point_distance2_gradient(const Eigen::Vector<T, 3>& a,
                                                  const Eigen::Vector<T, 3>& b,
                                                  Eigen::Vector<T, 6>& grad)
 {
@@ -18,7 +18,7 @@ MUDA_GENERIC void point_point_distance2_gradient(const Eigen::Vector<T, 3>& a,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance2_hessian(const Eigen::Vector<T, 3>& a,
+UIPC_GENERIC void point_point_distance2_hessian(const Eigen::Vector<T, 3>& a,
                                                 const Eigen::Vector<T, 3>& b,
                                                 Eigen::Matrix<T, 6, 6>& Hessian)
 {

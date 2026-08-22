@@ -10,7 +10,7 @@
 #include <finite_element/fem_utils.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/common/json_eigen.h>
-#include <muda/ext/eigen/inverse.h>
+#include <cuda_tool/cuda_tool.h>
 #include <ranges>
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
@@ -58,6 +58,72 @@ bool operator<(const uipc::backend::cuda::FiniteElementMethod::DimUID& a,
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FiniteElementMethod_build_on_device_k1_kernel(
+        cuda_tool::BufferView<Vector2i> codim_1ds,
+        cuda_tool::BufferView<Vector3>  x_bars,
+        cuda_tool::BufferView<Float>    rest_lengths,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Vector2i& edge = codim_1ds(i);
+        const Vector3&  x0   = x_bars(edge[0]);
+        const Vector3&  x1   = x_bars(edge[1]);
+
+        rest_lengths(i) = (x1 - x0).norm();
+    }
+
+    __global__ void FiniteElementMethod_build_on_device_k2_kernel(
+        cuda_tool::BufferView<Vector3i> codim_2ds,
+        cuda_tool::BufferView<Vector3>  x_bars,
+        cuda_tool::BufferView<Float>    rest_areas,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Vector3i& tri = codim_2ds(i);
+        const Vector3&  x0  = x_bars(tri[0]);
+        const Vector3&  x1  = x_bars(tri[1]);
+        const Vector3&  x2  = x_bars(tri[2]);
+
+        Vector3 E01 = x1 - x0;
+        Vector3 E02 = x2 - x0;
+
+        rest_areas(i) = 0.5 * E01.cross(E02).norm();
+    }
+
+    __global__ void FiniteElementMethod_build_on_device_k3_kernel(
+        cuda_tool::BufferView<Vector4i>  tets,
+        cuda_tool::BufferView<Vector3>   x_bars,
+        cuda_tool::BufferView<Matrix3x3> Dm9x9_inv,
+        cuda_tool::BufferView<Float>     rest_volumes,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Vector4i& tet = tets(i);
+        const Vector3&  x0  = x_bars(tet[0]);
+        const Vector3&  x1  = x_bars(tet[1]);
+        const Vector3&  x2  = x_bars(tet[2]);
+        const Vector3&  x3  = x_bars(tet[3]);
+
+        Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
+        Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
+        UIPC_KERNEL_ASSERT(V > 0.0,
+                           "Negative volume tetrahedron (%d, %d, %d, %d)",
+                           tet[0],
+                           tet[1],
+                           tet[2],
+                           tet[3]);
+        rest_volumes(i) = V;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FiniteElementMethod);
 
 void FiniteElementMethod::do_build()
@@ -883,7 +949,7 @@ To avoid this warning, please apply the transform to the positions mannally. htt
 
 void FiniteElementMethod::Impl::_build_on_device()
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // 1) Vertex States
     xs.resize(h_positions.size());
@@ -936,66 +1002,39 @@ void FiniteElementMethod::Impl::_build_on_device()
 
     // 3) Material Space Attribute
     // Rod
-    ParallelFor()
-        .kernel_name("Rod Basis")
-        .apply(codim_1ds.size(),
-               [codim_1ds = codim_1ds.viewer().name("codim_1ds"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                rest_lengths = rest_lengths.viewer().name("rest_lengths")] __device__(int i) mutable
-               {
-                   const Vector2i& edge = codim_1ds(i);
-                   const Vector3&  x0   = x_bars(edge[0]);
-                   const Vector3&  x1   = x_bars(edge[1]);
-
-                   rest_lengths(i) = (x1 - x0).norm();
-               });
+    {
+        auto k = FiniteElementMethod_build_on_device_k1_kernel;
+        int  n = (int)codim_1ds.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                codim_1ds.view(), x_bars.view(), rest_lengths.view(), n);
+        }
+    }
 
 
     // Shell
-    ParallelFor()
-        .kernel_name("Shell Basis")
-        .apply(codim_2ds.size(),
-               [codim_2ds = codim_2ds.viewer().name("codim_2ds"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                rest_areas = rest_areas.viewer().name("rest_areas")] __device__(int i) mutable
-               {
-                   const Vector3i& tri = codim_2ds(i);
-                   const Vector3&  x0  = x_bars(tri[0]);
-                   const Vector3&  x1  = x_bars(tri[1]);
-                   const Vector3&  x2  = x_bars(tri[2]);
-
-                   Vector3 E01 = x1 - x0;
-                   Vector3 E02 = x2 - x0;
-
-                   rest_areas(i) = 0.5 * E01.cross(E02).norm();
-               });
+    {
+        auto k = FiniteElementMethod_build_on_device_k2_kernel;
+        int  n = (int)codim_2ds.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                codim_2ds.view(), x_bars.view(), rest_areas.view(), n);
+        }
+    }
 
     // FEM3D Material Basis
     Dm3x3_invs.resize(tets.size());
-    ParallelFor()
-        .kernel_name("FEM3D Material Basis")
-        .apply(tets.size(),
-               [tets      = tets.viewer().name("tets"),
-                x_bars    = x_bars.viewer().name("x_bars"),
-                Dm9x9_inv = Dm3x3_invs.viewer().name("Dm3x3_inv"),
-                rest_volumes = rest_volumes.viewer().name("rest_volumes")] __device__(int i) mutable
-               {
-                   const Vector4i& tet = tets(i);
-                   const Vector3&  x0  = x_bars(tet[0]);
-                   const Vector3&  x1  = x_bars(tet[1]);
-                   const Vector3&  x2  = x_bars(tet[2]);
-                   const Vector3&  x3  = x_bars(tet[3]);
-
-                   Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
-                   Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
-                   MUDA_ASSERT(V > 0.0,
-                               "Negative volume tetrahedron (%d, %d, %d, %d)",
-                               tet[0],
-                               tet[1],
-                               tet[2],
-                               tet[3]);
-                   rest_volumes(i) = V;
-               });
+    {
+        auto k = FiniteElementMethod_build_on_device_k3_kernel;
+        int  n = (int)tets.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                tets.view(), x_bars.view(), Dm3x3_invs.view(), rest_volumes.view(), n);
+        }
+    }
 }
 
 void FiniteElementMethod::Impl::_init_base_constitutions()
@@ -1131,8 +1170,7 @@ auto FiniteElementMethod::FilteredInfo::geo_infos() const noexcept -> span<const
     return span{m_impl->geo_infos}.subspan(info.geo_info_offset, info.geo_info_count);
 }
 
-auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept
-    -> const ConstitutionInfo&
+auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept -> const ConstitutionInfo&
 {
     switch(m_dim)
     {
@@ -1160,7 +1198,7 @@ size_t FiniteElementMethod::FilteredInfo::primitive_count() const noexcept
     return constitution_info().primitive_count;
 }
 
-void FiniteElementMethod::overwrite_xs(muda::CBufferView<Vector3> xs)
+void FiniteElementMethod::overwrite_xs(cuda_tool::CBufferView<Vector3> xs)
 {
     m_impl.xs.view().copy_from(xs);
 }

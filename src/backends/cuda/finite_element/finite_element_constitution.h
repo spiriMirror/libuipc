@@ -2,9 +2,7 @@
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/finite_element_elastics.h>
-#include <muda/buffer.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {

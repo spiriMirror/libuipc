@@ -2,10 +2,31 @@
 #include <linear_system/global_linear_system.h>
 #include <utils/matrix_unpacker.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void CurrentFrameDiffDofReporter_do_assemble_kernel(
+        cuda_tool::CBCOOMatrixView<Float, 3>   bcoo_A,
+        cuda_tool::TripletMatrixView<Float, 1> sub_H,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+
+        auto&& [i, j, H3x3] = bcoo_A(I);
+
+        // cout << "i: " << i << ", j: " << j << ", H3x3:\n " << H3x3 << "\n";
+
+        TripletMatrixUnpacker unpacker{sub_H};
+        // every x has 3 dofs
+        unpacker.block<3, 3>(I * 3 * 3).write(i * 3, j * 3, H3x3);
+    }
+}  // namespace
+
 /**
  * @brief Compute the Diff Dof for the current frame
  * 
@@ -26,7 +47,7 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
     GlobalLinearSystem* global_linear_system = nullptr;
     IndexT              triplet_count        = 0;
 
-    muda::BCOOMatrixView<Float, 3> bcoo_A()
+    cuda_tool::BCOOMatrixView<Float, 3> bcoo_A()
     {
         return global_linear_system->m_impl.bcoo_A;
     }
@@ -49,9 +70,6 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
 
     virtual void do_assemble(GlobalDiffSimManager::DiffDofInfo& info) override
     {
-        using namespace muda;
-
-
         auto frame      = info.frame();
         auto dof_offset = info.dof_offset(frame);
         auto dof_count  = info.dof_count(frame);
@@ -60,20 +78,12 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
         auto sub_H = info.H().submatrix({dof_offset, dof_offset}, {dof_count, dof_count});
         auto A = bcoo_A();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(A.triplet_count(),
-                   [bcoo_A = A.cviewer().name("bcoo_A"),
-                    sub_H = sub_H.viewer().name("sub_H")] __device__(int I) mutable
-                   {
-                       auto&& [i, j, H3x3] = bcoo_A(I);
-
-                       // cout << "i: " << i << ", j: " << j << ", H3x3:\n " << H3x3 << "\n";
-
-                       TripletMatrixUnpacker unpacker{sub_H};
-                       // every x has 3 dofs
-                       unpacker.block<3, 3>(I * 3 * 3).write(i * 3, j * 3, H3x3);
-                   });
+        int n = A.triplet_count();
+        if(n > 0)
+        {
+            CurrentFrameDiffDofReporter_do_assemble_kernel<<<cuda_tool::best_grid_dim(n, CurrentFrameDiffDofReporter_do_assemble_kernel), cuda_tool::best_block_dim(CurrentFrameDiffDofReporter_do_assemble_kernel), 0, nullptr>>>(
+                A.cviewer(), sub_H.viewer(), n);
+        }
     }
 };
 

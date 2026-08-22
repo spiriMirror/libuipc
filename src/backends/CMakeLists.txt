@@ -1,5 +1,5 @@
 include(uipc_utils)
-file(GLOB BACKEND_COMMON_SOURCES "common/*.h" "common/*.cpp" "common/details/*.inl")
+file(GLOB BACKEND_COMMON_SOURCES CONFIGURE_DEPENDS "common/*.h" "common/*.cpp" "common/details/*.inl")
 
 # ---------------------------------------------------------------------------
 # A dummy target to group all backends

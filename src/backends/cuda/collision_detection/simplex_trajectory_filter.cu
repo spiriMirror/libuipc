@@ -1,7 +1,70 @@
 #include <collision_detection/simplex_trajectory_filter.h>
-#include <muda/atomic.h>
+#include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k1_kernel(
+        cuda_tool::CBufferView<Vector4i> PTs, cuda_tool::BufferView<IndexT> is_active, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PT = PTs(i);
+        for(int j = 0; j < PT.size(); ++j)
+        {
+            auto P = PT[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k2_kernel(
+        cuda_tool::CBufferView<Vector4i> EEs, cuda_tool::BufferView<IndexT> is_active, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto EE = EEs(i);
+        for(int j = 0; j < EE.size(); ++j)
+        {
+            auto P = EE[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k3_kernel(
+        cuda_tool::CBufferView<Vector3i> PEs, cuda_tool::BufferView<IndexT> is_active, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PE = PEs(i);
+        for(int j = 0; j < PE.size(); ++j)
+        {
+            auto P = PE[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+
+    __global__ void SimplexTrajectoryFilter_label_active_vertices_k4_kernel(
+        cuda_tool::CBufferView<Vector2i> PPs, cuda_tool::BufferView<IndexT> is_active, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        auto PP = PPs(i);
+        for(int j = 0; j < PP.size(); ++j)
+        {
+            auto P = PP[j];
+            if(is_active(P) == 0)
+                cuda_tool::atomic_exch(&is_active(P), 1);
+        }
+    }
+}  // namespace
+
 void SimplexTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
@@ -25,68 +88,35 @@ void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info
 
 void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PTs.size(),
-               [PTs = PTs.viewer().name("PTs"),
-                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
-               {
-                   auto PT = PTs(i);
-                   for(int j = 0; j < PT.size(); ++j)
-                   {
-                       auto P = PT[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(PTs.size() > 0)
+    {
+        auto k1 = SimplexTrajectoryFilter_label_active_vertices_k1_kernel;
+        k1<<<cuda_tool::best_grid_dim((int)PTs.size(), k1), cuda_tool::best_block_dim(k1), 0, nullptr>>>(
+            PTs, info.vert_is_active(), (int)PTs.size());
+    }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(EEs.size(),
-               [EEs = EEs.viewer().name("EEs"),
-                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
-               {
-                   auto EE = EEs(i);
-                   for(int j = 0; j < EE.size(); ++j)
-                   {
-                       auto P = EE[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(EEs.size() > 0)
+    {
+        auto k2 = SimplexTrajectoryFilter_label_active_vertices_k2_kernel;
+        k2<<<cuda_tool::best_grid_dim((int)EEs.size(), k2), cuda_tool::best_block_dim(k2), 0, nullptr>>>(
+            EEs, info.vert_is_active(), (int)EEs.size());
+    }
 
+    if(PEs.size() > 0)
+    {
+        auto k3 = SimplexTrajectoryFilter_label_active_vertices_k3_kernel;
+        k3<<<cuda_tool::best_grid_dim((int)PEs.size(), k3), cuda_tool::best_block_dim(k3), 0, nullptr>>>(
+            PEs, info.vert_is_active(), (int)PEs.size());
+    }
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PEs.size(),
-               [PEs = PEs.viewer().name("PEs"),
-                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
-               {
-                   auto PE = PEs(i);
-                   for(int j = 0; j < PE.size(); ++j)
-                   {
-                       auto P = PE[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(PPs.size(),
-               [PPs = PPs.viewer().name("PPs"),
-                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
-               {
-                   auto PP = PPs(i);
-                   for(int j = 0; j < PP.size(); ++j)
-                   {
-                       auto P = PP[j];
-                       if(is_active(P) == 0)
-                           atomic_exch(&is_active(P), 1);
-                   }
-               });
+    if(PPs.size() > 0)
+    {
+        auto k4 = SimplexTrajectoryFilter_label_active_vertices_k4_kernel;
+        k4<<<cuda_tool::best_grid_dim((int)PPs.size(), k4), cuda_tool::best_block_dim(k4), 0, nullptr>>>(
+            PPs, info.vert_is_active(), (int)PPs.size());
+    }
 }
 
 void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
@@ -151,147 +181,147 @@ Float SimplexTrajectoryFilter::BaseInfo::d_hat() const noexcept
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::d_hats() const noexcept
+cuda_tool::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::d_hats() const noexcept
 {
     return m_impl->global_vertex_manager->d_hats();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::v2b() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::v2b() const noexcept
 {
     return m_impl->global_vertex_manager->body_ids();
 }
 
-muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::positions() const noexcept
+cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::rest_positions() const noexcept
+cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::rest_positions() const noexcept
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const noexcept
+cuda_tool::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const noexcept
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::dimensions() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::dimensions() const noexcept
 {
     return m_impl->global_vertex_manager->dimensions();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::body_self_collision() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::body_self_collision() const noexcept
 {
     return m_impl->global_body_manager->self_collision();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::codim_vertices() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::codim_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->codim_vertices();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_vertices();
 }
 
-muda::CBufferView<Vector2i> SimplexTrajectoryFilter::BaseInfo::surf_edges() const noexcept
+cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::BaseInfo::surf_edges() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_edges();
 }
 
-muda::CBufferView<Vector3i> SimplexTrajectoryFilter::BaseInfo::surf_triangles() const noexcept
+cuda_tool::CBufferView<Vector3i> SimplexTrajectoryFilter::BaseInfo::surf_triangles() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_triangles();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
+cuda_tool::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
     return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
-muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
 {
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
+cuda_tool::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
     return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
-muda::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept
+cuda_tool::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept
 {
     return m_impl.PTs;
 }
 
-muda::CBufferView<Vector4i> SimplexTrajectoryFilter::EEs() const noexcept
+cuda_tool::CBufferView<Vector4i> SimplexTrajectoryFilter::EEs() const noexcept
 {
     return m_impl.EEs;
 }
 
-muda::CBufferView<Vector3i> SimplexTrajectoryFilter::PEs() const noexcept
+cuda_tool::CBufferView<Vector3i> SimplexTrajectoryFilter::PEs() const noexcept
 {
     return m_impl.PEs;
 }
 
-muda::CBufferView<Vector2i> SimplexTrajectoryFilter::PPs() const noexcept
+cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::PPs() const noexcept
 {
     return m_impl.PPs;
 }
 
-muda::CBufferView<Vector4i> SimplexTrajectoryFilter::friction_PTs() const noexcept
+cuda_tool::CBufferView<Vector4i> SimplexTrajectoryFilter::friction_PTs() const noexcept
 {
     return m_impl.friction_PT;
 }
 
-muda::CBufferView<Vector4i> SimplexTrajectoryFilter::friction_EEs() const noexcept
+cuda_tool::CBufferView<Vector4i> SimplexTrajectoryFilter::friction_EEs() const noexcept
 {
     return m_impl.friction_EE;
 }
 
-muda::CBufferView<Vector3i> SimplexTrajectoryFilter::friction_PEs() const noexcept
+cuda_tool::CBufferView<Vector3i> SimplexTrajectoryFilter::friction_PEs() const noexcept
 {
     return m_impl.friction_PE;
 }
 
 
-muda::CBufferView<Vector2i> SimplexTrajectoryFilter::friction_PPs() const noexcept
+cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::friction_PPs() const noexcept
 {
     return m_impl.friction_PP;
 }
 
-muda::CBufferView<Vector3> SimplexTrajectoryFilter::DetectInfo::displacements() const noexcept
+cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::DetectInfo::displacements() const noexcept
 {
     return m_impl->global_vertex_manager->displacements();
 }
 
-void SimplexTrajectoryFilter::FilterActiveInfo::PTs(muda::CBufferView<Vector4i> PTs) noexcept
+void SimplexTrajectoryFilter::FilterActiveInfo::PTs(cuda_tool::CBufferView<Vector4i> PTs) noexcept
 {
     m_impl->PTs = PTs;
 }
 
-void SimplexTrajectoryFilter::FilterActiveInfo::EEs(muda::CBufferView<Vector4i> EEs) noexcept
+void SimplexTrajectoryFilter::FilterActiveInfo::EEs(cuda_tool::CBufferView<Vector4i> EEs) noexcept
 {
     m_impl->EEs = EEs;
 }
 
-void SimplexTrajectoryFilter::FilterActiveInfo::PEs(muda::CBufferView<Vector3i> PEs) noexcept
+void SimplexTrajectoryFilter::FilterActiveInfo::PEs(cuda_tool::CBufferView<Vector3i> PEs) noexcept
 {
     m_impl->PEs = PEs;
 }
 
-void SimplexTrajectoryFilter::FilterActiveInfo::PPs(muda::CBufferView<Vector2i> PPs) noexcept
+void SimplexTrajectoryFilter::FilterActiveInfo::PPs(cuda_tool::CBufferView<Vector2i> PPs) noexcept
 {
     m_impl->PPs = PPs;
 }
-muda::VarView<Float> SimplexTrajectoryFilter::FilterTOIInfo::toi() noexcept
+cuda_tool::VarView<Float> SimplexTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
 }

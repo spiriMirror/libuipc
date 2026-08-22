@@ -1,2 +1,2 @@
-file(GLOB SOURCES "*.cpp" "*.hpp" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp" "details/*.inl")
 target_sources(uipc_geometry PRIVATE ${SOURCES})

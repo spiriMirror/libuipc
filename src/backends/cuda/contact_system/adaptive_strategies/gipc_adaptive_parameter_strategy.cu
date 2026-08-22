@@ -7,9 +7,45 @@
 #include <uipc/common/enumerate.h>
 #include <linear_system/global_linear_system.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void do_init_kernel(cuda_tool::BufferView<Vector2i> adaptive_topos,
+                                   cuda_tool::Dense2D<ContactCoeff> contact_tabular,
+                                   int n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+
+        Vector2i topo  = adaptive_topos(I);
+        auto&    coefL = contact_tabular(topo.x(), topo.y());
+        auto&    coefR = contact_tabular(topo.y(), topo.x());
+        coefL.kappa    = 1.0;
+        coefR.kappa    = 1.0;
+    }
+
+    __global__ void do_compute_parameters_kernel(cuda_tool::BufferView<Vector2i> adaptive_topos,
+                                                 cuda_tool::Dense2D<ContactCoeff> contact_tabular,
+                                                 Float new_kappa,
+                                                 int   n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+
+        Vector2i topo  = adaptive_topos(I);
+        auto&    coefL = contact_tabular(topo.x(), topo.y());
+        auto&    coefR = contact_tabular(topo.y(), topo.x());
+
+        coefL.kappa = new_kappa;
+        coefR.kappa = new_kappa;
+    }
+}  // namespace
+
 // ref: https://github.com/KemengHuang/Stiff-GIPC
 class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
 {
@@ -22,9 +58,9 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
     SimSystemSlot<GlobalLinearSystem>             linear_system;
     SimSystemSlot<GlobalDyTopoEffectManager>      dytopo_effect_manager;
 
-    std::vector<IndexT>                   h_adaptive_kappa_index;
-    muda::DeviceBuffer<Vector2i>          adaptive_topos;
-    S<muda::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
+    std::vector<IndexT>                        h_adaptive_kappa_index;
+    cuda_tool::DeviceBuffer<Vector2i>          adaptive_topos;
+    S<cuda_tool::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
 
     Float min_kappa  = 0.0;
     Float init_kappa = 0.0;
@@ -88,40 +124,33 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         // non-adaptive kappa to 0.0 (don't contribute)
         // adaptive kappa to 1.0 (contribute)
 
-        test_contact_tabular = std::make_shared<muda::DeviceBuffer2D<ContactCoeff>>();
+        test_contact_tabular =
+            std::make_shared<cuda_tool::DeviceBuffer2D<ContactCoeff>>();
         test_contact_tabular->resize({N, N});
         test_contact_tabular->fill(ContactCoeff{0.0f});
 
-        using namespace muda;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer().name("adaptive_topos"),
-                    contact_tabular = test_contact_tabular->viewer().name(
-                        "contact_tabular")] __device__(IndexT I) mutable
-                   {
-                       Vector2i topo  = adaptive_topos(I);
-                       auto&    coefL = contact_tabular(topo.x(), topo.y());
-                       auto&    coefR = contact_tabular(topo.y(), topo.x());
-                       coefL.kappa    = 1.0;
-                       coefR.kappa    = 1.0;
-                   });
+        using namespace cuda_tool;
+        if(adaptive_topos.size() > 0)
+            do_init_kernel<<<cuda_tool::best_grid_dim((int)adaptive_topos.size(), do_init_kernel), cuda_tool::best_block_dim(do_init_kernel), 0, nullptr>>>(
+                adaptive_topos.viewer(),
+                test_contact_tabular->viewer(),
+                (int)adaptive_topos.size());
 
         //auto             d_hats = vertex_manager->d_hats();
         //DeviceVar<Float> min_d_hat;
         //DeviceReduce().Min(d_hats.data(), min_d_hat.data(), d_hats.size());
     }
 
-    muda::DeviceDenseVector<Float> contact_gradient;
-    muda::DeviceDenseVector<Float> non_contact_gradient;
+    cuda_tool::DeviceDenseVector<Float> contact_gradient;
+    cuda_tool::DeviceDenseVector<Float> non_contact_gradient;
 
     void compute_gradient(AdaptiveParameterInfo& info)
     {
         // set a test contact tabular
         auto original_contact_tabular = info.exchange_contact_tabular(test_contact_tabular);
 
-        auto _compute_gradient = [this](EnergyComponentFlags         flags,
-                                        muda::DenseVectorView<Float> gradient)
+        auto _compute_gradient = [this](EnergyComponentFlags flags,
+                                        cuda_tool::DenseVectorView<Float> gradient)
         {
             // 1. Compute dytopo effect
             GlobalDyTopoEffectManager::ComputeDyTopoEffectInfo dytopo_effect_info;
@@ -152,7 +181,7 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
     virtual void do_compute_parameters(AdaptiveParameterInfo& info) override
     {
 
-        using namespace muda;
+        using namespace cuda_tool;
         using namespace sym::codim_ipc_contact;
 
         compute_gradient(info);
@@ -185,20 +214,15 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
                      init_kappa,
                      max_kappa);
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(adaptive_topos.size(),
-                   [adaptive_topos = adaptive_topos.viewer().name("adaptive_topos"),
-                    contact_tabular = info.contact_tabular().viewer().name("contact_tabular"),
-                    new_kappa = new_kappa] __device__(IndexT I) mutable
-                   {
-                       Vector2i topo  = adaptive_topos(I);
-                       auto&    coefL = contact_tabular(topo.x(), topo.y());
-                       auto&    coefR = contact_tabular(topo.y(), topo.x());
-
-                       coefL.kappa = new_kappa;
-                       coefR.kappa = new_kappa;
-                   });
+        if(adaptive_topos.size() > 0)
+            do_compute_parameters_kernel<<<
+                cuda_tool::best_grid_dim((int)adaptive_topos.size(), do_compute_parameters_kernel),
+                cuda_tool::best_block_dim(do_compute_parameters_kernel),
+                0,
+                nullptr>>>(adaptive_topos.viewer(),
+                           info.contact_tabular().viewer(),
+                           new_kappa,
+                           (int)adaptive_topos.size());
     }
 
     vector<Float> h_kappas;

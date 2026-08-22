@@ -37,7 +37,7 @@ void VertexHalfPlaneNormalContact::do_report_energy_extent(GlobalContactManager:
 
 void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     EnergyInfo this_info{&m_impl};
     this_info.m_energies = info.energies();
@@ -76,43 +76,43 @@ void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::GradientHes
     do_assemble(this_info);
 }
 
-muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneNormalContact::BaseInfo::contact_tabular() const
+cuda_tool::CBuffer2DView<ContactCoeff> VertexHalfPlaneNormalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneNormalContact::BaseInfo::PHs() const
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneNormalContact::BaseInfo::PHs() const
 {
     return m_impl->veretx_half_plane_trajectory_filter->PHs();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::prev_positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::rest_positions() const
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::thicknesses() const
+cuda_tool::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::thicknesses() const
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_element_ids() const
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
 
-muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::subscene_element_ids() const
+cuda_tool::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::subscene_element_ids() const
 {
     return m_impl->global_vertex_manager->subscene_element_ids();
 }
@@ -122,7 +122,7 @@ Float VertexHalfPlaneNormalContact::BaseInfo::d_hat() const
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::d_hats() const
+cuda_tool::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::d_hats() const
 {
     return m_impl->global_vertex_manager->d_hats();
 }
@@ -142,28 +142,28 @@ IndexT VertexHalfPlaneNormalContact::BaseInfo::half_plane_vertex_offset() const
     return m_impl->vertex_reporter->vertex_offset();
 }
 
-muda::BufferView<Float> VertexHalfPlaneNormalContact::EnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> VertexHalfPlaneNormalContact::EnergyInfo::energies() const noexcept
 {
     return m_energies;
 }
 
 
-muda::CBufferView<Vector2i> VertexHalfPlaneNormalContact::PHs() const noexcept
+cuda_tool::CBufferView<Vector2i> VertexHalfPlaneNormalContact::PHs() const noexcept
 {
     return m_impl.veretx_half_plane_trajectory_filter->PHs();
 }
 
-muda::CBufferView<Float> VertexHalfPlaneNormalContact::energies() const noexcept
+cuda_tool::CBufferView<Float> VertexHalfPlaneNormalContact::energies() const noexcept
 {
     return m_impl.energies;
 }
 
-muda::CDoubletVectorView<Float, 3> VertexHalfPlaneNormalContact::gradients() const noexcept
+cuda_tool::CDoubletVectorView<Float, 3> VertexHalfPlaneNormalContact::gradients() const noexcept
 {
     return m_impl.gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> VertexHalfPlaneNormalContact::hessians() const noexcept
+cuda_tool::CTripletMatrixView<Float, 3> VertexHalfPlaneNormalContact::hessians() const noexcept
 {
     return m_impl.hessians;
 }

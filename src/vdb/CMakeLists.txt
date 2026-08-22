@@ -28,7 +28,7 @@ endif()
 uipc_target_set_output_directory(uipc_vdb)
 uipc_target_set_rpath(uipc_vdb)
 
-file(GLOB_RECURSE SOURCES "*.h" "*.hpp" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.h" "*.hpp" "*.cpp" "*.inl")
 
 target_sources(uipc_vdb PRIVATE ${SOURCES})
 uipc_target_set_relative_source_file(uipc_vdb)

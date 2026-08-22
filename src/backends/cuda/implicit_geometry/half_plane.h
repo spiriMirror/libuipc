@@ -1,7 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <uipc/geometry/implicit_geometry_slot.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
@@ -55,12 +55,12 @@ class HalfPlane : public SimSystem
         vector<Vector3> h_normals;
         vector<Vector3> h_positions;
 
-        muda::DeviceBuffer<Vector3> normals;
-        muda::DeviceBuffer<Vector3> positions;
+        cuda_tool::DeviceBuffer<Vector3> normals;
+        cuda_tool::DeviceBuffer<Vector3> positions;
     };
 
-    muda::CBufferView<Vector3> normals() const;
-    muda::CBufferView<Vector3> positions() const;
+    cuda_tool::CBufferView<Vector3> normals() const;
+    cuda_tool::CBufferView<Vector3> positions() const;
 
     span<const GeoInfo> geo_infos() const noexcept { return m_impl.geo_infos; }
 

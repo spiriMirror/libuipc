@@ -1,5 +1,6 @@
 add_requires(
-    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib <3", "cpptrace",
+    -- Pin tinygltf <3: v3.0 moved tiny_gltf.h out of the flat include layout
+    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf <3", "dylib <3", "cpptrace",
     -- Use non-header-only spdlog and fmt
     "spdlog[shared,header_only=n,fmt_external=y]"
 )

@@ -8,14 +8,14 @@ target_compile_definitions(uipc_constitution PRIVATE UIPC_CONSTITUTION_EXPORT_DL
 uipc_target_set_output_directory(uipc_constitution)
 uipc_target_set_rpath(uipc_constitution)
 
-file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_constitution PRIVATE ${SOURCES})
 uipc_target_set_relative_source_file(uipc_constitution)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 # ------------------------------------------------------------------------------

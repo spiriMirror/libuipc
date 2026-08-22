@@ -1,0 +1,501 @@
+// Standalone compile/behavior smoke test for cuda_tool. Not part of the build
+// (kept as .cu.txt so CMake's *.cu glob does not pick it up). Compile manually:
+//   nvcc -std=c++20 -x cu --extended-lambda --expt-relaxed-constexpr \
+//     src/backends/cuda/cuda_tool/test_compile.cu.txt -o cuda_tool_test.exe \
+//     -Isrc/backends/cuda -Iinclude -Ibuild/vcpkg_installed/x64-windows/include \
+//     -Xcompiler "/Zc:preprocessor" -lcublas
+#include <cuda_tool/cuda_tool.h>
+#include <cstdio>
+#include <vector>
+#include <type_traits>
+
+using namespace uipc::backend::cuda_tool;
+
+using Matrix3 = Eigen::Matrix<double, 3, 3>;
+using Vector3 = Eigen::Vector<double, 3>;
+
+// ---------------------------------------------------------------------------
+// static checks: the view types are trivially copyable (safe to pass to
+// kernels by value) and the viewer aliases really are the views
+// ---------------------------------------------------------------------------
+static_assert(std::is_trivially_copyable_v<TripletMatrixView<double, 3>>);
+static_assert(std::is_trivially_copyable_v<CTripletMatrixView<double, 3>>);
+static_assert(std::is_trivially_copyable_v<DoubletVectorView<double, 3>>);
+static_assert(std::is_trivially_copyable_v<CDoubletVectorView<double, 3>>);
+static_assert(std::is_trivially_copyable_v<DenseVectorView<double>>);
+static_assert(std::is_trivially_copyable_v<CDenseVectorView<double>>);
+static_assert(std::is_trivially_copyable_v<Dense1D<double>>);
+static_assert(std::is_trivially_copyable_v<CDense2D<double>>);
+
+static_assert(std::is_same_v<TripletMatrixViewer<double, 3>,
+                             TripletMatrixView<double, 3>>);
+static_assert(std::is_same_v<CTripletMatrixViewer<double, 3>,
+                             CTripletMatrixView<double, 3>>);
+static_assert(std::is_same_v<DoubletVectorViewer<double, 3>,
+                             DoubletVectorView<double, 3>>);
+static_assert(std::is_same_v<CDoubletVectorViewer<double, 3>,
+                             CDoubletVectorView<double, 3>>);
+static_assert(std::is_same_v<DenseVectorViewer<double>, DenseVectorView<double>>);
+static_assert(std::is_same_v<CDenseVectorViewer<double>, CDenseVectorView<double>>);
+static_assert(std::is_same_v<BCOOMatrixView<double, 3>, TripletMatrixView<double, 3>>);
+static_assert(std::is_same_v<CBCOOMatrixView<double, 3>,
+                             CTripletMatrixView<double, 3>>);
+static_assert(std::is_same_v<BCOOVectorView<double, 3>, DoubletVectorView<double, 3>>);
+static_assert(std::is_same_v<CBCOOVectorView<double, 3>,
+                             CDoubletVectorView<double, 3>>);
+
+// ---------------------------------------------------------------------------
+// raw template kernels exercising the linear-system views as plain kernel
+// parameters (no lambda machinery)
+// ---------------------------------------------------------------------------
+
+// write through the non-const triplet view proxy: block (I,I) = (I+1) * Identity
+template <typename T, int M>
+__global__ void triplet_write_kernel(TripletMatrixView<T, M> v)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= v.triplet_count())
+        return;
+    v(I).write(I, I, Eigen::Matrix<T, M, M>::Identity() * T(I + 1));
+}
+
+// read through the const triplet view: out[I] = row*10 + col + trace(block)
+template <typename T, int M>
+__global__ void triplet_read_kernel(CTripletMatrixView<T, M> v, BufferView<T> out)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= v.triplet_count())
+        return;
+    auto&& [i, j, block] = v(I);
+    T      trace         = T(0);
+    for(int k = 0; k < M; ++k)
+        trace += block(k, k);
+    out[I] = i * 10 + j + trace;
+}
+
+// write through the non-const doublet view proxy: segment I+2 = (I, 2I, 3I)
+template <typename T, int N>
+__global__ void doublet_write_kernel(DoubletVectorView<T, N> v)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= v.doublet_count())
+        return;
+    v(I).write(I + 2, Eigen::Vector<T, N>(T(I), T(2 * I), T(3 * I)));
+}
+
+// read through the const doublet view: out[I] = index*100 + sum(segment)
+template <typename T, int N>
+__global__ void doublet_read_kernel(CDoubletVectorView<T, N> v, BufferView<T> out)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= v.doublet_count())
+        return;
+    auto&& [index, segment] = v(I);
+    out[I] = index * 100 + segment.sum();
+}
+
+// z(i) = 3*x(i) + y(i) through dense vector views
+template <typename T>
+__global__ void dense_update_kernel(DenseVectorView<T>  z,
+                                    CDenseVectorView<T> x,
+                                    CDenseVectorView<T> y)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= z.size())
+        return;
+    z(i) = T(3) * x(i) + y(i);
+}
+
+// every thread atomically adds (1,2,3) into segment 0 of v
+template <typename T>
+__global__ void dense_segment_atomic_kernel(DenseVectorView<T> v)
+{
+    v.template segment<3>(0).atomic_add(Eigen::Vector<T, 3>(T(1), T(2), T(3)));
+}
+
+// out[I] = sum(y.segment<3>(3).as_eigen())
+template <typename T>
+__global__ void dense_segment_eigen_kernel(CDenseVectorView<T> y, BufferView<T> out)
+{
+    int I = blockIdx.x * blockDim.x + threadIdx.x;
+    if(I >= (int)out.size())
+        return;
+    Eigen::Vector<T, 3> e = y.template segment<3>(3).as_eigen();
+    out[I]                = e.sum();
+}
+
+// Dense1D write/read
+template <typename T>
+__global__ void dense1d_kernel(Dense1D<T> d1)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= d1.dim())
+        return;
+    d1(i) = T(2 * i);
+}
+
+template <typename T>
+__global__ void cdense1d_kernel(CDense1D<T> d1, BufferView<T> out)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= d1.dim())
+        return;
+    out[i] = d1(i) + T(1);
+}
+
+// Dense2D write/read: t2(x, y) = 10x + y, stored at data[x * dimy + y]
+template <typename T>
+__global__ void dense2d_kernel(Dense2D<T> t2)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if(x >= t2.dim().x || y >= t2.dim().y)
+        return;
+    t2(x, y) = T(x * 10 + y);
+}
+
+template <typename T>
+__global__ void cdense2d_kernel(CDense2D<T> t2, BufferView<T> out)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if(i >= (int)out.size())
+        return;
+    int2 dim = t2.dim();
+    out[i]   = t2(i / dim.y, i % dim.y) * T(2);
+}
+
+static bool check(const char* tag, const std::vector<double>& got,
+                  const std::vector<double>& expect)
+{
+    bool ok = got == expect;
+    printf("%s: %s (got", tag, ok ? "OK" : "MISMATCH");
+    for(auto v : got)
+        printf(" %g", v);
+    printf(", expect");
+    for(auto v : expect)
+        printf(" %g", v);
+    printf(")\n");
+    return ok;
+}
+
+int main()
+{
+    bool all_ok = true;
+
+    // buffer + view
+    DeviceVector<float> a(100, 1.0f);
+    DeviceVector<float> b(100, 2.0f);
+
+    // parallel_for
+    parallel_for(
+        100,
+        [av = a.viewer()] __device__(int i) mutable { av[i] = av[i] * 3.0f; });
+
+    // cub reduce
+    DeviceVar<float> sum;
+    DeviceReduce().Sum(a.cview().data(), sum.data(), 100);
+    float h = 0;
+    sum.copy_to(h);
+    cudaDeviceSynchronize();
+    printf("sum=%f (expect 300)\n", h);
+
+    // dot / norm (free functions, cub-based)
+    float d = dot(a.cview(), b.cview());
+    printf("dot=%f (expect 600)\n", d);
+    printf("norm=%f (expect 30)\n", norm(a.cview()));
+
+    // LinearSystemContext (cublas-based)
+    {
+        DeviceDenseVector<float> x, y;
+        x.resize(100);
+        y.resize(100);
+        parallel_for(
+            100,
+            [xv = x.viewer()] __device__(int i) mutable { xv(i) = 1.0f; });
+        parallel_for(
+            100,
+            [yv = y.viewer()] __device__(int i) mutable { yv(i) = 2.0f; });
+        cudaDeviceSynchronize();
+        LinearSystemContext ctx;
+        printf("ctx.dot=%f (expect 200)\n", ctx.dot(x, y));
+        printf("ctx.norm=%f (expect 10)\n", ctx.norm(x));
+        // dense vector view overloads (post-migration call shape)
+        printf("ctx.dot(views)=%f (expect 200)\n", ctx.dot(x.cview(), y.cview()));
+        printf("ctx.norm(view)=%f (expect 10)\n", ctx.norm(x.cview()));
+    }
+
+    // eigen svd of identity
+    Matrix3d I = Matrix3d::Identity();
+    Matrix3d U, V;
+    Vector3d s;
+    eigen::svd(I, U, s, V);
+    printf("svd singular values of I: %f %f %f (expect 1 1 1)\n", s(0), s(1), s(2));
+
+    // eigen symmetric evd of a diagonal matrix
+    Matrix3d D;
+    D << 3.0, 0, 0, 0, 1.0, 0, 0, 0, 2.0;
+    Vector3d w;
+    Matrix3d Q;
+    eigen::evd(D, w, Q);
+    printf("evd eigenvalues: %f %f %f (expect 1 2 3)\n", w(0), w(1), w(2));
+
+    // Logger / KernelCout
+    {
+        Logger logger;
+        auto   lv = logger.viewer();
+        parallel_for(
+            4,
+            [lv] __device__(int i) mutable { lv("val=%d", i * 10); });
+        cudaDeviceSynchronize();
+        auto logs = logger.fetch();
+        printf("logger fetched %zu records (expect 4)\n", logs.size());
+    }
+
+    // Debug
+    Debug::debug_sync_all(true);
+    printf("debug_sync_all flag=%d (expect 1)\n", (int)Debug::is_debug_sync_all());
+
+    // -----------------------------------------------------------------------
+    // BufferView host-side helpers: fill / copy_from / copy_to
+    // -----------------------------------------------------------------------
+    {
+        DeviceVector<double> f(8), g(8);
+        f.view().fill(3.0);
+        std::vector<double> hf(8);
+        f.cview().copy_to(hf.data());
+        all_ok &= check("BufferView::fill/copy_to", hf, {3, 3, 3, 3, 3, 3, 3, 3});
+
+        std::vector<double> up{0, 1, 2, 3, 4, 5, 6, 7};
+        g.view().copy_from(up.data());
+        f.view().copy_from(g.cview());
+        std::vector<double> hg(8);
+        f.cview().copy_to(hg.data());
+        all_ok &= check("BufferView::copy_from", hg, up);
+    }
+
+    // -----------------------------------------------------------------------
+    // TripletMatrixView: subview + submatrix + proxy write + const read
+    // -----------------------------------------------------------------------
+    {
+        DeviceTripletMatrix<double, 3> A;
+        A.reshape(4, 4);
+        A.reserve_triplets(8);
+        A.resize_triplets(6);
+        printf("triplet: count=%zu (expect 6), capacity>=%d (expect 1)\n",
+               A.triplet_count(),
+               (int)(A.triplet_capacity() >= 6));
+
+        // initialize the storage we are about to read back
+        A.values().fill(Matrix3::Zero());
+        A.row_indices().fill(-1);
+        A.col_indices().fill(-1);
+
+        // write 3 triplets through a subview + submatrix({1,1},{3,3}) view
+        auto sub = A.view().subview(2, 3).submatrix(make_int2(1, 1), make_int2(3, 3));
+        printf("subview: triplet_count=%d (expect 3), tripet_index_offset=%d "
+               "(expect 2), total_triplet_count=%d (expect 6)\n",
+               sub.triplet_count(),
+               sub.tripet_index_offset(),
+               sub.total_triplet_count());
+        printf("submatrix: offset=(%d,%d) (expect 1 1), extent=(%d,%d) "
+               "(expect 3 3), total_rows=%d (expect 4)\n",
+               sub.submatrix_offset().x,
+               sub.submatrix_offset().y,
+               sub.extent().x,
+               sub.extent().y,
+               sub.total_rows());
+        printf("subview values range: size=%zu (expect 3)\n", sub.values().size());
+
+        triplet_write_kernel<double, 3><<<1, 32>>>(sub.viewer());
+
+        // read back through the const view of the same subrange
+        DeviceVector<double> out(3);
+        auto                 csub =
+            A.cview().subview(2, 3).submatrix(make_int2(1, 1), make_int2(3, 3));
+        triplet_read_kernel<double, 3><<<1, 32>>>(csub.cviewer(), out.view());
+        std::vector<double> hout(3);
+        out.cview().copy_to(hout.data());
+        // local (I,I), block = (I+1)*I3 -> I*11 + 3*(I+1): 3, 17, 31
+        all_ok &= check("triplet view write/read", hout, {3, 17, 31});
+
+        // the stored global indices live in the full view's index buffers
+        std::vector<int> hri(6);
+        A.row_indices().copy_to(hri.data());
+        printf("global row indices: %d %d %d %d %d %d (expect -1 -1 1 2 3 -1)\n",
+               hri[0], hri[1], hri[2], hri[3], hri[4], hri[5]);
+        all_ok &= hri[2] == 1 && hri[3] == 2 && hri[4] == 3;
+    }
+
+    // -----------------------------------------------------------------------
+    // BCOO / COO container aliases
+    // -----------------------------------------------------------------------
+    {
+        DeviceBCOOMatrix<double, 3> B;
+        B.reshape(2, 2);
+        B.resize_triplets(3);
+        CBCOOMatrixView<double, 3> bv = B.cview();
+        printf("bcoo: non_zeros=%d (expect 3), view total=(%d,%d) (expect 2 2)\n",
+               B.non_zeros(),
+               bv.total_rows(),
+               bv.total_cols());
+        all_ok &= B.non_zeros() == 3 && bv.triplet_count() == 3;
+
+        DeviceCOOMatrix<double> coo;
+        coo.reshape(5, 5);
+        coo.resize(5, 5, 4);
+        printf("coo: non_zeros=%d (expect 4), rows=%d (expect 5)\n",
+               coo.non_zeros(),
+               coo.rows());
+        all_ok &= coo.non_zeros() == 4 && coo.rows() == 5;
+    }
+
+    // -----------------------------------------------------------------------
+    // DoubletVectorView: subview + proxy write + const read
+    // -----------------------------------------------------------------------
+    {
+        DeviceDoubletVector<double, 3> G;
+        G.reshape(8);
+        G.reserve_doublets(6);
+        G.resize_doublets(5);
+        printf("doublet: count=%zu (expect 5), capacity>=%d (expect 1)\n",
+               G.doublet_count(),
+               (int)(G.doublet_capacity() >= 5));
+
+        G.indices().fill(-1);
+        G.values().fill(Vector3::Zero());
+
+        auto sub = G.view().subview(1, 3);
+        printf("doublet subview: count=%d (expect 3), total=%d (expect 5), "
+               "extent=%d (expect 8)\n",
+               sub.doublet_count(),
+               sub.total_doublet_count(),
+               sub.extent());
+
+        doublet_write_kernel<double, 3><<<1, 32>>>(sub.viewer());
+
+        DeviceVector<double> out(3);
+        doublet_read_kernel<double, 3>
+            <<<1, 32>>>(G.cviewer().subview(1, 3), out.view());
+        std::vector<double> hout(3);
+        out.cview().copy_to(hout.data());
+        // segment I+2, value (I,2I,3I) -> (I+2)*100 + 6I: 200, 306, 412
+        all_ok &= check("doublet view write/read", hout, {200, 306, 412});
+
+        std::vector<int> hi(5);
+        G.indices().copy_to(hi.data());
+        printf("doublet global indices: %d %d %d %d %d (expect -1 2 3 4 -1)\n",
+               hi[0], hi[1], hi[2], hi[3], hi[4]);
+        all_ok &= hi[1] == 2 && hi[2] == 3 && hi[3] == 4;
+    }
+
+    // -----------------------------------------------------------------------
+    // DeviceBCOOVector
+    // -----------------------------------------------------------------------
+    {
+        DeviceBCOOVector<double, 3> bc;
+        bc.reshape(8);
+        bc.resize_doublets(4);
+        CBCOOVectorView<double, 3> cv = bc.cview();
+        printf("bcoo vector: non_zeros=%zu (expect 4), view count=%d (expect 4)\n",
+               bc.non_zeros(),
+               cv.doublet_count());
+        all_ok &= bc.non_zeros() == 4 && cv.doublet_count() == 4;
+    }
+
+    // -----------------------------------------------------------------------
+    // DenseVectorView: rw / subview / segment atomic_add / as_eigen
+    // -----------------------------------------------------------------------
+    {
+        DeviceDenseVector<double> x, y, z;
+        x.resize(16);
+        y.resize(16);
+        z.resize(16);
+        x.buffer_view().fill(1.0);
+        y.buffer_view().fill(2.0);
+
+        dense_update_kernel<double>
+            <<<1, 64>>>(z.view(), x.cview(), y.cview());
+        std::vector<double> hz(16);
+        z.cview().buffer_view().copy_to(hz.data());
+        printf("dense update: z[0]=%g z[15]=%g (expect 5 5)\n", hz[0], hz[15]);
+        all_ok &= hz[0] == 5 && hz[15] == 5;
+
+        // subview write: only z(4..12) are touched, the rest stays 0
+        z.buffer_view().fill(0.0);
+        auto zsub = z.view().subview(4, 8);
+        dense_update_kernel<double>
+            <<<1, 64>>>(zsub, x.cview().subview(4, 8), y.cview().subview(4, 8));
+        z.cview().buffer_view().copy_to(hz.data());
+        printf("dense subview: z[3]=%g z[4]=%g z[11]=%g z[12]=%g "
+               "(expect 0 5 5 0)\n",
+               hz[3],
+               hz[4],
+               hz[11],
+               hz[12]);
+        all_ok &= hz[3] == 0 && hz[4] == 5 && hz[11] == 5 && hz[12] == 0;
+
+        // segment<3>(0).atomic_add from 8 threads
+        DeviceDenseVector<double> acc;
+        acc.resize(3);
+        acc.buffer_view().fill(0.0);
+        dense_segment_atomic_kernel<double><<<1, 8>>>(acc.viewer());
+        std::vector<double> hacc(3);
+        acc.cview().buffer_view().copy_to(hacc.data());
+        all_ok &= check("dense segment atomic_add", hacc, {8, 16, 24});
+
+        // as_eigen on a const segment
+        DeviceVector<double> esum(1);
+        dense_segment_eigen_kernel<double><<<1, 1>>>(y.cviewer(), esum.view());
+        std::vector<double> he(1);
+        esum.cview().copy_to(he.data());
+        printf("dense segment as_eigen: sum=%g (expect 6)\n", he[0]);
+        all_ok &= he[0] == 6;
+    }
+
+    // -----------------------------------------------------------------------
+    // Dense1D / Dense2D
+    // -----------------------------------------------------------------------
+    {
+        DeviceVector<double> b1(12);
+        auto                 d1 = make_dense_1d(b1.data(), 12);
+        dense1d_kernel<double><<<1, 32>>>(d1);
+        DeviceVector<double> out(12);
+        cdense1d_kernel<double><<<1, 32>>>(d1.as_const(), out.view());
+        std::vector<double> hout(12);
+        out.cview().copy_to(hout.data());
+        printf("Dense1D: out[5]=%g out[11]=%g (expect 11 23)\n", hout[5], hout[11]);
+        all_ok &= hout[5] == 11 && hout[11] == 23;
+
+        DeviceVector<double> b2(12);
+        auto                 t2 = make_dense_2d(b2.data(), 3, 4);
+        dense2d_kernel<double><<<dim3(1, 2), dim3(4, 4)>>>(t2);
+        cdense2d_kernel<double><<<1, 32>>>(t2.as_const(), out.view());
+        out.cview().copy_to(hout.data());
+        printf("Dense2D: out[2*4+3]=%g (expect 46), total_size=%d (expect 12)\n",
+               hout[2 * 4 + 3],
+               t2.total_size());
+        all_ok &= hout[2 * 4 + 3] == 46 && t2.total_size() == 12;
+    }
+
+    // -----------------------------------------------------------------------
+    // DeviceDenseMatrix + DeviceBSRMatrix (minimal containers)
+    // -----------------------------------------------------------------------
+    {
+        DeviceDenseMatrix<double> dm(2, 3);
+        dm.fill(1.0);
+        printf("dense matrix: row=%zu col=%zu (expect 2 3)\n", dm.row(), dm.col());
+        all_ok &= dm.row() == 2 && dm.col() == 3;
+
+        DeviceBSRMatrix<double, 3> bsr;
+        bsr.reshape(2, 2);
+        bsr.resize(3);
+        printf("bsr: rows=%d non_zeros=%d (expect 2 3)\n",
+               bsr.rows(),
+               bsr.non_zeros());
+        all_ok &= bsr.rows() == 2 && bsr.non_zeros() == 3;
+    }
+
+    debug_sync_all();
+    printf("%s\n", all_ok ? "OK" : "FAILED");
+    return all_ok ? 0 : 1;
+}

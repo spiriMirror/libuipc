@@ -2,14 +2,115 @@
 #include <finite_element/constitutions/stable_neo_hookean_3d_function.h>
 #include <finite_element/fem_utils.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <muda/ext/eigen/evd.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace SNH = sym::stable_neo_hookean_3d;
+
+    constexpr SizeT StencilSize     = 4;
+    constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
+    __global__ void StableNeoHookean3D_do_compute_energy_kernel(
+        cuda_tool::CBufferView<Float>     mus,
+        cuda_tool::CBufferView<Float>     lambdas,
+        cuda_tool::BufferView<Float>      energies,
+        cuda_tool::CBufferView<Vector4i>  indices,
+        cuda_tool::CBufferView<Vector3>   xs,
+        cuda_tool::CBufferView<Matrix3x3> Dm_invs,
+        cuda_tool::CBufferView<Float>     volumes,
+        Float                             dt,
+        int                               n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector4i&  tet    = indices(I);
+        const Matrix3x3& Dm_inv = Dm_invs(I);
+        Float            mu     = mus(I);
+        Float            lambda = lambdas(I);
+
+        const Vector3& x0 = xs(tet(0));
+        const Vector3& x1 = xs(tet(1));
+        const Vector3& x2 = xs(tet(2));
+        const Vector3& x3 = xs(tet(3));
+
+        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+        auto J = F.determinant();
+
+        //auto VecF = flatten(F);
+
+        Float E;
+
+        SNH::E(E, mu, lambda, F);
+        E *= dt * dt * volumes(I);
+        energies(I) = E;
+    }
+
+    __global__ void StableNeoHookean3D_do_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Float>          mus,
+        cuda_tool::CBufferView<Float>          lambdas,
+        cuda_tool::CBufferView<Vector4i>       indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Matrix3x3>      Dm_invs,
+        cuda_tool::DoubletVectorView<Float, 3> G3s,
+        cuda_tool::TripletMatrixView<Float, 3> H3x3s,
+        cuda_tool::CBufferView<Float>          volumes,
+        Float                                  dt,
+        bool                                   gradient_only,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector4i&  tet    = indices(I);
+        const Matrix3x3& Dm_inv = Dm_invs(I);
+        Float            mu     = mus(I);
+        Float            lambda = lambdas(I);
+
+        const Vector3& x0 = xs(tet(0));
+        const Vector3& x1 = xs(tet(1));
+        const Vector3& x2 = xs(tet(2));
+        const Vector3& x3 = xs(tet(3));
+
+        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+        auto J = F.determinant();
+
+        //auto VecF = flatten(F);
+
+        auto Vdt2 = volumes(I) * dt * dt;
+
+        Matrix3x3 dEdF;
+        SNH::dEdVecF(dEdF, mu, lambda, F);
+        auto VecdEdF = flatten(dEdF);
+        VecdEdF *= Vdt2;
+
+        Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+        Vector12   G    = dFdx.transpose() * VecdEdF;
+
+        DoubletVectorAssembler DVA{G3s};
+        DVA.segment<StencilSize>(I * StencilSize).write(tet, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix9x9 ddEddF;
+        SNH::ddEddVecF(ddEddF, mu, lambda, F);
+        ddEddF *= Vdt2;
+        make_spd(ddEddF);
+        Matrix12x12            H = dFdx.transpose() * ddEddF * dFdx;
+        TripletMatrixAssembler TMA{H3x3s};
+        TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
+    }
+}  // namespace
+
 class StableNeoHookean3D final : public FEM3DConstitution
 {
   public:
@@ -23,8 +124,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
     vector<Float> h_mus;
     vector<Float> h_lambdas;
 
-    muda::DeviceBuffer<Float> mus;
-    muda::DeviceBuffer<Float> lambdas;
+    cuda_tool::DeviceBuffer<Float> mus;
+    cuda_tool::DeviceBuffer<Float> lambdas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
@@ -80,105 +181,42 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-        namespace SNH = sym::stable_neo_hookean_3d;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [mus      = mus.cviewer().name("mus"),
-                    lambdas  = lambdas.cviewer().name("lambdas"),
-                    energies = info.energies().viewer().name("energies"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
-                    volumes  = info.rest_volumes().viewer().name("volumes"),
-                    dt       = info.dt()] __device__(int I)
-                   {
-                       const Vector4i&  tet    = indices(I);
-                       const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = mus(I);
-                       Float            lambda = lambdas(I);
-
-                       const Vector3& x0 = xs(tet(0));
-                       const Vector3& x1 = xs(tet(1));
-                       const Vector3& x2 = xs(tet(2));
-                       const Vector3& x3 = xs(tet(3));
-
-                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
-
-                       auto J = F.determinant();
-
-                       //auto VecF = flatten(F);
-
-                       Float E;
-
-                       SNH::E(E, mu, lambda, F);
-                       E *= dt * dt * volumes(I);
-                       energies(I) = E;
-                   });
+        auto k = StableNeoHookean3D_do_compute_energy_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                mus.cview(),
+                lambdas.cview(),
+                info.energies(),
+                info.indices(),
+                info.xs(),
+                info.Dm_invs(),
+                info.rest_volumes(),
+                info.dt(),
+                n);
+        }
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-        namespace SNH      = sym::stable_neo_hookean_3d;
-        auto gradient_only = info.gradient_only();
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.indices().size(),
-                   [mus     = mus.cviewer().name("mus"),
-                    lambdas = lambdas.cviewer().name("lambdas"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G3s     = info.gradients().viewer().name("gradients"),
-                    H3x3s   = info.hessians().viewer().name("hessians"),
-                    volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt(),
-                    gradient_only] __device__(int I) mutable
-                   {
-                       const Vector4i&  tet    = indices(I);
-                       const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = mus(I);
-                       Float            lambda = lambdas(I);
-
-                       const Vector3& x0 = xs(tet(0));
-                       const Vector3& x1 = xs(tet(1));
-                       const Vector3& x2 = xs(tet(2));
-                       const Vector3& x3 = xs(tet(3));
-
-                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
-
-                       auto J = F.determinant();
-
-                       //auto VecF = flatten(F);
-
-                       auto Vdt2 = volumes(I) * dt * dt;
-
-                       Matrix3x3 dEdF;
-                       SNH::dEdVecF(dEdF, mu, lambda, F);
-                       auto VecdEdF = flatten(dEdF);
-                       VecdEdF *= Vdt2;
-
-                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
-                       Vector12   G    = dFdx.transpose() * VecdEdF;
-
-                       DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<StencilSize>(I * StencilSize).write(tet, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix9x9 ddEddF;
-                       SNH::ddEddVecF(ddEddF, mu, lambda, F);
-                       ddEddF *= Vdt2;
-                       make_spd(ddEddF);
-                       Matrix12x12 H = dFdx.transpose() * ddEddF * dFdx;
-                       TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
-                   });
+        auto k = StableNeoHookean3D_do_compute_gradient_hessian_kernel;
+        int  n = (int)info.indices().size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                mus.cview(),
+                lambdas.cview(),
+                info.indices(),
+                info.xs(),
+                info.Dm_invs(),
+                info.gradients(),
+                info.hessians(),
+                info.rest_volumes(),
+                info.dt(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

@@ -1,8 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/buffer/device_var.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/common/span.h>
 #include <filesystem>
 #include <string_view>
@@ -38,15 +36,15 @@ class MASPreconditionerEngine
     struct alignas(16) ClusterMatrixSymT
     {
         Eigen::Matrix<Scalar, 3, 3> M[SYM_BLOCK_COUNT];
-        MUDA_GENERIC                ClusterMatrixSymT()
+        UIPC_GENERIC                ClusterMatrixSymT()
         {
             for(auto& m : M)
                 m.setZero();
         }
     };
 
-    using ClusterMatrixSym  = ClusterMatrixSymT<double>;  // Hessian assembly
-    using ClusterMatrixSymF = ClusterMatrixSymT<float>;   // Inverted preconditioner
+    using ClusterMatrixSym = ClusterMatrixSymT<double>;  // Hessian assembly
+    using ClusterMatrixSymF = ClusterMatrixSymT<float>;  // Inverted preconditioner
 
     // Level traversal table per node
     struct LevelTable
@@ -66,9 +64,9 @@ class MASPreconditionerEngine
 
     // ---- Phase 1: Initialize neighbor structures (called once) ----
 
-    void init_neighbor(int                     vert_num,
-                       int                     total_neighbor_num,
-                       int                     part_map_size,
+    void init_neighbor(int                      vert_num,
+                       int                      total_neighbor_num,
+                       int                      part_map_size,
                        span<const unsigned int> h_neighbor_list,
                        span<const unsigned int> h_neighbor_start,
                        span<const unsigned int> h_neighbor_num,
@@ -81,18 +79,18 @@ class MASPreconditionerEngine
 
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
-    void set_preconditioner(muda::CBufferView<Eigen::Matrix3d> triplet_values,
-                            muda::CBufferView<int>             row_ids,
-                            muda::CBufferView<int>             col_ids,
-                            muda::CBufferView<uint32_t>        indices,
-                            int                                dof_offset,
-                            int                                cp_num);
+    void set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
+                            cuda_tool::CBufferView<int>      row_ids,
+                            cuda_tool::CBufferView<int>      col_ids,
+                            cuda_tool::CBufferView<uint32_t> indices,
+                            int                              dof_offset,
+                            int                              cp_num);
 
     // ---- Phase 3: Apply preconditioning z = M^{-1} r (per PCG iteration) ----
 
-    void apply(muda::CDenseVectorView<Float> r,
-               muda::DenseVectorView<Float>  z,
-               muda::CVarView<IndexT>        converged);
+    void apply(cuda_tool::CDenseVectorView<Float> r,
+               cuda_tool::DenseVectorView<Float>  z,
+               cuda_tool::CVarView<IndexT>        converged);
 
     bool is_initialized() const { return m_initialized; }
 
@@ -126,9 +124,7 @@ class MASPreconditionerEngine
      *   - `mas_cluster_inv.f<frame>.n<newton>.mtx`
      *   - `mas_cluster_meta.f<frame>.n<newton>.json`
      */
-    void dump_cluster_matrices_debug(std::string_view output_dir,
-                                     SizeT            frame,
-                                     SizeT            newton_iter);
+    void dump_cluster_matrices_debug(std::string_view output_dir, SizeT frame, SizeT newton_iter);
 
     // ===========================================================================
     // All methods below are public because NVCC on Windows requires
@@ -148,59 +144,61 @@ class MASPreconditionerEngine
     void aggregation_kernel();
 
     // Hessian assembly + inversion
-    void scatter_hessian_to_clusters(muda::CBufferView<Eigen::Matrix3d> triplet_values,
-                                     muda::CBufferView<int>             row_ids,
-                                     muda::CBufferView<int>             col_ids,
-                                     muda::CBufferView<uint32_t>        indices,
-                                     int                                dof_offset);
+    void scatter_hessian_to_clusters(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
+                                     cuda_tool::CBufferView<int>      row_ids,
+                                     cuda_tool::CBufferView<int>      col_ids,
+                                     cuda_tool::CBufferView<uint32_t> indices,
+                                     int dof_offset);
     void invert_cluster_matrices();
 
     // Preconditioning steps
-    void build_multi_level_R(muda::CDenseVectorView<Float> R, muda::CVarView<IndexT> converged);
-    void schwarz_local_solve(muda::CVarView<IndexT> converged);
-    void collect_final_Z(muda::DenseVectorView<Float> Z, muda::CVarView<IndexT> converged);
+    void build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
+                             cuda_tool::CVarView<IndexT>        converged);
+    void schwarz_local_solve(cuda_tool::CVarView<IndexT> converged);
+    void collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
+                         cuda_tool::CVarView<IndexT>       converged);
 
   private:
     // ---- State ----
-    bool  m_initialized        = false;
-    int   m_total_nodes        = 0;
-    int   m_total_map_nodes    = 0;
-    int   m_level_num          = 0;
-    int   m_active_level_num   = 0;   // levels used during apply(); 0 = use m_level_num
-    int   m_total_num_clusters = 0;
+    bool m_initialized     = false;
+    int  m_total_nodes     = 0;
+    int  m_total_map_nodes = 0;
+    int  m_level_num       = 0;
+    int m_active_level_num = 0;  // levels used during apply(); 0 = use m_level_num
+    int  m_total_num_clusters = 0;
     Int2 m_h_level_size;
 
     // ---- GPU buffers: hierarchy ----
-    muda::DeviceBuffer<Int2>         level_sizes;
-    muda::DeviceBuffer<int>          coarse_space_tables;
-    muda::DeviceBuffer<int>          prefix_original;
-    muda::DeviceBuffer<int>          prefix_sum_original;
-    muda::DeviceBuffer<int>          going_next;
-    muda::DeviceBuffer<int>          dense_level;
-    muda::DeviceBuffer<LevelTable>   coarse_tables;
-    muda::DeviceBuffer<unsigned int> fine_connect_masks;
-    muda::DeviceBuffer<unsigned int> next_connect_masks;
-    muda::DeviceBuffer<unsigned int> next_prefixes;
-    muda::DeviceBuffer<unsigned int> next_prefix_sums;
+    cuda_tool::DeviceBuffer<Int2>         level_sizes;
+    cuda_tool::DeviceBuffer<int>          coarse_space_tables;
+    cuda_tool::DeviceBuffer<int>          prefix_original;
+    cuda_tool::DeviceBuffer<int>          prefix_sum_original;
+    cuda_tool::DeviceBuffer<int>          going_next;
+    cuda_tool::DeviceBuffer<int>          dense_level;
+    cuda_tool::DeviceBuffer<LevelTable>   coarse_tables;
+    cuda_tool::DeviceBuffer<unsigned int> fine_connect_masks;
+    cuda_tool::DeviceBuffer<unsigned int> next_connect_masks;
+    cuda_tool::DeviceBuffer<unsigned int> next_prefixes;
+    cuda_tool::DeviceBuffer<unsigned int> next_prefix_sums;
 
     // ---- GPU buffers: neighbor graph ----
-    int                              m_neighbor_list_size = 0;
-    muda::DeviceBuffer<unsigned int> neighbor_lists;
-    muda::DeviceBuffer<unsigned int> neighbor_starts;
-    muda::DeviceBuffer<unsigned int> neighbor_nums;
-    muda::DeviceBuffer<unsigned int> neighbor_lists_init;
-    muda::DeviceBuffer<unsigned int> neighbor_nums_init;
+    int                                   m_neighbor_list_size = 0;
+    cuda_tool::DeviceBuffer<unsigned int> neighbor_lists;
+    cuda_tool::DeviceBuffer<unsigned int> neighbor_starts;
+    cuda_tool::DeviceBuffer<unsigned int> neighbor_nums;
+    cuda_tool::DeviceBuffer<unsigned int> neighbor_lists_init;
+    cuda_tool::DeviceBuffer<unsigned int> neighbor_nums_init;
 
     // ---- GPU buffers: partition mappings ----
-    muda::DeviceBuffer<int> part_to_real;  // partition-ordered index -> real vertex index
-    muda::DeviceBuffer<int> real_to_part;  // real vertex index -> partition-ordered index
+    cuda_tool::DeviceBuffer<int> part_to_real;  // partition-ordered index -> real vertex index
+    cuda_tool::DeviceBuffer<int> real_to_part;  // real vertex index -> partition-ordered index
 
     // ---- GPU buffers: cluster matrices ----
-    muda::DeviceBuffer<ClusterMatrixSym>  cluster_hessians;   // assembled Hessian blocks (double)
-    muda::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;   // inverted preconditioner (float, matches GIPC)
+    cuda_tool::DeviceBuffer<ClusterMatrixSym> cluster_hessians;  // assembled Hessian blocks (double)
+    cuda_tool::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;  // inverted preconditioner (float, matches GIPC)
 
     // ---- GPU buffers: multi-level residual / solution (float, matches GIPC) ----
-    muda::DeviceBuffer<Eigen::Vector3f> multi_level_R;
-    muda::DeviceBuffer<float3>          multi_level_Z;
+    cuda_tool::DeviceBuffer<Eigen::Vector3f> multi_level_R;
+    cuda_tool::DeviceBuffer<float3>          multi_level_Z;
 };
 }  // namespace uipc::backend::cuda

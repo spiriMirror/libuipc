@@ -24,7 +24,7 @@ endif()
 
 target_compile_definitions(uipc_geometry PRIVATE UIPC_GEOMETRY_EXPORT_DLL=1) # export dll
 
-file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_geometry PRIVATE ${SOURCES})
 
 uipc_target_set_output_directory(uipc_geometry)
@@ -33,7 +33,7 @@ uipc_target_set_rpath(uipc_geometry)
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 add_subdirectory(implicit_geometries)

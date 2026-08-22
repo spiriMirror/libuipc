@@ -1,8 +1,7 @@
 #pragma once
 #include <uipc/common/span.h>
 #include <collision_detection/linear_bvh.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/launch.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -19,26 +18,26 @@ class AtomicCountingLBVH
 
       private:
         friend class AtomicCountingLBVH;
-        SizeT                        m_size = 0;
-        muda::DeviceBuffer<Vector2i> m_pairs;
+        SizeT                             m_size = 0;
+        cuda_tool::DeviceBuffer<Vector2i> m_pairs;
     };
 
-    AtomicCountingLBVH(muda::Stream& stream = muda::Stream::Default()) noexcept;
+    AtomicCountingLBVH(cuda_tool::Stream& stream = cuda_tool::Stream::Default()) noexcept;
 
-    void build(muda::CBufferView<LinearBVHAABB> aabbs);
+    void build(cuda_tool::CBufferView<LinearBVHAABB> aabbs);
 
     template <typename Pred>
     void detect(Pred p, QueryBuffer& out_pairs);
 
     template <typename Pred>
-    void query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& out_pairs);
+    void query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& out_pairs);
 
   private:
-    muda::CBufferView<LinearBVHAABB> m_aabbs;
-    muda::DeviceVar<IndexT>          m_cp_num;
-    LinearBVH                        m_lbvh;
-    Float                            m_reserve_ratio = 1.1;
-    muda::Stream&                    m_stream;
+    cuda_tool::CBufferView<LinearBVHAABB> m_aabbs;
+    cuda_tool::DeviceVar<IndexT>          m_cp_num;
+    LinearBVH                             m_lbvh;
+    Float                                 m_reserve_ratio = 1.1;
+    cuda_tool::Stream&                    m_stream;
 };
 }  // namespace uipc::backend::cuda
 

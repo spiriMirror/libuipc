@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system.h>
+#include <cuda_tool/cuda_tool.h>
 #include <linear_system/global_linear_system.h>
 
 namespace uipc::backend::cuda
@@ -25,14 +25,19 @@ class IterativeSolver : public SimSystem
     * Util functions for derived classes
     ***********************************************************************************************/
 
-    void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
-    void spmv(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y);
-    void spmv_dot(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y, muda::VarView<Float> d_dot);
-    void apply_preconditioner(muda::DenseVectorView<Float>  z,
-                              muda::CDenseVectorView<Float> r,
-                              muda::CVarView<IndexT>        converged);
-    bool accuracy_statisfied(muda::DenseVectorView<Float> r);
-    muda::LinearSystemContext& ctx() const;
+    void spmv(Float                              a,
+              cuda_tool::CDenseVectorView<Float> x,
+              Float                              b,
+              cuda_tool::DenseVectorView<Float>  y);
+    void spmv(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y);
+    void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
+                  cuda_tool::DenseVectorView<Float>  y,
+                  cuda_tool::VarView<Float>          d_dot);
+    void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
+                              cuda_tool::CDenseVectorView<Float> r,
+                              cuda_tool::CVarView<IndexT>        converged);
+    bool accuracy_statisfied(cuda_tool::DenseVectorView<Float> r);
+    cuda_tool::LinearSystemContext& ctx() const;
 
   private:
     friend class GlobalLinearSystem;

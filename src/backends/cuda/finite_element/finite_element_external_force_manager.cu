@@ -4,6 +4,36 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FEMExternalForceManager_clear_kernel(cuda_tool::BufferView<Vector3> forces,
+                                                         int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        forces(i).setZero();
+    }
+
+    __global__ void FEMExternalForceManager_step_kernel(cuda_tool::CBufferView<Vector3> forces,
+                                                        cuda_tool::BufferView<Vector3> force_accs,
+                                                        cuda_tool::CBufferView<Float> masses,
+                                                        int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Vector3& F = forces(i);
+        Float          m = masses(i);
+
+        // a = F / m (avoid division by zero for massless vertices)
+        if(m > 0.0)
+            force_accs(i) = F / m;
+        else
+            force_accs(i).setZero();
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FEMExternalForceManager);
 
 void FEMExternalForceManager::do_build(BuildInfo& info)
@@ -19,15 +49,15 @@ void FEMExternalForceManager::register_reporter(FiniteElementExternalForceReport
 
 void FEMExternalForceManager::Impl::clear()
 {
-    auto external_forces =
-        finite_element_method->m_impl.vertex_external_forces.view();
+    auto external_forces = finite_element_method->m_impl.vertex_external_forces.view();
 
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(external_forces.size(),
-               [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
-               { forces(i).setZero(); });
+    auto k = FEMExternalForceManager_clear_kernel;
+    int  n = (int)external_forces.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            external_forces, n);
+    }
 }
 
 void FEMExternalForceManager::Impl::step()
@@ -38,32 +68,19 @@ void FEMExternalForceManager::Impl::step()
         reporter->step(info);
     }
 
-    using namespace muda;
-
     auto& fem = finite_element_method->m_impl;
 
     auto force_accs = fem.vertex_external_force_accs.view();
     auto forces     = fem.vertex_external_forces.view();
     auto masses     = finite_element_method->masses();
 
-    SizeT vertex_count = forces.size();
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(vertex_count,
-               [forces     = forces.cviewer().name("forces"),
-                force_accs = force_accs.viewer().name("force_accs"),
-                masses     = masses.cviewer().name("masses")] __device__(int i)
-               {
-                   const Vector3& F = forces(i);
-                   Float          m = masses(i);
-
-                   // a = F / m (avoid division by zero for massless vertices)
-                   if(m > 0.0)
-                       force_accs(i) = F / m;
-                   else
-                       force_accs(i).setZero();
-               });
+    auto k = FEMExternalForceManager_step_kernel;
+    int  n = (int)forces.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            forces.cview(), force_accs, masses.cview(), n);
+    }
 }
 
 void FEMExternalForceManager::do_init()
@@ -84,7 +101,7 @@ void FEMExternalForceManager::do_step()
     m_impl.step();
 }
 
-muda::BufferView<Vector3> FEMExternalForceManager::ExternalForceInfo::external_forces() noexcept
+cuda_tool::BufferView<Vector3> FEMExternalForceManager::ExternalForceInfo::external_forces() noexcept
 {
     return m_impl->finite_element_method->m_impl.vertex_external_forces.view();
 }

@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/device_buffer.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -18,13 +18,13 @@ class GlobalTrajectoryFilter final : public SimSystem
     class FilterTOIInfo
     {
       public:
-        Float                alpha() const noexcept { return m_alpha; }
-        muda::VarView<Float> toi() const noexcept { return m_toi; }
+        Float                     alpha() const noexcept { return m_alpha; }
+        cuda_tool::VarView<Float> toi() const noexcept { return m_toi; }
 
       private:
         friend class GlobalTrajectoryFilter;
-        Float                m_alpha = 0.0;
-        muda::VarView<Float> m_toi;
+        Float                     m_alpha = 0.0;
+        cuda_tool::VarView<Float> m_toi;
     };
 
     class DetectInfo
@@ -58,7 +58,7 @@ class GlobalTrajectoryFilter final : public SimSystem
             : m_impl(impl)
         {
         }
-        muda::BufferView<IndexT> vert_is_active() const noexcept;
+        cuda_tool::BufferView<IndexT> vert_is_active() const noexcept;
 
       private:
         friend class GlobalTrajectoryFilter;
@@ -82,8 +82,8 @@ class GlobalTrajectoryFilter final : public SimSystem
         bool should_discard_friction_candidates                    = false;
 
 
-        muda::DeviceBuffer<Float> tois;
-        vector<Float>             h_tois;
+        cuda_tool::DeviceBuffer<Float> tois;
+        vector<Float>                  h_tois;
     };
 
     template <std::derived_from<SimSystem> T>

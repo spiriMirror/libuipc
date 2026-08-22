@@ -1,4 +1,7 @@
-add_requires("libigl", "octree", "tbb")
+-- pin octree to v2.5: v3.0+ moved the headers to an `orthotree/` subdirectory
+-- (and changed the API), which breaks `src/geometry/octree.cpp`'s flat includes;
+-- v2.5 keeps the flat octree.h + adaptor.eigen.h layout this code expects
+add_requires("libigl", "octree v2.5", "tbb")
 
 target("uipc_geometry")
     add_rules("component")

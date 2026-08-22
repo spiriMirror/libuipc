@@ -15,80 +15,109 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace eigen = cuda_tool::eigen;
+
+    __global__ void fill_identity_indices_kernel(cuda_tool::BufferView<uint32_t> indices, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        indices(i) = static_cast<uint32_t>(i);
+    }
+
+    __global__ void assemble_diag_inv_for_unpartitioned_kernel(
+        cuda_tool::CBCOOMatrixView<Float, 3> triplet,
+        cuda_tool::BufferView<Matrix3x3>     diag,
+        cuda_tool::CBufferView<int>          unpart,
+        int                                  fem_offset,
+        int                                  fem_count,
+        int                                  n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [g_i, g_j, H3x3] = triplet(I);
+
+        int i = g_i - fem_offset;
+        int j = g_j - fem_offset;
+
+        if(i < 0 || i >= fem_count || j < 0 || j >= fem_count)
+            return;
+
+        if(i == j && unpart(i) == 1)
+            diag(i) = eigen::inverse(H3x3);
+    }
+
+    __global__ void apply_diag_inv_for_unpartitioned_kernel(
+        cuda_tool::CDenseVectorView<Float> r_view,
+        cuda_tool::DenseVectorView<Float>  z_view,
+        cuda_tool::CBufferView<Matrix3x3>  diag,
+        cuda_tool::CBufferView<int>        unpart,
+        cuda_tool::CDense<IndexT>          converged,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(*converged != 0)
+            return;
+        if(unpart(i) == 1)
+        {
+            z_view.segment<3>(i * 3).as_eigen() =
+                diag(i) * r_view.segment<3>(i * 3).as_eigen();
+        }
+    }
+}  // namespace
+
 // Must match REGISTER_CONSTITUTION_UIDS EmptyUID in src/constitution/empty.cpp
 constexpr ::uipc::U64 kEmptyConstitutionUID = 0ull;
 // Free function: NVCC on Windows forbids __device__ lambdas in static / internal-linkage functions
-void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
+void fill_identity_indices(cuda_tool::DeviceBuffer<uint32_t>& buf, int count)
 {
-    using namespace muda;
     buf.resize(count);
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(count,
-               [indices = buf.viewer().name("indices")] __device__(int i) mutable
-               { indices(i) = static_cast<uint32_t>(i); });
+    if(count > 0)
+    {
+        auto k = fill_identity_indices_kernel;
+        k<<<cuda_tool::best_grid_dim(count, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            buf.view(), count);
+    }
 }
 
-void assemble_diag_inv_for_unpartitioned(muda::DeviceBuffer<Matrix3x3>& diag_inv,
-                                         const muda::DeviceBuffer<int>& unpart_flags,
-                                         muda::CBCOOMatrixView<Float, 3> A,
+void assemble_diag_inv_for_unpartitioned(cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
+                                         const cuda_tool::DeviceBuffer<int>& unpart_flags,
+                                         cuda_tool::CBCOOMatrixView<Float, 3> A,
                                          int   fem_block_offset,
                                          int   fem_block_count,
                                          SizeT num_verts)
 {
-    using namespace muda;
-
     diag_inv.resize(num_verts);
     diag_inv.fill(Matrix3x3::Identity());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(A.triplet_count(),
-               [triplet    = A.cviewer().name("triplet"),
-                diag       = diag_inv.viewer().name("diag_inv"),
-                unpart     = unpart_flags.cviewer().name("unpart_flags"),
-                fem_offset = fem_block_offset,
-                fem_count  = fem_block_count] __device__(int I) mutable
-               {
-                   auto&& [g_i, g_j, H3x3] = triplet(I);
-
-                   int i = g_i - fem_offset;
-                   int j = g_j - fem_offset;
-
-                   if(i < 0 || i >= fem_count || j < 0 || j >= fem_count)
-                       return;
-
-                   if(i == j && unpart(i) == 1)
-                       diag(i) = eigen::inverse(H3x3);
-               });
+    int n = A.triplet_count();
+    if(n > 0)
+    {
+        auto k = assemble_diag_inv_for_unpartitioned_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            A, diag_inv.view(), unpart_flags.cview(), fem_block_offset, fem_block_count, n);
+    }
 }
 
-void apply_diag_inv_for_unpartitioned(const muda::DeviceBuffer<Matrix3x3>& diag_inv,
-                                      const muda::DeviceBuffer<int>& unpart_flags,
-                                      muda::DenseVectorView<Float>  z,
-                                      muda::CDenseVectorView<Float> r,
-                                      muda::CVarView<IndexT>        converged,
-                                      SizeT                         num_verts)
+void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
+                                      const cuda_tool::DeviceBuffer<int>& unpart_flags,
+                                      cuda_tool::DenseVectorView<Float>  z,
+                                      cuda_tool::CDenseVectorView<Float> r,
+                                      cuda_tool::CVarView<IndexT> converged,
+                                      SizeT                       num_verts)
 {
-    using namespace muda;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(num_verts,
-               [r_view = r.viewer().name("r"),
-                z_view = z.viewer().name("z"),
-                diag   = diag_inv.cviewer().name("diag_inv"),
-                unpart = unpart_flags.cviewer().name("unpart_flags"),
-                converged = converged.cviewer().name("converged")] __device__(int i) mutable
-               {
-                   if(*converged != 0)
-                       return;
-                   if(unpart(i) == 1)
-                   {
-                       z_view.segment<3>(i * 3).as_eigen() =
-                           diag(i) * r_view.segment<3>(i * 3).as_eigen();
-                   }
-               });
+    int n = (int)num_verts;
+    if(n > 0)
+    {
+        auto k = apply_diag_inv_for_unpartitioned_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            r, z, diag_inv.cview(), unpart_flags.cview(), converged.cviewer(), n);
+    }
 }
 
 /**
@@ -116,14 +145,14 @@ class FEMMASPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    MASPreconditionerEngine      engine;
-    bool                         m_has_partition     = false;
-    bool                         m_has_unpartitioned = false;
-    muda::DeviceBuffer<uint32_t> sorted_indices;
+    MASPreconditionerEngine           engine;
+    bool                              m_has_partition     = false;
+    bool                              m_has_unpartitioned = false;
+    cuda_tool::DeviceBuffer<uint32_t> sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
-    muda::DeviceBuffer<Matrix3x3> diag_inv;
-    muda::DeviceBuffer<int> unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
+    cuda_tool::DeviceBuffer<Matrix3x3> diag_inv;
+    cuda_tool::DeviceBuffer<int> unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -392,8 +421,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
         if(!m_has_partition || !engine.is_initialized())
             return;
 
-        using namespace muda;
-
         auto A          = info.A();
         int  dof_offset = static_cast<int>(info.dof_offset());
 
@@ -401,12 +428,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         // MAS assembly for partitioned vertices
         fill_identity_indices(sorted_indices, triplet_count);
-        engine.set_preconditioner(A.values(),
-                                  A.row_indices(),
-                                  A.col_indices(),
-                                  sorted_indices.view(),
-                                  dof_offset / 3,
-                                  0);
+        engine.set_preconditioner(
+            A.values(), A.row_indices(), A.col_indices(), sorted_indices.view(), dof_offset / 3, 0);
 
         auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");
         if(dump_mas && dump_mas->view()[0] != 0)
@@ -415,8 +438,9 @@ class FEMMASPreconditioner : public LocalPreconditioner
                 static_cast<SimEngine&>(uipc::backend::SimSystem::engine());
             backend::BackendPathTool path_tool{std::string{workspace()}};
             auto out_dir = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-            this->engine.dump_cluster_matrices_debug(
-                out_dir.string(), cuda_engine.frame(), cuda_engine.newton_iter());
+            this->engine.dump_cluster_matrices_debug(out_dir.string(),
+                                                     cuda_engine.frame(),
+                                                     cuda_engine.newton_iter());
         }
 
         // Diagonal fallback assembly for unpartitioned vertices
@@ -436,7 +460,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
         if(!m_has_partition || !engine.is_initialized())
             return;
 
-        using namespace muda;
         auto converged = info.converged();
 
         // MAS for partitioned vertices

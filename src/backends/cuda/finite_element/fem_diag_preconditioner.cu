@@ -6,11 +6,57 @@
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace eigen = cuda_tool::eigen;
+
+    __global__ void FEMDiagPreconditioner_do_assemble_kernel(
+        cuda_tool::CBCOOMatrixView<Float, 3> triplet,
+        cuda_tool::BufferView<Matrix3x3>     diag_inv,
+        SizeT                                fem_segment_offset,
+        SizeT                                fem_segment_count,
+        int                                  n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto&& [g_i, g_j, H3x3] = triplet(I);
+
+        IndexT i = g_i - fem_segment_offset;
+        IndexT j = g_j - fem_segment_offset;
+
+        if(i >= fem_segment_count || j >= fem_segment_count)
+        {
+            return;
+        }
+
+        if(i == j)
+        {
+            diag_inv(i) = eigen::inverse(H3x3);
+        }
+    }
+
+    __global__ void FEMDiagPreconditioner_do_apply_kernel(
+        cuda_tool::CDenseVectorView<Float> r,
+        cuda_tool::DenseVectorView<Float>  z,
+        cuda_tool::CDense<IndexT>          converged,
+        cuda_tool::BufferView<Matrix3x3>   diag_inv,
+        int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(*converged != 0)
+            return;
+        z.segment<3>(i * 3).as_eigen() = diag_inv(i) * r.segment<3>(i * 3).as_eigen();
+    }
+}  // namespace
+
 class FEMDiagPreconditioner : public LocalPreconditioner
 {
   public:
@@ -20,7 +66,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    muda::DeviceBuffer<Matrix3x3> diag_inv;
+    cuda_tool::DeviceBuffer<Matrix3x3> diag_inv;
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -56,54 +102,29 @@ class FEMDiagPreconditioner : public LocalPreconditioner
 
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
-        using namespace muda;
-
         diag_inv.resize(finite_element_method->xs().size());
 
         // 1) collect diagonal blocks
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(info.A().triplet_count(),
-                   [triplet            = info.A().cviewer().name("triplet"),
-                    diag_inv           = diag_inv.viewer().name("diag_inv"),
-                    fem_segment_offset = info.dof_offset() / 3,
-                    fem_segment_count = info.dof_count() / 3] __device__(int I) mutable
-                   {
-                       auto&& [g_i, g_j, H3x3] = triplet(I);
-
-                       IndexT i = g_i - fem_segment_offset;
-                       IndexT j = g_j - fem_segment_offset;
-
-                       if(i >= fem_segment_count || j >= fem_segment_count)
-                       {
-                           return;
-                       }
-
-                       if(i == j)
-                       {
-                           diag_inv(i) = eigen::inverse(H3x3);
-                       }
-                   });
+        auto k = FEMDiagPreconditioner_do_assemble_kernel;
+        int  n = (int)info.A().triplet_count();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.A(), diag_inv.view(), info.dof_offset() / 3, info.dof_count() / 3, n);
+        }
     }
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
-        using namespace muda;
         auto converged = info.converged();
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(diag_inv.size(),
-                   [r = info.r().viewer().name("r"),
-                    z = info.z().viewer().name("z"),
-                    converged = converged.cviewer().name("converged"),
-                    diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
-                   {
-                       if(*converged != 0)
-                           return;
-                       z.segment<3>(i * 3).as_eigen() =
-                           diag_inv(i) * r.segment<3>(i * 3).as_eigen();
-                   });
+        auto k = FEMDiagPreconditioner_do_apply_kernel;
+        int  n = (int)diag_inv.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.r(), info.z(), converged.cviewer(), diag_inv.view(), n);
+        }
     }
 };
 

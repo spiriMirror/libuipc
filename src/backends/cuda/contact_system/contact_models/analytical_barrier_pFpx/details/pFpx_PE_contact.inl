@@ -3,7 +3,7 @@ namespace uipc::backend::cuda::analyticalBarrier
 namespace details
 {
     template <typename T>
-    MUDA_GENERIC void pFpx_pe(
+    UIPC_GENERIC void pFpx_pe(
         T d, T x11, T x12, T x13, T x21, T x22, T x23, T x31, T x32, T x33, T result[9][4])
     {
         T t18;
@@ -92,7 +92,7 @@ namespace details
 }  // namespace details
 
 template <class T>
-MUDA_GENERIC void analytical_point_edge_pFpx(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void analytical_point_edge_pFpx(const Eigen::Vector<T, 3>& p,
                                              const Eigen::Vector<T, 3>& e1,
                                              const Eigen::Vector<T, 3>& e2,
                                              T d_hatSqrt,

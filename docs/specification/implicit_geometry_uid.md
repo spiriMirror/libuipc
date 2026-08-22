@@ -9,3 +9,14 @@ Every official implicit geometry will be documented in this specification. A use
 The related documentation of the implicit geometry will be added to the [Implicit Geometries/](./implicit_geometries/index.md) directory.
 
 When creating a implicit geometry, the `implicit_geometry_uid` attribute of the `meta` attribute of the geometry will be set to the implicit geometry UID. The backend will use this UID to determine the implicit geometry of the geometry, and try to find the related coefficients from the attributes of the geometry (in `meta` or `instances`).
+
+## Official UID List
+
+<!-- AUTO-GENERATED UID TABLE: BEGIN (scripts/gen_uid_doc.py) -->
+
+| UID | Name | Type | Source |
+| --- | ---- | ---- | ------ |
+| 0 | Empty | ImplicitGeometry | `src/geometry/implicit_geometries/empty.cpp` |
+| 1 | HalfPlane | ImplicitGeometry | `src/geometry/implicit_geometries/half_plane.cpp` |
+
+<!-- AUTO-GENERATED UID TABLE: END -->

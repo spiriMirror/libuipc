@@ -3,12 +3,28 @@
 #include <finite_element/finite_element_kinetic.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/cub.h>
+#include <cuda_tool/cuda_tool.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FEMLineSearchReporter_step_forward_kernel(
+        cuda_tool::CBufferView<Vector3> x_temps,
+        cuda_tool::BufferView<Vector3>  xs,
+        cuda_tool::CBufferView<Vector3> dxs,
+        Float                           alpha,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        xs(i) = x_temps(i) + alpha * dxs(i);
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
 
 void FEMLineSearchReporter::do_init(InitInfo& info)
@@ -38,28 +54,25 @@ void FEMLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& i
 
 void FEMLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     fem().x_temps = fem().xs;
 }
 
 void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(fem().xs.size(),
-               [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                x_temps  = fem().x_temps.cviewer().name("x_temps"),
-                xs       = fem().xs.viewer().name("xs"),
-                dxs      = fem().dxs.cviewer().name("dxs"),
-                alpha    = info.alpha] __device__(int i) mutable
-               { xs(i) = x_temps(i) + alpha * dxs(i); });
+    auto k = FEMLineSearchReporter_step_forward_kernel;
+    int  n = (int)fem().xs.size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            fem().x_temps.cview(), fem().xs.view(), fem().dxs.cview(), info.alpha, n);
+    }
 }
 
 void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
-    using namespace muda;
+    using namespace cuda_tool;
 
     // Compute Kinetic (special)
     {

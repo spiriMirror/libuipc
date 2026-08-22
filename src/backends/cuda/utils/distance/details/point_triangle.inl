@@ -5,7 +5,7 @@ namespace uipc::backend::cuda::distance
 namespace details
 {
     template <typename T>
-    MUDA_GENERIC void g_PT(
+    UIPC_GENERIC void g_PT(
         T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T g[12])
     {
         T t11;
@@ -77,7 +77,7 @@ namespace details
     }
 
     template <typename T>
-    MUDA_GENERIC void H_PT(
+    UIPC_GENERIC void H_PT(
         T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T H[144])
     {
         T t11;
@@ -656,7 +656,7 @@ namespace details
 }  // namespace details
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_triangle_distance2(const Eigen::Vector<T, 3>& p,
                                            const Eigen::Vector<T, 3>& t0,
                                            const Eigen::Vector<T, 3>& t1,
                                            const Eigen::Vector<T, 3>& t2,
@@ -668,7 +668,7 @@ MUDA_GENERIC void point_triangle_distance2(const Eigen::Vector<T, 3>& p,
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2_gradient(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_triangle_distance2_gradient(const Eigen::Vector<T, 3>& p,
                                                     const Eigen::Vector<T, 3>& t0,
                                                     const Eigen::Vector<T, 3>& t1,
                                                     const Eigen::Vector<T, 3>& t2,
@@ -679,7 +679,7 @@ MUDA_GENERIC void point_triangle_distance2_gradient(const Eigen::Vector<T, 3>& p
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2_hessian(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_triangle_distance2_hessian(const Eigen::Vector<T, 3>& p,
                                                    const Eigen::Vector<T, 3>& t0,
                                                    const Eigen::Vector<T, 3>& t1,
                                                    const Eigen::Vector<T, 3>& t2,

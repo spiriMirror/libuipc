@@ -45,7 +45,8 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
 
     SimplicialComplexIO io;
 
-    Scene scene{config};
+    Scene                    scene{config};
+    S<SimplicialComplexSlot> geo_slot;
     {
         // create constitution and contact model
         StableNeoHookean snh;
@@ -70,7 +71,8 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
         auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
         snh.apply_to(mesh, parm);
 
-        object->geometries().create(mesh);
+        auto [slot, rest_slot] = object->geometries().create(mesh);
+        geo_slot               = slot;
 
         auto g = ground(-1.2);
         object->geometries().create(g);
@@ -89,5 +91,27 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+    }
+
+    // Numerical regression: after 200 frames the tet must rest on the ground
+    // plane (y=-1.2) without penetration.
+    {
+        auto* sc = geo_slot->geometry().as<SimplicialComplex>();
+        REQUIRE(sc);
+        auto pos = sc->positions().view();
+
+        Float min_y = std::numeric_limits<Float>::max();
+        for(auto& p : pos)
+        {
+            REQUIRE(std::isfinite(p.x()));
+            REQUIRE(std::isfinite(p.y()));
+            REQUIRE(std::isfinite(p.z()));
+            min_y = std::min(min_y, p.y());
+        }
+
+        // no penetration: barrier offset (d_hat=0.01) stays well below this margin
+        REQUIRE(min_y > -1.22);
+        // it must have landed: the tet started with min_y = -1.0
+        REQUIRE(min_y < -1.05);
     }
 }

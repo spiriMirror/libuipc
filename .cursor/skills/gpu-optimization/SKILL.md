@@ -7,7 +7,7 @@ description: GPU optimization workflow using uipc.profile, uipc.profile.nsight, 
 
 Workflow for profiling and optimizing CUDA kernels in libuipc using `uipc.profile` + `uipc.profile.nsight` + Nsight Compute CLI (`ncu`).
 
-For building and installing, see [build command](mdc:.cursor/commands/build.md).
+For building and installing, see [cmake-workflow](mdc:.cursor/skills/cmake-workflow/SKILL.md).
 
 **Build type**: Always use `Release` for benchmarking and profiling. `Debug` is too slow; `RelWithDebInfo` adds debug info overhead that skews results.
 
@@ -84,7 +84,7 @@ Run both `run` (for `SimulationStats` timer data) and `profile` (for Nsight Comp
 1. Follow `source_hint` in the JSON report to find the CUDA source.
 2. Search for the kernel's class/method name in that directory.
 3. Read the `.cu` file and optimize the kernel.
-4. Rebuild with `Release` (see [build command](mdc:.cursor/commands/build.md)), re-benchmark, and compare.
+4. Rebuild with `Release` (see [cmake-workflow](mdc:.cursor/skills/cmake-workflow/SKILL.md)), re-benchmark, and compare.
 
 ### Adding Finer-Grained Timers in C++
 
@@ -148,30 +148,21 @@ Pipeline                                    engine/
 
 Parent timer durations **include** their children. E.g., if `Newton Iteration` is 80% of frame time, `PCG` and `Line Search` durations are already counted inside that 80%.
 
-## Identifying muda Kernels in ncu Output
+## Identifying Kernels in ncu Output
 
-UIPC uses the [muda](mdc:external/muda/src/muda/launch/parallel_for.h) library for CUDA kernel launches. All kernels are launched via `muda::ParallelFor().apply(N, lambda)` which compiles to `parallel_for_kernel<Lambda>`.
+All backend kernels are named `__global__` functions (defined in anonymous namespaces) launched with raw `<<<>>>` — kernel symbols are directly readable in ncu reports, e.g.:
 
-**The lambda is NOT truly anonymous.** NVCC embeds the enclosing function in the demangled name:
 ```
-parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                     This is the actual user code location
+InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel
+FEMLineSearchReporter_step_forward_kernel
+StacklessBVH::... (older helpers may still appear as <Class>::<method>)
 ```
 
-The `_shorten_kernel_name()` function in [nsight.py](mdc:python/src/uipc/profile/nsight.py) extracts this, producing readable names like:
-- `StacklessBVH::calcExtNodeSplitMetrics` — collision detection BVH builder
-- `ABDBDF1Integrator::do_predict_dof` — affine body time integrator
-- `AffineBodyExternalForceManager::step` — external force computation
+Naming convention: `<OwningClass>_<original_function>[_kN]_kernel` (`_kN` = Nth launch point in the same function). To find the source of a kernel: search the kernel name (or its suffix) in `src/backends/cuda/`.
 
-**Multiple lambdas in one function:** When a function has multiple `ParallelFor` calls, NVCC appends `(instance N)`. The tool preserves this as `#N`:
-```
-StacklessBVHSimplexTrajectoryFilter::detect#1  -- 1st ParallelFor().apply() in detect()
-StacklessBVHSimplexTrajectoryFilter::detect#2  -- 2nd ParallelFor().apply() in detect()
-```
-To find the exact lambda: search for `ParallelFor` in the source file, `#N` corresponds to the Nth `ParallelFor().apply()` call in source order.
+Legacy note: before the named-kernel migration, kernels were launched via `muda::ParallelFor().apply(N, lambda)` and appeared as `parallel_for_kernel<Class::method()::lambda>` (with `#N` for the Nth lambda in a function). The `_shorten_kernel_name()` function in [nsight.py](mdc:python/src/uipc/profile/nsight.py) was written for that scheme; with named kernels it passes the readable name through unchanged.
 
-**Buffer operations** (`buffer::kernel_fill<int>`, etc.) are muda memory operations, usually not optimization targets.
+**Buffer operations** (`buffer_fill_kernel<T>`, `buffer_copy_kernel<T>` in `cuda_tool`) are memory operations, usually not optimization targets.
 
 ## Python API
 

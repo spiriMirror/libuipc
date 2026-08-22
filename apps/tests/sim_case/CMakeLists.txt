@@ -1,4 +1,4 @@
-file(GLOB SOURCE "*.cpp" "*.h")
+file(GLOB SOURCE CONFIGURE_DEPENDS "*.cpp" "*.h")
 uipc_add_test(sim_case ${SOURCE})
 target_link_libraries(sim_case PRIVATE uipc::backends)
 

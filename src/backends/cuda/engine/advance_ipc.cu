@@ -102,10 +102,32 @@ void SimEngine::advance()
         {
             Timer timer{"Filter CCD TOI"};
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
-            if(ccd_alpha < alpha)
+            // ccd_alpha is a fraction of the swept step `alpha`; compose to
+            // get the absolute step fraction
+            Float absolute_alpha = alpha * ccd_alpha;
+            if(absolute_alpha < alpha)
             {
-                logger::info("CCD Filter: {} < {}", ccd_alpha, alpha);
-                return ccd_alpha;
+                logger::info("CCD Filter: {} < {}", absolute_alpha, alpha);
+                return absolute_alpha;
+            }
+        }
+
+        return alpha;
+    };
+
+    // Stiff-GIPC design: cap the step with the feasible step over the active
+    // contact set (each active pair keeps at least 20% of its current gap),
+    // so the swept-AABB trajectory candidates generated afterwards are fewer.
+    auto feasible_step = [this](Float alpha)
+    {
+        if(m_global_contact_manager)
+        {
+            Timer timer{"Compute Feasible Step"};
+            Float feasible_alpha = m_global_contact_manager->compute_feasible_step();
+            if(feasible_alpha < alpha)
+            {
+                logger::info("Feasible Step Filter: {} < {}", feasible_alpha, alpha);
+                return feasible_alpha;
             }
         }
 
@@ -215,18 +237,33 @@ void SimEngine::advance()
         }
     };
 
-    auto check_line_search_iter = [this](SizeT line_search_iter_after_loop)
+    auto check_line_search_iter = [&](SizeT line_search_iter_after_loop, Float E0, Float last_E)
     {
         if(line_search_iter_after_loop >= m_line_searcher->max_iter())
         {
-            logger::warn("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
-                         m_line_searcher->max_iter(),
-                         m_current_frame,
-                         m_newton_iter);
+            // alpha was halved once more after the last failed try,
+            // so the last actually tried step length is 2*alpha
+            Float alpha_last = 2.0 * alpha;
+            Float abs_E0     = std::abs(E0);
+            Float rel_E_increase = (last_E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
+            auto detail = fmt::format(
+                "Line Search Exits with Max Iteration: {} (Frame={}, Newton={}, "
+                "alpha_last={}, E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e}, "
+                "ccd_alpha={}, cfl_alpha={})",
+                m_line_searcher->max_iter(),
+                m_current_frame,
+                m_newton_iter,
+                alpha_last,
+                E0,
+                last_E,
+                rel_E_increase,
+                ccd_alpha,
+                cfl_alpha);
+            logger::warn("{}", detail);
 
             if(m_strict_mode->view()[0])
             {
-                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+                throw SimEngineException("StrictMode: " + detail);
             }
         }
     };
@@ -369,6 +406,12 @@ void SimEngine::advance()
                         dump_global_surface_pre_ccd(newton_iter);
                     }
 
+                    // Stiff-GIPC design: cap the step with the feasible step
+                    // over the active contact set first, then generate the
+                    // swept-AABB trajectory candidates over the capped step
+                    // (fewer candidates than over the full step)
+                    alpha = feasible_step(alpha);
+
                     detect_trajectory_candidates(alpha);
 
                     // Compute Current Energy => E_0
@@ -377,12 +420,16 @@ void SimEngine::advance()
                     // CCD filter
                     alpha = filter_toi(alpha);
 
-                    // CFL Condition
-                    alpha = cfl_condition(alpha);
+                    // CFL Condition (Stiff-GIPC design: the per-step speed cap
+                    // applies only when some trajectory pair actually hits within
+                    // this step; in free flight it must not bite)
+                    if(ccd_alpha < 1.0)
+                        alpha = cfl_condition(alpha);
 
                     // Line Search Iteration
                     bool  converged        = convergence_check(newton_iter);
                     SizeT line_search_iter = 0;
+                    Float last_E           = E0;
                     for(; line_search_iter < m_line_searcher->max_iter(); ++line_search_iter)
                     {
                         Timer timer{"Line Search Iteration"};
@@ -392,6 +439,7 @@ void SimEngine::advance()
                         //  * Step Forward => x = x_0 + alpha * dx
                         //  * Compute New Energy => E
                         Float E = compute_energy(alpha);
+                        last_E  = E;
 
                         // To prevent numerical energy (fake-) increasing caused by tiny dx
                         if(converged)
@@ -414,7 +462,7 @@ void SimEngine::advance()
                     }
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
-                    check_line_search_iter(line_search_iter);
+                    check_line_search_iter(line_search_iter, E0, last_E);
 
                     bool terminated = converged && (newton_iter >= newton_min_iter);
                     if(terminated)

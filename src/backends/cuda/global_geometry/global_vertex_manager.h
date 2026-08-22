@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/device_buffer.h>
-#include <muda/buffer/device_var.h>
+#include <cuda_tool/cuda_tool.h>
 #include <functional>
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>
@@ -39,17 +38,17 @@ class GlobalVertexManager final : public SimSystem
     {
       public:
         VertexAttributeInfo(Impl* impl, SizeT index, SizeT frame) noexcept;
-        SizeT                     frame() const noexcept;
-        muda::BufferView<Vector3> rest_positions() const noexcept;
-        muda::BufferView<Float>   thicknesses() const noexcept;
-        muda::BufferView<IndexT>  coindices() const noexcept;
-        muda::BufferView<IndexT>  dimensions() const noexcept;
-        muda::BufferView<Vector3> positions() const noexcept;
-        muda::BufferView<IndexT>  contact_element_ids() const noexcept;
-        muda::BufferView<IndexT>  subscene_element_ids() const noexcept;
-        muda::BufferView<IndexT>  body_ids() const noexcept;
+        SizeT                          frame() const noexcept;
+        cuda_tool::BufferView<Vector3> rest_positions() const noexcept;
+        cuda_tool::BufferView<Float>   thicknesses() const noexcept;
+        cuda_tool::BufferView<IndexT>  coindices() const noexcept;
+        cuda_tool::BufferView<IndexT>  dimensions() const noexcept;
+        cuda_tool::BufferView<Vector3> positions() const noexcept;
+        cuda_tool::BufferView<IndexT>  contact_element_ids() const noexcept;
+        cuda_tool::BufferView<IndexT>  subscene_element_ids() const noexcept;
+        cuda_tool::BufferView<IndexT>  body_ids() const noexcept;
         // vert-wise d_hat
-        muda::BufferView<Float> d_hats() const noexcept;
+        cuda_tool::BufferView<Float> d_hats() const noexcept;
 
         /**
          * @breif require discard friction, if this update will ruin the friction computation
@@ -68,8 +67,8 @@ class GlobalVertexManager final : public SimSystem
     {
       public:
         VertexDisplacementInfo(Impl* impl, SizeT index) noexcept;
-        muda::BufferView<Vector3> displacements() const noexcept;
-        muda::CBufferView<IndexT> coindices() const noexcept;
+        cuda_tool::BufferView<Vector3> displacements() const noexcept;
+        cuda_tool::CBufferView<IndexT> coindices() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -84,69 +83,69 @@ class GlobalVertexManager final : public SimSystem
      * 1) the local index of the vertex
      * 2) or any other information that is needed to be stored.
      */
-    muda::CBufferView<IndexT> coindices() const noexcept;
+    cuda_tool::CBufferView<IndexT> coindices() const noexcept;
 
     /**
      * @brief A mapping from the global vertex index to the body id.
      */
-    muda::CBufferView<IndexT> body_ids() const noexcept;
+    cuda_tool::CBufferView<IndexT> body_ids() const noexcept;
 
     /**
      * @brief The d_hat of the vertices.
      * 
      * The d_hat is used to compute the penetration depth.
      */
-    muda::CBufferView<Float> d_hats() const noexcept;
+    cuda_tool::CBufferView<Float> d_hats() const noexcept;
 
     /**
      * @brief The current positions of the vertices.
      */
-    muda::CBufferView<Vector3> positions() const noexcept;
+    cuda_tool::CBufferView<Vector3> positions() const noexcept;
 
     /**
      * @brief The positions of the vertices at last time step.
      * 
      * Used to compute the friction.
      */
-    muda::CBufferView<Vector3> prev_positions() const noexcept;
+    cuda_tool::CBufferView<Vector3> prev_positions() const noexcept;
 
     /**
      * @brief The rest positions of the vertices.
      * 
      * Can be used to retrieve some quantities at the rest state.
      */
-    muda::CBufferView<Vector3> rest_positions() const noexcept;
+    cuda_tool::CBufferView<Vector3> rest_positions() const noexcept;
 
     /**
      * @brief The safe positions of the vertices in line search.
      *  
      * Used as a start point to do the line search.
      */
-    muda::CBufferView<Vector3> safe_positions() const noexcept;
+    cuda_tool::CBufferView<Vector3> safe_positions() const noexcept;
 
     /**
      * @brief Indicate the contact element id of the vertices.
      */
-    muda::CBufferView<IndexT> contact_element_ids() const noexcept;
+    cuda_tool::CBufferView<IndexT> contact_element_ids() const noexcept;
 
     /**
      * @brief Indicate the contact element id of the vertices.
      */
-    muda::CBufferView<IndexT> subscene_element_ids() const noexcept;
+    cuda_tool::CBufferView<IndexT> subscene_element_ids() const noexcept;
 
     /**
      * @brief The displacements of the vertices (after solving the linear system).
      * 
      * The displacements are not scaled by the alpha.
      */
-    muda::CBufferView<Vector3> displacements() const noexcept;
+    cuda_tool::CBufferView<Vector3> displacements() const noexcept;
 
     /**
      * @brief The thicknesses of the vertices.
      * 
      * The thicknesses are used to compute the penetration depth.
      */
-    muda::CBufferView<Float> thicknesses() const noexcept;
+    cuda_tool::CBufferView<Float> thicknesses() const noexcept;
 
     /**
      * @brief The dimension of the vertices. 
@@ -155,12 +154,19 @@ class GlobalVertexManager final : public SimSystem
      * - 2: Codim 2D
      * - 3: 3D
      */
-    muda::CBufferView<IndexT> dimensions() const noexcept;
+    cuda_tool::CBufferView<IndexT> dimensions() const noexcept;
 
     /**
      * @brief the axis align bounding box of the all vertices.
      */
     AABB vertex_bounding_box() const noexcept;
+
+    /**
+     * @brief the diagonal length of the rest-position bounding box, computed
+     * once at init. Used for scene-relative parameter adaptation (e.g.
+     * contact/d_hat_relative, newton/velocity_tol_relative).
+     */
+    Float scene_diagonal() const noexcept;
 
   public:
     class Impl
@@ -177,15 +183,16 @@ class GlobalVertexManager final : public SimSystem
 
         void collect_vertex_displacements();
 
-        void setup_ccd(muda::CBufferView<Vector3> base_positions);
+        void setup_ccd(cuda_tool::CBufferView<Vector3> base_positions);
         void restore_ccd();
-        void overwrite_positions(muda::CBufferView<Vector3> src);
+        void overwrite_positions(cuda_tool::CBufferView<Vector3> src);
 
         Float compute_axis_max_displacement();
         AABB  compute_vertex_bounding_box();
 
         template <typename T>
-        muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
+        cuda_tool::BufferView<T> subview(cuda_tool::DeviceBuffer<T>& buffer,
+                                         SizeT index) const noexcept;
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);
@@ -193,25 +200,26 @@ class GlobalVertexManager final : public SimSystem
         void clear_recover(RecoverInfo& info);
 
         Float default_d_hat = 0.01;
+        Float d_hat_relative = 0.0;  // > 0: override default with relative * scene_diagonal (Stiff-GIPC convention)
 
-        muda::DeviceBuffer<IndexT>  coindices;
-        muda::DeviceBuffer<IndexT>  body_ids;
-        muda::DeviceBuffer<Float>   d_hats;
-        muda::DeviceBuffer<IndexT>  dimensions;
-        muda::DeviceBuffer<Vector3> positions;
-        muda::DeviceBuffer<Vector3> prev_positions;
-        muda::DeviceBuffer<Vector3> rest_positions;
-        muda::DeviceBuffer<Vector3> safe_positions;
-        muda::DeviceBuffer<Float>   thicknesses;
-        muda::DeviceBuffer<IndexT>  contact_element_ids;
-        muda::DeviceBuffer<IndexT>  subscene_element_ids;
-        muda::DeviceBuffer<Vector3> displacements;
-        muda::DeviceBuffer<Float>   displacement_norms;
+        cuda_tool::DeviceBuffer<IndexT>  coindices;
+        cuda_tool::DeviceBuffer<IndexT>  body_ids;
+        cuda_tool::DeviceBuffer<Float>   d_hats;
+        cuda_tool::DeviceBuffer<IndexT>  dimensions;
+        cuda_tool::DeviceBuffer<Vector3> positions;
+        cuda_tool::DeviceBuffer<Vector3> prev_positions;
+        cuda_tool::DeviceBuffer<Vector3> rest_positions;
+        cuda_tool::DeviceBuffer<Vector3> safe_positions;
+        cuda_tool::DeviceBuffer<Float>   thicknesses;
+        cuda_tool::DeviceBuffer<IndexT>  contact_element_ids;
+        cuda_tool::DeviceBuffer<IndexT>  subscene_element_ids;
+        cuda_tool::DeviceBuffer<Vector3> displacements;
+        cuda_tool::DeviceBuffer<Float>   displacement_norms;
 
-        muda::DeviceVar<Float>   axis_max_disp;
-        muda::DeviceVar<Float>   max_disp_norm;
-        muda::DeviceVar<Vector3> min_pos;
-        muda::DeviceVar<Vector3> max_pos;
+        cuda_tool::DeviceVar<Float>   axis_max_disp;
+        cuda_tool::DeviceVar<Float>   max_disp_norm;
+        cuda_tool::DeviceVar<Vector3> min_pos;
+        cuda_tool::DeviceVar<Vector3> max_pos;
 
 
         SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;
@@ -222,6 +230,9 @@ class GlobalVertexManager final : public SimSystem
         OffsetCountCollection<IndexT> reporter_vertex_offsets_counts;
 
         AABB vertex_bounding_box;
+
+        // diagonal length of the rest-position bounding box, set in init()
+        Float scene_diagonal = 0.0;
 
         BufferDump dump_positions;
         BufferDump dump_prev_positions;
@@ -257,9 +268,9 @@ class GlobalVertexManager final : public SimSystem
     void step_forward(Float alpha);
     void record_start_point();
 
-    void setup_ccd(muda::CBufferView<Vector3> base_positions);
+    void setup_ccd(cuda_tool::CBufferView<Vector3> base_positions);
     void restore_ccd();
-    void overwrite_positions(muda::CBufferView<Vector3> src);
+    void overwrite_positions(cuda_tool::CBufferView<Vector3> src);
 
     friend class VertexReporter;
     void add_reporter(VertexReporter* reporter);

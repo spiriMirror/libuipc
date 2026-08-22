@@ -39,6 +39,7 @@ class ContactTabular::Impl
 
         auto default_element = create("default");
         insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
+        m_default_model_user_set = false;
     }
 
     ContactElement create(std::string_view name) noexcept
@@ -64,24 +65,24 @@ class ContactTabular::Impl
 
         // check if the contact element id is valid.
         UIPC_ASSERT_THROW(L.id() < current_element_id() && L.id() >= 0
-                        && R.id() < current_element_id() && R.id() >= 0,
-                    "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
-                    0,
-                    current_element_id(),
-                    L.id(),
-                    R.id());
+                              && R.id() < current_element_id() && R.id() >= 0,
+                          "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
+                          0,
+                          current_element_id(),
+                          L.id(),
+                          R.id());
 
         // check if the name is matched.
         UIPC_ASSERT_THROW(m_elements[L.id()].name() == L.name()
-                        && m_elements[R.id()].name() == R.name(),
-                    "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
-                    "It seems the contact element and contact model don't come from the same ContactTabular.",
-                    L.id(),
-                    L.name(),
-                    m_elements[L.id()].name(),
-                    R.id(),
-                    R.name(),
-                    m_elements[R.id()].name());
+                              && m_elements[R.id()].name() == R.name(),
+                          "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
+                          "It seems the contact element and contact model don't come from the same ContactTabular.",
+                          L.id(),
+                          L.name(),
+                          m_elements[L.id()].name(),
+                          R.id(),
+                          R.name(),
+                          m_elements[R.id()].name());
 
         // ensure ids.x() < ids.y(), because the contact model is symmetric.
         if(ids.x() > ids.y())
@@ -149,6 +150,7 @@ class ContactTabular::Impl
         view(*m_friction_rates)[0] = friction_rate;
         view(*m_resistances)[0]    = resistance;
         view(*m_is_enabled)[0]     = enable;
+        m_default_model_user_set   = true;
     }
 
     ContactModel default_model() const noexcept { return at(0, 0); }
@@ -181,7 +183,9 @@ class ContactTabular::Impl
     mutable S<geometry::AttributeSlot<Vector2i>> m_topo;
     mutable S<geometry::AttributeSlot<Float>>    m_friction_rates;
     mutable S<geometry::AttributeSlot<Float>>    m_resistances;
-    mutable S<geometry::AttributeSlot<IndexT>>   m_is_enabled;
+
+    bool                                       m_default_model_user_set = false;
+    mutable S<geometry::AttributeSlot<IndexT>> m_is_enabled;
 
     void _append_contact_models()
     {
@@ -286,6 +290,11 @@ ContactElement ContactTabular::default_element() noexcept
 ContactModel ContactTabular::default_model() const noexcept
 {
     return m_impl->default_model();
+}
+
+bool ContactTabular::default_model_is_user_set() const noexcept
+{
+    return m_impl->m_default_model_user_set;
 }
 
 ContactModelCollection ContactTabular::contact_models() noexcept

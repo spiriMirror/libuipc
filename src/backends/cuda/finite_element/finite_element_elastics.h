@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_method.h>
 #include <utils/offset_count_collection.h>
 #include <finite_element/fem_linear_subsystem.h>
@@ -36,17 +35,17 @@ class FiniteElementElastics final : public SimSystem
         friend class FiniteElementConstitution;
         friend class FiniteElementExtraConstitution;
 
-        SizeT m_energy_count   = 0;
-        SizeT m_gradient_count = 0;
-        SizeT m_hessian_count  = 0;
-        bool  m_gradient_only  = false;
+        SizeT        m_energy_count          = 0;
+        SizeT        m_gradient_count        = 0;
+        SizeT        m_hessian_count         = 0;
+        bool         m_gradient_only         = false;
         mutable bool m_gradient_only_checked = false;
     };
 
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energies)
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energies)
             : m_impl(impl)
             , m_index(index)
             , m_dt(dt)
@@ -62,10 +61,10 @@ class FiniteElementElastics final : public SimSystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        Impl*                   m_impl  = nullptr;
-        SizeT                   m_index = 0;
-        Float                   m_dt    = 0.0;
-        muda::BufferView<Float> m_energies;
+        Impl*                        m_impl  = nullptr;
+        SizeT                        m_index = 0;
+        Float                        m_dt    = 0.0;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo
@@ -75,8 +74,8 @@ class FiniteElementElastics final : public SimSystem
                                    SizeT index,
                                    bool  gradient_only,
                                    Float dt,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians)
+                                   cuda_tool::DoubletVectorView<Float, 3> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 3> hessians)
             : m_impl(impl)
             , m_index(index)
             , m_gradient_only(gradient_only)
@@ -87,18 +86,18 @@ class FiniteElementElastics final : public SimSystem
         }
 
         auto gradient_only() const noexcept { return m_gradient_only; }
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+        cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept;
+        cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept;
 
         auto dt() const noexcept { return m_dt; }
 
       private:
-        Impl*                             m_impl          = nullptr;
-        SizeT                             m_index         = 0;
-        bool                              m_gradient_only = false;
-        Float                             m_dt            = 0.0;
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
+        Impl*                                  m_impl          = nullptr;
+        SizeT                                  m_index         = 0;
+        bool                                   m_gradient_only = false;
+        Float                                  m_dt            = 0.0;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
     };
 
     class Impl

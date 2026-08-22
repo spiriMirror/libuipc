@@ -3,7 +3,7 @@
 namespace uipc::backend::cuda::distance
 {
 template <typename T>
-MUDA_GENERIC void point_edge_distance2(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_edge_distance2(const Eigen::Vector<T, 3>& p,
                                        const Eigen::Vector<T, 3>& e0,
                                        const Eigen::Vector<T, 3>& e1,
                                        T&                         dist2)
@@ -14,7 +14,7 @@ MUDA_GENERIC void point_edge_distance2(const Eigen::Vector<T, 3>& p,
 namespace details
 {
     template <class T>
-    MUDA_GENERIC void g_PE3D(T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T g[9])
+    UIPC_GENERIC void g_PE3D(T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T g[9])
     {
         T t17;
         T t18;
@@ -68,7 +68,7 @@ namespace details
     }
 
     template <class T>
-    MUDA_GENERIC void H_PE2D(T v01, T v02, T v11, T v12, T v21, T v22, T H[36])
+    UIPC_GENERIC void H_PE2D(T v01, T v02, T v11, T v12, T v21, T v22, T H[36])
     {
         T t15;
         T t16;
@@ -201,7 +201,7 @@ namespace details
     }
 
     template <class T>
-    MUDA_GENERIC void H_PE3D(T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T H[81])
+    UIPC_GENERIC void H_PE3D(T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T H[81])
     {
         T t17;
         T t18;
@@ -524,7 +524,7 @@ namespace details
 }  // namespace details
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance2_gradient(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_edge_distance2_gradient(const Eigen::Vector<T, 3>& p,
                                                 const Eigen::Vector<T, 3>& e0,
                                                 const Eigen::Vector<T, 3>& e1,
                                                 Eigen::Vector<T, 9>&       grad)
@@ -533,7 +533,7 @@ MUDA_GENERIC void point_edge_distance2_gradient(const Eigen::Vector<T, 3>& p,
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance2_hessian(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC void point_edge_distance2_hessian(const Eigen::Vector<T, 3>& p,
                                                const Eigen::Vector<T, 3>& e0,
                                                const Eigen::Vector<T, 3>& e1,
                                                Eigen::Matrix<T, 9, 9>& Hessian)

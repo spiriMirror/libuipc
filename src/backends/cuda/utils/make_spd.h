@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -9,7 +9,7 @@ UIPC_GENERIC void make_spd(Matrix<Float, N, N>& H)
 {
     Vector<Float, N>    eigen_values;
     Matrix<Float, N, N> eigen_vectors;
-    muda::eigen::template evd<Float, N>(H, eigen_values, eigen_vectors);
+    cuda_tool::eigen::template evd<Float, N>(H, eigen_values, eigen_vectors);
     for(int i = 0; i < N; ++i)
     {
         auto& v = eigen_values(i);
@@ -17,4 +17,4 @@ UIPC_GENERIC void make_spd(Matrix<Float, N, N>& H)
     }
     H = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
 }
-}
+}  // namespace uipc::backend::cuda

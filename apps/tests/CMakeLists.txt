@@ -24,11 +24,6 @@ function(uipc_add_test name)
     uipc_executable_as_test(${name})
 endfunction()
 
-function(uipc_add_gui_test name)
-    uipc_add_test(${name} ${ARGN})
-    target_link_libraries(${name} PRIVATE uipc::gui)
-endfunction()
-
 add_subdirectory(geometry)
 add_subdirectory(core)
 add_subdirectory(common)
@@ -36,11 +31,6 @@ add_subdirectory(backends)
 add_subdirectory(sim_case)
 add_subdirectory(regression)
 add_subdirectory(sanity_check)
-
-if(UIPC_BUILD_GUI)
-    uipc_warning("This version C++ GUI is not finished yet, waiting for contributions.")
-    # add_subdirectory(gui)
-endif()
 
 if(UIPC_WITH_USD_SUPPORT)
     add_subdirectory(usd)

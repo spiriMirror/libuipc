@@ -4,6 +4,36 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void abd_tolerance_checker_do_check_kernel(cuda_tool::CBufferView<Vector12> dqs,
+                                                          cuda_tool::VarView<IndexT> success,
+                                                          Float abs_tol,
+                                                          int   n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        const Vector12& dq            = dqs(I);
+        IndexT          success_value = *success;
+
+        // if success is already marked as failed, skip
+        if(success_value == 0)
+            return;
+
+        // the first 3 components are translation, ignore
+        // the rest 9 components are rotation/scaling/shear, take
+        for(IndexT i = 3; i < 12; ++i)
+        {
+            if(abs(dq[i]) > abs_tol)
+            {
+                cuda_tool::atomic_exch(success.data(), 0);
+                break;  // no need to check further
+            }
+        }
+    }
+}  // namespace
+
 class ABDToleranceChecker final : public NewtonToleranceChecker
 {
   public:
@@ -13,7 +43,7 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     S<const geometry::AttributeSlot<Float>> dt_attr;
     Float                                   transrate_tol = 0.0;
     Float                                   abs_tol       = 0.0;
-    muda::DeviceVar<IndexT>                 success;
+    cuda_tool::DeviceVar<IndexT>            success;
     IndexT h_success = 1;  // 1 means success, 0 means failure
 
     // Inherited via NewtonToleranceChecker
@@ -35,34 +65,16 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     {
         abs_tol  = transrate_tol * dt_attr->view()[0];
         auto dqs = affine_body_dynamics->dqs();
-        using namespace muda;
+        using namespace cuda_tool;
         BufferLaunch().fill(success.view(), 1);  // reset success flag
 
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(dqs.size(),
-                   [dqs     = dqs.viewer().name("dqs"),
-                    success = success.viewer().name("success"),
-                    abs_tol = abs_tol] __device__(int I)
-                   {
-                       const Vector12& dq            = dqs(I);
-                       IndexT          success_value = *success;
-
-                       // if success is already marked as failed, skip
-                       if(success_value == 0)
-                           return;
-
-                       // the first 3 components are translation, ignore
-                       // the rest 9 components are rotation/scaling/shear, take
-                       for(IndexT i = 3; i < 12; ++i)
-                       {
-                           if(abs(dq[i]) > abs_tol)
-                           {
-                               muda::atomic_exch(success.data(), 0);
-                               break;  // no need to check further
-                           }
-                       }
-                   });
+        int n = (int)dqs.size();
+        if(n > 0)
+        {
+            auto k = abd_tolerance_checker_do_check_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                dqs, success.view(), abs_tol, n);
+        }
 
         // copy from device to host
         bool h_success = success;

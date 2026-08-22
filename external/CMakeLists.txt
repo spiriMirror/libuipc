@@ -14,16 +14,5 @@ add_subdirectory(METIS)
 set_target_properties(GKlib PROPERTIES FOLDER "external")
 set_target_properties(metis PROPERTIES FOLDER "external")
 
-if (UIPC_WITH_CUDA_BACKEND)
-    uipc_init_submodule(muda)
-    # Turn off example builds in muda
-    set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "Build muda example" FORCE)
-    if(UIPC_BUILD_PYTHON_WHEEL)
-        # When building wheel, we don't need to install muda to the wheel package.
-        add_subdirectory(muda EXCLUDE_FROM_ALL)
-    else()
-        add_subdirectory(muda)
-    endif()
-    add_library(muda::muda ALIAS muda)
-    set_target_properties(muda PROPERTIES FOLDER "external")
-endif()
+# muda is no longer a submodule: its (header-only) source is vendored under
+# src/backends/cuda/cuda_tool/muda/ and used directly by the cuda backend.

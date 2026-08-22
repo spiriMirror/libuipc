@@ -22,12 +22,12 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
         Vector3i{0, 2, 3},
     };
 
-    auto elastic_mesh         = trimesh(Vs, Fs);
-    auto plastic_mesh         = trimesh(Vs, Fs);
-    auto stress_plastic_mesh  = trimesh(Vs, Fs);
+    auto elastic_mesh        = trimesh(Vs, Fs);
+    auto plastic_mesh        = trimesh(Vs, Fs);
+    auto stress_plastic_mesh = trimesh(Vs, Fs);
 
     DiscreteShellBending              dsb;
-    StrainPlasticDiscreteShellBending       pdsb;
+    StrainPlasticDiscreteShellBending pdsb;
     StressPlasticDiscreteShellBending spdsb;
 
     dsb.apply_to(elastic_mesh, 5.0_kPa);
@@ -37,15 +37,14 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
     auto elastic_bending = elastic_mesh.edges().find<Float>("bending_stiffness");
     REQUIRE(elastic_bending);
     CHECK(elastic_bending->size() == elastic_mesh.edges().size());
-    CHECK(std::ranges::all_of(
-        elastic_bending->view(), [](Float v) { return v == Catch::Approx(5.0_kPa); }));
+    CHECK(std::ranges::all_of(elastic_bending->view(),
+                              [](Float v) { return v == Catch::Approx(5.0_kPa); }));
     CHECK(elastic_mesh.edges().find<Float>("bending_yield_threshold") == nullptr);
     CHECK(elastic_mesh.edges().find<Float>("bending_hardening_modulus") == nullptr);
 
     auto plastic_bending = plastic_mesh.edges().find<Float>("bending_stiffness");
-    auto plastic_yield   = plastic_mesh.edges().find<Float>("bending_yield_threshold");
-    auto plastic_hardening =
-        plastic_mesh.edges().find<Float>("bending_hardening_modulus");
+    auto plastic_yield = plastic_mesh.edges().find<Float>("bending_yield_threshold");
+    auto plastic_hardening = plastic_mesh.edges().find<Float>("bending_hardening_modulus");
 
     REQUIRE(plastic_bending);
     REQUIRE(plastic_yield);
@@ -53,14 +52,15 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
     CHECK(plastic_bending->size() == plastic_mesh.edges().size());
     CHECK(plastic_yield->size() == plastic_mesh.edges().size());
     CHECK(plastic_hardening->size() == plastic_mesh.edges().size());
-    CHECK(std::ranges::all_of(
-        plastic_bending->view(), [](Float v) { return v == Catch::Approx(5.0_kPa); }));
-    CHECK(std::ranges::all_of(
-        plastic_yield->view(), [](Float v) { return v == Catch::Approx(0.05); }));
-    CHECK(std::ranges::all_of(
-        plastic_hardening->view(), [](Float v) { return v == Catch::Approx(0.0); }));
+    CHECK(std::ranges::all_of(plastic_bending->view(),
+                              [](Float v) { return v == Catch::Approx(5.0_kPa); }));
+    CHECK(std::ranges::all_of(plastic_yield->view(),
+                              [](Float v) { return v == Catch::Approx(0.05); }));
+    CHECK(std::ranges::all_of(plastic_hardening->view(),
+                              [](Float v) { return v == Catch::Approx(0.0); }));
 
-    auto stress_plastic_bending = stress_plastic_mesh.edges().find<Float>("bending_stiffness");
+    auto stress_plastic_bending =
+        stress_plastic_mesh.edges().find<Float>("bending_stiffness");
     auto stress_plastic_yield =
         stress_plastic_mesh.edges().find<Float>("bending_yield_stress");
     auto stress_plastic_hardening =
@@ -79,4 +79,54 @@ TEST_CASE("discrete_shell_bending_attribute_layout", "[constitution]")
     CHECK(std::ranges::all_of(stress_plastic_hardening->view(),
                               [](Float v) { return v == Catch::Approx(0.0); }));
     CHECK(stress_plastic_mesh.edges().find<Float>("bending_yield_threshold") == nullptr);
+}
+
+TEST_CASE("discrete_shell_bending_formula_overload", "[constitution]")
+{
+    using namespace uipc;
+    using namespace uipc::geometry;
+    using namespace uipc::constitution;
+
+    vector<Vector3> Vs = {
+        Vector3{0.0, 0.0, 0.0},
+        Vector3{1.0, 0.0, 0.0},
+        Vector3{1.0, 0.0, 1.0},
+        Vector3{0.0, 0.0, 1.0},
+    };
+    vector<Vector3i> Fs = {
+        Vector3i{0, 1, 2},
+        Vector3i{0, 2, 3},
+    };
+
+    auto mesh = trimesh(Vs, Fs);
+
+    // non-uniform per-vertex thickness (as a membrane constitution would write)
+    auto attr_thickness = mesh.vertices().create<Float>(builtin::thickness);
+    {
+        auto tv = geometry::view(*attr_thickness);
+        tv[0]   = 0.001;
+        tv[1]   = 0.001;
+        tv[2]   = 0.002;
+        tv[3]   = 0.001;
+    }
+
+    Float                E = 6.0e4, nu = 0.4;
+    DiscreteShellBending dsb;
+    dsb.apply_to(mesh, E, nu);
+
+    auto bs = mesh.edges().find<Float>("bending_stiffness");
+    REQUIRE(bs);
+    auto  edges = mesh.edges().topo().view();
+    auto  tv    = geometry::view(*attr_thickness);
+    auto  bsv   = geometry::view(*bs);
+    Float denom = 12.0 * (1.0 - nu * nu);
+    for(SizeT i = 0; i < edges.size(); ++i)
+    {
+        Float t_e = (tv[edges[i](0)] + tv[edges[i](1)]) * 0.5;
+        CHECK(bsv[i] == Catch::Approx(E * t_e * t_e * t_e / denom));
+    }
+
+    // missing thickness attribute -> clear error
+    auto bare = trimesh(Vs, Fs);
+    CHECK_THROWS(dsb.apply_to(bare, E, nu));
 }

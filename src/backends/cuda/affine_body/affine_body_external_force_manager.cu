@@ -4,6 +4,34 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void affine_body_external_force_manager_clear_kernel(
+        cuda_tool::BufferView<Vector12> forces, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        forces(i).setZero();
+    }
+
+    __global__ void affine_body_external_force_manager_step_kernel(
+        cuda_tool::CBufferView<Vector12>    forces,
+        cuda_tool::BufferView<Vector12>     force_accs,
+        cuda_tool::CBufferView<Matrix12x12> masses_inv,
+        int                                 n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const auto& F     = forces(i);
+        const auto& M_inv = masses_inv(i);
+
+        // Compute acceleration: a = M^{-1} * F (like gravity)
+        force_accs(i) = M_inv * F;
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(AffineBodyExternalForceManager);
 
 void AffineBodyExternalForceManager::do_build(BuildInfo& info)
@@ -24,12 +52,13 @@ void AffineBodyExternalForceManager::Impl::clear()
     auto external_forces =
         affine_body_dynamics->m_impl.body_id_to_external_force.view();
 
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(external_forces.size(),
-               [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
-               { forces(i).setZero(); });
+    int n = (int)external_forces.size();
+    if(n > 0)
+    {
+        auto k = affine_body_external_force_manager_clear_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            external_forces, n);
+    }
 }
 
 void AffineBodyExternalForceManager::Impl::step()
@@ -43,8 +72,6 @@ void AffineBodyExternalForceManager::Impl::step()
 
     // At this point, constraints have already written to external_force buffer
     // Now compute accelerations from external forces
-    using namespace muda;
-
     auto& abd = affine_body_dynamics->m_impl;
     // Read Write BufferView
     auto force_accs = abd.body_id_to_external_force_acc.view();
@@ -55,20 +82,13 @@ void AffineBodyExternalForceManager::Impl::step()
 
     SizeT body_count = forces.size();
 
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(body_count,
-               [forces     = forces.cviewer().name("forces"),
-                force_accs = force_accs.viewer().name("force_accs"),
-                masses_inv = masses_inv.cviewer().name("masses_inv")] __device__(int i)
-               {
-                   const auto& F     = forces(i);
-                   const auto& M_inv = masses_inv(i);
-
-                   // Compute acceleration: a = M^{-1} * F (like gravity)
-                   force_accs(i) = M_inv * F;
-               });
+    int n = (int)body_count;
+    if(n > 0)
+    {
+        auto k = affine_body_external_force_manager_step_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            forces.cview(), force_accs, masses_inv.cview(), n);
+    }
 }
 
 void AffineBodyExternalForceManager::do_init()
@@ -90,7 +110,7 @@ void AffineBodyExternalForceManager::do_step()
     m_impl.step();
 }
 
-muda::BufferView<Vector12> AffineBodyExternalForceManager::ExternalForceInfo::external_forces() noexcept
+cuda_tool::BufferView<Vector12> AffineBodyExternalForceManager::ExternalForceInfo::external_forces() noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_external_force.view();
 }

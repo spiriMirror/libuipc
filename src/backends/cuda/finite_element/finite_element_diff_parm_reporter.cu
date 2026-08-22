@@ -35,7 +35,7 @@ IndexT FiniteElementDiffParmReporter::DiffParmInfo::dof_count(SizeT frame) const
     return m_impl->fem->dof_count(frame);
 }
 
-muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP() const
+cuda_tool::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP() const
 {
     IndexT IF = static_cast<IndexT>(frame());
 

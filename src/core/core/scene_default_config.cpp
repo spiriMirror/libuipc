@@ -18,6 +18,10 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("newton/min_iter", IndexT{1});
     config.create("newton/use_adaptive_tol", IndexT{0});
     config.create("newton/velocity_tol", Float{0.05_m / 1.0_s});
+    // > 0: effective velocity_tol = velocity_tol_relative * scene_diagonal
+    // (rest bbox), so the exit criterion is velocity_tol_relative * diag * dt,
+    // the Stiff-GIPC scene-adaptive convention
+    config.create("newton/velocity_tol_relative", Float{0.0});
     config.create("newton/ccd_tol", Float{1.0});
     config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
 
@@ -37,11 +41,17 @@ geometry::AttributeCollection default_scene_config() noexcept
 
     config.create("contact/enable", IndexT{1});
     config.create("contact/d_hat", Float{0.01});
+    // > 0: override d_hat with d_hat_relative * scene_diagonal (rest bbox),
+    // the Stiff-GIPC scene-adaptive convention
+    config.create("contact/d_hat_relative", Float{0.0});
 
     config.create("contact/friction/enable", IndexT{1});
     // friction transition velocity
     config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
-    
+    // > 0: override eps_velocity with eps_velocity_relative * scene_diagonal
+    // (rest bbox), the Stiff-GIPC convention (sqrt(fDhat) = 1e-2 * diag)
+    config.create("contact/eps_velocity_relative", Float{0.0});
+
     // default:
     //  - ipc
     // or:
@@ -60,7 +70,6 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/adaptive/init_kappa", Float{1.0_GPa});
     config.create("contact/adaptive/max_kappa", Float{100.0_GPa});
 
-    
 
     // default:
     //  - info_stackless_bvh
@@ -152,8 +161,52 @@ static const Json* find_nested_json(const Json& j, const std::string_view path)
     }
 }
 
+static void throw_on_unknown_config_keys(const geometry::AttributeCollection& schema,
+                                         const Json&        j,
+                                         const std::string& prefix)
+{
+    if(!j.is_object())
+        return;
+    for(const auto& [key, value] : j.items())
+    {
+        std::string path = prefix.empty() ? key : fmt::format("{}/{}", prefix, key);
+        if(schema.find(path) != nullptr)
+            continue;  // registered leaf key
+        if(value.is_object())
+        {
+            // intermediate node: acceptable only if some registered key lives below it
+            bool is_prefix_of_registered = false;
+            for(auto& name : schema.names())
+            {
+                if(name.size() > path.size() && name.starts_with(path)
+                   && name[path.size()] == '/')
+                {
+                    is_prefix_of_registered = true;
+                    break;
+                }
+            }
+            UIPC_ASSERT_THROW(is_prefix_of_registered,
+                              "Unknown scene config key \"{}\": nothing is registered under it "
+                              "(typo, or a missing default registration in scene_default_config.cpp)",
+                              path);
+            throw_on_unknown_config_keys(schema, value, path);
+            continue;
+        }
+        UIPC_ASSERT_THROW(false,
+                          "Unknown scene config key \"{}\" (typo, or a missing default "
+                          "registration in scene_default_config.cpp)",
+                          path);
+    }
+}
+
 void from_config_json(geometry::AttributeCollection& config, const Json& j)
 {
+    // Reject unknown keys up front: the forward loop below only visits keys that
+    // are registered in the default schema, so unregistered keys set by the user
+    // would otherwise be silently dropped (a real source of "parameter set but
+    // never applied" bugs).
+    throw_on_unknown_config_keys(config, j, "");
+
     auto names = config.names();
     for(auto& name : names)
     {

@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-MUDA_GENERIC Float shape_energy(const Vector12& q)
+UIPC_GENERIC Float shape_energy(const Vector12& q)
 {
     Float       ret = 0.0;
     const auto& a1  = q.segment<3>(3);
@@ -23,7 +23,7 @@ MUDA_GENERIC Float shape_energy(const Vector12& q)
     return ret;
 }
 
-MUDA_GENERIC Vector9 shape_energy_gradient(const Vector12& q)
+UIPC_GENERIC Vector9 shape_energy_gradient(const Vector12& q)
 {
     Vector9 ret;
 
@@ -48,7 +48,7 @@ MUDA_GENERIC Vector9 shape_energy_gradient(const Vector12& q)
 }
 
 
-MUDA_GENERIC void ddV_ddai(Matrix3x3& ddV_ddai,
+UIPC_GENERIC void ddV_ddai(Matrix3x3& ddV_ddai,
                            const Eigen::VectorBlock<const Vector12, 3>& ai,
                            const Eigen::VectorBlock<const Vector12, 3>& aj,
                            const Eigen::VectorBlock<const Vector12, 3>& ak)
@@ -58,7 +58,7 @@ MUDA_GENERIC void ddV_ddai(Matrix3x3& ddV_ddai,
                + 4.0 * aj * aj.transpose() + 4.0 * ak * ak.transpose();
 }
 
-MUDA_GENERIC void ddV_daidaj(Matrix3x3& ddV_daidaj,
+UIPC_GENERIC void ddV_daidaj(Matrix3x3& ddV_daidaj,
                              const Eigen::VectorBlock<const Vector12, 3>& ai,
                              const Eigen::VectorBlock<const Vector12, 3>& aj,
                              const Eigen::VectorBlock<const Vector12, 3>& ak)
@@ -66,7 +66,7 @@ MUDA_GENERIC void ddV_daidaj(Matrix3x3& ddV_daidaj,
     ddV_daidaj = 4.0 * aj * ai.transpose() + 4.0 * ai.dot(aj) * Matrix3x3::Identity();
 }
 
-MUDA_GENERIC void shape_energy_hessian(const Vector12& q,
+UIPC_GENERIC void shape_energy_hessian(const Vector12& q,
                                        Matrix3x3&      ddVdda1,
                                        Matrix3x3&      ddVdda2,
                                        Matrix3x3&      ddVdda3,
@@ -87,7 +87,7 @@ MUDA_GENERIC void shape_energy_hessian(const Vector12& q,
     ddV_daidaj(ddVda2da3, a2, a3, a1);
 }
 
-MUDA_GENERIC Matrix9x9 shape_energy_hessian(const Vector12& q)
+UIPC_GENERIC Matrix9x9 shape_energy_hessian(const Vector12& q)
 {
     Matrix9x9 H = Matrix9x9::Zero();
 

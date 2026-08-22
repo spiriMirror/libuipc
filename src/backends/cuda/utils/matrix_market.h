@@ -14,9 +14,7 @@
 #include <algorithm>
 #include <map>
 #include <fmt/printf.h>
-#include <muda/buffer/buffer_view.h>
-#include <muda/ext/linear_system/triplet_matrix_view.h>
-#include <muda/ext/linear_system/dense_vector_view.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -35,8 +33,8 @@ namespace uipc::backend::cuda
  * @return true if successful, false otherwise
  */
 template <typename T, int BlockDim>
-bool export_matrix_market(std::string_view                             filename,
-                          const muda::CTripletMatrixView<T, BlockDim>& matrix,
+bool export_matrix_market(std::string_view filename,
+                          const cuda_tool::CTripletMatrixView<T, BlockDim>& matrix,
                           bool one_based = true)
 {
     using BlockMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
@@ -126,9 +124,9 @@ bool export_matrix_market(std::string_view                             filename,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool export_vector_market(std::string_view                 filename,
-                          const muda::CDenseVectorView<T>& vector,
-                          bool                             one_based = true)
+bool export_vector_market(std::string_view                      filename,
+                          const cuda_tool::CDenseVectorView<T>& vector,
+                          bool one_based = true)
 {
     // Copy data from device to host
     std::vector<T> values_host(vector.size());
@@ -168,9 +166,9 @@ bool export_vector_market(std::string_view                 filename,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool export_vector_market(std::string_view            filename,
-                          const muda::CBufferView<T>& vector,
-                          bool                        one_based = true)
+bool export_vector_market(std::string_view                 filename,
+                          const cuda_tool::CBufferView<T>& vector,
+                          bool                             one_based = true)
 {
     // Copy data from device to host
     std::vector<T> values_host(vector.size());
@@ -247,8 +245,8 @@ bool export_vector_market(span<const T> vector, std::string_view filename, bool 
  * @return true if successful, false otherwise
  */
 template <typename T, int BlockDim>
-bool import_matrix_market(muda::DeviceTripletMatrix<T, BlockDim>& matrix,
-                          std::string_view                        filename,
+bool import_matrix_market(cuda_tool::DeviceTripletMatrix<T, BlockDim>& matrix,
+                          std::string_view                             filename,
                           bool one_based = true)
 {
     using BlockMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
@@ -376,9 +374,9 @@ bool import_matrix_market(muda::DeviceTripletMatrix<T, BlockDim>& matrix,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool import_vector_market(muda::DeviceDenseVector<T>& vector,
-                          std::string_view            filename,
-                          bool                        one_based = true)
+bool import_vector_market(cuda_tool::DeviceDenseVector<T>& vector,
+                          std::string_view                 filename,
+                          bool                             one_based = true)
 {
     std::ifstream file{std::string{filename}};
     if(!file.is_open())
@@ -460,9 +458,9 @@ bool import_vector_market(muda::DeviceDenseVector<T>& vector,
  * @return true if successful, false otherwise
  */
 template <typename T>
-bool import_vector_market(muda::DeviceBuffer<T>& vector,
-                          std::string_view       filename,
-                          bool                   one_based = true)
+bool import_vector_market(cuda_tool::DeviceBuffer<T>& vector,
+                          std::string_view            filename,
+                          bool                        one_based = true)
 {
     std::ifstream file{std::string{filename}};
     if(!file.is_open())

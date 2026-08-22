@@ -1,4 +1,4 @@
-file(GLOB SOURCES "*.cpp")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp")
 
 uipc_add_benchmark(basic)
 

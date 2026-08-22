@@ -21,16 +21,16 @@ struct ClothPatch
 {
     SimplicialComplex mesh;
     vector<Vector3>   rest_positions;
-    SizeT             v00 = 0;
-    SizeT             v10 = 0;
-    SizeT             v11 = 0;
-    SizeT             v01 = 0;
+    SizeT             v00       = 0;
+    SizeT             v10       = 0;
+    SizeT             v11       = 0;
+    SizeT             v01       = 0;
     Float             cell_span = 0.0;
 };
 
 ClothPatch load_center_patch()
 {
-    vector<Vector3> Vs;
+    vector<Vector3>  Vs;
     vector<Vector3i> Fs;
     Vs.reserve(SheetResolution * SheetResolution);
     Fs.reserve((SheetResolution - 1) * (SheetResolution - 1) * 2);
@@ -71,13 +71,7 @@ ClothPatch load_center_patch()
     const SizeT v01    = v00 + SheetResolution;
     const SizeT v11    = v01 + 1;
 
-    return ClothPatch{std::move(mesh),
-                      std::move(Vs),
-                      v00,
-                      v10,
-                      v11,
-                      v01,
-                      step};
+    return ClothPatch{std::move(mesh), std::move(Vs), v00, v10, v11, v01, step};
 }
 }  // namespace
 
@@ -105,14 +99,14 @@ TEST_CASE("85_stress_plastic_discrete_shell_bending_open_strip", "[fem][stress_p
 
     auto object = scene.objects().create("strip");
 
-    NeoHookeanShell                  nhs;
+    NeoHookeanShell                   nhs;
     StressPlasticDiscreteShellBending spdsb;
-    SoftPositionConstraint           spc;
+    SoftPositionConstraint            spc;
 
     auto patch  = load_center_patch();
     auto moduli = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
-    spdsb.apply_to(patch.mesh, 5.0_kPa, 1.2_kPa, 0.0);
+    spdsb.apply_to(patch.mesh, 5.0_Pa, 1.2_Pa, 0.0);  // area measure: kappa & yield_stress *t(0.001)
     spc.apply_to(patch.mesh, 100.0);
 
     auto [slot, rest_slot] = object->geometries().create(patch.mesh);
@@ -121,8 +115,8 @@ TEST_CASE("85_stress_plastic_discrete_shell_bending_open_strip", "[fem][stress_p
     scene.animator().insert(
         *object,
         [rest_positions = std::move(patch.rest_positions),
-         moving_vertex = patch.v01,
-         amplitude     = 4.0 * patch.cell_span](Animation::UpdateInfo& info)
+         moving_vertex  = patch.v01,
+         amplitude      = 4.0 * patch.cell_span](Animation::UpdateInfo& info)
         {
             auto geo = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
 
@@ -132,7 +126,9 @@ TEST_CASE("85_stress_plastic_discrete_shell_bending_open_strip", "[fem][stress_p
             auto aim_position_view   = view(*aim_position);
 
             std::ranges::fill(is_constrained_view, 1);
-            std::copy(rest_positions.begin(), rest_positions.end(), aim_position_view.begin());
+            std::copy(rest_positions.begin(),
+                      rest_positions.end(),
+                      aim_position_view.begin());
 
             const Float t = static_cast<Float>(std::min<SizeT>(info.frame(), 60)) / 60.0;
             const Float y = amplitude * std::sin(std::numbers::pi_v<Float> * t);
@@ -152,13 +148,15 @@ TEST_CASE("85_stress_plastic_discrete_shell_bending_open_strip", "[fem][stress_p
         REQUIRE(world.is_valid());
 
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
-        auto sc = slot->geometry().as<SimplicialComplex>();
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+        auto       sc            = slot->geometry().as<SimplicialComplex>();
         const auto position_view = view(sc->positions());
         REQUIRE(std::ranges::all_of(position_view,
                                     [](const Vector3& p)
                                     {
-                                        return std::isfinite(p.x()) && std::isfinite(p.y())
+                                        return std::isfinite(p.x())
+                                               && std::isfinite(p.y())
                                                && std::isfinite(p.z());
                                     }));
     }

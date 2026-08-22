@@ -24,7 +24,7 @@ namespace sym::affine_body_revolute_joint_limit
 #include <affine_body/constitutions/sym/affine_body_revolute_joint_limit.inl>
 }
 
-MUDA_DEVICE MUDA_INLINE void compute_relative_angle(Float&          out_theta,
+UIPC_DEVICE UIPC_INLINE void compute_relative_angle(Float&          out_theta,
                                                     const Vector6&  l_basis,
                                                     const Vector12& q_i,
                                                     const Vector6&  r_basis,
@@ -41,7 +41,7 @@ MUDA_DEVICE MUDA_INLINE void compute_relative_angle(Float&          out_theta,
 }
 
 // Fold `aim_angle` into a theta_tilde matching the wrapped measurement (energy and gradient must pass identical args).
-MUDA_DEVICE MUDA_INLINE Float driving_theta_tilde(const Vector12& F01_q,
+UIPC_DEVICE UIPC_INLINE Float driving_theta_tilde(const Vector12& F01_q,
                                                   Float           aim_angle,
                                                   Float           init_angle,
                                                   Float           ref_angle)

@@ -16,8 +16,8 @@ class FEMDyTopoEffectReceiver final : public DyTopoEffectReceiver
 
         FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
 
-        muda::CDoubletVectorView<Float, 3> gradients;
-        muda::CTripletMatrixView<Float, 3> hessians;
+        cuda_tool::CDoubletVectorView<Float, 3> gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> hessians;
     };
 
     auto gradients() const noexcept { return m_impl.gradients; }

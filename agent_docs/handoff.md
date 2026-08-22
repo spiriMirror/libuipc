@@ -1,0 +1,531 @@
+# Handoff — Current State of the Repo
+
+> Written 2026-08-20 (evening). Supersedes the earlier handoffs. **The
+> muda→cuda_tool migration is complete AND fully verified: all apps/tests
+> pass, including the 95-case sim suite (2/2 runs, 14214 assertions — same
+> count as the pre-migration baseline).**
+> Verify against the working tree before assuming anything beyond this file.
+
+## TL;DR
+
+- Branch `refactor-main`. The CUDA backend no longer depends on muda in any
+  form (no submodule, no vendored copy, no xmake package).
+- All 273 lambda kernel launch sites were rewritten as named `__global__`
+  functions with raw `<<<>>>` launches.
+- **All tests green**: 6 fast binaries (common/core/geometry/sanity_check/
+  backend_cuda/regression) + `uipc_test_sim_case.exe` full suite 95/95 cases,
+  14214 assertions, run twice deterministically.
+- One uncommitted fix batch remains in the working tree (see "Pending
+  commit" below) — it is the root-cause fix for the full-suite failure.
+
+## Commits (oldest → newest, on top of `74a5df62`)
+
+```
+ef87325c docs(agent_docs): record muda vendoring completion and fix stale references
+b2aec545 feat(cuda_tool): complete primitives for muda replacement
+8e3299af refactor(cuda): migrate backend from muda to cuda_tool
+423be546 refactor(cuda): rewrite lambda kernels as named __global__ functions
+cb9341c1 build: drop the vendored muda from cuda_tool and sync xmake
+f6fd6bb3 refactor(cuda_tool): trim unused primitives and refresh agent docs
+ee4bea1e refactor(cuda): convert the last lambda kernel and remove ParallelFor
+2a8f78d7 refactor(cuda_tool): second trim of zero-reference helpers
+```
+
+## Fix commits on top of `2a8f78d7` (root-cause fix for the suite failure)
+
+1. `fix(cuda_tool)` — `launch.h`: `best_block_dim` occupancy cache keyed by
+   kernel function address (`std::unordered_map<const void*, int>`) instead
+   of a `static thread_local int` per template instantiation (**ROOT-CAUSE
+   FIX**, see below); `buffer.h`: `DeviceVector::resize(n)` value-initializes
+   the grown tail (memset 0 for trivial types, `T{}` fill otherwise),
+   matching thrust/muda resize semantics.
+2. `test/build sync` — `apps/tests/backends/cuda/CMakeLists.txt`:
+   `/Zc:preprocessor` (CUDA>=13 CCCL requires it),
+   `--extended-lambda --expt-relaxed-constexpr` (test .cu use cuda_tool
+   launch/dense math), nvcc diag-suppress list; 5 test .cu files gain
+   global-scope `namespace cuda_tool = uipc::backend::cuda_tool;` alias
+   fixes (`lbvh.cu` uses `copy_from` instead of rvalue copy-init); xmake
+   parity (static check only, no local xmake):
+   `apps/tests/backends/cuda/xmake.lua` gains the same three flags,
+   `src/backends/cuda/xmake.lua` gains `-Xcompiler=/Zc:preprocessor`
+   (public, windows block); agent_docs refreshed.
+
+## The full-suite failure and its root cause (RESOLVED)
+
+Symptom: after the migration, `uipc_test_sim_case.exe` (95 cases, one
+process) failed deterministically 3/3 at case `36_no_surf_but_contact_on`
+frame 17: `Line Search Exits with Max Iteration: 8`. Case 36 run in an
+isolated process passed 6/6. Pre-migration baseline (`ef87325c`) full suite
+passed 3/3 (14214 assertions).
+
+Root cause: `best_block_dim(Kernel kernel)` cached the occupancy result in a
+`static thread_local int` **per template instantiation**, i.e. per function
+*pointer type*. Distinct kernels with identical signatures share one
+pointer type, so whichever same-signature kernel was queried first set the
+block size for all of them. muda's equivalent cache was keyed per unique
+lambda type (= per call site), so no cross-kernel pollution existed. In the
+full-suite process, 35+ engines ran before case 36 and poisoned shared cache
+entries; wrong block sizes on atomic-accumulation assembly kernels perturbed
+float atomic-reduction order, shifting the FP trajectory enough to push the
+frame-17 line search over the iteration limit. In isolation fewer collisions
+occurred, so the perturbation stayed below the threshold.
+
+Fix: cache keyed by kernel address. Verified: full suite 2/2 green with the
+same assertion count as baseline; case-36 isolation residual series matches
+baseline except residual ULP-level noise (expected: two different binaries
+have different address layouts → different atomic arrival order).
+
+Ruled out during the hunt (do not re-open): compile-flag drift (none —
+`git diff` of CMakeLists), wrapper-vs-raw occupancy difference (probe with
+the verbatim `abd_linear_subsystem_assemble_reporters_k2` body: 256 == 256,
+see `output/probe_occupancy2.cu`), eigen port drift (normalized diff vs muda
+ext/eigen: macro/namespace renames only, math bodies identical), thrust
+calls in bvh (verbatim from baseline), buffer fill/copy block sizes
+(per-element ops, no FP effect), stream defaults, cub/cublas call shapes.
+
+## What was done (migration recap)
+
+1. **cuda_tool primitive completion** (`b2aec545`) — stream/view/view_nd/
+   launch/buffer/cub/linear_system(+views)/debug/logger/atomic + the eigen
+   subdirectory (ported verbatim from muda ext/eigen, numerically
+   bit-identical). The `UIPC_KERNEL_*` macro family is enabled together
+   with `uipc::RUNTIME_CHECK`.
+2. **Mechanical migration** (`8e3299af`) — 280 files `muda::`→`cuda_tool::`,
+   umbrella header changed to `cuda_tool/cuda_tool.h`, macros renamed,
+   `.name("...")` labels deleted.
+3. **Kernel rewrite** (`423be546` + `ee4bea1e`) — 273 lambda kernels →
+   named `__global__` (anonymous namespace, bodies verbatim, captures →
+   parameters). Launches use `cuda_tool::best_grid_dim/best_block_dim` to
+   keep the same occupancy choice; the `ParallelFor` mechanism was
+   subsequently removed from cuda_tool (business lambda kernels = 0).
+4. **Delete vendored muda + build-system sync** (`cb9341c1`) — deleted
+   `cuda_tool/muda/` (288 files) and `muda_compat.h`; CMake dropped the
+   MUDA_* macros; xmake dropped `add_requires/add_packages("muda")`.
+5. **Two rounds of cuda_tool trimming** (`f6fd6bb3`, `2a8f78d7`) — deleted
+   zero-reference primitives and helpers.
+
+- **Performance-investigation lessons (6_wrecking_balls, 619a5412 baseline
+  A/B)**:
+  1. The real regression root cause: the first-version cuda_tool cub
+     wrappers did a per-call `cudaMalloc/cudaFree` of temporary storage
+     (~10-100µs each plus an implicit device sync; dozens of cub calls per
+     frame) → fixed as a stream-level workspace cache (`cub.h` details);
+     frame time 73.9→66.7ms, and the median of the first 8 frames
+     (pre-contact) is level with the baseline.
+  2. Investigation pitfall a: **build contention thoroughly pollutes
+     timing** (sanity_check was once misjudged as the ~112ms/frame culprit;
+     on an idle machine it is only ~2-5ms/frame) — timing experiments must
+     run on an idle machine.
+  3. Investigation pitfall b: after contact activates, frame-to-frame
+     phase comparison is meaningless — the two binaries have different
+     block sizes → ULP-level differences → trajectory divergence, so later
+     frames are no longer in the same physical state.
+  4. The ~65ms/frame floor of this scene consists of: dump ~5-10ms +
+     per-frame Timer.report/log printing ~10-30ms + sanity_check ~2-5ms +
+     the real pipeline 20-45ms (the baseline is the same) — the "feels
+     slow" is mostly inherent structure, not a regression.
+
+## Scene-diagonal adaptive parameters (Stiff-GIPC alignment, after `7cf19f21`)
+
+- At `GlobalVertexManager` init the rest bounding-box diagonal
+  `scene_diagonal()` is computed (printed to the log; measured 28.93 in the
+  wrecking-ball scene, exactly matching Stiff-GIPC's
+  √bboxDiagSize2=√834.9).
+- New config (default 0 = off, backward compatible):
+  - `contact/d_hat_relative`: when >0, d_hat = relative value × diagonal
+    (Stiff-GIPC's relative_dhat convention; its dHat stores the square, so
+    the original text is rel²·diag²).
+  - `newton/velocity_tol_relative`: when >0, the Newton exit threshold =
+    relative value × diagonal × dt (MaxTranslationChecker, Stiff-GIPC's
+    threshold×diag×dt convention).
+- 6_wrecking_balls is now fully parameter-aligned with set_case3 (mu 0.2,
+  per-object densities 1000/7680, tol_rate 1e-4, relative d_hat/tol).
+  **Note: the previously recorded "advance 26-28ms/frame ≈ Stiff 1.1×" was
+  a mismeasurement taken pre-contact / with a polluted dll; the true
+  contact-phase behavior once collapsed to 3-18s/frame — root cause and fix
+  in the next section.**
+- Performance-investigation record: the cub workspace fix + the two
+  measurement pitfalls (build contention, trajectory divergence) are in doc
+  05 and the performance section above.
+
+## Stiff-GIPC barrier alignment: the log² hard barrier (after `4294c1d5`)
+
+- **Root-cause chain (wrecking ball once at 3-18s/frame, Newton hitting the
+  1024 cap)**:
+  1. In Stiff-GIPC's incremental potential the barrier term is **not
+     multiplied by dt²** (GIPC.cu `computeEnergy`); libuipc's barrier
+     coefficient is `kt2 = κ·dt²` → at the same nominal κ the barrier
+     strength differs by 1/dt² (10⁴× at dt=0.01). The "set κ=1e4 on both
+     sides" alignment was therefore a fake alignment.
+  2. Stiff-GIPC's barrier is a RANK=2 log² hard barrier
+     `κ(D-d̂²)²ln²(D/d̂²)` (GIPC.cu:28 `#define RANK 2`; `_d_EE` returns
+     squared distance); in the deep-penetration regime its force is
+     ~2|ln(D/d̂²)|× stronger than the classic log barrier, so under the
+     same load the equilibrium gap is ~10× wider, the equilibrium curvature
+     ~10× lower, and Newton converges in 3-5 iterations/frame. libuipc's
+     classic log barrier (with κ_eff 10⁴× weaker) sinks deep into the
+     ill-conditioned D→0 region, CCD crushes α to ~1e-3, and Newton crawls
+     linearly for hundreds of iterations.
+- **Changes**:
+  - `sym/codim_ipc_contact.inl` regenerated (generator notebook
+    `scripts/symbol_calculation/codim_ipc_contact.ipynb` updated in sync):
+    ξ==0 (volume/ground contact) takes the newly generated log² barrier
+    `KappaBarrierLog2` family; ξ>0 (codim shells) keeps the classic
+    thickness barrier. The public entry points `KappaBarrier`/
+    `dKappaBarrierdD`/`ddKappaBarrierddD` became runtime dispatchers —
+    PT/EE/PE/PP, the ground half-plane, and friction normal_force all
+    follow automatically, with no call-site changes.
+  - samples 6_wrecking_balls: κ=1e8 (equivalent conversion: libuipc κ =
+    Stiff Kappa / dt² = 1e4/1e-4).
+- **Verification**: the probe converged in all 120 frames; Newton mean
+  4.54/max 22 (Stiff 3.44/7); min_alpha 0.15-0.72 (previously crawling at
+  ~1e-3); frame average 132ms (was 3-18s); the free-swing segment (f0-80)
+  trajectory, after translation-aligning with Stiff, differs by <3mm; the
+  full suite is green: 95 cases / 14214 assertions.
+- **This section's "remaining gap" was superseded by a later fix**: the PCG
+  spikes / pressing-frame crawl recorded at the time were rooted in
+  d_hat_relative not being propagated (see "biggest hidden bug" in the next
+  section) and disappeared after the fix. For the final comparison basis
+  see the **second correction** in the "⚠ comparison-basis correction"
+  section (clean-run data).
+- **Measurement-pitfall memo**:
+  1. post-build syncs the dlls only when pyuipc is relinked — if you only
+     change backend .cu files, the `uipc_backend_cuda.dll` in site-packages
+     is not updated; you must sync manually:
+     `cp build/Release/bin/uipc_*.dll build/python/src/uipc/_native/` and
+     `.../site-packages/uipc/_native/`.
+  2. pyuipc's `Scene(config)` copies the config dict by value; modifying
+     the python-side dict after construction silently has no effect — all
+     config keys must be set before `Scene(config)`.
+  3. The Stiff-GIPC reference copy block-buffers printf when stdout is
+     redirected, so a timeout kill loses logs — an instrumented printf must
+     be followed by `fflush(stdout)`.
+
+## Second alignment round (friction smoothing + CFL semantics, after `81e52fce`)
+
+- **`contact/eps_velocity_relative`** (new config, default 0=off): when >0,
+  the friction C1 smoothing threshold eps_velocity = relative value ×
+  scene_diagonal (Stiff-GIPC convention: its per-step slip threshold is
+  sqrt(fDhat)·dt = 1e-2·diag·dt). libuipc's original default was an
+  absolute 0.01 m/s, which in this scene makes the friction Hessian
+  curvature ~840× stiffer than Stiff's. Implemented in
+  `global_contact_manager.cu` Impl::init (same pattern as d_hat_relative),
+  default key registered in `scene_default_config.cpp`. 6_wrecking_balls
+  and the probe are set to 1e-2. **Real effect (measured after the
+  registration fix): Newton mean 4.46→3.70 (Stiff 3.44 — essentially
+  aligned), sum_pcg 349→250, frame average 129.9→114.5ms.**
+- **Config-key lesson**: scene config only honors keys registered in
+  `scene_default_config.cpp`; an unregistered key pushed from python is
+  **silently dropped** (`find` returns nullptr and the default branch
+  runs). The first version of eps_velocity_relative was never registered,
+  wasting a whole alignment-experiment run — a new key must have its
+  default registered at the same time, and its taking effect must be
+  confirmed via the log line ("Contact eps_velocity (relative): ...").
+  **→ Now fixed at the root (see below)**: `from_config_json` now
+  recursively checks the user json first and directly throws a guided error
+  for unregistered keys ("typo, or a missing default registration"). That
+  check immediately unearthed two historical typos/dead keys: ①
+  `sanity_check/method` in `apps/tests/core/engine.cpp` (the schema has
+  `mode`; the real intent was `enable=0`); ② `contact/al-ipc/mu_scale` in
+  `apps/tests/sim_case/11_abd_ramp_sliding.cpp` (that key was split into
+  `mu_scale_fem`/`mu_scale_abd`; the old key had been silently dropped all
+  along). Note: python already raises KeyError for unknown top-level keys;
+  the new check covers nested typos under a valid prefix (such as
+  `contact/dhat_typo`).
+- **d_hat_relative propagation fix (biggest hidden bug)**: the first
+  version only changed `GlobalContactManager`'s scalar d_hat (used by
+  CFL/logging); **the per-vertex `d_hats` buffer (what the filter/contact
+  kernels actually read) was still filled with the absolute default
+  `contact/d_hat`=0.01**. wrecking ball therefore ran at d_hat=0.01 (it
+  should be 0.0289) — a too-small d_hat leaves contact inactive at shallow
+  gaps, vertices plunge into deep gaps before the barrier stops them, and
+  the system becomes ill-conditioned (this was the true source of the
+  earlier PCG spikes of 150-565). Fix: at the end of
+  `GlobalVertexManager::Impl::init`, propagate `d_hat_relative ×
+  scene_diagonal` into the per-vertex buffer (compare-and-set only
+  overwrites entries holding the absolute default; per-geometry meta d_hat
+  is preserved; `global_vertex_manager.{h,cu}`). Post-fix wrecking ball:
+  **Newton mean 1.88/max 6 (Stiff 3.44/7), sum_pcg 56 (Stiff 53), min_alpha
+  constant 1.0, frame average 73.0ms (Stiff clean run 42.8ms/frame
+  GPU-timed, ~1.7×)**; the set_case2 ported scene's self-contact pair count
+  collapsed from 450k (bogus) to ~3.7k (same magnitude as Stiff's 3.5k).
+- **CFL semantics correction**: the original implementation only counted
+  displacements of "activated contact vertices" (the
+  `vert_is_active_contact` mask) — measured zero triggers over 120
+  wrecking-ball frames, because vertices hurtling toward contact at high
+  speed happen to be outside the mask and can plunge into deep gaps in one
+  step. Changed to the Stiff-GIPC design: max|dx| covers **all surface
+  vertices** (`GlobalSimplicialSurfaceManager::surf_vertices`, falling back
+  to all vertices when there is no surface manager); and in the
+  `advance_ipc.cu` line search it is applied only when CCD hits
+  (ccd_alpha<1) — avoiding needlessly capping free-flight frames. In this
+  scene it still never triggers in practice (vertex steps within contact
+  iterations are mostly under 5cm) — this is a semantic alignment whose
+  value lies in high-speed-impact scenes.
+- **Current state of the remaining frame-time gap**: after the d_hat fix,
+  wrecking ball averages 73.0ms/frame, about **1.7×** Stiff's clean-run
+  42.8ms/frame (GPU event timing, frames 2-120). The early "PCG spikes"
+  (150-565 iterations/solve) were in fact caused by small-d_hat deep gaps
+  and vanished with the d_hat fix (sum_pcg now 56 ≈ Stiff 53).
+  Verification means on record: linear-system dump (config
+  `extras/debug/dump_linear_system=1`) + scipy recomputation.
+
+## Stiff-GIPC set_case2 ported benchmark (samples `examples/Stiff-GIPC-benchmark.py`)
+
+- Scene: ABD bunny (scale 0.2, y+0.5, ρ1000, ABD κ=1e8) + FEM bunny (same
+  mesh, y-0.65, SNH E=1e4/ν0.49/ρ1000) + cloth (cloth_high.obj 4225
+  vertices, E=5e4/ν0.49/ρ200/t=1e-3/strain_rate=100, bending value-matched
+  to E=5e7→κ_b=5.48e-3) + ground y=-1; μ=0.2, κ=1e8 (=Stiff 1e4/dt²),
+  dt=0.01, g=-9.8, d_hat_relative=1e-3, velocity_tol_relative=1e-2,
+  eps_velocity_relative=1e-2, tol_rate=1e-4, **semi_implicit enabled
+  (Kmin=6, beta_tol=1e-2 — Stiff's beta early-exit design: hard stacking
+  frames exit capped at ~6 Newton iterations by design)**.
+- Mesh assets: bunny2.msh was converted to standard Gmsh 2.2 (the original
+  file is Stiff MeshProcess's nonstandard 7-field variant, unreadable by
+  libigl; the tetrahedron content is bit-identical) and copied into samples
+  assets (tetmesh/bunny2.msh + trimesh/cloth_high.obj).
+- **Results (250 frames)**: libuipc averages 301ms/frame (stacking phase
+  steady at ~310ms, no spikes), Newton capped at ~6 (=Kmin); Stiff clean
+  run on the same scene: **142.8ms/frame** (GPU event timing, 447-frame
+  average; frames 2-250 is 171.8ms), Newton mean ~2.4 (under that counting
+  basis). So the case2 gap is about **1.8-2.1×** (not the previously
+  miscomputed 5× — that came from misaligned frame grouping when
+  recomputing marginal quantities on an instrumented run). The remaining
+  gap is per-iteration throughput: this scene's dense bunny surface (6mm
+  spacing after 0.2 scaling) makes each detect's AABB candidates ~450k
+  (only ~3-8k active after distance filtering) — the separation of
+  candidate generation from activation filtering is structural overhead,
+  and fused/distance-aware queries are the follow-up optimization lead;
+  there is also a uniform gap in PCG iteration count and kernel throughput
+  (dissected in the next section).
+- Note: cloth contact in libuipc takes the thickness-offset barrier (the
+  ξ=1e-3>0 branch); since 238df28e the barrier shape is unified to log²
+  (the thickness branch uses the log² form of the shifted distance (D-ξ²));
+  Stiff has no thickness concept and is uniformly log² — this is the
+  closest semantic equivalent.
+
+## Line-search pre-cap alignment (feasible-step pre-cap, after `3982c6bb`)
+
+- **Stiff-GIPC design** (GIPC.cu:10941-10973): the line search first
+  computes `alpha = min(1, ground_feasible(0.8), self_feasible(0.8, MCP))`
+  — an exact CCD cap over the currently active contact set (each pair keeps
+  ≥20% of its current gap) — and **then** generates the full CCD trajectory
+  candidates on the capped step (smaller swept boxes → fewer candidates);
+  CFL intervenes only when CCD pairs exist (`h_ccd_cpNum>0`), with the
+  floor semantics `alpha = max(alpha, alpha_CFL)` (prevents
+  over-crushing).
+- **libuipc implementation** (`global_contact_manager.{h,cu}` +
+  `engine/advance_ipc.cu`): `GlobalContactManager::compute_feasible_step()`
+  reuses the project's own
+  `distance::{point_triangle,edge_edge,point_edge,point_point}_ccd`
+  (`utils/distance/ccd.h`) to compute the CCD-TOI pair by pair over the
+  active PT/EE/PE/PP pairs exposed by `SimplexTrajectoryFilter`'s public
+  accessors (eta=1-slackness=0.2), with a single DeviceReduce().Min
+  reduction; alpha is capped after the line search's record_start_point and
+  before `detect_trajectory_candidates(alpha)` — trajectory candidates are
+  generated on the capped step and shrink accordingly. The compound
+  semantics of the `filter_toi` lambda was also fixed: the filter returns a
+  fraction of the swept step; the absolute step = alpha·toi.
+- **Verification**: in a weak-κ synthetic test (where the barrier cannot
+  hold), the pre-cap triggers correctly (alpha=0.047/0.011/0.012); the
+  wrecking-ball probe shows zero regression (71.7ms/frame, Newton 1.84,
+  min_alpha constant 1); Stiff-side reference (instrumented): its feasible
+  step triggers 273 times / 40s on case2 (alpha 0.2-0.4). Rare triggering
+  in a well-conditioned aligned scene is correct behavior (under a strong
+  barrier the Newton direction does not overshoot the active pairs); its
+  value lies in under-converged / high-speed-impact scenes.
+- **CFL floor not aligned (deliberately deferred)**: Stiff's
+  `alpha = max(alpha, alpha_CFL)` floor semantics can push the step past
+  the CCD hit point and requires an isIntersected-style crossing test as
+  backstop (ground signed distance + edge-face crossing, D=0 contact
+  legal). libuipc's current filter D>0 assertion would kill the process
+  outright, so before adding the floor, penetration detection must first be
+  changed to crossing semantics — follow-up standalone work.
+
+## Kernel-level dissection of case2's remaining ~2× gap (nsys evidence)
+
+Frame time ~245ms/frame (stacking phase), of which GPU kernels are busy
+~115ms — **host-side API overhead is about half**: per frame 7429 kernel
+launches + 522 memcpys + 1787 memsets + 563 stream syncs. Breakdown
+(/frame):
+- FusedPCG 68.6ms: ~83 iterations/solve × 118µs/iteration; of that, the
+  kernels actually compute only ~36µs — the rest is launch gaps (7
+  kernels/iteration in serial dependency + a convergence D2H sync every 5
+  iterations draining the pipeline). → Lever: cooperative-groups
+  persistent-kernel fusion (1 launch/iteration) or CUDA graph capture of
+  the PCG inner loop; estimated 2-3× reduction.
+- BVH self-queries (stacklessSelf 1.34ms + stacklessOther 0.89ms ×
+  ~14/frame ≈ 31.5ms): the dense bunny surface yields ~450k candidates per
+  detect. → Lever: fuse exact distance tests into the query predicate and
+  materialize only active pairs.
+- Contact assembly do_assemble ×2 ≈ 26ms; SNH G/H 2.12ms×7 ≈ 14.9ms
+  (Stiff's equivalent FEM assembly kernel is 0.77ms/call — a 2.75× gap; the
+  make_spd 9×9 EVD is a suspect, but removing it makes convergence worse —
+  do not simply delete it); cloth DSB 8.8ms.
+- Stiff same-scene nsys: ~900 launches/frame (libuipc is 8× that), FEM
+  assembly 0.77ms/call.
+- Negative result: `linear_system/check_interval` 5→25 has no effect on
+  frame time (206 vs 205.7ms) — PCG's pipeline-drain stalls are not the
+  main cost, don't spend time here; PCG's cost is mainly the iteration
+  count itself (83/solve vs Stiff 27/solve, determined by the system
+  condition number).
+Conclusion: case2's ~2× is the product of structural host overhead +
+multi-kernel throughput, and needs a dedicated round of kernel
+fusion/graph-capture engineering (every change must pass the full-suite
+regression).
+- **⚠ Comparison-basis correction (second, final)**: the Stiff log's
+  "average time cost" = totalTime/totalNT (GIPC.cu:11262) — it is the GPU
+  time **per Newton iteration** (totalNT/totalTime/total_Frames are
+  file-level globals accumulated across frames), NOT per-frame time! Also,
+  the PAIRCOUNT printf/fflush I added to the reference copy inflates its
+  GPU event timing. **Clean reference numbers (uninstrumented runs):
+  wrecking ball 42.8ms/frame (frames 2-120, GPU event timing; full-run
+  1654-frame average 50.4ms), case2 142.8ms/frame (447-frame average).**
+  Corresponding final comparisons: wrecking ball libuipc 73.0ms vs
+  42.8-50.4ms ≈ **1.5-1.7×**; case2 libuipc 301ms vs 142.8ms ≈ **2.1×**
+  (same 250-frame window: 171.8ms → 1.75×).
+
+## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
+
+- Cloth stiffness formulas aligned with mas-pncg; membrane-element weights
+  use the triangle **area** (not volume, avoiding incorrect volume-measure
+  weighting of the thickness-independent shear):
+  - stretch: `StrainLimitingBaraffWitkinShell`'s triangle attribute
+    `"lambda"` is written as `(λ+2μ)·t` (identically `E·t/(1-ν²)`); in the
+    backend `strain_limiting_baraff_witkin_shell_2d.cu`, the measure in
+    both energy kernels was changed from `area·2t` to pure `rest_area`.
+  - shear: attribute `"mu"` = `E/(2(1+ν))`, thickness-independent (no t
+    under an area measure).
+  - bend: the `DiscreteShellBending` family (including strain/stress
+    plastic variants) unified its measure to area `V_bar = A` (3 function
+    headers); the κ semantics of raw `apply_to(sc, κ)` became "stiffness
+    per unit area" — **all raw call sites were migrated to κ×t to preserve
+    physical consistency** (libuipc tests 33/82-87 and regression all
+    t=0.001; samples 11/24/26/33ext/34 at their respective thicknesses).
+    The formula overload `apply_to(sc, E, ν)` and the static helper
+    `bending_stiffness(E,ν,t)` write the literal value `E·t³/(12(1-ν²))`.
+  - strainRate: no longer hardcoded to 100 — `apply_to(...,
+    strain_rate=100)` writes the triangle attribute `"strain_rate"`, and
+    the backend reads the attribute (old scenes missing it get it
+    auto-created and backfilled with 100); pybind exposure synced.
+  - **stretch/shear material-parameter separation**:
+    `StrainLimitingBaraffWitkinShell::apply_to` dual-modulus overload
+    `apply_to(sc, stretch_moduli, shear_moduli, ρ, t, strain_rate)`
+    (stretch uses `(λ_s+2μ_s)·t`, shear uses `μ_sh`, each with independent
+    (E,ν), aligned with mas-pncg ClothMaterialConfig); the old
+    single-modulus overload is kept for compatibility. samples
+    11_bunny_cloth/34_cloth_stack now use the separated parameters (shear
+    softened 100:1), and 11's bend additionally demonstrates the formula
+    overload; the new
+    `apps/tests/core/strain_limiting_baraff_witkin_constitution.cpp` covers
+    the dual-modulus attribute layout.
+  - **Single source of truth for thickness**: the DSB formula overload is
+    `apply_to(sc, E, ν)` — bending is optional, stretch is required, so
+    thickness is set only by the membrane constitution (vertex
+    `"thickness"` attribute); DSB reads it averaged over edge endpoints
+    (naturally supporting non-uniform-thickness shells); a clear error is
+    raised when it is missing.
+- Verification: Python smoke numerics all correct; DSB-related sim_case 33,
+  82-87 all pass; the 6 fast binaries all pass; the full suite passes;
+  `11_bunny_cloth` headless OK.
+- Note: `ElasticModuli2D`/`EP_to_lame_2D` and other constitutions such as
+  NeoHookeanShell are untouched (scope is only the cloth BW strain-limiting
+  shell + DSB); the BW shell is unused by any suite/sample, so the measure
+  change has zero regression surface.
+
+## Hygiene & test-robustness batch (after `d2f48087`)
+
+- **Duplicate-include sweep**: 17 files had identical `#include` lines
+  (mostly migration-cruft `cuda_tool/cuda_tool.h`); deduped. The
+  `geometry_export_types.inl` double-include in `geometry_factory.cpp` is an
+  intentional X-macro pattern — do NOT dedupe it.
+- **Catch2 v3.8 filter syntax (measured)**: multiple specs as separate argv
+  are AND-intersected ("No tests ran"); OR requires comma-separated specs in
+  ONE argv: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`.
+  `--list-tests --verbosity quiet` prints one case name per line.
+- **`file(GLOB ... CONFIGURE_DEPENDS)`** added to all 44 project CMake files
+  (external/ untouched) — adding/removing sources no longer needs a manual
+  re-configure.
+- **Line-search diagnostics**: the "Line Search Exits with Max Iteration"
+  warning and the strict-mode exception now carry
+  `alpha_last / E0 / E_last / rel_E_increase / ccd_alpha / cfl_alpha`
+  (`engine/advance_ipc.cu`, `engine/advance_al.cu`) so a threshold-crossing
+  can be judged as real regression vs ULP jitter from the log alone.
+- **Isolated suite runner**: `scripts/run_sim_case_isolated.py` runs each
+  sim case in its own process (`--filter/--start-from/--timeout`) —
+  complements the single-process suite to separate cross-case global-state
+  pollution from case-local failures.
+- (ccache integration was implemented and then reverted at user request;
+  nothing ccache-related remains in the tree.)
+
+## Build-time optimization (after `88965feb`)
+
+- **Umbrella split**: `cuda_tool/cuda_tool.h` no longer includes `cub.h`
+  (CCCL device-algorithm headers add ~165K preprocessed lines per TU); the
+  ~23 files using `Device*` wrappers include `<cuda_tool/cub.h>` explicitly
+  (found via API grep over `DeviceReduce(/DeviceScan(/...` + `cub::`).
+  `linear_system.h` also dropped its (unused) cub.h include.
+- **RDC correction roller-coaster**: d2f48087 once turned RDC off claiming
+  "no cross-TU device symbols" — **that conclusion was wrong**. The
+  `UIPC_GENERIC` free functions in `affine_body/utils.cu` (`q_to_transform`
+  etc.) are called by kernels in other TUs, so disabling RDC guarantees
+  `ptxas fatal: Unresolved extern`. It went undetected then because
+  CMake+ninja does not track flag changes, so stale RDC-on objects slipped
+  through the link; the pyuipc build triggered a broad recompile and
+  exposed it. `CUDA_SEPARABLE_COMPILATION/RESOLVE_DEVICE_SYMBOLS ON` has
+  been restored and xmake gained `-rdc=true`. The "full rebuild ~4.7 min"
+  figure in the next entry is also affected (some TUs were not recompiled)
+  — for reference only.
+- ~~**RDC off**~~ (corrected, see above)
+- Measured (32-core, CUDA 13.2): full rebuild wall **~4.7 min** (was ~10 min
+  perceived), CUDA TU CPU 8.3K→6.5K s, per-TU avg 38→35 s. Line-count
+  attribution of a non-cub TU (~1.63M lines after -E): CUDA toolkit headers
+  ~860K, WinSDK ~310K, MSVC STL ~150K, Eigen ~150K, project <20K — the
+  remaining cost is toolchain headers, not project includes. Next lever if
+  needed: ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`).
+- Verified after both changes: 6 fast binaries pass; full sim suite passes
+  (14214 assertions / 95 cases).
+
+## Environment notes (unchanged)
+
+- Build: `output/build.bat` (vcvars64 + `cmake --build build --config
+  Release --target sim_case -j8`); for full error collection use
+  `output/build_keepgoing.bat` (`ninja -k 0`); all test targets via
+  `output/build_all_tests.bat`.
+- nvcc needs the MSVC environment; a bare shell reports "Cannot find
+  compiler 'cl.exe'".
+- Configure: `cmake -S . -B build --preset ci-release
+  -DUIPC_BUILD_BENCHMARKS=OFF -DUIPC_BUILD_EXAMPLES=OFF` (you must pass `-B
+  build`; after removing/adding source files you must re-configure, because
+  file(GLOB) is expanded at configure time).
+- Filtering Catch2 by multiple case names does not work on this machine —
+  run them one by one; single-name filtering works (e.g.
+  `./uipc_test_sim_case.exe "36_no_surf_but_contact_on"`).
+- `output/test_compile.cu` + `output/compile_smoke.bat` are the standalone
+  smoke compile/run entry points for cuda_tool
+  (`src/.../test_compile.cu.txt` is the in-repo archive).
+- Occupancy probe: `output/probe_occupancy2.cu` + `.bat` (a
+  `cudaOccupancyMaxPotentialBlockSize` comparison template of bare kernel
+  vs muda-wrapped kernel).
+- Full-suite logs: `output/test_sim_case_fix1.log` / `_run2.log`
+  (post-migration, all passing); baseline reference
+  `output/test_sim_case_baseline.log`.
+
+## Default kappa policy (after `3982c6bb`)
+
+- Rule (user requirement): if the user never calls `default_model(...)`, the
+  effective default contact stiffness is `contact/adaptive/min_kappa`
+  (default 1e8); if the user set it, the value is clamped into
+  [min_kappa, max_kappa] (defaults [1e8, 1e11]) with a warning that prints the
+  valid range; negative kappa (adaptive-kappa opt-in) is never clamped and
+  takes precedence (the GIPCAdaptiveParameterStrategy path).
+- Implementation: `ContactTabular` tracks `default_model_is_user_set()` (new
+  public getter, additive); the policy is applied at
+  `GlobalContactManager::Impl::_build_contact_tabular` when the host-side
+  coeff table is filled, so the device table always carries the resolved
+  values while the adaptive strategy keeps reading the core attribute for its
+  negative-marker detection (unclamped by design).
+- Verified: smoke test of all five cases (unset / below-min / above-max /
+  in-range / negative marker) behaves exactly per spec; full sim suite
+  95/14214 + 6 fast binaries green. Note the built-in default stiffness
+  effectively changes 1e9 -> 1e8 for scenes that never set the default model.

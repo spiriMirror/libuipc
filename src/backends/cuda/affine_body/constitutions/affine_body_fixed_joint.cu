@@ -6,6 +6,166 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    namespace FJ = sym::affine_body_fixed_joint;
+
+    using Vector24    = Vector<Float, 24>;
+    using Matrix24x24 = Matrix<Float, 24, 24>;
+
+    __global__ void affine_body_fixed_joint_compute_energy_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             rest_cs,
+        cuda_tool::CBufferView<Vector6>             rest_ts,
+        cuda_tool::CBufferView<Vector6>             rest_ns,
+        cuda_tool::CBufferView<Vector6>             rest_bs,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::BufferView<Float>                Es,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids  = body_ids(I);
+        Float    kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        Vector12 qi = qs(bids(0));
+        Vector12 qj = qs(bids(1));
+
+        auto& rest_c = rest_cs(I);
+        auto& rest_t = rest_ts(I);
+        auto& rest_n = rest_ns(I);
+        auto& rest_b = rest_bs(I);
+
+        Vector9 Fr_val;
+        FJ::Fr<Float>(Fr_val,
+                      rest_t.segment<3>(0),
+                      rest_n.segment<3>(0),
+                      rest_b.segment<3>(0),
+                      qi,
+                      rest_t.segment<3>(3),
+                      rest_n.segment<3>(3),
+                      rest_b.segment<3>(3),
+                      qj);
+        Float Er_val;
+        FJ::Er(Er_val, kappa, Fr_val);
+
+        Vector3 Ft_val;
+        FJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
+        Float Et_val;
+        FJ::Et(Et_val, kappa, Ft_val);
+
+        Es(I) = Er_val + Et_val;
+    }
+
+    __global__ void affine_body_fixed_joint_compute_gradient_hessian_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             rest_cs,
+        cuda_tool::CBufferView<Vector6>             rest_ts,
+        cuda_tool::CBufferView<Vector6>             rest_ns,
+        cuda_tool::CBufferView<Vector6>             rest_bs,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::DoubletVectorView<Float, 12>     G12s,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        bool                                        gradient_only,
+        SizeT                                       HalfHessianSize,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids  = body_ids(I);
+        Float    kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        Vector12 qi = qs(bids(0));
+        Vector12 qj = qs(bids(1));
+
+        auto& rest_c = rest_cs(I);
+        auto& rest_t = rest_ts(I);
+        auto& rest_n = rest_ns(I);
+        auto& rest_b = rest_bs(I);
+
+        // Rotation gradient
+        Vector9 Fr_val;
+        FJ::Fr<Float>(Fr_val,
+                      rest_t.segment<3>(0),
+                      rest_n.segment<3>(0),
+                      rest_b.segment<3>(0),
+                      qi,
+                      rest_t.segment<3>(3),
+                      rest_n.segment<3>(3),
+                      rest_b.segment<3>(3),
+                      qj);
+
+        Vector9 dEdFr_val;
+        FJ::dEdFr(dEdFr_val, kappa, Fr_val);
+
+        Vector24 JrT_Gr_val;
+        FJ::JrT_Gr<Float>(JrT_Gr_val,
+                          dEdFr_val,
+                          rest_t.segment<3>(0),
+                          rest_n.segment<3>(0),
+                          rest_b.segment<3>(0),
+                          qi,
+                          rest_t.segment<3>(3),
+                          rest_n.segment<3>(3),
+                          rest_b.segment<3>(3),
+                          qj);
+
+        // Translation gradient
+        Vector3 Ft_val;
+        FJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
+
+        Vector3 dEdFt_val;
+        FJ::dEdFt(dEdFt_val, kappa, Ft_val);
+
+        Vector24 JtT_Gt_val;
+        FJ::JtT_Gt<Float>(JtT_Gt_val, dEdFt_val, rest_c.segment<3>(0), rest_c.segment<3>(3));
+
+        Vector24               G = JrT_Gr_val + JtT_Gt_val;
+        DoubletVectorAssembler DVA{G12s};
+        Vector2i               indices = {bids(0), bids(1)};
+        DVA.segment<2>(2 * I).write(indices, G);
+
+        if(!gradient_only)
+        {
+            Matrix9x9 ddEdFr_val;
+            FJ::ddEdFr(ddEdFr_val, kappa, Fr_val);
+            make_spd(ddEdFr_val);
+
+            Matrix24x24 JrT_Hr_Jr_val;
+            FJ::JrT_Hr_Jr<Float>(JrT_Hr_Jr_val,
+                                 ddEdFr_val,
+                                 rest_t.segment<3>(0),
+                                 rest_n.segment<3>(0),
+                                 rest_b.segment<3>(0),
+                                 qi,
+                                 rest_t.segment<3>(3),
+                                 rest_n.segment<3>(3),
+                                 rest_b.segment<3>(3),
+                                 qj);
+
+            Matrix3x3 ddEdFt_val;
+            FJ::ddEdFt(ddEdFt_val, kappa, Ft_val);
+            make_spd(ddEdFt_val);
+
+            Matrix24x24 JtT_Ht_Jt_val;
+            FJ::JtT_Ht_Jt<Float>(
+                JtT_Ht_Jt_val, ddEdFt_val, rest_c.segment<3>(0), rest_c.segment<3>(3));
+
+            Matrix24x24            H = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
+            TripletMatrixAssembler TMA{H12x12s};
+            TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
+        }
+    }
+}  // namespace
+
 class AffineBodyFixedJoint final : public InterAffineBodyConstitution
 {
   public:
@@ -15,12 +175,12 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
-    muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector6> rest_cs;  // midpoint in body-local frame [ci_bar | cj_bar]
-    muda::DeviceBuffer<Vector6> rest_ts;  // t_bar in body space
-    muda::DeviceBuffer<Vector6> rest_ns;  // n_bar in body space
-    muda::DeviceBuffer<Vector6> rest_bs;  // b_bar in body space
-    muda::DeviceBuffer<Float>   strength_ratios;
+    cuda_tool::DeviceBuffer<Vector2i> body_ids;
+    cuda_tool::DeviceBuffer<Vector6> rest_cs;  // midpoint in body-local frame [ci_bar | cj_bar]
+    cuda_tool::DeviceBuffer<Vector6> rest_ts;  // t_bar in body space
+    cuda_tool::DeviceBuffer<Vector6> rest_ns;  // n_bar in body space
+    cuda_tool::DeviceBuffer<Vector6> rest_bs;  // b_bar in body space
+    cuda_tool::DeviceBuffer<Float>   strength_ratios;
 
     vector<Vector2i> h_body_ids;
     vector<Vector6>  h_rest_cs;
@@ -54,13 +214,13 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
             {
                 auto sc = geo.as<geometry::SimplicialComplex>();
 
-                auto l_geo_id = sc->vertices().find<IndexT>("l_geo_id");
-                auto l_geo_id_view = l_geo_id->view();
-                auto r_geo_id = sc->vertices().find<IndexT>("r_geo_id");
-                auto r_geo_id_view = r_geo_id->view();
-                auto l_inst_id = sc->vertices().find<IndexT>("l_inst_id");
+                auto l_geo_id       = sc->vertices().find<IndexT>("l_geo_id");
+                auto l_geo_id_view  = l_geo_id->view();
+                auto r_geo_id       = sc->vertices().find<IndexT>("r_geo_id");
+                auto r_geo_id_view  = r_geo_id->view();
+                auto l_inst_id      = sc->vertices().find<IndexT>("l_inst_id");
                 auto l_inst_id_view = l_inst_id->view();
-                auto r_inst_id = sc->vertices().find<IndexT>("r_inst_id");
+                auto r_inst_id      = sc->vertices().find<IndexT>("r_inst_id");
                 auto r_inst_id_view = r_inst_id->view();
                 auto strength_ratio_view =
                     sc->vertices().find<Float>("strength_ratio")->view();
@@ -69,7 +229,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                 auto pos1_attr = sc->vertices().find<Vector3>("r_position");
                 const bool use_local_positions = pos0_attr && pos1_attr;
 
-                auto Ps = sc->positions().view();
+                auto        Ps       = sc->positions().view();
                 const SizeT n_joints = sc->vertices().size();
                 for(SizeT i = 0; i < n_joints; ++i)
                 {
@@ -81,10 +241,8 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                     body_ids_list.push_back({info.body_id(l_gid, l_iid),
                                              info.body_id(r_gid, r_iid)});
 
-                    Transform LT{
-                        info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
-                    Transform RT{
-                        info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
+                    Transform LT{info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
+                    Transform RT{info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
 
                     // rest_cs: matching attachment points in each body's local frame
                     Vector6 rest_c;
@@ -95,7 +253,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                     }
                     else
                     {
-                        Vector3 mid_point = Ps[i];
+                        Vector3 mid_point    = Ps[i];
                         rest_c.segment<3>(0) = LT.inverse() * mid_point;
                         rest_c.segment<3>(3) = RT.inverse() * mid_point;
                     }
@@ -153,54 +311,22 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
 
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-        namespace FJ = sym::affine_body_fixed_joint;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    rest_ts  = rest_ts.cviewer().name("rest_ts"),
-                    rest_ns  = rest_ns.cviewer().name("rest_ns"),
-                    rest_bs  = rest_bs.cviewer().name("rest_bs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs = info.qs().viewer().name("qs"),
-                    Es = info.energies().viewer().name("Es")] __device__(int I)
-                   {
-                       Vector2i bids  = body_ids(I);
-                       Float    kappa = strength_ratio(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-
-                       Vector12 qi = qs(bids(0));
-                       Vector12 qj = qs(bids(1));
-
-                       auto& rest_c = rest_cs(I);
-                       auto& rest_t = rest_ts(I);
-                       auto& rest_n = rest_ns(I);
-                       auto& rest_b = rest_bs(I);
-
-                       Vector9 Fr_val;
-                       FJ::Fr<Float>(Fr_val,
-                                     rest_t.segment<3>(0),
-                                     rest_n.segment<3>(0),
-                                     rest_b.segment<3>(0),
-                                     qi,
-                                     rest_t.segment<3>(3),
-                                     rest_n.segment<3>(3),
-                                     rest_b.segment<3>(3),
-                                     qj);
-                       Float Er_val;
-                       FJ::Er(Er_val, kappa, Fr_val);
-
-                       Vector3 Ft_val;
-                       FJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
-                       Float Et_val;
-                       FJ::Et(Et_val, kappa, Ft_val);
-
-                       Es(I) = Er_val + Et_val;
-                   });
+        int n = (int)body_ids.size();
+        if(n > 0)
+        {
+            auto k = affine_body_fixed_joint_compute_energy_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_cs.cview(),
+                rest_ts.cview(),
+                rest_ns.cview(),
+                rest_bs.cview(),
+                strength_ratios.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.energies(),
+                n);
+        }
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -213,115 +339,26 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-        namespace FJ       = sym::affine_body_fixed_joint;
         auto gradient_only = info.gradient_only();
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_cs  = rest_cs.cviewer().name("rest_cs"),
-                    rest_ts  = rest_ts.cviewer().name("rest_ts"),
-                    rest_ns  = rest_ns.cviewer().name("rest_ns"),
-                    rest_bs  = rest_bs.cviewer().name("rest_bs"),
-                    strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs      = info.qs().viewer().name("qs"),
-                    G12s    = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s"),
-                    gradient_only] __device__(int I) mutable
-                   {
-                       Vector2i bids  = body_ids(I);
-                       Float    kappa = strength_ratio(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-
-                       Vector12 qi = qs(bids(0));
-                       Vector12 qj = qs(bids(1));
-
-                       auto& rest_c = rest_cs(I);
-                       auto& rest_t = rest_ts(I);
-                       auto& rest_n = rest_ns(I);
-                       auto& rest_b = rest_bs(I);
-
-                       // Rotation gradient
-                       Vector9 Fr_val;
-                       FJ::Fr<Float>(Fr_val,
-                                     rest_t.segment<3>(0),
-                                     rest_n.segment<3>(0),
-                                     rest_b.segment<3>(0),
-                                     qi,
-                                     rest_t.segment<3>(3),
-                                     rest_n.segment<3>(3),
-                                     rest_b.segment<3>(3),
-                                     qj);
-
-                       Vector9 dEdFr_val;
-                       FJ::dEdFr(dEdFr_val, kappa, Fr_val);
-
-                       Vector24 JrT_Gr_val;
-                       FJ::JrT_Gr<Float>(JrT_Gr_val,
-                                         dEdFr_val,
-                                         rest_t.segment<3>(0),
-                                         rest_n.segment<3>(0),
-                                         rest_b.segment<3>(0),
-                                         qi,
-                                         rest_t.segment<3>(3),
-                                         rest_n.segment<3>(3),
-                                         rest_b.segment<3>(3),
-                                         qj);
-
-                       // Translation gradient
-                       Vector3 Ft_val;
-                       FJ::Ft<Float>(Ft_val, rest_c.segment<3>(0), qi, rest_c.segment<3>(3), qj);
-
-                       Vector3 dEdFt_val;
-                       FJ::dEdFt(dEdFt_val, kappa, Ft_val);
-
-                       Vector24 JtT_Gt_val;
-                       FJ::JtT_Gt<Float>(JtT_Gt_val,
-                                         dEdFt_val,
-                                         rest_c.segment<3>(0),
-                                         rest_c.segment<3>(3));
-
-                       Vector24               G = JrT_Gr_val + JtT_Gt_val;
-                       DoubletVectorAssembler DVA{G12s};
-                       Vector2i               indices = {bids(0), bids(1)};
-                       DVA.segment<2>(2 * I).write(indices, G);
-
-                       if(!gradient_only)
-                       {
-                           Matrix9x9 ddEdFr_val;
-                           FJ::ddEdFr(ddEdFr_val, kappa, Fr_val);
-                           make_spd(ddEdFr_val);
-
-                           Matrix24x24 JrT_Hr_Jr_val;
-                           FJ::JrT_Hr_Jr<Float>(JrT_Hr_Jr_val,
-                                                ddEdFr_val,
-                                                rest_t.segment<3>(0),
-                                                rest_n.segment<3>(0),
-                                                rest_b.segment<3>(0),
-                                                qi,
-                                                rest_t.segment<3>(3),
-                                                rest_n.segment<3>(3),
-                                                rest_b.segment<3>(3),
-                                                qj);
-
-                           Matrix3x3 ddEdFt_val;
-                           FJ::ddEdFt(ddEdFt_val, kappa, Ft_val);
-                           make_spd(ddEdFt_val);
-
-                           Matrix24x24 JtT_Ht_Jt_val;
-                           FJ::JtT_Ht_Jt<Float>(JtT_Ht_Jt_val,
-                                                ddEdFt_val,
-                                                rest_c.segment<3>(0),
-                                                rest_c.segment<3>(3));
-
-                           Matrix24x24 H = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
-                           TripletMatrixAssembler TMA{H12x12s};
-                           TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
-                       }
-                   });
+        int  n             = (int)body_ids.size();
+        if(n > 0)
+        {
+            auto k = affine_body_fixed_joint_compute_gradient_hessian_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_cs.cview(),
+                rest_ts.cview(),
+                rest_ns.cview(),
+                rest_bs.cview(),
+                strength_ratios.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.gradients(),
+                info.hessians(),
+                gradient_only,
+                HalfHessianSize,
+                n);
+        }
     };
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

@@ -14,21 +14,21 @@ class ALVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectory
         void filter_active(FilterActiveInfo& info);
         void filter_toi(FilterTOIInfo& info);
 
-        muda::DeviceVar<IndexT> num_collisions;
-        IndexT                  h_num_collisions;
+        cuda_tool::DeviceVar<IndexT> num_collisions;
+        IndexT                       h_num_collisions;
 
         /**
          * @brief [Vertex-HalfPlane] pairs
          */
-        muda::DeviceBuffer<Vector2i> PHs;
+        cuda_tool::DeviceBuffer<Vector2i> PHs;
 
         Float reserve_ratio = 1.1f;
 
-        muda::DeviceBuffer<Float> tois;
+        cuda_tool::DeviceBuffer<Float> tois;
     };
 
-    virtual muda::CBufferView<Vector2i> candidate_PHs() const noexcept override;
-    virtual muda::CBufferView<Float>    toi_PHs() const noexcept override;
+    virtual cuda_tool::CBufferView<Vector2i> candidate_PHs() const noexcept override;
+    virtual cuda_tool::CBufferView<Float> toi_PHs() const noexcept override;
 
   private:
     Impl         m_impl;

@@ -10,7 +10,7 @@ target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
 uipc_target_set_output_directory(pyuipc)
 uipc_target_set_rpath(pyuipc)
 
-file(GLOB SOURCES "*.cpp" "*.h")
+file(GLOB SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h")
 target_sources(pyuipc PRIVATE ${SOURCES})
 
 add_subdirectory(common)

@@ -4,15 +4,14 @@
 #include <utils/distance/point_edge.h>
 #include <utils/distance/point_triangle.h>
 #include <utils/distance/edge_edge.h>
-#include <muda/ext/eigen/inverse.h>
-#include <muda/tools/debug_log.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda::distance
 {
 namespace detail
 {
     template <int N>
-    MUDA_GENERIC IndexT active_count(const Vector<IndexT, N>& flag)
+    UIPC_GENERIC IndexT active_count(const Vector<IndexT, N>& flag)
     {
         IndexT count = 0;
 #pragma unroll
@@ -21,9 +20,9 @@ namespace detail
         return count;
     }
 
-    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_pe(const Vector<IndexT, 3>& flag)
+    inline UIPC_GENERIC Vector<IndexT, 2> pp_from_pe(const Vector<IndexT, 3>& flag)
     {
-        MUDA_ASSERT(detail::active_count(flag) == 2, "active count mismatch");
+        UIPC_KERNEL_ASSERT(detail::active_count(flag) == 2, "active count mismatch");
 
         Vector<IndexT, 2> offsets;
         if(flag[0] == 0)
@@ -40,19 +39,20 @@ namespace detail
         }
         else
         {
-            MUDA_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+            UIPC_KERNEL_ERROR_WITH_LOCATION(
+                "Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
         }
         return offsets;
     }
 
-    inline MUDA_GENERIC Vector<IndexT, 3> pe_from_pt(const Vector<IndexT, 4>& flag)
+    inline UIPC_GENERIC Vector<IndexT, 3> pe_from_pt(const Vector<IndexT, 4>& flag)
     {
-        MUDA_ASSERT(detail::active_count(flag) == 3,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+        UIPC_KERNEL_ASSERT(detail::active_count(flag) == 3,
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 3> offsets;
         if(flag[0] == 0)
@@ -73,20 +73,20 @@ namespace detail
         }
         else
         {
-            MUDA_ERROR_WITH_LOCATION(
+            UIPC_KERNEL_ERROR_WITH_LOCATION(
                 "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
         }
         return offsets;
     }
 
-    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_pt(const Vector<IndexT, 4>& flag)
+    inline UIPC_GENERIC Vector<IndexT, 2> pp_from_pt(const Vector<IndexT, 4>& flag)
     {
-        MUDA_ASSERT(detail::active_count(flag) == 2,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+        UIPC_KERNEL_ASSERT(detail::active_count(flag) == 2,
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 2> offsets;
         constexpr IndexT  N = 4;
@@ -98,7 +98,7 @@ namespace detail
         {
             if(flag[iN])
             {
-                MUDA_ASSERT(iM < M, "active mismatch");
+                UIPC_KERNEL_ASSERT(iM < M, "active mismatch");
                 offsets[iM] = iN;
                 ++iM;
             }
@@ -106,14 +106,14 @@ namespace detail
         return offsets;
     }
 
-    inline MUDA_GENERIC Vector<IndexT, 3> pe_from_ee(const Vector<IndexT, 4>& flag)
+    inline UIPC_GENERIC Vector<IndexT, 3> pe_from_ee(const Vector<IndexT, 4>& flag)
     {
-        MUDA_ASSERT(detail::active_count(flag) == 3,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+        UIPC_KERNEL_ASSERT(detail::active_count(flag) == 3,
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 3> offsets;  // [P, E0, E1]
         if(flag[0] == 0)
@@ -135,14 +135,14 @@ namespace detail
         return offsets;
     }
 
-    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_ee(const Vector<IndexT, 4>& flag)
+    inline UIPC_GENERIC Vector<IndexT, 2> pp_from_ee(const Vector<IndexT, 4>& flag)
     {
-        MUDA_ASSERT(detail::active_count(flag) == 2,
-                    "active count mismatch, yours=(%d,%d,%d,%d)",
-                    flag[0],
-                    flag[1],
-                    flag[2],
-                    flag[3]);
+        UIPC_KERNEL_ASSERT(detail::active_count(flag) == 2,
+                           "active count mismatch, yours=(%d,%d,%d,%d)",
+                           flag[0],
+                           flag[1],
+                           flag[2],
+                           flag[3]);
 
         Vector<IndexT, 2> offsets;
         constexpr IndexT  N = 4;
@@ -154,7 +154,7 @@ namespace detail
         {
             if(flag[iN])
             {
-                MUDA_ASSERT(iM < M, "active mismatch");
+                UIPC_KERNEL_ASSERT(iM < M, "active mismatch");
                 offsets[iM] = iN;
                 ++iM;
             }
@@ -164,7 +164,7 @@ namespace detail
 }  // namespace detail
 
 
-MUDA_GENERIC inline IndexT degenerate_point_triangle(const Vector<IndexT, 4>& flag,
+UIPC_GENERIC inline IndexT degenerate_point_triangle(const Vector<IndexT, 4>& flag,
                                                      Vector<IndexT, 4>& offsets)
 {
     // collect active indices
@@ -184,7 +184,7 @@ MUDA_GENERIC inline IndexT degenerate_point_triangle(const Vector<IndexT, 4>& fl
     return dim;
 }
 
-MUDA_GENERIC inline IndexT degenerate_edge_edge(const Vector<IndexT, 4>& flag,
+UIPC_GENERIC inline IndexT degenerate_edge_edge(const Vector<IndexT, 4>& flag,
                                                 Vector<IndexT, 4>& offsets)
 {
     // collect active indices
@@ -204,7 +204,7 @@ MUDA_GENERIC inline IndexT degenerate_edge_edge(const Vector<IndexT, 4>& flag,
     return dim;
 }
 
-MUDA_GENERIC inline IndexT degenerate_point_edge(const Vector<IndexT, 3>& flag,
+UIPC_GENERIC inline IndexT degenerate_point_edge(const Vector<IndexT, 3>& flag,
                                                  Vector<IndexT, 3>& offsets)
 {
     // collect active indices
@@ -221,14 +221,14 @@ MUDA_GENERIC inline IndexT degenerate_point_edge(const Vector<IndexT, 3>& flag,
 }
 
 template <typename T>
-MUDA_GENERIC Vector<IndexT, 2> point_point_distance_flag(const Eigen::Vector<T, 3>& p0,
+UIPC_GENERIC Vector<IndexT, 2> point_point_distance_flag(const Eigen::Vector<T, 3>& p0,
                                                          const Eigen::Vector<T, 3>& p1)
 {
     return Vector<IndexT, 2>{1, 1};
 }
 
 template <typename T>
-MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3>& p,
                                                         const Eigen::Vector<T, 3>& e0,
                                                         const Eigen::Vector<T, 3>& e1)
 {
@@ -255,7 +255,7 @@ MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3
 }
 
 template <typename T>
-MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
+UIPC_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
                                                    const Eigen::Vector<T, 3>& t0,
                                                    const Eigen::Vector<T, 3>& t1,
                                                    const Eigen::Vector<T, 3>& t2)
@@ -285,7 +285,7 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
 
     basis.row(1)                        = basis.row(0).cross(nVec);
     Eigen::Matrix<T, 2, 2> basis_basisT = basis * basis.transpose();
-    auto                   invBasis     = muda::eigen::inverse(basis_basisT);
+    auto                   invBasis = cuda_tool::eigen::inverse(basis_basisT);
 
     param.col(0) = invBasis * (basis * (p - t0));
 
@@ -302,7 +302,7 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
         basis.row(1) = basis.row(0).cross(nVec);
 
         Eigen::Matrix<T, 2, 2> basis_basisT = basis * basis.transpose();
-        auto                   invBasis = muda::eigen::inverse(basis_basisT);
+        auto invBasis = cuda_tool::eigen::inverse(basis_basisT);
 
         param.col(1) = invBasis * (basis * (p - t1));
 
@@ -319,7 +319,7 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
             basis.row(1) = basis.row(0).cross(nVec);
 
             Eigen::Matrix<T, 2, 2> basis_basisT = basis * basis.transpose();
-            auto invBasis = muda::eigen::inverse(basis_basisT);
+            auto invBasis = cuda_tool::eigen::inverse(basis_basisT);
             param.col(2)  = invBasis * (basis * (p - t2));
 
             if(param(0, 2) > 0.0 && param(0, 2) < 1.0 && param(1, 2) >= 0.0)
@@ -361,7 +361,7 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
 namespace detail
 {
     template <typename T>
-    MUDA_GENERIC void update_ee_near_parallel_candidate(const Eigen::Vector<T, 3>& p,
+    UIPC_GENERIC void update_ee_near_parallel_candidate(const Eigen::Vector<T, 3>& p,
                                                         const Eigen::Vector<T, 3>& s0,
                                                         const Eigen::Vector<T, 3>& s1,
                                                         T&              minD,
@@ -393,7 +393,7 @@ namespace detail
 }  // namespace detail
 
 template <typename T>
-MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
+UIPC_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
                                               const Eigen::Vector<T, 3>& eb0,
                                               const Eigen::Vector<T, 3>& eb1)
@@ -548,7 +548,7 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance2(const Vector2i&            flag,
+UIPC_GENERIC void point_point_distance2(const Vector2i&            flag,
                                         const Eigen::Vector<T, 3>& a,
                                         const Eigen::Vector<T, 3>& b,
                                         T&                         D)
@@ -557,7 +557,7 @@ MUDA_GENERIC void point_point_distance2(const Vector2i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance2(const Vector<IndexT, 3>&   flag,
+UIPC_GENERIC void point_edge_distance2(const Vector<IndexT, 3>&   flag,
                                        const Eigen::Vector<T, 3>& p,
                                        const Eigen::Vector<T, 3>& e0,
                                        const Eigen::Vector<T, 3>& e1,
@@ -580,12 +580,12 @@ MUDA_GENERIC void point_edge_distance2(const Vector<IndexT, 3>&   flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+        UIPC_KERNEL_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2(const Vector4i&            flag,
+UIPC_GENERIC void point_triangle_distance2(const Vector4i&            flag,
                                            const Eigen::Vector<T, 3>& p,
                                            const Eigen::Vector<T, 3>& t0,
                                            const Eigen::Vector<T, 3>& t1,
@@ -618,13 +618,13 @@ MUDA_GENERIC void point_triangle_distance2(const Vector4i&            flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2(const Vector4i&            flag,
+UIPC_GENERIC void edge_edge_distance2(const Vector4i&            flag,
                                       const Eigen::Vector<T, 3>& ea0,
                                       const Eigen::Vector<T, 3>& ea1,
                                       const Eigen::Vector<T, 3>& eb0,
@@ -657,13 +657,13 @@ MUDA_GENERIC void edge_edge_distance2(const Vector4i&            flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance2_gradient(const Vector2i& flag,
+UIPC_GENERIC void point_point_distance2_gradient(const Vector2i& flag,
                                                  const Eigen::Vector<T, 3>& a,
                                                  const Eigen::Vector<T, 3>& b,
                                                  Eigen::Vector<T, 6>&       G)
@@ -673,7 +673,7 @@ MUDA_GENERIC void point_point_distance2_gradient(const Vector2i& flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance2_gradient(const Vector<IndexT, 3>&   flag,
+UIPC_GENERIC void point_edge_distance2_gradient(const Vector<IndexT, 3>&   flag,
                                                 const Eigen::Vector<T, 3>& p,
                                                 const Eigen::Vector<T, 3>& e0,
                                                 const Eigen::Vector<T, 3>& e1,
@@ -703,12 +703,12 @@ MUDA_GENERIC void point_edge_distance2_gradient(const Vector<IndexT, 3>&   flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+        UIPC_KERNEL_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
+UIPC_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
                                                     const Eigen::Vector<T, 3>& p,
                                                     const Eigen::Vector<T, 3>& t0,
                                                     const Eigen::Vector<T, 3>& t1,
@@ -754,13 +754,13 @@ MUDA_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
+UIPC_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
                                                const Eigen::Vector<T, 3>& ea0,
                                                const Eigen::Vector<T, 3>& ea1,
                                                const Eigen::Vector<T, 3>& eb0,
@@ -816,13 +816,13 @@ MUDA_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance2_hessian(const Vector2i&            flag,
+UIPC_GENERIC void point_point_distance2_hessian(const Vector2i&            flag,
                                                 const Eigen::Vector<T, 3>& a,
                                                 const Eigen::Vector<T, 3>& b,
                                                 Eigen::Matrix<T, 6, 6>&    H)
@@ -833,7 +833,7 @@ MUDA_GENERIC void point_point_distance2_hessian(const Vector2i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance2_hessian(const Vector<IndexT, 3>&   flag,
+UIPC_GENERIC void point_edge_distance2_hessian(const Vector<IndexT, 3>&   flag,
                                                const Eigen::Vector<T, 3>& p,
                                                const Eigen::Vector<T, 3>& e0,
                                                const Eigen::Vector<T, 3>& e1,
@@ -866,12 +866,12 @@ MUDA_GENERIC void point_edge_distance2_hessian(const Vector<IndexT, 3>&   flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+        UIPC_KERNEL_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
+UIPC_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
                                                    const Eigen::Vector<T, 3>& p,
                                                    const Eigen::Vector<T, 3>& t0,
                                                    const Eigen::Vector<T, 3>& t1,
@@ -922,13 +922,13 @@ MUDA_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
+UIPC_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
                                               const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
                                               const Eigen::Vector<T, 3>& eb0,
@@ -990,7 +990,7 @@ MUDA_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
     }
     else
     {
-        MUDA_ERROR_WITH_LOCATION(
+        UIPC_KERNEL_ERROR_WITH_LOCATION(
             "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
     }
 }

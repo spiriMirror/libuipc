@@ -24,19 +24,19 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         {
         }
 
-        muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
-        muda::CBufferView<Vector2i>       friction_PHs() const;
-        muda::CBufferView<Vector3>        positions() const;
-        muda::CBufferView<Float>          thicknesses() const;
-        muda::CBufferView<Vector3>        prev_positions() const;
-        muda::CBufferView<Vector3>        rest_positions() const;
-        muda::CBufferView<IndexT>         contact_element_ids() const;
-        muda::CBufferView<IndexT>         subscene_element_ids() const;
-        Float                             d_hat() const;
-        muda::CBufferView<Float>          d_hats() const;
-        Float                             dt() const;
-        Float                             eps_velocity() const;
-        IndexT                            half_plane_vertex_offset() const;
+        cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const;
+        cuda_tool::CBufferView<Vector2i>       friction_PHs() const;
+        cuda_tool::CBufferView<Vector3>        positions() const;
+        cuda_tool::CBufferView<Float>          thicknesses() const;
+        cuda_tool::CBufferView<Vector3>        prev_positions() const;
+        cuda_tool::CBufferView<Vector3>        rest_positions() const;
+        cuda_tool::CBufferView<IndexT>         contact_element_ids() const;
+        cuda_tool::CBufferView<IndexT>         subscene_element_ids() const;
+        Float                                  d_hat() const;
+        cuda_tool::CBufferView<Float>          d_hats() const;
+        Float                                  dt() const;
+        Float                                  eps_velocity() const;
+        IndexT                                 half_plane_vertex_offset() const;
 
       private:
         friend class VertexHalfPlaneFrictionalContact;
@@ -58,9 +58,9 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
       private:
         friend class VertexHalfPlaneFrictionalContact;
 
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
+        bool                                   m_gradient_only = false;
     };
 
     class BuildInfo
@@ -76,11 +76,11 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         {
         }
 
-        muda::BufferView<Float> energies() const noexcept;
+        cuda_tool::BufferView<Float> energies() const noexcept;
 
       private:
         friend class VertexHalfPlaneFrictionalContact;
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class Impl
@@ -97,15 +97,15 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         SizeT                                   PH_count = 0;
         S<const geometry::AttributeSlot<Float>> dt_attr;
 
-        muda::CBufferView<Float>           energies;
-        muda::CDoubletVectorView<Float, 3> gradients;
-        muda::CTripletMatrixView<Float, 3> hessians;
+        cuda_tool::CBufferView<Float>           energies;
+        cuda_tool::CDoubletVectorView<Float, 3> gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> hessians;
     };
 
-    muda::CBufferView<Vector2i>        PHs() const noexcept;
-    muda::CBufferView<Float>           energies() const noexcept;
-    muda::CDoubletVectorView<Float, 3> gradients() const noexcept;
-    muda::CTripletMatrixView<Float, 3> hessians() const noexcept;
+    cuda_tool::CBufferView<Vector2i>        PHs() const noexcept;
+    cuda_tool::CBufferView<Float>           energies() const noexcept;
+    cuda_tool::CDoubletVectorView<Float, 3> gradients() const noexcept;
+    cuda_tool::CTripletMatrixView<Float, 3> hessians() const noexcept;
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;

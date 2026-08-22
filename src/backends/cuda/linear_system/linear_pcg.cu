@@ -7,6 +7,34 @@
 #include <uipc/common/timer.h>
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void update_xr_kernel(Float                              alpha,
+                                     cuda_tool::DenseVectorView<Float>  x,
+                                     cuda_tool::CDenseVectorView<Float> p,
+                                     cuda_tool::DenseVectorView<Float>  r,
+                                     cuda_tool::CDenseVectorView<Float> Ap,
+                                     int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        x(i) += alpha * p(i);
+        r(i) -= alpha * Ap(i);
+    }
+
+    __global__ void update_p_kernel(cuda_tool::DenseVectorView<Float>  p,
+                                    cuda_tool::CDenseVectorView<Float> z,
+                                    Float                              beta,
+                                    int                                n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        p(i) = z(i) + beta * p(i);
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(LinearPCG);
 
 void LinearPCG::do_build(BuildInfo& info)
@@ -160,9 +188,9 @@ void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
         auto norm_z = ctx().norm(z.cview());
         bool r_ok   = std::isfinite(norm_r);
         bool z_bad  = !std::isfinite(norm_z);
-        auto hint = (r_ok && z_bad) ?
-                        "preconditioner failed, likely due to inverse matrix calculation failure" :
-                        "PCG iteration diverged";
+        auto hint   = (r_ok && z_bad) ?
+                          "preconditioner failed, likely due to inverse matrix calculation failure" :
+                          "PCG iteration diverged";
         UIPC_ASSERT(false,
                     "Frame {}, Newton {}, PCG Iter {}: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
                     "Hint: {}.",
@@ -176,42 +204,35 @@ void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
     }
 }
 
-void update_xr(Float                         alpha,
-               muda::DenseVectorView<Float>  x,
-               muda::CDenseVectorView<Float> p,
-               muda::DenseVectorView<Float>  r,
-               muda::CDenseVectorView<Float> Ap)
+void update_xr(Float                              alpha,
+               cuda_tool::DenseVectorView<Float>  x,
+               cuda_tool::CDenseVectorView<Float> p,
+               cuda_tool::DenseVectorView<Float>  r,
+               cuda_tool::CDenseVectorView<Float> Ap)
 {
-    using namespace muda;
-
     // Fused update of x and r for better performance
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(r.size(),
-               [alpha = alpha,
-                x     = x.viewer().name("x"),
-                p     = p.cviewer().name("p"),
-                r     = r.viewer().name("r"),
-                Ap    = Ap.cviewer().name("Ap")] __device__(int i) mutable
-               {
-                   x(i) += alpha * p(i);
-                   r(i) -= alpha * Ap(i);
-               });
+    int n = r.size();
+    if(n > 0)
+    {
+        update_xr_kernel<<<cuda_tool::best_grid_dim(n, update_xr_kernel), cuda_tool::best_block_dim(update_xr_kernel), 0, nullptr>>>(
+            alpha, x.viewer(), p.cviewer(), r.viewer(), Ap.cviewer(), n);
+    }
 }
 
-void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, Float beta)
+void update_p(cuda_tool::DenseVectorView<Float> p, cuda_tool::CDenseVectorView<Float> z, Float beta)
 {
-    using namespace muda;
-
     // Simple axpby
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(p.size(),
-               [p = p.viewer().name("p"), z = z.cviewer().name("z"), beta = beta] __device__(
-                   int i) mutable { p(i) = z(i) + beta * p(i); });
+    int n = p.size();
+    if(n > 0)
+    {
+        update_p_kernel<<<cuda_tool::best_grid_dim(n, update_p_kernel), cuda_tool::best_block_dim(update_p_kernel), 0, nullptr>>>(
+            p.viewer(), z.cviewer(), beta, n);
+    }
 }
 
-SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
+SizeT LinearPCG::pcg(cuda_tool::DenseVectorView<Float>  x,
+                     cuda_tool::CDenseVectorView<Float> b,
+                     SizeT                              max_iter)
 {
     Timer pcg_timer{"PCG"};
 

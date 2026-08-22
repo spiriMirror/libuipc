@@ -12,4 +12,10 @@ target("backend_cuda")
         add_cugencodes("native")
     end
     add_cuflags("/wd4819", {tools = "cl"})
-    add_packages("muda")
+    -- parity with apps/tests/backends/cuda/CMakeLists.txt: the test .cu files
+    -- use cuda_tool launch/dense math (needs extended lambdas + relaxed
+    -- constexpr), and CUDA >= 13 CCCL requires the conforming MSVC preprocessor.
+    add_cuflags("--extended-lambda", "--expt-relaxed-constexpr")
+    if is_plat("windows") then
+        add_cuflags("-Xcompiler=/Zc:preprocessor")
+    end

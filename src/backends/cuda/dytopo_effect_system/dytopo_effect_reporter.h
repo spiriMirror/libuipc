@@ -23,9 +23,9 @@ class DyTopoEffectReporter : public SimSystem
     class Impl
     {
       public:
-        muda::CBufferView<Float>           energies;
-        muda::CDoubletVectorView<Float, 3> gradients;
-        muda::CTripletMatrixView<Float, 3> hessians;
+        cuda_tool::CBufferView<Float>           energies;
+        cuda_tool::CDoubletVectorView<Float, 3> gradients;
+        cuda_tool::CTripletMatrixView<Float, 3> hessians;
     };
 
   protected:

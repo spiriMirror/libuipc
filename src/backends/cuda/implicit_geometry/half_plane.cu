@@ -132,12 +132,12 @@ void HalfPlane::Impl::_build_geometry()
     }
 }
 
-muda::CBufferView<Vector3> HalfPlane::normals() const
+cuda_tool::CBufferView<Vector3> HalfPlane::normals() const
 {
     return m_impl.normals;
 }
 
-muda::CBufferView<Vector3> HalfPlane::positions() const
+cuda_tool::CBufferView<Vector3> HalfPlane::positions() const
 {
     return m_impl.positions;
 }

@@ -1,8 +1,20 @@
 #include <finite_element/finite_element_body_reporter.h>
-#include <muda/launch/parallel_for.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FiniteElementBodyReporter_report_attributes_kernel(
+        cuda_tool::BufferView<IndexT> coindices, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i) = i;  // just iota
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FiniteElementBodyReporter);
 
 void FiniteElementBodyReporter::do_build(BuildInfo& info)
@@ -34,15 +46,13 @@ void FiniteElementBodyReporter::Impl::report_count(BodyCountInfo& info)
 
 void FiniteElementBodyReporter::Impl::report_attributes(BodyAttributeInfo& info)
 {
-    using namespace muda;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(info.coindices().size(),
-               [coindices = info.coindices().viewer().name("coindices")] __device__(int i)
-               {
-                   coindices(i) = i;  // just iota
-               });
+    auto k = FiniteElementBodyReporter_report_attributes_kernel;
+    int  n = (int)info.coindices().size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.coindices(), n);
+    }
 
     span<const IndexT> self_collision = finite_element_method->m_impl.h_body_self_collision;
 

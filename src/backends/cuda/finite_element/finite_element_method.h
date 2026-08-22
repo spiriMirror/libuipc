@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer.h>
+#include <cuda_tool/cuda_tool.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <backends/cuda/utils/dump_utils.h>
@@ -246,36 +246,36 @@ class FiniteElementMethod final : public SimSystem
 
         // Element Attributes:
 
-        muda::DeviceBuffer<IndexT> codim_0ds;
+        cuda_tool::DeviceBuffer<IndexT> codim_0ds;
 
-        muda::DeviceBuffer<Vector2i> codim_1ds;
-        muda::DeviceBuffer<Float>    rest_lengths;
+        cuda_tool::DeviceBuffer<Vector2i> codim_1ds;
+        cuda_tool::DeviceBuffer<Float>    rest_lengths;
 
-        muda::DeviceBuffer<Vector3i> codim_2ds;
-        muda::DeviceBuffer<Float>    rest_areas;
+        cuda_tool::DeviceBuffer<Vector3i> codim_2ds;
+        cuda_tool::DeviceBuffer<Float>    rest_areas;
 
-        muda::DeviceBuffer<Vector4i> tets;
-        muda::DeviceBuffer<Float>    rest_volumes;
+        cuda_tool::DeviceBuffer<Vector4i> tets;
+        cuda_tool::DeviceBuffer<Float>    rest_volumes;
 
 
         // Vertex Attributes:
 
-        muda::DeviceBuffer<IndexT>  is_fixed;    // Vertex IsFixed
-        muda::DeviceBuffer<IndexT>  is_dynamic;  // Vertex IsDynamic
-        muda::DeviceBuffer<Vector3> gravities;   // Vertex Gravity
+        cuda_tool::DeviceBuffer<IndexT>  is_fixed;    // Vertex IsFixed
+        cuda_tool::DeviceBuffer<IndexT>  is_dynamic;  // Vertex IsDynamic
+        cuda_tool::DeviceBuffer<Vector3> gravities;   // Vertex Gravity
 
-        muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
-        muda::DeviceBuffer<Vector3> xs;        // Positions
-        muda::DeviceBuffer<Vector3> dxs;       // Displacements
-        muda::DeviceBuffer<Vector3> x_temps;   // Safe Positions for line search
-        muda::DeviceBuffer<Vector3> vs;        // Velocities
-        muda::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
-        muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
-        muda::DeviceBuffer<Float>   masses;    // Mass
-        muda::DeviceBuffer<Float>   thicknesses;  // Thickness
+        cuda_tool::DeviceBuffer<Vector3> x_bars;  // Rest Positions
+        cuda_tool::DeviceBuffer<Vector3> xs;      // Positions
+        cuda_tool::DeviceBuffer<Vector3> dxs;     // Displacements
+        cuda_tool::DeviceBuffer<Vector3> x_temps;  // Safe Positions for line search
+        cuda_tool::DeviceBuffer<Vector3> vs;       // Velocities
+        cuda_tool::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
+        cuda_tool::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
+        cuda_tool::DeviceBuffer<Float>   masses;    // Mass
+        cuda_tool::DeviceBuffer<Float>   thicknesses;  // Thickness
 
-        muda::DeviceBuffer<Vector3> vertex_external_forces;      // per-vertex F_ext
-        muda::DeviceBuffer<Vector3> vertex_external_force_accs;  // per-vertex a_ext = F/m
+        cuda_tool::DeviceBuffer<Vector3> vertex_external_forces;  // per-vertex F_ext
+        cuda_tool::DeviceBuffer<Vector3> vertex_external_force_accs;  // per-vertex a_ext = F/m
 
 
         //tex:
@@ -285,7 +285,7 @@ class FiniteElementMethod final : public SimSystem
         // \bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_3 - \bar{\mathbf{x}}_0 \\
         // \end{bmatrix}^{-1}
         // $$
-        muda::DeviceBuffer<Matrix3x3> Dm3x3_invs;
+        cuda_tool::DeviceBuffer<Matrix3x3> Dm3x3_invs;
 
 
         // Dump:
@@ -320,7 +320,7 @@ class FiniteElementMethod final : public SimSystem
     /**
      * @brief overwrite the vertex positions
      */
-    void overwrite_xs(muda::CBufferView<Vector3> xs);
+    void overwrite_xs(cuda_tool::CBufferView<Vector3> xs);
     auto dxs() const noexcept { return m_impl.dxs.view(); }
     auto x_temps() const noexcept { return m_impl.x_temps.view(); }
     auto vs() const noexcept { return m_impl.vs.view(); }
@@ -333,8 +333,14 @@ class FiniteElementMethod final : public SimSystem
     auto rest_lengths() const noexcept { return m_impl.rest_lengths.view(); }
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
     auto gravities() const noexcept { return m_impl.gravities.view(); }
-    auto vertex_external_forces() const noexcept { return m_impl.vertex_external_forces.view(); }
-    auto vertex_external_force_accs() const noexcept { return m_impl.vertex_external_force_accs.view(); }
+    auto vertex_external_forces() const noexcept
+    {
+        return m_impl.vertex_external_forces.view();
+    }
+    auto vertex_external_force_accs() const noexcept
+    {
+        return m_impl.vertex_external_force_accs.view();
+    }
 
     /**
      * @brief return the frame-local dof offset of FEM for the given frame

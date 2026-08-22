@@ -19,20 +19,20 @@ class Codim1DConstitutionDiffParmReporter : public FiniteElementConstitutionDiff
         {
         }
 
-        muda::CBufferView<Vector3>  xs() const noexcept;
-        muda::CBufferView<Vector3>  x_bars() const noexcept;
-        muda::CBufferView<Float>    rest_lengths() const noexcept;
-        muda::CBufferView<Vector2i> indices() const noexcept;
-        muda::CBufferView<Float>    thicknesses() const noexcept;
-        muda::CBufferView<IndexT>   is_fixed() const noexcept;
+        cuda_tool::CBufferView<Vector3>  xs() const noexcept;
+        cuda_tool::CBufferView<Vector3>  x_bars() const noexcept;
+        cuda_tool::CBufferView<Float>    rest_lengths() const noexcept;
+        cuda_tool::CBufferView<Vector2i> indices() const noexcept;
+        cuda_tool::CBufferView<Float>    thicknesses() const noexcept;
+        cuda_tool::CBufferView<IndexT>   is_fixed() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
         SizeT  frame() const;
         IndexT dof_offset(SizeT frame) const;
         IndexT dof_count(SizeT frame) const;
 
-        muda::TripletMatrixView<Float, 1> pGpP() const;
-        Float                             dt() const;
+        cuda_tool::TripletMatrixView<Float, 1> pGpP() const;
+        Float                                  dt() const;
 
       protected:
         Codim1DConstitutionDiffParmReporter* m_impl = nullptr;

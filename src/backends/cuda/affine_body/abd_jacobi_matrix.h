@@ -1,7 +1,7 @@
 #pragma once
 #include <affine_body/type_define.h>
 #include <cuda_runtime_api.h>
-#include <muda/muda_def.h>
+#include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
 {
 //tex: $$ \mathbf{J}_{3 \times 12} $$ or $$ (\mathbf{J}^T)_{12 \times 3} $$
@@ -13,48 +13,48 @@ class ABDJacobi  // for every point
         const ABDJacobi& m_j;
 
       public:
-        explicit MUDA_GENERIC ABDJacobiT(const ABDJacobi& j)
+        explicit UIPC_GENERIC ABDJacobiT(const ABDJacobi& j)
             : m_j(j)
         {
         }
-        MUDA_GENERIC friend Vector12 operator*(const ABDJacobiT& j, const Vector3& g);
+        UIPC_GENERIC friend Vector12 operator*(const ABDJacobiT& j, const Vector3& g);
 
-        MUDA_GENERIC const auto& J() const { return m_j; }
+        UIPC_GENERIC const auto& J() const { return m_j; }
     };
-    MUDA_GENERIC ABDJacobi(const Vector3& x_bar)
+    UIPC_GENERIC ABDJacobi(const Vector3& x_bar)
         : m_x_bar(x_bar)
     {
     }
 
-    MUDA_GENERIC ABDJacobi()
+    UIPC_GENERIC ABDJacobi()
         : m_x_bar(Vector3::Zero())
     {
     }
 
-    MUDA_GENERIC friend Vector3 operator*(const ABDJacobi& j, const Vector12& q);
-    MUDA_GENERIC friend Vector12 operator*(const ABDJacobi::ABDJacobiT& j, const Vector3& g);
+    UIPC_GENERIC friend Vector3 operator*(const ABDJacobi& j, const Vector12& q);
+    UIPC_GENERIC friend Vector12 operator*(const ABDJacobi::ABDJacobiT& j, const Vector3& g);
 
-    MUDA_GENERIC Vector3 point_from_affine(const Vector12& q)
+    UIPC_GENERIC Vector3 point_from_affine(const Vector12& q)
     {
         return (*this) * q;
     }
 
-    MUDA_GENERIC Vector3 point_x(const Vector12& q) const
+    UIPC_GENERIC Vector3 point_x(const Vector12& q) const
     {
         return (*this) * q;
     };
 
     // without translation, only rotation and scaling
-    MUDA_GENERIC Vector3 vec_x(const Vector12& q) const;
+    UIPC_GENERIC Vector3 vec_x(const Vector12& q) const;
 
-    MUDA_GENERIC Matrix3x12 to_mat() const;
+    UIPC_GENERIC Matrix3x12 to_mat() const;
 
-    MUDA_GENERIC ABDJacobiT T() const { return ABDJacobiT(*this); }
+    UIPC_GENERIC ABDJacobiT T() const { return ABDJacobiT(*this); }
 
-    MUDA_GENERIC const Vector3& x_bar() const { return m_x_bar; }
+    UIPC_GENERIC const Vector3& x_bar() const { return m_x_bar; }
 
     //tex: $$ \mathbf{J}^T\mathbf{H}\mathbf{J} $$
-    static MUDA_GENERIC Matrix12x12 JT_H_J(const ABDJacobiT& lhs_J_T,
+    static UIPC_GENERIC Matrix12x12 JT_H_J(const ABDJacobiT& lhs_J_T,
                                            const Matrix3x3&  Hessian,
                                            const ABDJacobi&  rhs_J);
 
@@ -75,24 +75,24 @@ class ABDJacobiStack
         const ABDJacobiStack& m_origin;
 
       public:
-        MUDA_GENERIC ABDJacobiStackT(const ABDJacobiStack& j)
+        UIPC_GENERIC ABDJacobiStackT(const ABDJacobiStack& j)
             : m_origin(j)
         {
         }
-        MUDA_GENERIC Vector12 operator*(const Vector<Float, 3 * N>& g) const;
+        UIPC_GENERIC Vector12 operator*(const Vector<Float, 3 * N>& g) const;
     };
 
-    MUDA_GENERIC Vector<Float, 3 * N> operator*(const Vector12& q) const;
+    UIPC_GENERIC Vector<Float, 3 * N> operator*(const Vector12& q) const;
 
-    MUDA_GENERIC Matrix<Float, 3 * N, 12> to_mat() const;
+    UIPC_GENERIC Matrix<Float, 3 * N, 12> to_mat() const;
 
-    MUDA_GENERIC ABDJacobiStackT T() const { return ABDJacobiStackT(*this); }
+    UIPC_GENERIC ABDJacobiStackT T() const { return ABDJacobiStackT(*this); }
 };
 
 class ABDJacobiStack2 : public ABDJacobiStack<2>
 {
   public:
-    MUDA_GENERIC ABDJacobiStack2(const ABDJacobi& j1, const ABDJacobi& j2)
+    UIPC_GENERIC ABDJacobiStack2(const ABDJacobi& j1, const ABDJacobi& j2)
     {
         m_jacobis[0] = &j1;
         m_jacobis[1] = &j2;
@@ -102,7 +102,7 @@ class ABDJacobiStack2 : public ABDJacobiStack<2>
 class ABDJacobiStack3 : public ABDJacobiStack<3>
 {
   public:
-    MUDA_GENERIC ABDJacobiStack3(const ABDJacobi& j1, const ABDJacobi& j2, const ABDJacobi& j3)
+    UIPC_GENERIC ABDJacobiStack3(const ABDJacobi& j1, const ABDJacobi& j2, const ABDJacobi& j3)
     {
         m_jacobis[0] = &j1;
         m_jacobis[1] = &j2;
@@ -113,7 +113,7 @@ class ABDJacobiStack3 : public ABDJacobiStack<3>
 class ABDJacobiStack4 : public ABDJacobiStack<4>
 {
   public:
-    MUDA_GENERIC ABDJacobiStack4(const ABDJacobi& j1,
+    UIPC_GENERIC ABDJacobiStack4(const ABDJacobi& j1,
                                  const ABDJacobi& j2,
                                  const ABDJacobi& j3,
                                  const ABDJacobi& j4)
@@ -178,14 +178,14 @@ class ABDJacobiStack4 : public ABDJacobiStack<4>
 class ABDJacobiDyadicMass
 {
   public:
-    MUDA_GENERIC ABDJacobiDyadicMass()
+    UIPC_GENERIC ABDJacobiDyadicMass()
         : m_mass(0)
         , m_mass_times_x_bar(Vector3::Zero())
         , m_mass_times_dyadic_x_bar(Matrix3x3::Zero())
     {
     }
 
-    MUDA_GENERIC static ABDJacobiDyadicMass from_dyadic_mass(Float sum_m,
+    UIPC_GENERIC static ABDJacobiDyadicMass from_dyadic_mass(Float sum_m,
                                                              const Vector3& sum_m_x_bar,
                                                              const Matrix3x3& sum_m_x_bar_x_bar)
     {
@@ -196,31 +196,31 @@ class ABDJacobiDyadicMass
         return ret;
     }
 
-    MUDA_GENERIC ABDJacobiDyadicMass(double node_mass, const Vector3& x_bar)
+    UIPC_GENERIC ABDJacobiDyadicMass(double node_mass, const Vector3& x_bar)
         : m_mass(node_mass)
         , m_mass_times_x_bar(node_mass * x_bar)
         , m_mass_times_dyadic_x_bar((node_mass * x_bar) * x_bar.transpose())
     {
     }
 
-    MUDA_GENERIC friend Vector12 operator*(const ABDJacobiDyadicMass& mJTJ,
+    UIPC_GENERIC friend Vector12 operator*(const ABDJacobiDyadicMass& mJTJ,
                                            const Vector12&            p);
 
-    MUDA_GENERIC ABDJacobiDyadicMass& operator+=(const ABDJacobiDyadicMass& rhs);
+    UIPC_GENERIC ABDJacobiDyadicMass& operator+=(const ABDJacobiDyadicMass& rhs);
 
-    MUDA_GENERIC void add_to(Matrix12x12& h) const;
+    UIPC_GENERIC void add_to(Matrix12x12& h) const;
 
-    MUDA_GENERIC Matrix12x12 to_mat() const;
+    UIPC_GENERIC Matrix12x12 to_mat() const;
 
-    MUDA_GENERIC double mass() const { return m_mass; }
+    UIPC_GENERIC double mass() const { return m_mass; }
 
-    MUDA_GENERIC Vector3 mass_times_x_bar() const { return m_mass_times_x_bar; }
+    UIPC_GENERIC Vector3 mass_times_x_bar() const { return m_mass_times_x_bar; }
 
     /**
      * @brief Center of mass in the reference frame.
-     * Requires positive total mass (checked with MUDA_ASSERT in implementations).
+     * Requires positive total mass (checked with UIPC_KERNEL_ASSERT in implementations).
      */
-    MUDA_GENERIC Vector3 center_of_mass() const;
+    UIPC_GENERIC Vector3 center_of_mass() const;
 
     /**
      * @brief Inertia tensor about center of mass (3x3).
@@ -228,11 +228,11 @@ class ABDJacobiDyadicMass
      * I^O = tr(S) I_3 - S, with c = m_x_bar/m and S = m_x_bar_x_bar.
      * Returns zero matrix if mass is zero.
      */
-    MUDA_GENERIC Matrix3x3 inertia_tensor_cm() const;
+    UIPC_GENERIC Matrix3x3 inertia_tensor_cm() const;
 
-    static MUDA_GENERIC auto zero() { return ABDJacobiDyadicMass{}; }
+    static UIPC_GENERIC auto zero() { return ABDJacobiDyadicMass{}; }
 
-    static MUDA_DEVICE ABDJacobiDyadicMass atomic_add(ABDJacobiDyadicMass& dst,
+    static UIPC_DEVICE ABDJacobiDyadicMass atomic_add(ABDJacobiDyadicMass& dst,
                                                       const ABDJacobiDyadicMass& src);
 
   private:

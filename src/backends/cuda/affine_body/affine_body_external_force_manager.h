@@ -1,6 +1,6 @@
 #pragma once
 #include <external_force/external_force_reporter.h>
-#include <muda/buffer/buffer_view.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -46,7 +46,7 @@ class AffineBodyExternalForceManager final : public ExternalForceReporter
             : m_impl(impl)
         {
         }
-        muda::BufferView<Vector12> external_forces() noexcept;
+        cuda_tool::BufferView<Vector12> external_forces() noexcept;
 
       private:
         friend class AffineBodyExternalForceManager;

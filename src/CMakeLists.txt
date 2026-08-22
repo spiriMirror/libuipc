@@ -18,12 +18,6 @@ add_subdirectory(sanity_check)
 
 add_subdirectory(io)
 
-if(UIPC_BUILD_GUI)
-    uipc_warning("This version C++ GUI is not finished yet, waiting for contributions.")
-    # gui
-    # add_subdirectory(gui)
-endif()
-
 add_library(uipc_uipc INTERFACE)
 add_library(uipc::uipc ALIAS uipc_uipc)
 

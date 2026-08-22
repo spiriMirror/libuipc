@@ -1,12 +1,34 @@
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
-#include <muda/ext/eigen/log_proxy.h>
+#include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_body_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void FiniteElementVertexReporter_init_attributes_kernel(
+        cuda_tool::BufferView<IndexT>   coindices,
+        cuda_tool::CBufferView<Vector3> src_pos,
+        cuda_tool::BufferView<Vector3>  dst_pos,
+        cuda_tool::CBufferView<Vector3> src_rest_pos,
+        IndexT                          body_offset,
+        cuda_tool::BufferView<IndexT>   dst_body_ids,
+        cuda_tool::BufferView<Vector3>  dst_rest_pos,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        coindices(i)    = i;
+        dst_pos(i)      = src_pos(i);
+        dst_rest_pos(i) = src_rest_pos(i);
+        dst_body_ids(i) += body_offset;  // offset by the global body offset
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(FiniteElementVertexReporter);
 
 constexpr static U64 FiniteElementVertexReporterUID = 1;
@@ -29,8 +51,6 @@ void FiniteElementVertexReporter::Impl::report_count(VertexCountInfo& info)
 
 void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
-    using namespace muda;
-
     info.contact_element_ids().copy_from(fem().h_vertex_contact_element_ids.data());
     info.subscene_element_ids().copy_from(
         fem().h_vertex_subscene_contact_element_ids.data());
@@ -42,23 +62,20 @@ void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& inf
     info.d_hats().copy_from(fem().h_vertex_d_hat.data());
 
     // fill the coindices for later use
-    auto N = info.coindices().size();
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(N,
-               [coindices    = info.coindices().viewer().name("coindices"),
-                src_pos      = fem().xs.cviewer().name("src_pos"),
-                dst_pos      = info.positions().viewer().name("dst_pos"),
-                src_rest_pos = fem().x_bars.cviewer().name("rest_pos"),
-                body_offset  = body_reporter->body_offset(),
-                dst_body_ids = info.body_ids().viewer().name("dst_body_ids"),
-                dst_rest_pos = info.rest_positions().viewer().name("rest_pos")] __device__(int i) mutable
-               {
-                   coindices(i)    = i;
-                   dst_pos(i)      = src_pos(i);
-                   dst_rest_pos(i) = src_rest_pos(i);
-                   dst_body_ids(i) += body_offset;  // offset by the global body offset
-               });
+    auto k = FiniteElementVertexReporter_init_attributes_kernel;
+    int  n = (int)info.coindices().size();
+    if(n > 0)
+    {
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            info.coindices(),
+            fem().xs.cview(),
+            info.positions(),
+            fem().x_bars.cview(),
+            body_reporter->body_offset(),
+            info.body_ids(),
+            info.rest_positions(),
+            n);
+    }
 }
 
 void FiniteElementVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)

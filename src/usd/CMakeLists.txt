@@ -26,7 +26,7 @@ target_link_libraries(uipc_usd PUBLIC
 
 target_compile_definitions(uipc_usd PRIVATE UIPC_USD_EXPORT_DLL=1) # export dll
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.h" "details/*.inl")
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_usd PRIVATE ${SOURCES})
 uipc_target_set_relative_source_file(uipc_usd)
 
@@ -36,7 +36,7 @@ uipc_target_set_rpath(uipc_usd)
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES CONFIGURE_DEPENDS "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 # ------------------------------------------------------------------------------

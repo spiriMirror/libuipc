@@ -1,0 +1,11 @@
+{
+  "name": "tinygltf",
+  "version": "2.9.6",
+  "description": "A header only C++11 glTF 2.0 library. (Overlay port: pins the SHA512 of the GitHub-regenerated v2.9.6 tarball; drop once upstream vcpkg is fixed.)",
+  "homepage": "https://github.com/syoyo/tinygltf",
+  "license": "MIT",
+  "dependencies": [
+    "nlohmann-json",
+    "stb"
+  ]
+}

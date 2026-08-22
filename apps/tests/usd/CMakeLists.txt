@@ -1,5 +1,5 @@
 find_package(pxr CONFIG REQUIRED)
-file(GLOB SOURCE "*.cpp" "*.h")
+file(GLOB SOURCE CONFIGURE_DEPENDS "*.cpp" "*.h")
 add_executable(usd_support ${SOURCE})
 uipc_target_set_relative_source_file(usd_support)
 # Link1: Must Link usd before uipc::core to avoid tbb header file conflict

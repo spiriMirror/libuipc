@@ -1,9 +1,9 @@
 #include <affine_body/abd_jacobi_matrix.h>
-#include <muda/tools/debug_log.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
-MUDA_GENERIC Vector12 operator*(const ABDJacobi::ABDJacobiT& j, const Vector3& g)
+UIPC_GENERIC Vector12 operator*(const ABDJacobi::ABDJacobiT& j, const Vector3& g)
 {
     Vector12    g12;
     const auto& x     = j.m_j.m_x_bar;
@@ -13,7 +13,7 @@ MUDA_GENERIC Vector12 operator*(const ABDJacobi::ABDJacobiT& j, const Vector3& g
     g12.segment<3>(9) = x * g.z();
     return g12;
 }
-MUDA_GENERIC Vector3 operator*(const ABDJacobi& j, const Vector12& q)
+UIPC_GENERIC Vector3 operator*(const ABDJacobi& j, const Vector12& q)
 {
     const auto& t  = q.segment<3>(0);
     const auto& a1 = q.segment<3>(3);
@@ -24,7 +24,7 @@ MUDA_GENERIC Vector3 operator*(const ABDJacobi& j, const Vector12& q)
 }
 
 // no translation component
-MUDA_GENERIC Vector3 ABDJacobi::vec_x(const Vector12& q) const
+UIPC_GENERIC Vector3 ABDJacobi::vec_x(const Vector12& q) const
 {
     const auto& a1 = q.segment<3>(3);
     const auto& a2 = q.segment<3>(6);
@@ -41,7 +41,7 @@ MUDA_GENERIC Vector3 ABDJacobi::vec_x(const Vector12& q) const
 //&   & 1 &  &  &  &  &  &  &  \bar{x}_1 & \bar{x}_2 & \bar{x}_3\\
 //\end{array}\right]
 //$$
-MUDA_GENERIC Matrix3x12 ABDJacobi::to_mat() const
+UIPC_GENERIC Matrix3x12 ABDJacobi::to_mat() const
 {
     Matrix3x12  ret       = Matrix3x12::Zero();
     const auto& x         = m_x_bar;
@@ -54,7 +54,7 @@ MUDA_GENERIC Matrix3x12 ABDJacobi::to_mat() const
     return ret;
 }
 
-MUDA_GENERIC Matrix12x12 ABDJacobi::JT_H_J(const ABDJacobiT& lhs_J_T,
+UIPC_GENERIC Matrix12x12 ABDJacobi::JT_H_J(const ABDJacobiT& lhs_J_T,
                                            const Matrix3x3&  Hessian,
                                            const ABDJacobi&  rhs_J)
 {
@@ -102,7 +102,7 @@ MUDA_GENERIC Matrix12x12 ABDJacobi::JT_H_J(const ABDJacobiT& lhs_J_T,
     return ret;
 }
 
-MUDA_GENERIC Vector12 operator*(const ABDJacobiDyadicMass& JTJ, const Vector12& p)
+UIPC_GENERIC Vector12 operator*(const ABDJacobiDyadicMass& JTJ, const Vector12& p)
 {
     Vector12    ret;
     const auto& m = JTJ.m_mass;
@@ -135,7 +135,7 @@ MUDA_GENERIC Vector12 operator*(const ABDJacobiDyadicMass& JTJ, const Vector12& 
     return ret;
 }
 
-MUDA_GENERIC ABDJacobiDyadicMass& ABDJacobiDyadicMass::operator+=(const ABDJacobiDyadicMass& rhs)
+UIPC_GENERIC ABDJacobiDyadicMass& ABDJacobiDyadicMass::operator+=(const ABDJacobiDyadicMass& rhs)
 {
     m_mass += rhs.m_mass;
     m_mass_times_x_bar += rhs.m_mass_times_x_bar;
@@ -159,7 +159,7 @@ MUDA_GENERIC ABDJacobiDyadicMass& ABDJacobiDyadicMass::operator+=(const ABDJacob
 //0 & 0 & \bar{x}_{2} & 0 & 0 & 0 & 0 & 0 & 0 & \bar{x}_{1} \bar{x}_{2} & \bar{x}_{2}^{2} & \bar{x}_{2} \bar{x}_{3}\\
 //0 & 0 & \bar{x}_{3} & 0 & 0 & 0 & 0 & 0 & 0 & \bar{x}_{1} \bar{x}_{3} & \bar{x}_{2} \bar{x}_{3} & \bar{x}_{3}^{2}\end{array}\right]
 //$$
-MUDA_GENERIC void ABDJacobiDyadicMass::add_to(Matrix12x12& h) const
+UIPC_GENERIC void ABDJacobiDyadicMass::add_to(Matrix12x12& h) const
 {
     // row 0 + col 0
     h(0, 0) += m_mass;
@@ -181,21 +181,21 @@ MUDA_GENERIC void ABDJacobiDyadicMass::add_to(Matrix12x12& h) const
     h.block<3, 3>(6, 6) += m_mass_times_dyadic_x_bar;
     h.block<3, 3>(9, 9) += m_mass_times_dyadic_x_bar;
 }
-MUDA_GENERIC Matrix12x12 ABDJacobiDyadicMass::to_mat() const
+UIPC_GENERIC Matrix12x12 ABDJacobiDyadicMass::to_mat() const
 {
     Matrix12x12 h = Matrix12x12::Zero();
     add_to(h);
     return h;
 }
 
-MUDA_GENERIC Vector3 ABDJacobiDyadicMass::center_of_mass() const
+UIPC_GENERIC Vector3 ABDJacobiDyadicMass::center_of_mass() const
 {
     const Float m = static_cast<Float>(m_mass);
-    MUDA_ASSERT(m > 0, "ABDJacobiDyadicMass::center_of_mass requires positive mass");
+    UIPC_KERNEL_ASSERT(m > 0, "ABDJacobiDyadicMass::center_of_mass requires positive mass");
     return m_mass_times_x_bar / m;
 }
 
-MUDA_GENERIC Matrix3x3 ABDJacobiDyadicMass::inertia_tensor_cm() const
+UIPC_GENERIC Matrix3x3 ABDJacobiDyadicMass::inertia_tensor_cm() const
 {
     const Float m = static_cast<Float>(m_mass);
     if(m <= 0)
@@ -210,15 +210,15 @@ MUDA_GENERIC Matrix3x3 ABDJacobiDyadicMass::inertia_tensor_cm() const
     return I_origin - m * (c2 * Matrix3x3::Identity() - c * c.transpose());
 }
 
-MUDA_DEVICE ABDJacobiDyadicMass ABDJacobiDyadicMass::atomic_add(ABDJacobiDyadicMass& dst,
+UIPC_DEVICE ABDJacobiDyadicMass ABDJacobiDyadicMass::atomic_add(ABDJacobiDyadicMass& dst,
                                                                 const ABDJacobiDyadicMass& src)
 {
     ABDJacobiDyadicMass ret;
-    auto                mass = muda::atomic_add(&dst.m_mass, src.m_mass);
+    auto                mass = cuda_tool::atomic_add(&dst.m_mass, src.m_mass);
     auto                mass_times_x_bar =
-        muda::eigen::atomic_add(dst.m_mass_times_x_bar, src.m_mass_times_x_bar);
+        cuda_tool::eigen::atomic_add(dst.m_mass_times_x_bar, src.m_mass_times_x_bar);
     auto mass_times_dyadic_x_bar =
-        muda::eigen::atomic_add(dst.m_mass_times_dyadic_x_bar, src.m_mass_times_dyadic_x_bar);
+        cuda_tool::eigen::atomic_add(dst.m_mass_times_dyadic_x_bar, src.m_mass_times_dyadic_x_bar);
     ret.m_mass                    = mass;
     ret.m_mass_times_x_bar        = mass_times_x_bar;
     ret.m_mass_times_dyadic_x_bar = mass_times_dyadic_x_bar;

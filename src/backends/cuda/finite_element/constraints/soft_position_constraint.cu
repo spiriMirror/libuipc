@@ -3,6 +3,92 @@
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void SoftPositionConstraint_do_compute_energy_kernel(
+        Float                           substep_ratio,
+        cuda_tool::BufferView<IndexT>   indices,
+        cuda_tool::CBufferView<Vector3> xs,
+        cuda_tool::CBufferView<Vector3> x_prevs,
+        cuda_tool::BufferView<Vector3>  aim_positions,
+        cuda_tool::BufferView<Float>    strength_ratio,
+        cuda_tool::CBufferView<Float>   masses,
+        cuda_tool::BufferView<Float>    energies,
+        cuda_tool::CBufferView<IndexT>  is_fixed,
+        int                             n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto  i = indices(I);
+        auto& E = energies(I);
+
+        if(is_fixed(i))
+        {
+            E = 0.0;
+        }
+        else
+        {
+            Vector3 x      = xs(i);
+            Vector3 x_prev = x_prevs(i);
+            Vector3 aim_x  = lerp(x_prev, aim_positions(I), substep_ratio);
+            Float   m      = masses(i);
+            Float   s      = strength_ratio(I);
+            Vector3 dx     = x - aim_x;
+
+            E = 0.5 * s * m * dx.dot(dx);
+        }
+    }
+
+    __global__ void SoftPositionConstraint_do_compute_gradient_hessian_kernel(
+        Float                                  substep_ratio,
+        cuda_tool::BufferView<IndexT>          indices,
+        cuda_tool::CBufferView<Vector3>        xs,
+        cuda_tool::CBufferView<Vector3>        x_prevs,
+        cuda_tool::BufferView<Vector3>         aim_positions,
+        cuda_tool::BufferView<Float>           strength_ratio,
+        cuda_tool::CBufferView<Float>          masses,
+        cuda_tool::DoubletVectorView<Float, 3> gradients,
+        cuda_tool::TripletMatrixView<Float, 3> hessians,
+        cuda_tool::CBufferView<IndexT>         is_fixed,
+        bool                                   gradient_only,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto    i = indices(I);
+        Vector3 G;
+        Float   m = 0.0;
+        Float   s = 0.0;
+        if(is_fixed(i))
+        {
+            G = Vector3::Zero();
+        }
+        else
+        {
+            Vector3 x      = xs(i);
+            Vector3 x_prev = x_prevs(i);
+            Vector3 aim_x  = lerp(x_prev, aim_positions(I), substep_ratio);
+            m              = masses(i);
+            s              = strength_ratio(I);
+            Vector3 dx     = x - aim_x;
+
+            G = s * m * dx;
+        }
+
+        gradients(I).write(i, G);
+
+        if(gradient_only)
+            return;
+
+        Matrix3x3 H = s * m * Matrix3x3::Identity();
+        if(is_fixed(i))
+            H = Matrix3x3::Zero();
+        hessians(I).write(i, i, H);
+    }
+}  // namespace
+
 class SoftPositionConstraint final : public FiniteElementConstraint
 {
     static constexpr U64 SoftPositionConstraintUID = 14ull;
@@ -14,9 +100,9 @@ class SoftPositionConstraint final : public FiniteElementConstraint
     vector<Vector3> h_aim_positions;
     vector<Float>   h_strength_ratios;
 
-    muda::DeviceBuffer<IndexT>  constrained_vertices;
-    muda::DeviceBuffer<Vector3> aim_positions;
-    muda::DeviceBuffer<Float>   strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT>  constrained_vertices;
+    cuda_tool::DeviceBuffer<Vector3> aim_positions;
+    cuda_tool::DeviceBuffer<Float>   strength_ratios;
 
     void do_build(BuildInfo& info) override {}
 
@@ -92,91 +178,44 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_compute_energy(FiniteElementAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_vertices.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices = constrained_vertices.viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
-                    aim_positions = aim_positions.viewer().name("aim_positions"),
-                    strength_ratio = strength_ratios.viewer().name("strength_ratio"),
-                    masses   = info.masses().viewer().name("masses"),
-                    energies = info.energies().viewer().name("energies"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I)
-                   {
-                       auto  i = indices(I);
-                       auto& E = energies(I);
-
-                       if(is_fixed(i))
-                       {
-                           E = 0.0;
-                       }
-                       else
-                       {
-                           Vector3 x      = xs(i);
-                           Vector3 x_prev = x_prevs(i);
-                           Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
-                           Float   m  = masses(i);
-                           Float   s  = strength_ratio(I);
-                           Vector3 dx = x - aim_x;
-
-                           E = 0.5 * s * m * dx.dot(dx);
-                       }
-                   });
+        auto k = SoftPositionConstraint_do_compute_energy_kernel;
+        int  n = (int)constrained_vertices.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_vertices.view(),
+                info.xs(),
+                info.x_prevs(),
+                aim_positions.view(),
+                strength_ratios.view(),
+                info.masses(),
+                info.energies(),
+                info.is_fixed(),
+                n);
+        }
     }
 
     void do_compute_gradient_hessian(FiniteElementAnimator::ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_vertices.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices = constrained_vertices.viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
-                    aim_positions = aim_positions.viewer().name("aim_positions"),
-                    strength_ratio = strength_ratios.viewer().name("strength_ratio"),
-                    masses    = info.masses().viewer().name("masses"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       auto    i = indices(I);
-                       Vector3 G;
-                       Float   m = 0.0;
-                       Float   s = 0.0;
-                       if(is_fixed(i))
-                       {
-                           G = Vector3::Zero();
-                       }
-                       else
-                       {
-                           Vector3 x      = xs(i);
-                           Vector3 x_prev = x_prevs(i);
-                           Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
-                           m          = masses(i);
-                           s          = strength_ratio(I);
-                           Vector3 dx = x - aim_x;
-
-                           G = s * m * dx;
-                       }
-
-                       gradients(I).write(i, G);
-
-                       if(gradient_only)
-                           return;
-
-                       Matrix3x3 H = s * m * Matrix3x3::Identity();
-                       if(is_fixed(i))
-                           H = Matrix3x3::Zero();
-                       hessians(I).write(i, i, H);
-                   });
+        auto k = SoftPositionConstraint_do_compute_gradient_hessian_kernel;
+        int  n = (int)constrained_vertices.size();
+        if(n > 0)
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_vertices.view(),
+                info.xs(),
+                info.x_prevs(),
+                aim_positions.view(),
+                strength_ratios.view(),
+                info.masses(),
+                info.gradients(),
+                info.hessians(),
+                info.is_fixed(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

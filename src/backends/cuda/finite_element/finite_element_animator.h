@@ -3,9 +3,7 @@
 #include <finite_element/finite_element_method.h>
 #include <line_search/line_searcher.h>
 #include <utils/offset_count_collection.h>
-#include <muda/ext/linear_system/device_dense_vector.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/cuda_tool.h>
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <finite_element/fem_line_search_subreporter.h>
 
@@ -51,12 +49,12 @@ class FiniteElementAnimator final : public Animator
             , m_dt(dt)
         {
         }
-        Float                      substep_ratio() const noexcept;
-        Float                      dt() const noexcept;
-        muda::CBufferView<Vector3> xs() const noexcept;
-        muda::CBufferView<Vector3> x_prevs() const noexcept;
-        muda::CBufferView<Float>   masses() const noexcept;
-        muda::CBufferView<IndexT>  is_fixed() const noexcept;
+        Float                           substep_ratio() const noexcept;
+        Float                           dt() const noexcept;
+        cuda_tool::CBufferView<Vector3> xs() const noexcept;
+        cuda_tool::CBufferView<Vector3> x_prevs() const noexcept;
+        cuda_tool::CBufferView<Float>   masses() const noexcept;
+        cuda_tool::CBufferView<IndexT>  is_fixed() const noexcept;
 
       protected:
         Impl* m_impl  = nullptr;
@@ -67,41 +65,41 @@ class FiniteElementAnimator final : public Animator
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energies)
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energies)
             : BaseInfo(impl, index, dt)
             , m_energies(energies)
         {
         }
 
-        muda::BufferView<Float> energies() const noexcept;
+        cuda_tool::BufferView<Float> energies() const noexcept;
 
       private:
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl*                             impl,
-                                   SizeT                             index,
-                                   Float                             dt,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians,
-                                   bool                              gradient_only)
+        ComputeGradientHessianInfo(Impl* impl,
+                                   SizeT index,
+                                   Float dt,
+                                   cuda_tool::DoubletVectorView<Float, 3> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 3> hessians,
+                                   bool gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
             , m_gradient_only(gradient_only)
         {
         }
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
-        bool                              gradient_only() const noexcept;
+        cuda_tool::DoubletVectorView<Float, 3> gradients() const noexcept;
+        cuda_tool::TripletMatrixView<Float, 3> hessians() const noexcept;
+        bool                                   gradient_only() const noexcept;
 
       private:
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
-        bool                              m_gradient_only = false;
+        cuda_tool::DoubletVectorView<Float, 3> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 3> m_hessians;
+        bool                                   m_gradient_only = false;
     };
 
     class ReportExtentInfo
@@ -120,11 +118,11 @@ class FiniteElementAnimator final : public Animator
       private:
         friend class FiniteElementAnimator;
         friend class FiniteElementConstraint;
-        SizeT m_hessian_block_count    = 0;
-        SizeT m_gradient_segment_count = 0;
-        SizeT m_energy_count           = 0;
-        bool  m_gradient_only          = false;
-        mutable bool m_gradient_only_checked = false;
+        SizeT        m_hessian_block_count    = 0;
+        SizeT        m_gradient_segment_count = 0;
+        SizeT        m_energy_count           = 0;
+        bool         m_gradient_only          = false;
+        mutable bool m_gradient_only_checked  = false;
     };
 
     class Impl

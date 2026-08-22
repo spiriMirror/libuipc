@@ -22,16 +22,16 @@ struct ClothPatch
 {
     SimplicialComplex mesh;
     vector<Vector3>   rest_positions;
-    SizeT             v00 = 0;
-    SizeT             v10 = 0;
-    SizeT             v11 = 0;
-    SizeT             v01 = 0;
+    SizeT             v00       = 0;
+    SizeT             v10       = 0;
+    SizeT             v11       = 0;
+    SizeT             v01       = 0;
     Float             cell_span = 0.0;
 };
 
 ClothPatch load_center_patch()
 {
-    vector<Vector3> Vs;
+    vector<Vector3>  Vs;
     vector<Vector3i> Fs;
     Vs.reserve(SheetResolution * SheetResolution);
     Fs.reserve((SheetResolution - 1) * (SheetResolution - 1) * 2);
@@ -72,13 +72,7 @@ ClothPatch load_center_patch()
     const SizeT v01    = v00 + SheetResolution;
     const SizeT v11    = v01 + 1;
 
-    return ClothPatch{std::move(mesh),
-                      std::move(Vs),
-                      v00,
-                      v10,
-                      v11,
-                      v01,
-                      step};
+    return ClothPatch{std::move(mesh), std::move(Vs), v00, v10, v11, v01, step};
 }
 
 uipc::Float residual_hinge_angle(bool use_plastic)
@@ -103,24 +97,24 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
-    auto  object = scene.objects().create(use_plastic ? "strain_plastic_strip" : "elastic_strip");
+    auto object = scene.objects().create(use_plastic ? "strain_plastic_strip" : "elastic_strip");
 
     auto patch = load_center_patch();
 
     NeoHookeanShell        nhs;
     SoftPositionConstraint spc;
-    auto                   moduli = ElasticModuli2D::youngs_poisson(100.0_kPa, 0.49);
+    auto moduli = ElasticModuli2D::youngs_poisson(100.0_kPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
 
     if(use_plastic)
     {
         StrainPlasticDiscreteShellBending pdsb;
-        pdsb.apply_to(patch.mesh, 20.0_kPa, 0.03, 0.0);
+        pdsb.apply_to(patch.mesh, 20.0_Pa, 0.03, 0.0);  // area measure: kappa*t(0.001)
     }
     else
     {
         DiscreteShellBending dsb;
-        dsb.apply_to(patch.mesh, 20.0_kPa);
+        dsb.apply_to(patch.mesh, 20.0_Pa);  // area measure: kappa*t(0.001)
     }
 
     spc.apply_to(patch.mesh, 100.0);
@@ -136,18 +130,20 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     scene.animator().insert(
         *object,
         [rest_positions = std::move(patch.rest_positions),
-         moving_vertex = patch.v01,
-         target_lift   = TargetLift](Animation::UpdateInfo& info)
+         moving_vertex  = patch.v01,
+         target_lift    = TargetLift](Animation::UpdateInfo& info)
         {
             auto geo = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
 
-            auto is_constrained      = geo->vertices().find<IndexT>(builtin::is_constrained);
-            auto aim_position        = geo->vertices().find<Vector3>(builtin::aim_position);
+            auto is_constrained = geo->vertices().find<IndexT>(builtin::is_constrained);
+            auto aim_position = geo->vertices().find<Vector3>(builtin::aim_position);
             auto is_constrained_view = view(*is_constrained);
             auto aim_position_view   = view(*aim_position);
 
             std::ranges::fill(is_constrained_view, 1);
-            std::copy(rest_positions.begin(), rest_positions.end(), aim_position_view.begin());
+            std::copy(rest_positions.begin(),
+                      rest_positions.end(),
+                      aim_position_view.begin());
 
             const SizeT frame = info.frame();
             if(frame <= RampFrames + HoldFrames)
@@ -178,7 +174,8 @@ uipc::Float residual_hinge_angle(bool use_plastic)
         world.advance();
         REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 
     auto sc = slot->geometry().as<SimplicialComplex>();
@@ -189,8 +186,8 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     const Vector3 x2 = ps[patch.v11];
     const Vector3 x3 = ps[patch.v01];
 
-    const Vector3 n0 = (x1 - x0).cross(x2 - x0);
-    const Vector3 n1 = (x2 - x3).cross(x0 - x3);
+    const Vector3 n0      = (x1 - x0).cross(x2 - x0);
+    const Vector3 n1      = (x2 - x3).cross(x0 - x3);
     const Float   n0_norm = n0.norm();
     const Float   n1_norm = n1.norm();
     REQUIRE(n0_norm > 0.0);

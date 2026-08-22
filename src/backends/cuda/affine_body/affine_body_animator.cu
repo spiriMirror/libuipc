@@ -1,7 +1,7 @@
 #include <affine_body/affine_body_animator.h>
 #include <affine_body/affine_body_constraint.h>
 #include <uipc/builtin/attribute_name.h>
-#include <muda/cub/device/device_reduce.h>
+#include <cuda_tool/cuda_tool.h>
 #include <affine_body/abd_line_search_reporter.h>
 #include <utils/report_extent_check.h>
 
@@ -161,8 +161,7 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
     }
 }
 
-auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept
-    -> span<const AnimatedGeoInfo>
+auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept -> span<const AnimatedGeoInfo>
 {
     auto [offset, count] = m_impl->constraint_geo_info_offsets_counts[m_index];
 
@@ -174,39 +173,39 @@ Float AffineBodyAnimator::BaseInfo::substep_ratio() const noexcept
     return m_impl->global_animator->substep_ratio();
 }
 
-muda::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::qs() const noexcept
+cuda_tool::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::qs() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_q.view();
 }
 
-muda::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::q_prevs() const noexcept
+cuda_tool::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::q_prevs() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_q_prev.view();
 }
 
-muda::CBufferView<ABDJacobiDyadicMass> AffineBodyAnimator::BaseInfo::body_masses() const noexcept
+cuda_tool::CBufferView<ABDJacobiDyadicMass> AffineBodyAnimator::BaseInfo::body_masses() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_abd_mass.view();
 }
 
-muda::CBufferView<IndexT> AffineBodyAnimator::BaseInfo::is_fixed() const noexcept
+cuda_tool::CBufferView<IndexT> AffineBodyAnimator::BaseInfo::is_fixed() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
 }
 
-muda::BufferView<Float> AffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
+cuda_tool::BufferView<Float> AffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::gradients() const noexcept
+cuda_tool::DoubletVectorView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::hessians() const noexcept
+cuda_tool::TripletMatrixView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constraint_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);

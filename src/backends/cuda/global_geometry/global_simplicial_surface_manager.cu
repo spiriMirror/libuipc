@@ -2,11 +2,28 @@
 #include <global_geometry/simplicial_surface_reporter.h>
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
-#include <muda/cub/device/device_select.h>
+#include <cuda_tool/cub.h>
+#include <cuda_tool/cuda_tool.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
 {
+namespace
+{
+    __global__ void GlobalSimplicialSurfaceManager_collect_codim_vertices_kernel(
+        cuda_tool::CBufferView<IndexT> dim,
+        cuda_tool::CBufferView<IndexT> surf_vertices,
+        cuda_tool::BufferView<IndexT>  flags,
+        int                            n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto vI = surf_vertices(I);
+        flags(I) = dim(vI) <= 1 ? 1 : 0;  // codim 0D vert and vert from codim 1D edge
+    }
+}  // namespace
+
 REGISTER_SIM_SYSTEM(GlobalSimplicialSurfaceManager);
 
 void GlobalSimplicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* reporter) noexcept
@@ -16,22 +33,22 @@ void GlobalSimplicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* rep
     m_impl.reporters.register_sim_system(*reporter);
 }
 
-muda::CBufferView<IndexT> GlobalSimplicialSurfaceManager::codim_vertices() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalSimplicialSurfaceManager::codim_vertices() const noexcept
 {
     return m_impl.codim_vertices;
 }
 
-muda::CBufferView<IndexT> GlobalSimplicialSurfaceManager::surf_vertices() const noexcept
+cuda_tool::CBufferView<IndexT> GlobalSimplicialSurfaceManager::surf_vertices() const noexcept
 {
     return m_impl.surf_vertices;
 }
 
-muda::CBufferView<Vector2i> GlobalSimplicialSurfaceManager::surf_edges() const noexcept
+cuda_tool::CBufferView<Vector2i> GlobalSimplicialSurfaceManager::surf_edges() const noexcept
 {
     return m_impl.surf_edges;
 }
 
-muda::CBufferView<Vector3i> GlobalSimplicialSurfaceManager::surf_triangles() const noexcept
+cuda_tool::CBufferView<Vector3i> GlobalSimplicialSurfaceManager::surf_triangles() const noexcept
 {
     return m_impl.surf_triangles;
 }
@@ -128,21 +145,18 @@ void GlobalSimplicialSurfaceManager::Impl::init()
 
 void GlobalSimplicialSurfaceManager::Impl::_collect_codim_vertices()
 {
-    using namespace muda;
+    using namespace cuda_tool;
     auto dim = global_vertex_manager->dimensions();
 
     codim_vertex_flags.resize(surf_vertices.size());
 
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(surf_vertices.size(),
-               [dim           = dim.cviewer().name("dim"),
-                surf_vertices = surf_vertices.viewer().name("surf_vertices"),
-                flags = codim_vertex_flags.viewer().name("flags")] __device__(int I) mutable
-               {
-                   auto vI = surf_vertices(I);
-                   flags(I) = dim(vI) <= 1 ? 1 : 0;  // codim 0D vert and vert from codim 1D edge
-               });
+    auto k = GlobalSimplicialSurfaceManager_collect_codim_vertices_kernel;
+    int  n = (int)surf_vertices.size();
+    if(n > 0)
+    {
+        k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+            dim.cviewer(), surf_vertices.cview(), codim_vertex_flags.view(), n);
+    }
 
     DeviceSelect().Flagged(surf_vertices.data(),
                            codim_vertex_flags.data(),
@@ -164,26 +178,25 @@ void GlobalSimplicialSurfaceManager::rebuild()
     UIPC_ASSERT(false, "Not implemented yet");
 }
 
-muda::BufferView<IndexT> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_vertices() noexcept
+cuda_tool::BufferView<IndexT> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_vertices() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_vertices.view(info.surf_vertex_offset, info.surf_vertex_count);
 }
 
-muda::BufferView<Vector2i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_edges() noexcept
+cuda_tool::BufferView<Vector2i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_edges() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_edges.view(info.surf_edge_offset, info.surf_edge_count);
 }
 
-muda::BufferView<Vector3i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_triangles() noexcept
+cuda_tool::BufferView<Vector3i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_triangles() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_triangles.view(info.surf_triangle_offset, info.surf_triangle_count);
 }
 
-auto GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept
-    -> const ReporterInfo&
+auto GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept -> const ReporterInfo&
 {
     return m_impl->reporter_infos[m_index];
 }

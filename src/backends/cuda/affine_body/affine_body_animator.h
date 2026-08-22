@@ -2,8 +2,7 @@
 #include <animator/animator.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <line_search/line_searcher.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <cuda_tool/cuda_tool.h>
 #include <affine_body/abd_linear_subsystem_reporter.h>
 #include <affine_body/abd_line_search_subreporter.h>
 #include <affine_body/inter_affine_body_constitution_manager.h>
@@ -58,12 +57,12 @@ class AffineBodyAnimator final : public Animator
         {
         }
 
-        Float                                  substep_ratio() const noexcept;
-        Float                                  dt() const noexcept;
-        muda::CBufferView<Vector12>            qs() const noexcept;
-        muda::CBufferView<Vector12>            q_prevs() const noexcept;
-        muda::CBufferView<ABDJacobiDyadicMass> body_masses() const noexcept;
-        muda::CBufferView<IndexT>              is_fixed() const noexcept;
+        Float                            substep_ratio() const noexcept;
+        Float                            dt() const noexcept;
+        cuda_tool::CBufferView<Vector12> qs() const noexcept;
+        cuda_tool::CBufferView<Vector12> q_prevs() const noexcept;
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses() const noexcept;
+        cuda_tool::CBufferView<IndexT> is_fixed() const noexcept;
 
       protected:
         Impl* m_impl  = nullptr;
@@ -74,26 +73,26 @@ class AffineBodyAnimator final : public Animator
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energy)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
         {
         }
-        muda::BufferView<Float> energies() const noexcept;
+        cuda_tool::BufferView<Float> energies() const noexcept;
 
       private:
         friend class AffineBodyAnimator;
-        muda::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl*                              impl,
-                                   SizeT                              index,
-                                   Float                              dt,
-                                   muda::DoubletVectorView<Float, 12> gradients,
-                                   muda::TripletMatrixView<Float, 12> hessians,
+        ComputeGradientHessianInfo(Impl* impl,
+                                   SizeT index,
+                                   Float dt,
+                                   cuda_tool::DoubletVectorView<Float, 12> gradients,
+                                   cuda_tool::TripletMatrixView<Float, 12> hessians,
                                    bool gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
@@ -101,15 +100,15 @@ class AffineBodyAnimator final : public Animator
             , m_gradient_only(gradient_only)
         {
         }
-        muda::DoubletVectorView<Float, 12> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 12> hessians() const noexcept;
-        bool                               gradient_only() const noexcept;
+        cuda_tool::DoubletVectorView<Float, 12> gradients() const noexcept;
+        cuda_tool::TripletMatrixView<Float, 12> hessians() const noexcept;
+        bool                                    gradient_only() const noexcept;
 
       private:
         friend class AffineBodyAnimator;
-        muda::DoubletVectorView<Float, 12> m_gradients;
-        muda::TripletMatrixView<Float, 12> m_hessians;
-        bool                               m_gradient_only = false;
+        cuda_tool::DoubletVectorView<Float, 12> m_gradients;
+        cuda_tool::TripletMatrixView<Float, 12> m_hessians;
+        bool                                    m_gradient_only = false;
     };
 
     class ReportExtentInfo

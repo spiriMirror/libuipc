@@ -23,7 +23,7 @@ class GlobalActiveSetManager final : public SimSystem
     {
       public:
         NonPenetratePositionInfo(Impl* impl, SizeT offset, SizeT count) noexcept;
-        muda::BufferView<Vector3> non_penetrate_positions() const noexcept;
+        cuda_tool::BufferView<Vector3> non_penetrate_positions() const noexcept;
 
       private:
         friend class GlobalActiveSetManager;
@@ -36,7 +36,7 @@ class GlobalActiveSetManager final : public SimSystem
     {
       public:
         StiffnessEstimateInfo(Impl* impl) noexcept;
-        muda::BufferView<Float> mu_vertices(SizeT offset, SizeT count) const noexcept;
+        cuda_tool::BufferView<Float> mu_vertices(SizeT offset, SizeT count) const noexcept;
         Float dt() const noexcept;
 
       private:
@@ -59,52 +59,52 @@ class GlobalActiveSetManager final : public SimSystem
         SimSystemSlotCollection<ActiveSetReporter>    active_set_reporters;
         SimSystemSlotCollection<ALStiffnessEstimator> stiffness_estimators;
 
-        muda::DeviceBuffer<Float> mu_vertices;
+        cuda_tool::DeviceBuffer<Float> mu_vertices;
 
-        muda::DeviceBuffer<Vector2i> PH_idx;
-        muda::DeviceBuffer<Float>    PH_lambda;
-        muda::DeviceBuffer<int>      PH_cnt;
+        cuda_tool::DeviceBuffer<Vector2i> PH_idx;
+        cuda_tool::DeviceBuffer<Float>    PH_lambda;
+        cuda_tool::DeviceBuffer<int>      PH_cnt;
 
-        muda::DeviceBuffer<int>     PHs;
-        muda::DeviceBuffer<Float>   PH_d0, PH_slack;
-        muda::DeviceBuffer<Vector3> PH_d_grad;
+        cuda_tool::DeviceBuffer<int>     PHs;
+        cuda_tool::DeviceBuffer<Float>   PH_d0, PH_slack;
+        cuda_tool::DeviceBuffer<Vector3> PH_d_grad;
 
-        muda::DeviceBuffer<Vector2i> PHs_friction;
-        muda::DeviceBuffer<Float>    PH_lambda_friction;
+        cuda_tool::DeviceBuffer<Vector2i> PHs_friction;
+        cuda_tool::DeviceBuffer<Float>    PH_lambda_friction;
 
-        muda::DeviceBuffer<Vector2i> PT_idx;
-        muda::DeviceBuffer<Float>    PT_lambda;
-        muda::DeviceBuffer<int>      PT_cnt;
+        cuda_tool::DeviceBuffer<Vector2i> PT_idx;
+        cuda_tool::DeviceBuffer<Float>    PT_lambda;
+        cuda_tool::DeviceBuffer<int>      PT_cnt;
 
-        muda::DeviceBuffer<Vector4i> PTs;
-        muda::DeviceBuffer<Float>    PT_d0, PT_slack;
-        muda::DeviceBuffer<Vector12> PT_d_grad;
+        cuda_tool::DeviceBuffer<Vector4i> PTs;
+        cuda_tool::DeviceBuffer<Float>    PT_d0, PT_slack;
+        cuda_tool::DeviceBuffer<Vector12> PT_d_grad;
 
-        muda::DeviceBuffer<Vector4i> PTs_friction;
-        muda::DeviceBuffer<Float>    PT_lambda_friction;
+        cuda_tool::DeviceBuffer<Vector4i> PTs_friction;
+        cuda_tool::DeviceBuffer<Float>    PT_lambda_friction;
 
-        muda::DeviceBuffer<Vector2i> EE_idx;
-        muda::DeviceBuffer<Float>    EE_lambda;
-        muda::DeviceBuffer<int>      EE_cnt;
+        cuda_tool::DeviceBuffer<Vector2i> EE_idx;
+        cuda_tool::DeviceBuffer<Float>    EE_lambda;
+        cuda_tool::DeviceBuffer<int>      EE_cnt;
 
-        muda::DeviceBuffer<Vector4i> EEs;
-        muda::DeviceBuffer<Float>    EE_d0, EE_slack;
-        muda::DeviceBuffer<Vector12> EE_d_grad;
+        cuda_tool::DeviceBuffer<Vector4i> EEs;
+        cuda_tool::DeviceBuffer<Float>    EE_d0, EE_slack;
+        cuda_tool::DeviceBuffer<Vector12> EE_d_grad;
 
-        muda::DeviceBuffer<Vector4i> EEs_friction;
-        muda::DeviceBuffer<Float>    EE_lambda_friction;
+        cuda_tool::DeviceBuffer<Vector4i> EEs_friction;
+        cuda_tool::DeviceBuffer<Float>    EE_lambda_friction;
 
-        muda::DeviceBuffer<int64_t>  ij_hash_input;
-        muda::DeviceBuffer<int64_t>  ij_hash;
-        muda::DeviceBuffer<int>      sort_index_input;
-        muda::DeviceBuffer<int>      sort_index;
-        muda::DeviceBuffer<int>      offset, unique_flag;
-        muda::DeviceVar<int>         total_count;
-        muda::DeviceBuffer<Vector2i> tmp_idx;
-        muda::DeviceBuffer<Float>    tmp_lambda;
-        muda::DeviceBuffer<int>      tmp_cnt;
+        cuda_tool::DeviceBuffer<int64_t>  ij_hash_input;
+        cuda_tool::DeviceBuffer<int64_t>  ij_hash;
+        cuda_tool::DeviceBuffer<int>      sort_index_input;
+        cuda_tool::DeviceBuffer<int>      sort_index;
+        cuda_tool::DeviceBuffer<int>      offset, unique_flag;
+        cuda_tool::DeviceVar<int>         total_count;
+        cuda_tool::DeviceBuffer<Vector2i> tmp_idx;
+        cuda_tool::DeviceBuffer<Float>    tmp_lambda;
+        cuda_tool::DeviceBuffer<int>      tmp_cnt;
 
-        muda::DeviceBuffer<Vector3> non_penetrate_positions;
+        cuda_tool::DeviceBuffer<Vector3> non_penetrate_positions;
 
         Float                                   decay_factor;
         S<const geometry::AttributeSlot<Float>> dt_attr;
@@ -116,7 +116,7 @@ class GlobalActiveSetManager final : public SimSystem
         Float m_reserve_ratio = 1.5;
 
         template <typename U>
-        void loose_resize(muda::DeviceBuffer<U>& buf, size_t new_size)
+        void loose_resize(cuda_tool::DeviceBuffer<U>& buf, size_t new_size)
         {
             if(buf.capacity() < new_size)
                 buf.reserve(new_size * m_reserve_ratio);
@@ -140,33 +140,33 @@ class GlobalActiveSetManager final : public SimSystem
         void post_ccd();
     };
 
-    muda::CBufferView<int>      PHs() const;
-    muda::CBufferView<Float>    PH_d0() const;
-    muda::CBufferView<Vector3>  PH_d_grad() const;
-    muda::CBufferView<Float>    PH_lambda() const;
-    muda::CBufferView<int>      PH_cnt() const;
-    muda::CBufferView<Vector2i> PHs_friction() const;
-    muda::CBufferView<Float>    PH_lambda_friction() const;
+    cuda_tool::CBufferView<int>      PHs() const;
+    cuda_tool::CBufferView<Float>    PH_d0() const;
+    cuda_tool::CBufferView<Vector3>  PH_d_grad() const;
+    cuda_tool::CBufferView<Float>    PH_lambda() const;
+    cuda_tool::CBufferView<int>      PH_cnt() const;
+    cuda_tool::CBufferView<Vector2i> PHs_friction() const;
+    cuda_tool::CBufferView<Float>    PH_lambda_friction() const;
 
-    muda::CBufferView<Vector4i> PTs() const;
-    muda::CBufferView<Float>    PT_d0() const;
-    muda::CBufferView<Vector12> PT_d_grad() const;
-    muda::CBufferView<Float>    PT_lambda() const;
-    muda::CBufferView<int>      PT_cnt() const;
-    muda::CBufferView<Vector4i> PTs_friction() const;
-    muda::CBufferView<Float>    PT_lambda_friction() const;
+    cuda_tool::CBufferView<Vector4i> PTs() const;
+    cuda_tool::CBufferView<Float>    PT_d0() const;
+    cuda_tool::CBufferView<Vector12> PT_d_grad() const;
+    cuda_tool::CBufferView<Float>    PT_lambda() const;
+    cuda_tool::CBufferView<int>      PT_cnt() const;
+    cuda_tool::CBufferView<Vector4i> PTs_friction() const;
+    cuda_tool::CBufferView<Float>    PT_lambda_friction() const;
 
-    muda::CBufferView<Vector4i> EEs() const;
-    muda::CBufferView<Float>    EE_d0() const;
-    muda::CBufferView<Vector12> EE_d_grad() const;
-    muda::CBufferView<Float>    EE_lambda() const;
-    muda::CBufferView<int>      EE_cnt() const;
-    muda::CBufferView<Vector4i> EEs_friction() const;
-    muda::CBufferView<Float>    EE_lambda_friction() const;
+    cuda_tool::CBufferView<Vector4i> EEs() const;
+    cuda_tool::CBufferView<Float>    EE_d0() const;
+    cuda_tool::CBufferView<Vector12> EE_d_grad() const;
+    cuda_tool::CBufferView<Float>    EE_lambda() const;
+    cuda_tool::CBufferView<int>      EE_cnt() const;
+    cuda_tool::CBufferView<Vector4i> EEs_friction() const;
+    cuda_tool::CBufferView<Float>    EE_lambda_friction() const;
 
-    muda::CBufferView<Vector3> non_penetrate_positions() const;
+    cuda_tool::CBufferView<Vector3> non_penetrate_positions() const;
 
-    muda::CBufferView<Float> mu_vertices() const;
+    cuda_tool::CBufferView<Float> mu_vertices() const;
     //tex: $\Gamma$
     Float decay_factor() const;
     Float toi_threshold() const;

@@ -42,7 +42,9 @@ TEST_CASE("0_abd_gravity", "[abd]")
     test::Scene::dump_config(config, this_output_path);
 
 
-    Scene scene{config};
+    Scene                    scene{config};
+    S<SimplicialComplexSlot> geo_slot1;
+    S<SimplicialComplexSlot> geo_slot2;
     {
         AffineBodyConstitution abd;
 
@@ -81,7 +83,8 @@ TEST_CASE("0_abd_gravity", "[abd]")
                 is_fixed_view[0] = 0;
             }
 
-            object->geometries().create(mesh1);
+            auto [slot1, rest_slot1] = object->geometries().create(mesh1);
+            geo_slot1                = slot1;
         }
 
         {
@@ -116,7 +119,8 @@ TEST_CASE("0_abd_gravity", "[abd]")
                 is_fixed_view[0] = 0;
             }
 
-            object->geometries().create(mesh2);
+            auto [slot2, rest_slot2] = object->geometries().create(mesh2);
+            geo_slot2                = slot2;
         }
     }
 
@@ -133,5 +137,36 @@ TEST_CASE("0_abd_gravity", "[abd]")
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+    }
+
+    // Numerical regression: pure-gravity free fall under BDF1 has a closed
+    // form. Starting from rest, after n frames the fall distance is
+    // g * dt^2 * n*(n+1)/2 (verified against the exported surface geometry).
+    {
+        constexpr Float g    = 9.8;
+        constexpr Float dt   = 0.01;
+        constexpr Float n    = 50;
+        const Float     fall = g * dt * dt * (n * (n + 1) / 2);  // = 1.2495
+
+        // ABD geometries store the *local* (rest) vertex positions; the
+        // simulated rigid state lives in the per-instance `transforms()`.
+        // The y-translation of the instance transform is the centroid motion.
+        auto translation_y = [](S<SimplicialComplexSlot>& slot)
+        {
+            auto* sc = slot->geometry().as<SimplicialComplex>();
+            REQUIRE(sc);
+            auto trans = sc->transforms().view();
+            REQUIRE(trans.size() == 1);
+            const Matrix4x4& T = trans[0];
+            for(int i = 0; i < 4; ++i)
+                for(int j = 0; j < 4; ++j)
+                    REQUIRE(std::isfinite(T(i, j)));
+            return T(1, 3);
+        };
+
+        // mesh1 initial centroid y-offset = 1.0 (instance transform translation)
+        REQUIRE(std::abs(translation_y(geo_slot1) - (1.0 - fall)) < 0.05);
+        // mesh2 initial centroid y-offset = 0.0
+        REQUIRE(std::abs(translation_y(geo_slot2) - (0.0 - fall)) < 0.05);
     }
 }

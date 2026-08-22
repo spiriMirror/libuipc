@@ -43,19 +43,19 @@ void AffineBodyConstitution::compute_gradient_hessian(ABDLinearSubsystem::Comput
     return do_compute_gradient_hessian(this_info);
 }
 
-muda::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::qs() const noexcept
+cuda_tool::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::qs() const noexcept
 {
     auto& abd = m_impl->abd();
     return abd.subview(abd.body_id_to_q, m_index);
 }
 
-muda::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::q_prevs() const noexcept
+cuda_tool::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::q_prevs() const noexcept
 {
     auto& abd = m_impl->abd();
     return abd.subview(abd.body_id_to_q_prev, m_index);
 }
 
-muda::CBufferView<Float> AffineBodyConstitution::BaseInfo::volumes() const noexcept
+cuda_tool::CBufferView<Float> AffineBodyConstitution::BaseInfo::volumes() const noexcept
 {
     auto& abd = m_impl->abd();
     return abd.subview(abd.body_id_to_volume, m_index);

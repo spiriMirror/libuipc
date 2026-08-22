@@ -82,7 +82,7 @@ Float GlobalTrajectoryFilter::Impl::filter_toi(Float alpha)
     for(auto&& [i, filter] : enumerate(filter_view))
     {
         FilterTOIInfo info;
-        info.m_toi   = muda::VarView<Float>{tois.data() + i};
+        info.m_toi   = cuda_tool::VarView<Float>{tois.data() + i};
         info.m_alpha = alpha;
         filter->filter_toi(info);
     }
@@ -148,7 +148,7 @@ void GlobalTrajectoryFilter::require_discard_friction()
     m_impl.should_discard_friction_candidates = true;
 }
 
-muda::BufferView<IndexT> GlobalTrajectoryFilter::LabelActiveVerticesInfo::vert_is_active() const noexcept
+cuda_tool::BufferView<IndexT> GlobalTrajectoryFilter::LabelActiveVerticesInfo::vert_is_active() const noexcept
 {
     return m_impl->global_contact_manager->m_impl.vert_is_active_contact.view();
 }

@@ -14,7 +14,9 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     Float s_r = rotation_strength;
     Float m   = mass.mass();
 
-    MUDA_ASSERT(m > 0.0, "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.", m);
+    UIPC_KERNEL_ASSERT(m > 0.0,
+                       "ABDJacobiDyadicMass has non-positive mass (%f), cannot build constraint mass matrix.",
+                       m);
 
     Matrix12x12 M = mass.to_mat();
 
@@ -33,6 +35,92 @@ inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMas
     return s_r * M + (s_t - s_r) * M_cm;
 }
 
+namespace
+{
+    __global__ void soft_transform_constraint_compute_energy_kernel(
+        Float                                       substep_ratio,
+        cuda_tool::BufferView<IndexT>               indices,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<Vector12>            q_prevs,
+        cuda_tool::BufferView<Vector12>             aim_transforms,
+        cuda_tool::BufferView<Vector2>              strength_ratios,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::BufferView<Float>                energies,
+        cuda_tool::CBufferView<IndexT>              is_fixed,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto  i = indices(I);
+        auto& E = energies(I);
+
+        if(is_fixed(i))
+        {
+            E = 0.0;
+        }
+        else
+        {
+            Vector12 q      = qs(i);
+            Vector12 q_prev = q_prevs(i);
+            Vector12 q_aim  = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq     = q - q_aim;
+            Vector2  s      = strength_ratios(I);
+
+            Matrix12x12 M = compute_constraint_mass(body_masses(i), s(0), s(1));
+
+            E = 0.5 * dq.transpose() * M * dq;
+        }
+    }
+
+    __global__ void soft_transform_constraint_compute_gradient_hessian_kernel(
+        Float                                       substep_ratio,
+        cuda_tool::BufferView<IndexT>               indices,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<Vector12>            q_prevs,
+        cuda_tool::BufferView<Vector12>             aim_transforms,
+        cuda_tool::BufferView<Vector2>              strength_ratios,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::DoubletVectorView<Float, 12>     gradients,
+        cuda_tool::TripletMatrixView<Float, 12>     hessians,
+        cuda_tool::CBufferView<IndexT>              is_fixed,
+        bool                                        gradient_only,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        auto i = indices(I);
+
+        Vector12    G;
+        Matrix12x12 M;
+
+        if(is_fixed(i))
+        {
+            G.setZero();
+            M.setZero();
+        }
+        else
+        {
+            Vector12 q      = qs(i);
+            Vector12 q_prev = q_prevs(i);
+            Vector12 q_aim  = lerp(q_prev, aim_transforms(I), substep_ratio);
+            Vector12 dq     = q - q_aim;
+            Vector2  s      = strength_ratios(I);
+
+            M = compute_constraint_mass(body_masses(i), s(0), s(1));
+            G = M * dq;
+        }
+
+        gradients(I).write(i, G);
+
+        if(gradient_only)
+            return;
+
+        hessians(I).write(i, i, M);
+    }
+}  // namespace
+
 class SoftTransformConstraint final : public AffineBodyConstraint
 {
     static constexpr U64 SoftTransformConstraintUID = 16ull;
@@ -44,9 +132,9 @@ class SoftTransformConstraint final : public AffineBodyConstraint
     vector<Vector12> h_aim_transforms;
     vector<Vector2>  h_strength_ratios;
 
-    muda::DeviceBuffer<IndexT>   constrained_bodies;
-    muda::DeviceBuffer<Vector12> aim_transforms;
-    muda::DeviceBuffer<Vector2>  strength_ratios;
+    cuda_tool::DeviceBuffer<IndexT>   constrained_bodies;
+    cuda_tool::DeviceBuffer<Vector12> aim_transforms;
+    cuda_tool::DeviceBuffer<Vector2>  strength_ratios;
 
     virtual void do_build(BuildInfo& info) override {}
 
@@ -128,92 +216,44 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
     {
-        using namespace muda;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_bodies.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer().name("indices"),
-                    qs            = info.qs().viewer().name("qs"),
-                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
-                    aim_transforms = aim_transforms.viewer().name("aim_transforms"),
-                    strength_ratios = strength_ratios.viewer().name("strength_ratios"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    energies = info.energies().viewer().name("energies"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I)
-                   {
-                       auto  i = indices(I);
-                       auto& E = energies(I);
-
-                       if(is_fixed(i))
-                       {
-                           E = 0.0;
-                       }
-                       else
-                       {
-                           Vector12 q      = qs(i);
-                           Vector12 q_prev = q_prevs(i);
-                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-                           Vector12 dq = q - q_aim;
-                           Vector2  s  = strength_ratios(I);
-
-                           Matrix12x12 M =
-                               compute_constraint_mass(body_masses(i), s(0), s(1));
-
-                           E = 0.5 * dq.transpose() * M * dq;
-                       }
-                   });
+        int n = (int)constrained_bodies.size();
+        if(n > 0)
+        {
+            auto k = soft_transform_constraint_compute_energy_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_bodies.view(),
+                info.qs(),
+                info.q_prevs(),
+                aim_transforms.view(),
+                strength_ratios.view(),
+                info.body_masses(),
+                info.energies(),
+                info.is_fixed(),
+                n);
+        }
     }
 
     void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
     {
-        using namespace muda;
-
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(constrained_bodies.size(),
-                   [substep_ratio = info.substep_ratio(),
-                    indices       = constrained_bodies.viewer().name("indices"),
-                    qs            = info.qs().viewer().name("qs"),
-                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
-                    aim_transforms = aim_transforms.viewer().name("aim_transforms"),
-                    strength_ratios = strength_ratios.viewer().name("strength_ratios"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
-                    gradient_only = info.gradient_only()] __device__(int I) mutable
-                   {
-                       auto i = indices(I);
-
-                       Vector12    G;
-                       Matrix12x12 M;
-
-                       if(is_fixed(i))
-                       {
-                           G.setZero();
-                           M.setZero();
-                       }
-                       else
-                       {
-                           Vector12 q      = qs(i);
-                           Vector12 q_prev = q_prevs(i);
-                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-                           Vector12 dq = q - q_aim;
-                           Vector2  s  = strength_ratios(I);
-
-                           M = compute_constraint_mass(body_masses(i), s(0), s(1));
-                           G = M * dq;
-                       }
-
-                       gradients(I).write(i, G);
-
-                       if(gradient_only)
-                           return;
-
-                       hessians(I).write(i, i, M);
-                   });
+        int n = (int)constrained_bodies.size();
+        if(n > 0)
+        {
+            auto k = soft_transform_constraint_compute_gradient_hessian_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.substep_ratio(),
+                constrained_bodies.view(),
+                info.qs(),
+                info.q_prevs(),
+                aim_transforms.view(),
+                strength_ratios.view(),
+                info.body_masses(),
+                info.gradients(),
+                info.hessians(),
+                info.is_fixed(),
+                info.gradient_only(),
+                n);
+        }
     }
 };
 

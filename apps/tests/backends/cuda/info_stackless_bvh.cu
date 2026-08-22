@@ -10,7 +10,8 @@
 #include <iterator>
 #include <list>
 
-using namespace muda;
+namespace cuda_tool = uipc::backend::cuda_tool;
+using namespace cuda_tool;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
@@ -19,14 +20,158 @@ namespace test_info_stackless_bvh
 {
 struct NodePred
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const { return true; }
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::NodePredInfo&) const
+    {
+        return true;
+    }
 };
 
 struct LeafPred
 {
-    MUDA_GENERIC bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
+    UIPC_GENERIC bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
     {
         return ((info.i ^ info.j) & 1) == 0;
+    }
+};
+
+struct CountingNodeCull
+{
+    int* calls;
+
+    __device__ bool operator()(const InfoStacklessBVH::NodePredInfo&) const
+    {
+        atomicAdd(calls, 1);
+        return false;
+    }
+};
+
+struct CountingLeafPair
+{
+    int* leaf_calls;
+
+    __device__ bool operator()(const InfoStacklessBVH::LeafPredInfo&) const
+    {
+        atomicAdd(leaf_calls, 1);
+        return true;
+    }
+};
+
+struct CullRateNodeCull
+{
+    int* calls;
+    int* rejects;
+
+    __device__ bool operator()(const InfoStacklessBVH::NodePredInfo& info) const
+    {
+        atomicAdd(calls, 1);
+        bool keep = (info.query_id % 3) != 0;
+        if(!keep)
+            atomicAdd(rejects, 1);
+        return keep;
+    }
+};
+
+struct LeafPredTrue
+{
+    __device__ bool operator()(const InfoStacklessBVH::LeafPredInfo&) const
+    {
+        return true;
+    }
+};
+
+struct BidOnlyNodeCull
+{
+    static constexpr IndexT invalid = static_cast<IndexT>(-1);
+
+    cuda_tool::BufferView<IndexT> bids;
+    cuda_tool::BufferView<IndexT> is_self_contact;
+    IndexT                        self_contact_count;
+    int*                          calls;
+    int*                          rejects;
+    int*                          invalid_cid_hits;
+
+    __device__ bool operator()(const InfoStacklessBVH::NodePredInfo& info) const
+    {
+        atomicAdd(calls, 1);
+        if(info.node_cid == invalid)
+            atomicAdd(invalid_cid_hits, 1);
+        auto qbid = bids(info.query_id);
+        bool self_contact_disabled = (qbid != invalid) && (qbid < self_contact_count)
+                                     && !is_self_contact(qbid);
+        bool keep = !(info.node_bid != invalid && qbid != invalid
+                      && info.node_bid == qbid && self_contact_disabled);
+        if(!keep)
+            atomicAdd(rejects, 1);
+        return keep;
+    }
+};
+
+struct CidOnlyNodeCull
+{
+    static constexpr IndexT invalid = static_cast<IndexT>(-1);
+
+    cuda_tool::BufferView<IndexT> bids;
+    cuda_tool::BufferView<IndexT> cids;
+    cuda_tool::Dense2D<IndexT>    cmts;
+    cuda_tool::BufferView<IndexT> is_self_contact;
+    IndexT                        self_contact_count;
+    int*                          rejects;
+
+    __device__ bool operator()(const InfoStacklessBVH::NodePredInfo& info) const
+    {
+        auto qbid = bids(info.query_id);
+        auto qcid = cids(info.query_id);
+        bool bid_cull = info.node_bid != invalid && qbid != invalid && info.node_bid == qbid
+                        && (qbid < self_contact_count) && !is_self_contact(qbid);
+        bool cid_cull = info.node_cid != invalid && qcid != invalid
+                        && !cmts(qcid, info.node_cid);
+        bool keep = !(bid_cull || cid_cull);
+        if(!keep)
+            atomicAdd(rejects, 1);
+        return keep;
+    }
+};
+
+struct FallbackNodeCull
+{
+    static constexpr IndexT invalid = static_cast<IndexT>(-1);
+
+    cuda_tool::BufferView<IndexT> bids;
+    cuda_tool::BufferView<IndexT> cids;
+    cuda_tool::Dense2D<IndexT>    cmts;
+    cuda_tool::BufferView<IndexT> is_self_contact;
+    IndexT                        self_contact_count;
+    int*                          rejects;
+    int*                          invalid_bid_hits;
+    int*                          invalid_cid_hits;
+
+    __device__ bool operator()(const InfoStacklessBVH::NodePredInfo& info) const
+    {
+        if(info.node_bid == invalid)
+            atomicAdd(invalid_bid_hits, 1);
+        if(info.node_cid == invalid)
+            atomicAdd(invalid_cid_hits, 1);
+        auto qbid = bids(info.query_id);
+        auto qcid = cids(info.query_id);
+        bool bid_cull = info.node_bid != invalid && qbid != invalid && info.node_bid == qbid
+                        && (qbid < self_contact_count) && !is_self_contact(qbid);
+        bool cid_cull = info.node_cid != invalid && qcid != invalid
+                        && !cmts(qcid, info.node_cid);
+        bool keep = !(bid_cull || cid_cull);
+        if(!keep)
+            atomicAdd(rejects, 1);
+        return keep;
+    }
+};
+
+struct CountingLeafPredFalse
+{
+    int* leaf_calls;
+
+    __device__ bool operator()(InfoStacklessBVH::LeafPredInfo) const
+    {
+        atomicAdd(leaf_calls, 1);
+        return false;
     }
 };
 
@@ -101,7 +246,8 @@ std::vector<Vector2i> brute_force_query(span<const AABB>   query_aabbs,
                 continue;
             if(!allow_contact(cmts, cid_count, query_cids[i], tree_cids[j]))
                 continue;
-            if(!lp(InfoStacklessBVH::LeafPredInfo{i, j, query_bids[i], query_cids[i], tree_bids[j], tree_cids[j]}))
+            if(!lp(InfoStacklessBVH::LeafPredInfo{
+                   i, j, query_bids[i], query_cids[i], tree_bids[j], tree_cids[j]}))
                 continue;
 
             pairs.emplace_back(i, j);
@@ -131,7 +277,7 @@ void run_info_stackless_bvh_test(const SimplicialComplex& mesh)
         cids[i] = static_cast<IndexT>(i % 4);
     }
 
-    constexpr IndexT cid_count = 4;
+    constexpr IndexT    cid_count = 4;
     std::vector<IndexT> cmts(cid_count * cid_count, 1);
     for(IndexT i = 0; i < cid_count; ++i)
     {
@@ -203,16 +349,16 @@ void run_info_stackless_bvh_test(const SimplicialComplex& mesh)
 
 void run_internal_cull_proof_case()
 {
-    constexpr IndexT n = 64;
+    constexpr IndexT    n = 64;
     std::vector<AABB>   aabbs(n);
     std::vector<IndexT> bids(n, 3);
     std::vector<IndexT> cids(n, 0);
     for(IndexT i = 0; i < n; ++i)
     {
-        double x  = static_cast<double>(i) * 1.0e-3;
+        double  x  = static_cast<double>(i) * 1.0e-3;
         Vector3 p0 = Vector3{x, x, x};
         Vector3 p1 = Vector3{x + 1.0, x + 1.0, x + 1.0};
-        AABB box;
+        AABB    box;
         box.extend(p0.cast<float>()).extend(p1.cast<float>());
         aabbs[i] = box;
     }
@@ -226,27 +372,18 @@ void run_internal_cull_proof_case()
     InfoStacklessBVH::Impl impl;
     impl.build(d_aabbs.view(), d_bids.view(), d_cids.view());
 
-    DeviceVar<int>      cp_num;
-    DeviceBuffer<int>   node_cull_calls(1);
-    DeviceBuffer<int>   leaf_pair_calls(1);
+    DeviceVar<int>         cp_num;
+    DeviceBuffer<int>      node_cull_calls(1);
+    DeviceBuffer<int>      leaf_pair_calls(1);
     DeviceBuffer<Vector2i> pairs(16);
     BufferLaunch().fill(cp_num.view(), 0);
     BufferLaunch().fill(node_cull_calls.view(), 0);
     BufferLaunch().fill(leaf_pair_calls.view(), 0);
 
-    impl.stacklessSelf(
-        [calls = node_cull_calls.data()] __device__(const InfoStacklessBVH::NodePredInfo&)
-        {
-            atomicAdd(calls, 1);
-            return false;
-        },
-        [leaf_calls = leaf_pair_calls.data()] __device__(const InfoStacklessBVH::LeafPredInfo&)
-        {
-            atomicAdd(leaf_calls, 1);
-            return true;
-        },
-        cp_num.view(),
-        pairs.view());
+    impl.stacklessSelf(CountingNodeCull{node_cull_calls.data()},
+                       CountingLeafPair{leaf_pair_calls.data()},
+                       cp_num.view(),
+                       pairs.view());
 
     int h_node_cull_calls = 0;
     int h_leaf_pair_calls = 0;
@@ -266,14 +403,14 @@ void run_internal_cull_proof_case()
 
 void run_internal_cull_rate_case()
 {
-    constexpr IndexT n = 96;
+    constexpr IndexT    n = 96;
     std::vector<AABB>   aabbs(n);
     std::vector<IndexT> bids(n);
     std::vector<IndexT> cids(n);
     for(IndexT i = 0; i < n; ++i)
     {
-        double x = static_cast<double>(i % 16) * 5.0e-3;
-        double y = static_cast<double>(i / 16) * 5.0e-3;
+        double  x  = static_cast<double>(i % 16) * 5.0e-3;
+        double  y  = static_cast<double>(i / 16) * 5.0e-3;
         Vector3 p0 = Vector3{x, y, 0.0};
         Vector3 p1 = Vector3{x + 1.0, y + 1.0, 1.0};
         aabbs[i].extend(p0.cast<float>()).extend(p1.cast<float>());
@@ -290,38 +427,27 @@ void run_internal_cull_rate_case()
     InfoStacklessBVH::Impl impl;
     impl.build(d_aabbs.view(), d_bids.view(), d_cids.view());
 
-    DeviceVar<int>      cp_num;
-    DeviceBuffer<int>   node_cull_calls(1);
-    DeviceBuffer<int>   node_cull_rejects(1);
+    DeviceVar<int>         cp_num;
+    DeviceBuffer<int>      node_cull_calls(1);
+    DeviceBuffer<int>      node_cull_rejects(1);
     DeviceBuffer<Vector2i> pairs(2048);
     BufferLaunch().fill(cp_num.view(), 0);
     BufferLaunch().fill(node_cull_calls.view(), 0);
     BufferLaunch().fill(node_cull_rejects.view(), 0);
 
-    impl.stacklessSelf(
-        [calls = node_cull_calls.data(),
-         rejects = node_cull_rejects.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
-        {
-            atomicAdd(calls, 1);
-            bool keep = (info.query_id % 3) != 0;
-            if(!keep)
-                atomicAdd(rejects, 1);
-            return keep;
-        },
-        [] __device__(const InfoStacklessBVH::LeafPredInfo&)
-        {
-            return true;
-        },
-        cp_num.view(),
-        pairs.view());
+    impl.stacklessSelf(CullRateNodeCull{node_cull_calls.data(),
+                                        node_cull_rejects.data()},
+                       LeafPredTrue{},
+                       cp_num.view(),
+                       pairs.view());
 
-    int h_node_cull_calls = 0;
+    int h_node_cull_calls   = 0;
     int h_node_cull_rejects = 0;
     node_cull_calls.view(0, 1).copy_to(&h_node_cull_calls);
     node_cull_rejects.view(0, 1).copy_to(&h_node_cull_rejects);
     double node_cull_rate = (h_node_cull_calls > 0) ?
-                                static_cast<double>(h_node_cull_rejects) /
-                                    static_cast<double>(h_node_cull_calls) :
+                                static_cast<double>(h_node_cull_rejects)
+                                    / static_cast<double>(h_node_cull_calls) :
                                 0.0;
     fmt::println("internal-cull rate stats: node_cull_calls={}, node_cull_rejects={}, node_cull_rate={:.4f}",
                  h_node_cull_calls,
@@ -341,10 +467,10 @@ void run_two_leaf_nodepred_cases()
     auto make_overlapping_aabbs = []()
     {
         std::vector<AABB> aabbs(2);
-        Vector3 p00 = Vector3{0.0, 0.0, 0.0};
-        Vector3 p01 = Vector3{1.0, 1.0, 1.0};
-        Vector3 p10 = Vector3{0.25, 0.25, 0.25};
-        Vector3 p11 = Vector3{1.25, 1.25, 1.25};
+        Vector3           p00 = Vector3{0.0, 0.0, 0.0};
+        Vector3           p01 = Vector3{1.0, 1.0, 1.0};
+        Vector3           p10 = Vector3{0.25, 0.25, 0.25};
+        Vector3           p11 = Vector3{1.25, 1.25, 1.25};
         aabbs[0].extend(p00.cast<float>()).extend(p01.cast<float>());
         aabbs[1].extend(p10.cast<float>()).extend(p11.cast<float>());
         return aabbs;
@@ -355,12 +481,12 @@ void run_two_leaf_nodepred_cases()
         // Scenario: both leaves belong to body 0, and self-contact is disabled for body 0.
         // Their leaf CIDs are valid but different, so the internal node CID should be invalid (-1).
         // Expected: NodePred rejects the subtree using BID logic before any leaf-pair output.
-        auto aabbs = make_overlapping_aabbs();
-        std::vector<IndexT> bids = {0, 0};
-        std::vector<IndexT> cids = {0, 1};
+        auto                aabbs           = make_overlapping_aabbs();
+        std::vector<IndexT> bids            = {0, 0};
+        std::vector<IndexT> cids            = {0, 1};
         std::vector<IndexT> is_self_contact = {0};
-        std::vector<IndexT> cmts = {1, 1, 1, 1};
-        IndexT              self_contact_count = static_cast<IndexT>(is_self_contact.size());
+        std::vector<IndexT> cmts            = {1, 1, 1, 1};
+        IndexT self_contact_count = static_cast<IndexT>(is_self_contact.size());
         DeviceBuffer<AABB> d_aabbs(aabbs.size());
         d_aabbs.view().copy_from(aabbs.data());
         DeviceBuffer<IndexT> d_bids(bids.size());
@@ -371,9 +497,9 @@ void run_two_leaf_nodepred_cases()
         d_is_self_contact.view().copy_from(is_self_contact.data());
         DeviceBuffer2D<IndexT> d_cmts(Extent2D{2, 2});
         d_cmts.view().copy_from(cmts.data());
-        DeviceBuffer<int>   node_calls(1);
-        DeviceBuffer<int>   node_rejects(1);
-        DeviceBuffer<int>   node_invalid_cid_hits(1);
+        DeviceBuffer<int> node_calls(1);
+        DeviceBuffer<int> node_rejects(1);
+        DeviceBuffer<int> node_invalid_cid_hits(1);
         BufferLaunch().fill(node_calls.view(), 0);
         BufferLaunch().fill(node_rejects.view(), 0);
         BufferLaunch().fill(node_invalid_cid_hits.view(), 0);
@@ -382,32 +508,18 @@ void run_two_leaf_nodepred_cases()
         bvh.build(d_aabbs.view(), d_bids.view(), d_cids.view());
         InfoStacklessBVH::QueryBuffer qbuffer;
         qbuffer.reserve(8);
-        bvh.detect(
-            d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
-             self_contact_count,
-             calls = node_calls.data(),
-             rejects = node_rejects.data(),
-             invalid_cid_hits = node_invalid_cid_hits.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
-            {
-                atomicAdd(calls, 1);
-                if(info.node_cid == invalid)
-                    atomicAdd(invalid_cid_hits, 1);
-                auto qbid = bids(info.query_id);
-                bool self_contact_disabled =
-                    (qbid != invalid) && (qbid < self_contact_count) && !is_self_contact(qbid);
-                bool keep = !(info.node_bid != invalid && qbid != invalid && info.node_bid == qbid
-                              && self_contact_disabled);
-                if(!keep)
-                    atomicAdd(rejects, 1);
-                return keep;
-            },
-            [] __device__(InfoStacklessBVH::LeafPredInfo) { return true; },
-            qbuffer);
+        bvh.detect(d_cmts.view(),
+                   BidOnlyNodeCull{d_bids.viewer(),
+                                   d_is_self_contact.viewer(),
+                                   self_contact_count,
+                                   node_calls.data(),
+                                   node_rejects.data(),
+                                   node_invalid_cid_hits.data()},
+                   LeafPredTrue{},
+                   qbuffer);
 
-        int h_calls = 0;
-        int h_rejects = 0;
+        int h_calls            = 0;
+        int h_rejects          = 0;
         int h_invalid_cid_hits = 0;
         node_calls.view(0, 1).copy_to(&h_calls);
         node_rejects.view(0, 1).copy_to(&h_rejects);
@@ -422,12 +534,12 @@ void run_two_leaf_nodepred_cases()
     {
         // Scenario: leaves have different bodies (0 and 1), so BID does not cull.
         // Their CIDs are both 1 and cmts(1,1)=0, so NodePred must cull by CID rule.
-        auto aabbs = make_overlapping_aabbs();
-        std::vector<IndexT> bids = {0, 1};
-        std::vector<IndexT> cids = {1, 1};
+        auto                aabbs           = make_overlapping_aabbs();
+        std::vector<IndexT> bids            = {0, 1};
+        std::vector<IndexT> cids            = {1, 1};
         std::vector<IndexT> is_self_contact = {1, 1};
-        std::vector<IndexT> cmts = {1, 1, 1, 0};
-        IndexT              self_contact_count = static_cast<IndexT>(is_self_contact.size());
+        std::vector<IndexT> cmts            = {1, 1, 1, 0};
+        IndexT self_contact_count = static_cast<IndexT>(is_self_contact.size());
         DeviceBuffer<AABB> d_aabbs(aabbs.size());
         d_aabbs.view().copy_from(aabbs.data());
         DeviceBuffer<IndexT> d_bids(bids.size());
@@ -438,34 +550,22 @@ void run_two_leaf_nodepred_cases()
         d_is_self_contact.view().copy_from(is_self_contact.data());
         DeviceBuffer2D<IndexT> d_cmts(Extent2D{2, 2});
         d_cmts.view().copy_from(cmts.data());
-        DeviceBuffer<int>   node_rejects(1);
+        DeviceBuffer<int> node_rejects(1);
         BufferLaunch().fill(node_rejects.view(), 0);
 
         InfoStacklessBVH bvh;
         bvh.build(d_aabbs.view(), d_bids.view(), d_cids.view());
         InfoStacklessBVH::QueryBuffer qbuffer;
         qbuffer.reserve(8);
-        bvh.detect(
-            d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             cids = d_cids.viewer().name("cids"),
-             cmts = d_cmts.viewer().name("cmts"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
-             self_contact_count,
-             rejects = node_rejects.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
-            {
-                auto qbid = bids(info.query_id);
-                auto qcid = cids(info.query_id);
-                bool bid_cull = info.node_bid != invalid && qbid != invalid && info.node_bid == qbid
-                                && (qbid < self_contact_count) && !is_self_contact(qbid);
-                bool cid_cull = info.node_cid != invalid && qcid != invalid && !cmts(qcid, info.node_cid);
-                bool keep = !(bid_cull || cid_cull);
-                if(!keep)
-                    atomicAdd(rejects, 1);
-                return keep;
-            },
-            [] __device__(InfoStacklessBVH::LeafPredInfo) { return true; },
-            qbuffer);
+        bvh.detect(d_cmts.view(),
+                   CidOnlyNodeCull{d_bids.viewer(),
+                                   d_cids.viewer(),
+                                   d_cmts.viewer(),
+                                   d_is_self_contact.viewer(),
+                                   self_contact_count,
+                                   node_rejects.data()},
+                   LeafPredTrue{},
+                   qbuffer);
 
         int h_rejects = 0;
         node_rejects.view(0, 1).copy_to(&h_rejects);
@@ -478,12 +578,12 @@ void run_two_leaf_nodepred_cases()
         // Scenario: leaf BIDs/CIDs are legal values but different between the two leaves.
         // This forces internal node BID/CID to become invalid by the merge rule.
         // Expected: NodePred cannot cull, traversal reaches LeafPred fallback.
-        auto aabbs = make_overlapping_aabbs();
-        std::vector<IndexT> bids = {0, 1};
-        std::vector<IndexT> cids = {0, 1};
+        auto                aabbs           = make_overlapping_aabbs();
+        std::vector<IndexT> bids            = {0, 1};
+        std::vector<IndexT> cids            = {0, 1};
         std::vector<IndexT> is_self_contact = {1, 1};
-        std::vector<IndexT> cmts = {1, 1, 1, 1};
-        IndexT              self_contact_count = static_cast<IndexT>(is_self_contact.size());
+        std::vector<IndexT> cmts            = {1, 1, 1, 1};
+        IndexT self_contact_count = static_cast<IndexT>(is_self_contact.size());
         DeviceBuffer<AABB> d_aabbs(aabbs.size());
         d_aabbs.view().copy_from(aabbs.data());
         DeviceBuffer<IndexT> d_bids(bids.size());
@@ -494,10 +594,10 @@ void run_two_leaf_nodepred_cases()
         d_is_self_contact.view().copy_from(is_self_contact.data());
         DeviceBuffer2D<IndexT> d_cmts(Extent2D{2, 2});
         d_cmts.view().copy_from(cmts.data());
-        DeviceBuffer<int>   node_rejects(1);
-        DeviceBuffer<int>   leaf_calls(1);
-        DeviceBuffer<int>   node_invalid_bid_hits(1);
-        DeviceBuffer<int>   node_invalid_cid_hits(1);
+        DeviceBuffer<int> node_rejects(1);
+        DeviceBuffer<int> leaf_calls(1);
+        DeviceBuffer<int> node_invalid_bid_hits(1);
+        DeviceBuffer<int> node_invalid_cid_hits(1);
         BufferLaunch().fill(node_rejects.view(), 0);
         BufferLaunch().fill(leaf_calls.view(), 0);
         BufferLaunch().fill(node_invalid_bid_hits.view(), 0);
@@ -507,40 +607,20 @@ void run_two_leaf_nodepred_cases()
         bvh.build(d_aabbs.view(), d_bids.view(), d_cids.view());
         InfoStacklessBVH::QueryBuffer qbuffer;
         qbuffer.reserve(8);
-        bvh.detect(
-            d_cmts.view(),
-            [bids = d_bids.viewer().name("bids"),
-             cids = d_cids.viewer().name("cids"),
-             cmts = d_cmts.viewer().name("cmts"),
-             is_self_contact = d_is_self_contact.viewer().name("is_self_contact"),
-             self_contact_count,
-             rejects = node_rejects.data(),
-             invalid_bid_hits = node_invalid_bid_hits.data(),
-             invalid_cid_hits = node_invalid_cid_hits.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
-            {
-                if(info.node_bid == invalid)
-                    atomicAdd(invalid_bid_hits, 1);
-                if(info.node_cid == invalid)
-                    atomicAdd(invalid_cid_hits, 1);
-                auto qbid = bids(info.query_id);
-                auto qcid = cids(info.query_id);
-                bool bid_cull = info.node_bid != invalid && qbid != invalid && info.node_bid == qbid
-                                && (qbid < self_contact_count) && !is_self_contact(qbid);
-                bool cid_cull = info.node_cid != invalid && qcid != invalid && !cmts(qcid, info.node_cid);
-                bool keep = !(bid_cull || cid_cull);
-                if(!keep)
-                    atomicAdd(rejects, 1);
-                return keep;
-            },
-            [leaf_calls = leaf_calls.data()] __device__(InfoStacklessBVH::LeafPredInfo)
-            {
-                atomicAdd(leaf_calls, 1);
-                return false;
-            },
-            qbuffer);
+        bvh.detect(d_cmts.view(),
+                   FallbackNodeCull{d_bids.viewer(),
+                                    d_cids.viewer(),
+                                    d_cmts.viewer(),
+                                    d_is_self_contact.viewer(),
+                                    self_contact_count,
+                                    node_rejects.data(),
+                                    node_invalid_bid_hits.data(),
+                                    node_invalid_cid_hits.data()},
+                   CountingLeafPredFalse{leaf_calls.data()},
+                   qbuffer);
 
-        int h_rejects = 0;
-        int h_leaf_calls = 0;
+        int h_rejects          = 0;
+        int h_leaf_calls       = 0;
         int h_invalid_bid_hits = 0;
         int h_invalid_cid_hits = 0;
         node_rejects.view(0, 1).copy_to(&h_rejects);

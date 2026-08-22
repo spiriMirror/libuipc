@@ -1,5 +1,5 @@
 #include <contact_system/simplex_frictional_contact.h>
-#include <muda/ext/eigen/evd.h>
+#include <cuda_tool/cuda_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -173,132 +173,132 @@ void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessian
     do_assemble(this_info);
 }
 
-muda::CBufferView<Vector4i> SimplexFrictionalContact::PTs() const
+cuda_tool::CBufferView<Vector4i> SimplexFrictionalContact::PTs() const
 {
     return m_impl.simplex_trajectory_filter->friction_PTs();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::PT_energies() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::PT_energies() const
 {
     return m_impl.PT_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PT_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PT_gradients() const
 {
     return m_impl.PT_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PT_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PT_hessians() const
 {
     return m_impl.PT_hessians;
 }
 
-muda::CBufferView<Vector4i> SimplexFrictionalContact::EEs() const
+cuda_tool::CBufferView<Vector4i> SimplexFrictionalContact::EEs() const
 {
     return m_impl.simplex_trajectory_filter->friction_EEs();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::EE_energies() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::EE_energies() const
 {
     return m_impl.EE_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexFrictionalContact::EE_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexFrictionalContact::EE_gradients() const
 {
     return m_impl.EE_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::EE_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexFrictionalContact::EE_hessians() const
 {
     return m_impl.EE_hessians;
 }
 
-muda::CBufferView<Vector3i> SimplexFrictionalContact::PEs() const
+cuda_tool::CBufferView<Vector3i> SimplexFrictionalContact::PEs() const
 {
     return m_impl.simplex_trajectory_filter->friction_PEs();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::PE_energies() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::PE_energies() const
 {
     return m_impl.PE_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PE_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PE_gradients() const
 {
     return m_impl.PE_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PE_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PE_hessians() const
 {
     return m_impl.PE_hessians;
 }
 
-muda::CBufferView<Vector2i> SimplexFrictionalContact::PPs() const
+cuda_tool::CBufferView<Vector2i> SimplexFrictionalContact::PPs() const
 {
     return m_impl.simplex_trajectory_filter->friction_PPs();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::PP_energies() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::PP_energies() const
 {
     return m_impl.PP_energies;
 }
 
-muda::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PP_gradients() const
+cuda_tool::CDoubletVectorView<Float, 3> SimplexFrictionalContact::PP_gradients() const
 {
     return m_impl.PP_gradients;
 }
 
-muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PP_hessians() const
+cuda_tool::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PP_hessians() const
 {
     return m_impl.PP_hessians;
 }
 
-muda::CBuffer2DView<ContactCoeff> SimplexFrictionalContact::BaseInfo::contact_tabular() const
+cuda_tool::CBuffer2DView<ContactCoeff> SimplexFrictionalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector4i> SimplexFrictionalContact::BaseInfo::friction_PTs() const
+cuda_tool::CBufferView<Vector4i> SimplexFrictionalContact::BaseInfo::friction_PTs() const
 {
     return m_impl->simplex_trajectory_filter->friction_PTs();
 }
 
-muda::CBufferView<Vector4i> SimplexFrictionalContact::BaseInfo::friction_EEs() const
+cuda_tool::CBufferView<Vector4i> SimplexFrictionalContact::BaseInfo::friction_EEs() const
 {
     return m_impl->simplex_trajectory_filter->friction_EEs();
 }
 
-muda::CBufferView<Vector3i> SimplexFrictionalContact::BaseInfo::friction_PEs() const
+cuda_tool::CBufferView<Vector3i> SimplexFrictionalContact::BaseInfo::friction_PEs() const
 {
     return m_impl->simplex_trajectory_filter->friction_PEs();
 }
 
-muda::CBufferView<Vector2i> SimplexFrictionalContact::BaseInfo::friction_PPs() const
+cuda_tool::CBufferView<Vector2i> SimplexFrictionalContact::BaseInfo::friction_PPs() const
 {
     return m_impl->simplex_trajectory_filter->friction_PPs();
 }
 
-muda::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::positions() const
+cuda_tool::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::prev_positions() const
+cuda_tool::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::rest_positions() const
+cuda_tool::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::BaseInfo::thicknesses() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::BaseInfo::thicknesses() const
 {
     return m_impl->global_vertex_manager->thicknesses();
 }
 
-muda::CBufferView<IndexT> SimplexFrictionalContact::BaseInfo::contact_element_ids() const
+cuda_tool::CBufferView<IndexT> SimplexFrictionalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
@@ -308,7 +308,7 @@ Float SimplexFrictionalContact::BaseInfo::d_hat() const
     return m_impl->global_contact_manager->d_hat();
 }
 
-muda::CBufferView<Float> SimplexFrictionalContact::BaseInfo::d_hats() const
+cuda_tool::CBufferView<Float> SimplexFrictionalContact::BaseInfo::d_hats() const
 {
     return m_impl->global_vertex_manager->d_hats();
 }

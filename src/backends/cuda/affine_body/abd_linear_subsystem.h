@@ -13,7 +13,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
 
-    muda::CBufferView<Matrix12x12> diag_hessian() const noexcept
+    cuda_tool::CBufferView<Matrix12x12> diag_hessian() const noexcept
     {
         return m_impl.diag_hessian.view();
     }
@@ -21,10 +21,10 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(bool                          gradient_only,
-                                   muda::BufferView<Vector12>    gradient,
-                                   muda::BufferView<Matrix12x12> hessians,
-                                   Float                         dt) noexcept
+        ComputeGradientHessianInfo(bool gradient_only,
+                                   cuda_tool::BufferView<Vector12>    gradient,
+                                   cuda_tool::BufferView<Matrix12x12> hessians,
+                                   Float dt) noexcept
             : m_gradient_only(gradient_only)
             , m_gradients(gradient)
             , m_hessians(hessians)
@@ -38,10 +38,10 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        bool                          m_gradient_only = false;
-        muda::BufferView<Matrix12x12> m_hessians;
-        muda::BufferView<Vector12>    m_gradients;
-        Float                         m_dt = 0.0;
+        bool                               m_gradient_only = false;
+        cuda_tool::BufferView<Matrix12x12> m_hessians;
+        cuda_tool::BufferView<Vector12>    m_gradients;
+        Float                              m_dt = 0.0;
     };
 
     class ReportExtentInfo
@@ -73,9 +73,9 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     {
       public:
         AssembleInfo(Impl* impl, IndexT index, bool gradient_only) noexcept;
-        muda::DoubletVectorView<Float, 12>     gradients() const;
-        muda::TripletMatrixView<Float, 12, 12> hessians() const;
-        bool                                   gradient_only() const noexcept;
+        cuda_tool::DoubletVectorView<Float, 12>     gradients() const;
+        cuda_tool::TripletMatrixView<Float, 12, 12> hessians() const;
+        bool gradient_only() const noexcept;
 
       private:
         friend class ABDLinearSubsystem;
@@ -115,19 +115,19 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
         OffsetCountCollection<IndexT> reporter_hessian_offsets_counts;
 
-        muda::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
-        muda::DeviceDoubletVector<Float, 12>     reporter_gradients;
+        cuda_tool::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
+        cuda_tool::DeviceDoubletVector<Float, 12>     reporter_gradients;
 
         // intermediate gradient/hessian buffers for kinetic/shape
-        muda::DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
-        muda::DeviceBuffer<Vector12>    body_id_to_shape_gradient;
-        muda::DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
-        muda::DeviceBuffer<Vector12>    body_id_to_kinetic_gradient;
+        cuda_tool::DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
+        cuda_tool::DeviceBuffer<Vector12>    body_id_to_shape_gradient;
+        cuda_tool::DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
+        cuda_tool::DeviceBuffer<Vector12>    body_id_to_kinetic_gradient;
 
         // diag hessian for preconditioner
-        muda::DeviceBuffer<Matrix12x12> diag_hessian;
-        muda::DeviceBuffer<Float>       block_norm;
-        muda::DeviceVar<Float>          reduced_norm;
+        cuda_tool::DeviceBuffer<Matrix12x12> diag_hessian;
+        cuda_tool::DeviceBuffer<Float>       block_norm;
+        cuda_tool::DeviceVar<Float>          reduced_norm;
 
         S<const geometry::AttributeSlot<Float>> dt_attr;
     };

@@ -34,7 +34,7 @@ IndexT FiniteElementDiffDofReporter::DiffDofInfo::dof_count(SizeT frame) const
     return m_impl->fem->dof_count(frame);
 }
 
-muda::TripletMatrixView<Float, 1> FiniteElementDiffDofReporter::DiffDofInfo::H() const
+cuda_tool::TripletMatrixView<Float, 1> FiniteElementDiffDofReporter::DiffDofInfo::H() const
 {
     return m_global_info.H();
 }

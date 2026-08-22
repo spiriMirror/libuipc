@@ -177,8 +177,8 @@ void FiniteElementSurfaceReporter::Impl::report_count(backend::WorldVisitor& wor
 void FiniteElementSurfaceReporter::Impl::report_attributes(backend::WorldVisitor& world,
                                                            SurfaceAttributeInfo& info)
 {
-    auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
-    { muda::BufferLaunch().copy<T>(dst, src.data()); };
+    auto async_copy = []<typename T>(span<T> src, cuda_tool::BufferView<T> dst)
+    { cuda_tool::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{surf_vertices}, info.surf_vertices());
     async_copy(span{surf_edges}, info.surf_edges());
