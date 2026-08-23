@@ -18,6 +18,8 @@
 //       10.x - 11.3:   only the legacy 5-arg cudaGraphInstantiate(exec,
 //                      graph, pErrorNode, pLogBuffer, bufferSize) exists.
 //   The dispatch below therefore covers 10.x/11.x/12.x/13.x at compile time.
+//   Also note cudaGraphAddNode gained the edge-data parameter in CUDA 13.0
+//   (5-arg form before) — dispatched at the call site via CUDART_VERSION.
 //   Tested on 12.8 and 13.2.
 //
 // Contract / traps (see agent_docs/08):
@@ -274,7 +276,12 @@ class GraphWhile
         params.conditional.type    = cudaGraphCondTypeWhile;
         params.conditional.size    = 1;
         cudaGraphNode_t while_node;
+#if CUDART_VERSION >= 13000
         err = cudaGraphAddNode(&while_node, m_graph, &setup_node, nullptr, 1, &params);
+#else
+        // CUDA 11.x-12.x: no edge-data parameter
+        err = cudaGraphAddNode(&while_node, m_graph, &setup_node, 1, &params);
+#endif
         cudaGraph_t body_container =
             params.conditional.phGraph_out ? params.conditional.phGraph_out[0] : nullptr;
         if(err != cudaSuccess || body_container == nullptr)
