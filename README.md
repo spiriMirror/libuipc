@@ -160,7 +160,6 @@ Optional: enable the MAS preconditioner for stiff FEM scenes with one config lin
 - **Bugs & features**: file an [Issue](https://github.com/spiriMirror/libuipc/issues); questions and ideas go to [Discussions](https://github.com/spiriMirror/libuipc/discussions).
 - **Pull requests** are welcome — CI runs the full simulation suite, please keep it green.
 - **For maintainers**: `.cursor/` holds AI-assisted build/test/commit/PR commands and style rules; `agent_docs/` documents the architecture.
-- **Documentation**: [spirimirror.github.io/libuipc-doc](https://spirimirror.github.io/libuipc-doc/)
 
 ## News
 
