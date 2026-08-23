@@ -143,6 +143,16 @@ assertions).
 - `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.
+- `89_mas_bunny` — Stiff set_case7 parity (single MAS bunny, E=1e7);
+  `NO_MAS=1` / `NO_GRAPH=1` env A/B switches.
+- `90_abd_fem_cube_stack` / `91_pinned_cloth` / `92_twisting_bar` /
+  `93_cube_wall_cloth` — the remaining Stiff-GIPC set_cases 1/4/5/6
+  (2026-08-24). 92 uses animated SoftPositionConstraint ends (twist);
+  93 has MAS on (case6 P_type=1) plus a 1920-body ABD wall. Assets added:
+  `stiff_cube.msh` (Stiff's own 0.4-size cube — the samples' cube.msh is
+  dimensionally different and overlaps at case1/6 spacings) and
+  `high_mat.msh`. Both Stiff meshes were missing `\$MeshFormat` /
+  `\$EndNodes` / `\$EndElements` tags and were completed for igl::readMSH.
 
 ## MAS preconditioner parity check (2026-08-23, case 89)
 
