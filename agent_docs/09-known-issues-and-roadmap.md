@@ -127,10 +127,14 @@ libuipc samples `89_mas_bunny` vs Stiff-GIPC `set_case7`, both with MAS):
 
 Verdicts:
 - diag-vs-diag is same order (1310 vs 1513) — solvers/systems are comparable.
-- libuipc's MAS is NOT under-performing Stiff's — it is ~47x fewer
-  iterations on this scene, and the trajectory matches the well-converged
-  diag reference to sub-millimetre at frame 100 (centroid y -0.7748 vs
-  -0.7753), so the fast convergence is genuine, not an early-exit artifact.
+- ITERATION-COUNT CAVEAT (corrected 2026-08-23 evening): the 5/solve figure
+  was an artifact of a graph-capture bug — the non-blocking capture stream
+  let the un-plumbed MAS engine execute during capture instead of joining
+  the graph, so replays ran with a frozen preconditioner (false r^Tz
+  collapse). Fixed by using a blocking capture stream (un-plumbed callees
+  now invalidate capture -> automatic fallback). After the fix, MAS averages
+  ~41/solve vs diag ~86/solve on the E=1e4 bunny, with trajectories matching
+  to 0.3mm at frame 100. The MAS preconditioner itself was never wrong.
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration
