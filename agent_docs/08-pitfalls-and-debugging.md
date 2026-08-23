@@ -76,6 +76,21 @@ touching that area; several of these have bitten us more than once.
   per-call temp allocation.
 - `linear_system/check_interval` tuning is a **negative result** (5→25 did
   nothing): PCG's cost is iteration count, not convergence-check stalls.
+- **`make_spd` Cholesky early-out is a NEGATIVE RESULT (2026-08-23)**:
+  gating the 9x9/12x12 EVD behind an in-register Cholesky PD test made
+  every constitution/contact kernel 1.7-2.7x SLOWER (SNH 3.9->6.7 ms,
+  contact assemble 1.9->5.3 ms, bending 1.3->2.9 ms per call) — the local
+  L matrix (81/144 doubles) blows the register budget of already-fat
+  kernels and occupancy collapses. Do not retry unless the PD test is
+  register-free. The Stiff-GIPC 2.6x SNH advantage comes from their
+  analytic eigensystem (twist/flip + 3x3 direct), which does NOT apply to
+  our energy (ours: `0.5*λ(J-α)² + 0.5*μ(Ic-3) - 0.5*μ·log(Ic+1)`; theirs:
+  classic `-μ(J-1) + λ/2(J-1)²`) — porting it means deriving the analytic
+  eigensystem for OUR energy first.
+- **Same-address atomic storms** in reduction kernels: one atomicAdd per
+  warp on a single counter costs 20-30 µs/call at ~300k threads — always
+  do warp→block two-level reduction (done for `Spmv_rbk_sym_spmv_dot` and
+  `fused_dot`).
 
 ## Python / runtime API
 
