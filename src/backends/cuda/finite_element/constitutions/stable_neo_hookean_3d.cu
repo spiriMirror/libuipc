@@ -4,14 +4,15 @@
 #include <kernel_cout.h>
 #include <cuda_tool/cuda_tool.h>
 #include <Eigen/Dense>
-#include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
 namespace
 {
-    namespace SNH = sym::stable_neo_hookean_3d;
+    // Stiff-GIPC SNK1 (energy, gradient and the analytically SPD-projected
+    // Hessian) replaces the SymEigen-generated SNH + generic make_spd EVD
+    namespace SNH = snk1;
 
     constexpr SizeT StencilSize     = 4;
     constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
@@ -88,7 +89,7 @@ namespace
         auto Vdt2 = volumes(I) * dt * dt;
 
         Matrix3x3 dEdF;
-        SNH::dEdVecF(dEdF, mu, lambda, F);
+        SNH::dEdF(dEdF, mu, lambda, F);
         auto VecdEdF = flatten(dEdF);
         VecdEdF *= Vdt2;
 
@@ -101,10 +102,11 @@ namespace
         if(gradient_only)
             return;
 
+        // analytically SPD-projected 9x9 energy Hessian (Stiff SNK1);
+        // scaling by the positive Vdt2 commutes with the projection
         Matrix9x9 ddEddF;
-        SNH::ddEddVecF(ddEddF, mu, lambda, F);
+        SNH::ddEddF_spd(ddEddF, mu, lambda, F);
         ddEddF *= Vdt2;
-        make_spd(ddEddF);
         Matrix12x12            H = dFdx.transpose() * ddEddF * dFdx;
         TripletMatrixAssembler TMA{H3x3s};
         TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
