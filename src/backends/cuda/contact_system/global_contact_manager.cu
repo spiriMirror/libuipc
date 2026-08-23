@@ -13,6 +13,10 @@
 #include <utils/codim_thickness.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/adaptive_contact_parameter_reporter.h>
+#include <finite_element/finite_element_method.h>
+#include <affine_body/affine_body_dynamics.h>
+#include <numeric>
+#include <cmath>
 #include <cuda_tool/cub.h>
 
 namespace uipc::backend
@@ -181,6 +185,8 @@ void GlobalContactManager::do_build()
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
     m_impl.global_surface_manager   = find<GlobalSimplicialSurfaceManager>();
+    m_impl.finite_element_method    = find<FiniteElementMethod>();
+    m_impl.affine_body_dynamics     = find<AffineBodyDynamics>();
 
 
     auto d_hat_attr = config.find<Float>("contact/d_hat");
@@ -241,6 +247,74 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
         }
     }
 
+    // 0.2) Scene-adaptive kappa corridor: port of Stiff-GIPC's
+    //    suggestKappa/upperBoundKappa (GIPC.cu:9850-9888). Their barrier
+    //    applies kappa raw while ours is scaled by dt^2, so the computed
+    //    values are divided by dt^2 to stay in our convention.
+    {
+        kappa_lower_bound = -1.0;
+        kappa_upper_bound = -1.0;
+
+        Float diag       = global_vertex_manager->scene_diagonal();
+        SizeT vert_count = global_vertex_manager->positions().size();
+        if(diag > 0.0 && vert_count > 0)
+        {
+            // meanMass = total scene mass / total vertex count (Stiff
+            // convention: FEM vertex masses directly; ABD bodies contribute
+            // their scalar body mass once)
+            Float total_mass = 0.0;
+            if(finite_element_method)
+            {
+                auto               fem_masses = finite_element_method->masses();
+                std::vector<Float> h_masses(fem_masses.size());
+                fem_masses.copy_to(h_masses.data());
+                total_mass =
+                    std::accumulate(h_masses.begin(), h_masses.end(), Float{0});
+            }
+            if(affine_body_dynamics)
+            {
+                auto body_masses = affine_body_dynamics->body_masses();
+                std::vector<ABDJacobiDyadicMass> h_body_masses(body_masses.size());
+                body_masses.copy_to(h_body_masses.data());
+                for(auto& bm : h_body_masses)
+                    total_mass += static_cast<Float>(bm.mass());
+            }
+            Float mean_mass = total_mass / vert_count;
+
+            Float scale = world.scene()
+                              .config()
+                              .find<Float>("contact/adaptive/kappa_eval_scale")
+                              ->view()[0];
+            constexpr Float min_kappa_coef = 1e11;  // Stiff's minKappaCoef
+            Float           dt             = dt_attr->view()[0];
+            Float           d              = scale * diag * diag;
+            Float dHat = d_hat * d_hat;  // Stiff's dHat is a squared distance
+            if(d > 0.0 && dHat > 0.0 && dt > 0.0)
+            {
+                Float t = d - dHat;
+                Float H_b = -2.0 * std::log(d / dHat) - 4.0 * t / d + (t * t) / (d * d);
+                if(std::isfinite(H_b) && H_b > 0.0)
+                {
+                    Float base = min_kappa_coef / (4.0 * d * H_b);
+                    if(mean_mass > 0.0)
+                        base *= mean_mass;
+                    kappa_lower_bound = base / (dt * dt);
+                    kappa_upper_bound = 100.0 * kappa_lower_bound;
+                }
+            }
+            logger::info(
+                "Adaptive kappa corridor: [{:e}, {:e}] "
+                "(meanMass={:e}, diag={}, d_hat={}, scale={:e}, dt={})",
+                kappa_lower_bound,
+                kappa_upper_bound,
+                mean_mass,
+                diag,
+                d_hat,
+                scale,
+                dt);
+        }
+    }
+
     // 1) init tabular
     _build_contact_tabular(world);
     _build_subscene_tabular(world);
@@ -296,18 +370,24 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
     auto mask_map = Eigen::Map<MaskMatrix>(h_contact_mask_tabular.data(), N, N);
 
     // Default contact stiffness policy:
-    //  - user never called default_model() -> use contact/adaptive/min_kappa
-    //  - user set it -> clamp into [min_kappa, max_kappa] and remind the range
+    //  - the scene-adaptive corridor [kappa_lower_bound, kappa_upper_bound]
+    //    (Stiff-GIPC suggestKappa/upperBoundKappa, computed in init) rules;
+    //  - when it is not computable for the scene, fall back to the
+    //    contact/adaptive/{min,max}_kappa config values;
     //  - negative kappa (adaptive-kappa opt-in) is never clamped
     auto& scene_cfg = world.scene().config();
     Float min_kappa = scene_cfg.find<Float>("contact/adaptive/min_kappa")->view()[0];
     Float max_kappa = scene_cfg.find<Float>("contact/adaptive/max_kappa")->view()[0];
+    if(kappa_lower_bound > 0.0)
+        min_kappa = kappa_lower_bound;
+    if(kappa_upper_bound > 0.0)
+        max_kappa = kappa_upper_bound;
 
     Float default_kappa = resistance_view[0];
     if(!world.scene().contact_tabular().default_model_is_user_set())
     {
         default_kappa = min_kappa;
-        logger::info("Contact default kappa not set by user; using contact/adaptive/min_kappa = {}",
+        logger::info("Contact default kappa not set by user; using the kappa lower bound = {}",
                      min_kappa);
     }
     else if(default_kappa >= 0.0 && (default_kappa < min_kappa || default_kappa > max_kappa))
@@ -579,6 +659,16 @@ Float GlobalContactManager::d_hat() const
 Float GlobalContactManager::eps_velocity() const
 {
     return m_impl.eps_velocity;
+}
+
+Float GlobalContactManager::kappa_lower_bound() const
+{
+    return m_impl.kappa_lower_bound;
+}
+
+Float GlobalContactManager::kappa_upper_bound() const
+{
+    return m_impl.kappa_upper_bound;
 }
 
 bool GlobalContactManager::cfl_enabled() const

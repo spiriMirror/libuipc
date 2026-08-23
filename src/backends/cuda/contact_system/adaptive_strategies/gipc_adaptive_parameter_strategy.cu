@@ -200,19 +200,27 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
         // 1. No contact contribution -> keep initial kappa
         Float proj_kappa = (contact2 == 0.0) ? init_kappa : -proj / contact2;
 
-        // 2. Clamp to [min_kappa, max_kappa]
-        new_kappa = std::clamp(proj_kappa, min_kappa, max_kappa);
+        // 2. Clamp to the scene-adaptive corridor when the manager computed
+        //    one (Stiff-GIPC suggestKappa/upperBoundKappa); config min/max
+        //    are only the fallback
+        Float lo = contact_manager->kappa_lower_bound();
+        Float hi = contact_manager->kappa_upper_bound();
+        if(lo <= 0.0)
+            lo = min_kappa;
+        if(hi <= 0.0)
+            hi = max_kappa;
+        new_kappa = std::clamp(proj_kappa, lo, hi);
 
         logger::info(R"(Adaptive Contact Parameter: > Kappa = {:e}
 * ProjKappa = {:e}, Contact^2 = {:e}, Contact.NonContact = {:e}
-* MinKappa = {:e}, InitKappa={:e}, MaxKappa = {:e})",
+* LoBound = {:e}, InitKappa={:e}, HiBound = {:e})",
                      new_kappa,
                      proj_kappa,
                      contact2,
                      proj,
-                     min_kappa,
+                     lo,
                      init_kappa,
-                     max_kappa);
+                     hi);
 
         if(adaptive_topos.size() > 0)
             do_compute_parameters_kernel<<<

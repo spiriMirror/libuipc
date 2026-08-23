@@ -92,6 +92,12 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/adaptive/min_kappa", Float{100.0_MPa});
     config.create("contact/adaptive/init_kappa", Float{1.0_GPa});
     config.create("contact/adaptive/max_kappa", Float{100.0_GPa});
+    // Evaluation-point scale for the scene-adaptive kappa corridor
+    // (Stiff-GIPC's 1e-16 in their raw-kappa convention; the computed
+    // suggest/upper bounds are divided by dt^2 to match our dt^2-scaled
+    // barrier, so the same value works for any dt). The computed corridor
+    // rules; these min/max only serve as fallback when it is not computable.
+    config.create("contact/adaptive/kappa_eval_scale", Float{1e-16});
 
 
     // default:
