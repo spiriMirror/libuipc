@@ -57,12 +57,12 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 
 ### Stiff-GIPC Benchmark Suite (88–93)
 
-Cross-project-aligned scenes used for performance and numerics parity work against [Stiff-GIPC](https://github.com/KemengHuang/Stiff-GIPC):
-
-| | | |
-|---|---|---|
-| [88: set_case2 — 2 FEM bunnies + cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark) | [89: set_case7 — MAS parity bunny](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny) | [90: set_case1 — ABD/FEM cube stack](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/90_abd_fem_cube_stack) |
-| [91: set_case4 — pinned cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/91_pinned_cloth) | [92: set_case5 — twisting bar (animated soft constraints)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/92_twisting_bar) | [93: set_case6 — cube wall vs pinned cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/93_cube_wall_cloth) |
+- [88: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark)
+- [89: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny)
+- [90: set_case1](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/90_abd_fem_cube_stack)
+- [91: set_case4](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/91_pinned_cloth)
+- [92: set_case5](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/92_twisting_bar)
+- [93: set_case6](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/93_cube_wall_cloth)
 
 ### Robotics
 
@@ -70,17 +70,21 @@ Cross-project-aligned scenes used for performance and numerics parity work again
 
 ### FEM & Cloth
 
-| | | |
-|---|---|---|
-| [11: bunny + cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/11_bunny_cloth) | [34: cloth stack](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/34_cloth_stack) | [3: periodically pressed tetrahedron](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/3_periodically_pressed_tetrahedron) |
-| [36: vertex stitch family](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/36_vertex_stitch_family) | [23: Kirchhoff rod bending](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/23_kirchoff_rod_bending) | [24: sewing pattern](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/24_sewing_pattern) |
+- [3: periodically pressed tetrahedron](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/3_periodically_pressed_tetrahedron)
+- [11: bunny + cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/11_bunny_cloth)
+- [23: Kirchhoff rod bending](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/23_kirchoff_rod_bending)
+- [24: sewing pattern](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/24_sewing_pattern)
+- [34: cloth stack](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/34_cloth_stack)
+- [36: vertex stitch family](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/36_vertex_stitch_family)
 
 ### Rigid Bodies, Joints & Coupling
 
-| | | |
-|---|---|---|
-| [2: walking cube](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/2_walking_cube) | [6: wrecking balls](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/6_wrecking_balls) | [10: ramp sliding](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/10_ramp_sliding) |
-| [12: soft transform constraint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/12_soft_transform_constraint) | [17: revolute joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/17_affine_body_revolute_joint) | [18: pendulum joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/18_pendulum_joint) |
+- [2: walking cube](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/2_walking_cube)
+- [6: wrecking balls](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/6_wrecking_balls)
+- [10: ramp sliding](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/10_ramp_sliding)
+- [12: soft transform constraint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/12_soft_transform_constraint)
+- [17: revolute joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/17_affine_body_revolute_joint)
+- [18: pendulum joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/18_pendulum_joint)
 
 Demo videos: see the [gallery](docs/gallery.md).
 
