@@ -9,23 +9,14 @@ Both **<font color=red>C++</font>** and **<font color=red>Python</font>** APIs a
 
 ![](./media/teaser.png)
 
-<div align="center">
+## Demos
 
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113497581032756&bvid=BV1FMU6Y6Eu2&cid=26807108424&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113499007095849&bvid=BV1sBU7YDENs&cid=26812943497&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113499007227424&bvid=BV1NBU7YQEGL&cid=26813006592&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113542812537310&bvid=BV1iQzcYvEsx&cid=27003194487&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113787759761628&bvid=BV1pTr9YAEBB&cid=27751613444&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-
-<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113800057459136&bvid=BV195c5eXELV&cid=27800175018&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="180" width="180"></iframe>
-</div>
+- [Cloth & soft body demo](https://www.bilibili.com/video/BV1FMU6Y6Eu2)
+- [Rigid–soft coupling demo](https://www.bilibili.com/video/BV1sBU7YDENs)
+- [Frictional contact demo](https://www.bilibili.com/video/BV1NBU7YQEGL)
+- [Joint & articulated demo](https://www.bilibili.com/video/BV1iQzcYvEsx)
+- [Thread & rod demo](https://www.bilibili.com/video/BV1pTr9YAEBB)
+- [Benchmark scene demo](https://www.bilibili.com/video/BV195c5eXELV)
 
 [More Application](./gallery.md)
 
