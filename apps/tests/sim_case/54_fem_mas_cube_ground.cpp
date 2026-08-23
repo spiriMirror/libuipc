@@ -23,6 +23,7 @@ TEST_CASE("54_fem_mas_cube_ground", "[fem][mas]")
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
@@ -46,9 +47,6 @@ TEST_CASE("54_fem_mas_cube_ground", "[fem][mas]")
 
         label_surface(cube);
         label_triangle_orient(cube);
-
-        // Enable MAS preconditioner
-        mesh_partition(cube, 16);
 
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.49);
         snh.apply_to(cube, parm);

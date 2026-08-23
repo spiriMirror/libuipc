@@ -26,6 +26,7 @@ TEST_CASE("fem_mas_soft_vertex_stitch_regression", "[fem][mas][stitch][regressio
     config["contact"]["d_hat"]              = 0.002;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -49,8 +50,6 @@ TEST_CASE("fem_mas_soft_vertex_stitch_regression", "[fem][mas][stitch][regressio
 
     label_surface(cloth_a);
     label_surface(cloth_b);
-    mesh_partition(cloth_a, 16);
-    mesh_partition(cloth_b, 16);
 
     NeoHookeanShell      nhs;
     DiscreteShellBending dsb;

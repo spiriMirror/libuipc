@@ -2,11 +2,9 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 
-// Test: One mesh WITH mesh_partition() + one mesh WITHOUT.
-// Tests the hybrid MAS+Diag path.
-// Before fix: current "all or nothing" logic rejects the scene
-//             (FEMDiagPreconditioner defers, FEMMASPreconditioner requires all).
-// After fix: MAS handles partitioned mesh, diagonal handles unpartitioned mesh.
+// Test: MAS switch on; one mesh carries a custom mesh_part partition
+// (respected as-is) + one mesh untagged (auto-partitioned internally).
+// Verifies that custom and automatic partitioning coexist in one scene.
 TEST_CASE("58_fem_mas_hybrid_mix", "[fem][mas]")
 {
     using namespace uipc;
@@ -26,6 +24,7 @@ TEST_CASE("58_fem_mas_hybrid_mix", "[fem][mas]")
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -37,30 +36,31 @@ TEST_CASE("58_fem_mas_hybrid_mix", "[fem][mas]")
         auto object = scene.objects().create("hybrid");
 
         Matrix4x4 pre_trans = Matrix4x4::Identity();
-        pre_trans(0, 0) = 0.2;
-        pre_trans(1, 1) = 0.2;
-        pre_trans(2, 2) = 0.2;
+        pre_trans(0, 0)     = 0.2;
+        pre_trans(1, 1)     = 0.2;
+        pre_trans(2, 2)     = 0.2;
 
         SimplicialComplexIO scaled_io(pre_trans);
 
-        // Mesh A — WITH partition (MAS)
+        // Mesh A — custom mesh_part partition (respected as-is)
         {
             auto cube_a = scaled_io.read(fmt::format("{}/cube.msh", tetmesh_dir));
             label_surface(cube_a);
             label_triangle_orient(cube_a);
-            mesh_partition(cube_a, 16);  // <-- partitioned
+            mesh_partition(cube_a, 16);  // <-- custom partition
 
             auto parm = ElasticModuli::youngs_poisson(1e5, 0.49);
             snh.apply_to(cube_a, parm);
             default_element.apply_to(cube_a);
 
             auto pos = view(cube_a.positions());
-            for(auto& p : pos) p[1] += 0.5;
+            for(auto& p : pos)
+                p[1] += 0.5;
 
             object->geometries().create(cube_a);
         }
 
-        // Mesh B — WITHOUT partition (should use diagonal fallback)
+        // Mesh B — untagged (auto-partitioned internally at world.init)
         {
             auto cube_b = scaled_io.read(fmt::format("{}/cube.msh", tetmesh_dir));
             label_surface(cube_b);
@@ -72,7 +72,8 @@ TEST_CASE("58_fem_mas_hybrid_mix", "[fem][mas]")
             default_element.apply_to(cube_b);
 
             auto pos = view(cube_b.positions());
-            for(auto& p : pos) p[1] += 1.0;
+            for(auto& p : pos)
+                p[1] += 1.0;
 
             object->geometries().create(cube_b);
         }

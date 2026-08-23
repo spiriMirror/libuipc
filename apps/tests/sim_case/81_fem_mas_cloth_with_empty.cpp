@@ -29,6 +29,7 @@ TEST_CASE("81_fem_mas_cloth_with_empty", "[fem][mas][regression]")
     config["gravity"]                   = Vector3{0, -9.8, 0};
     config["contact"]["enable"]         = false;
     config["linear_system"]["tol_rate"] = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -64,7 +65,6 @@ TEST_CASE("81_fem_mas_cloth_with_empty", "[fem][mas][regression]")
 
         auto cloth_mesh = trimesh(Vs, Fs);
         label_surface(cloth_mesh);
-        mesh_partition(cloth_mesh, 16);
 
         auto parm = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49);
         nhs.apply_to(cloth_mesh, parm);

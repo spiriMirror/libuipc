@@ -21,6 +21,7 @@ TEST_CASE("53_fem_mas_small_cube", "[fem][mas]")
     config["gravity"]                   = Vector3{0, -9.8, 0};
     config["contact"]["enable"]         = false;
     config["linear_system"]["tol_rate"] = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -39,15 +40,6 @@ TEST_CASE("53_fem_mas_small_cube", "[fem][mas]")
 
         label_surface(mesh);
         label_triangle_orient(mesh);
-
-        mesh_partition(mesh, 16);
-
-        {
-            auto mp = mesh.vertices().find<IndexT>("mesh_part");
-            REQUIRE(mp);
-            auto mp_v = mp->view();
-            REQUIRE(std::ranges::all_of(mp_v, [](IndexT v) { return v == 0; }));
-        }
 
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);
         snh.apply_to(mesh, parm, 1e3);

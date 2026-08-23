@@ -22,6 +22,7 @@ TEST_CASE("61_fem_mas_rod", "[fem][mas]")
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -32,8 +33,8 @@ TEST_CASE("61_fem_mas_rod", "[fem][mas]")
 
         auto object = scene.objects().create("rods");
 
-        constexpr int   n = 20;  // nodes per rod
-        constexpr int   num_rods = 3;
+        constexpr int n        = 20;  // nodes per rod
+        constexpr int num_rods = 3;
 
         for(int r = 0; r < num_rods; r++)
         {
@@ -48,18 +49,15 @@ TEST_CASE("61_fem_mas_rod", "[fem][mas]")
             auto mesh = linemesh(Vs, Es);
             label_surface(mesh);
 
-            // Partition for MAS
-            mesh_partition(mesh, 16);
-
             hs.apply_to(mesh, 10.0_MPa);
             krb.apply_to(mesh, 1.0_MPa);
             default_contact.apply_to(mesh);
 
             // Fix first two nodes
-            auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
+            auto is_fixed = mesh.vertices().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
-            is_fixed_view[0] = 1;
-            is_fixed_view[1] = 1;
+            is_fixed_view[0]   = 1;
+            is_fixed_view[1]   = 1;
 
             object->geometries().create(mesh);
         }

@@ -23,6 +23,7 @@ TEST_CASE("56_fem_mas_bunny_ground", "[fem][mas]")
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -38,9 +39,6 @@ TEST_CASE("56_fem_mas_bunny_ground", "[fem][mas]")
 
         label_surface(bunny);
         label_triangle_orient(bunny);
-
-        // Enable MAS preconditioner
-        mesh_partition(bunny, 16);
 
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.49);
         snh.apply_to(bunny, parm);

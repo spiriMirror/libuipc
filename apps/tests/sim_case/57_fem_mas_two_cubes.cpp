@@ -27,6 +27,7 @@ TEST_CASE("57_fem_mas_two_bunnies", "[fem][mas]")
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -44,7 +45,6 @@ TEST_CASE("57_fem_mas_two_bunnies", "[fem][mas]")
             auto bunny_a = io.read(fmt::format("{}/bunny0.msh", tetmesh_dir));
             label_surface(bunny_a);
             label_triangle_orient(bunny_a);
-            mesh_partition(bunny_a, 16);
 
             auto parm = ElasticModuli::youngs_poisson(1e5, 0.49);
             snh.apply_to(bunny_a, parm);
@@ -58,14 +58,14 @@ TEST_CASE("57_fem_mas_two_bunnies", "[fem][mas]")
             auto bunny_b = io.read(fmt::format("{}/bunny0.msh", tetmesh_dir));
             label_surface(bunny_b);
             label_triangle_orient(bunny_b);
-            mesh_partition(bunny_b, 16);
 
             auto parm = ElasticModuli::youngs_poisson(1e5, 0.49);
             snh.apply_to(bunny_b, parm);
             default_element.apply_to(bunny_b);
 
             auto pos = view(bunny_b.positions());
-            for(auto& p : pos) p[1] += 2.0;
+            for(auto& p : pos)
+                p[1] += 2.0;
 
             object->geometries().create(bunny_b);
         }
