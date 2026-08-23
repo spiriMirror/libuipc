@@ -226,20 +226,6 @@ Args:
 Returns:
     SimplicialComplex: Point cloud.)");
 
-    m.def("mesh_partition",
-          &mesh_partition,
-          py::arg("sc"),
-          py::arg("part_max_size") = 16,
-          R"(Partition the simplicial complex using METIS graph partitioning.
-
-Creates a 'mesh_part' vertex attribute on the simplicial complex.
-This must be called before world.init() to enable the MAS preconditioner.
-
-Args:
-    sc: SimplicialComplex to partition.
-    part_max_size: Maximum number of vertices per partition (default: 16).
-)");
-
     m.def("closest_vertex_triangle_pairs",
           &closest_vertex_triangle_pairs,
           py::arg("vertex_mesh"),

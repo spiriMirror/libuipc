@@ -75,23 +75,13 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // If ANY FEM geometry has mesh_part, defer to FEMMASPreconditioner,
-        // which handles both partitioned (MAS) and unpartitioned (diag) vertices.
-        auto geo_slots = world().scene().geometries();
-        for(SizeT i = 0; i < geo_slots.size(); i++)
+        // MAS is selected via config; defer to FEMMASPreconditioner when on.
+        auto precond = world().scene().config().find<std::string>("linear_system/fem_preconditioner");
+        if(precond && precond->view()[0] == "mas")
         {
-            auto& geo = geo_slots[i]->geometry();
-            auto* sc  = geo.as<geometry::SimplicialComplex>();
-            if(sc && sc->dim() >= 1)
-            {
-                auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-                if(mesh_part)
-                {
-                    throw SimSystemException(
-                        "FEMDiagPreconditioner: mesh_part found, "
-                        "deferring to FEMMASPreconditioner.");
-                }
-            }
+            throw SimSystemException(
+                "FEMDiagPreconditioner: linear_system/fem_preconditioner == \"mas\", "
+                "deferring to FEMMASPreconditioner.");
         }
 
         // This FEMDiagPreconditioner depends on FEMLinearSubsystem

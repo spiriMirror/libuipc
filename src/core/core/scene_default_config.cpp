@@ -36,6 +36,13 @@ geometry::AttributeCollection default_scene_config() noexcept
     //  - linear_pcg (30% slower)
     config.create("linear_system/solver", std::string{"fused_pcg"});
 
+    // FEM local preconditioner:
+    //  - "diag" (default): 3x3 block-Jacobi
+    //  - "mas": Multi-Level Additive Schwarz; ALL FEM geometries are
+    //    auto-partitioned internally (fixed cluster size 16 = MAS BANKSIZE),
+    //    no per-mesh user tagging needed
+    config.create("linear_system/fem_preconditioner", std::string{"diag"});
+
     // FusedPCG CUDA graph mode: 1 = replay check_interval-sized iteration
     // blocks (default, fastest measured); 2 = full-GPU while-loop graph
     // (CUDA >= 12.4; keeps the CPU out of the loop entirely); 0 = plain

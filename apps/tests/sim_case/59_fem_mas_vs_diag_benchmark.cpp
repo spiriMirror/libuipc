@@ -29,6 +29,8 @@ void run_bunny_scene(const std::string& output_path, bool use_mas)
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    if(use_mas)
+        config["linear_system"]["fem_preconditioner"] = "mas";
     // this benchmark reads the per-iteration "SpMV" timer counts, which only
     // exist on the plain launch path; CUDA-graph replay intentionally has no
     // per-iteration host observation
@@ -47,9 +49,6 @@ void run_bunny_scene(const std::string& output_path, bool use_mas)
 
         label_surface(bunny);
         label_triangle_orient(bunny);
-
-        if(use_mas)
-            mesh_partition(bunny, 16);
 
         // Stiff material — MAS shines more with higher stiffness
         auto parm = ElasticModuli::youngs_poisson(10.0_MPa, 0.49);

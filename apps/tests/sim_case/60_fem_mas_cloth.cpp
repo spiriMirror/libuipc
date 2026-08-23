@@ -21,6 +21,7 @@ TEST_CASE("60_fem_mas_cloth", "[fem][mas]")
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["linear_system"]["tol_rate"]     = 1e-3;
+    config["linear_system"]["fem_preconditioner"] = "mas";
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
@@ -31,11 +32,11 @@ TEST_CASE("60_fem_mas_cloth", "[fem][mas]")
         auto object = scene.objects().create("cloth");
 
         // Build a grid cloth mesh (N x N quads -> 2*N*N triangles)
-        constexpr int N = 10;
+        constexpr int   N          = 10;
         constexpr Float cloth_size = 0.5;
-        constexpr Float spacing = cloth_size / N;
+        constexpr Float spacing    = cloth_size / N;
 
-        vector<Vector3> Vs;
+        vector<Vector3>  Vs;
         vector<Vector3i> Fs;
 
         for(int i = 0; i <= N; i++)
@@ -58,9 +59,6 @@ TEST_CASE("60_fem_mas_cloth", "[fem][mas]")
         auto mesh = trimesh(Vs, Fs);
         label_surface(mesh);
 
-        // Partition for MAS
-        mesh_partition(mesh, 16);
-
         auto parm = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49);
         nhs.apply_to(mesh, parm);
         default_contact.apply_to(mesh);
@@ -68,8 +66,8 @@ TEST_CASE("60_fem_mas_cloth", "[fem][mas]")
         // Fix two corners
         auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
         auto is_fixed_view = view(*is_fixed);
-        is_fixed_view[0]         = 1;  // corner (0,0)
-        is_fixed_view[N]         = 1;  // corner (0,N)
+        is_fixed_view[0]   = 1;  // corner (0,0)
+        is_fixed_view[N]   = 1;  // corner (0,N)
 
         object->geometries().create(mesh);
     }

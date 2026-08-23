@@ -8,10 +8,12 @@
 #include <finite_element/mas_preconditioner_engine.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/geometry/utils/mesh_partition.h>
 #include <uipc/common/log.h>
 #include <backends/common/backend_path_tool.h>
 #include <sim_engine.h>
 #include <set>
+#include <memory>
 
 namespace uipc::backend::cuda
 {
@@ -128,11 +130,13 @@ void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& 
  * simpler diagonal (Jacobi) preconditioner for much better convergence
  * on stiff problems. Based on the StiffGIPC paper.
  *
- * Prerequisites:
- *   The user must call `mesh_partition(sc, 16)` on their SimplicialComplex
- *   BEFORE `world.init()` to create a "mesh_part" vertex attribute.
- *   If this attribute is absent, the system will not be built and the
- *   default FEMDiagPreconditioner will be used instead.
+ * Activation:
+ *   Set scene config `linear_system/fem_preconditioner = "mas"`. MAS is
+ *   all-or-nothing: every non-Empty FEM SimplicialComplex is partitioned
+ *   internally (fixed cluster size = BANKSIZE 16) in do_init; a
+ *   pre-existing `mesh_part` vertex attribute (custom C++ partitioning)
+ *   is respected as-is. Partial manual tagging alone does NOT activate
+ *   MAS (measured net-negative — see agent_docs/09 coverage rule).
  */
 class FEMMASPreconditioner : public LocalPreconditioner
 {
@@ -162,28 +166,10 @@ class FEMMASPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // MAS activates if ANY FEM geometry has mesh_part attribute.
-        // Unpartitioned meshes get diagonal (block-Jacobi) fallback internally.
-        auto geo_slots      = world().scene().geometries();
-        bool found_any_part = false;
-        for(SizeT i = 0; i < geo_slots.size(); i++)
+        auto precond = world().scene().config().find<std::string>("linear_system/fem_preconditioner");
+        if(!precond || precond->view()[0] != "mas")
         {
-            auto& geo = geo_slots[i]->geometry();
-            auto* sc  = geo.as<geometry::SimplicialComplex>();
-            if(sc && sc->dim() >= 1)
-            {
-                auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-                if(mesh_part)
-                {
-                    found_any_part = true;
-                    break;
-                }
-            }
-        }
-
-        if(!found_any_part)
-        {
-            throw SimSystemException("FEMMASPreconditioner: No 'mesh_part' attribute found on any geometry.");
+            throw SimSystemException("FEMMASPreconditioner: linear_system/fem_preconditioner != \"mas\", disabled.");
         }
 
         info.connect(fem_linear_subsystem);
@@ -238,7 +224,13 @@ class FEMMASPreconditioner : public LocalPreconditioner
                 h_neighbor_list.push_back(n);
         }
 
-        // ---- 3. Read mesh_part attribute and build partition mappings ----
+        // ---- 3. Partition every FEM geometry and build partition mappings ----
+        //
+        // MAS is all-or-nothing: every non-Empty FEM SimplicialComplex is
+        // covered. A pre-existing mesh_part attribute (custom C++
+        // partitioning) is respected as-is; everything else is partitioned
+        // internally on a private clone with the fixed cluster size
+        // (BANKSIZE), so the user's scene geometry is never mutated.
 
         std::vector<IndexT> part_ids(vert_num, -1);
         bool                has_parts = false;
@@ -254,20 +246,35 @@ class FEMMASPreconditioner : public LocalPreconditioner
             auto& geo_slot = geo_slots[geo_info.geo_slot_index];
             auto& geo      = geo_slot->geometry();
             auto* sc       = geo.as<geometry::SimplicialComplex>();
-            if(!sc)
+            if(!sc || sc->dim() < 1 || geo_info.vertex_count == 0)
                 continue;
 
-            auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-            if(!mesh_part)
+            // Empty constitution (no material): skip, stays on the
+            // diagonal fallback
+            auto cuid = geo.meta().find<U64>(builtin::constitution_uid);
+            if(!cuid || cuid->view()[0] == kEmptyConstitutionUID)
                 continue;
 
-            has_parts      = true;
-            auto part_view = mesh_part->view();
+            std::vector<IndexT> local_parts;
+            if(auto mesh_part = sc->vertices().find<IndexT>("mesh_part"))
+            {
+                auto pv = mesh_part->view();
+                local_parts.assign(pv.begin(), pv.end());
+            }
+            else
+            {
+                auto tmp_geo = std::static_pointer_cast<geometry::Geometry>(geo.clone());
+                auto* tmp_sc = tmp_geo->as<geometry::SimplicialComplex>();
+                geometry::mesh_partition(*tmp_sc, BANKSIZE);
+                auto pv = tmp_sc->vertices().find<IndexT>("mesh_part")->view();
+                local_parts.assign(pv.begin(), pv.end());
+            }
 
+            has_parts        = true;
             IndexT local_max = 0;
             for(SizeT v = 0; v < geo_info.vertex_count; v++)
             {
-                IndexT local_pid = part_view[v];
+                IndexT local_pid = local_parts[v];
                 part_ids[geo_info.vertex_offset + v] = local_pid + partition_offset;
                 local_max = std::max(local_max, local_pid);
             }
@@ -459,7 +466,14 @@ class FEMMASPreconditioner : public LocalPreconditioner
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
         if(!m_has_partition || !engine.is_initialized())
+        {
+            // switch enabled but nothing partitionable (e.g. all FEM
+            // geometries are Empty constitution): identity fallback so
+            // this subsystem's z is never left stale
+            cuda_tool::BufferLaunch(info.stream())
+                .copy(info.z().buffer_view(), info.r().buffer_view());
             return;
+        }
 
         auto converged = info.converged();
 
