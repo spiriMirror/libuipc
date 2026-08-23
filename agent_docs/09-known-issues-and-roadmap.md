@@ -42,10 +42,32 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    `check_interval`-sized iteration blocks as CUDA graphs
    (`linear_system/use_cuda_graph`, default on; details in doc 05).
    Remaining within-PCG cost is the ~83-iteration count itself.
-2. Fuse exact distance tests into BVH query predicates; materialize only
-   active pairs (kills the 450k-candidate overhead).
+2. ~~Fuse exact distance tests into BVH query predicates~~ **PARTIALLY DONE
+   (2026-08-23 evening)**: the four DCD leaf predicates in
+   `info_stackless_bvh_simplex_trajectory_filter.cu` now run the exact
+   `distance::*_distance2` test when `alpha == 0` (DCD detect pass),
+   keeping only `D2 < (d_hat+thickness)^2` pairs; the `alpha > 0`
+   trajectory pass keeps the conservative `ccd_broadphase` (CCD superset
+   requirement). Kills the 450k-candidate materialization + the
+   overflow-retry double traversal on the DCD path; Detect DCD Candidates
+   dropped 39 → 29 ms/frame on case 88. The trajectory/CCD pass
+   (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
+   conservative swept test — tightening it needs a provably conservative
+   exact swept-distance predicate, more delicate.
 3. SNH/FEM assembly kernel throughput (profile `make_spd` EVD alternatives
    that keep the convergence behavior).
+4. Same-address atomic storms (DONE 2026-08-23 evening): `Spmv_rbk_sym_
+   spmv_dot_kernel` and `fused_dot_kernel` now do two-level (warp → block)
+   reduction with one atomicAdd per block — ~9k/~4k same-address atomic
+   doubles per call serialized ~20-30 us before. SpMV 114 → 93 us/call;
+   case 88 median 312 → 297 ms/frame. NEXT within-PCG target: the
+   symmetric-storage transpose scatter (~243k atomic vec3 per SpMV);
+   a full-storage row-based SpMV would eliminate atomics entirely but
+   doubles matrix traffic and needs a converter variant — deferred.
+5. Case-88 frame budget after these rounds (60 frames, mean ~263 ms):
+   FusedPCG 92 ms + Build Linear System 54 ms + trajectory detect 38 ms +
+   DCD 29 ms + DyTopo 27 ms + misc. No single 2x item remains; it's a
+   grind of 10-30 ms items.
 Every such change must re-pass the full sim suite (95 cases / 14214
 assertions).
 
