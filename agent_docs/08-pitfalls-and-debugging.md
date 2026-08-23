@@ -140,9 +140,18 @@ touching that area; several of these have bitten us more than once.
 - **CUDA-graph capture traps** (learned the hard way in the FusedPCG graph
   work):
   - A captured graph bakes every kernel's **by-value arguments** — including
-    counts embedded in views (e.g. SpMV's `triplet_count`). A buffer that is
-    refilled in place with a different count leaves the graph reading a stale
-    size. Validity keys must include such counts, not just pointers.
+    counts embedded in views. Either keep counts out of the launch entirely
+    (device-side count + capacity-sized grid) or include them in the
+    validity key.
+  - View accessors may bounds-check against the capture-time count
+    (`TripletMatrixViewT::operator()` does): a graph-stable kernel must read
+    through the view's raw pointers (`row_indices().data()`, …) instead.
+  - **`cudaGraphNodeParams.conditional.phGraph_out` is an OUTPUT**: after
+    `cudaGraphAddNode` returns, the driver has written a pointer to its own
+    body-graph array into the params struct — read
+    `params.conditional.phGraph_out[0]`; do NOT point it at your own
+    variable (the node is created but the body graph handle is never
+    populated and the error code stays "success").
   - **Blocking streams do not wait for legacy-default-stream work.** A
     `cudaMemcpyAsync` H2D on the default stream followed by
     `cudaGraphLaunch` on a blocking stream races (we read an uninitialized

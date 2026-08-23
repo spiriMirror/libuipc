@@ -72,31 +72,55 @@ FEMLineSearchReporter_step_forward_kernel
 - Memory operations such as `buffer::kernel_fill<int>` uniformly go through `cuda_tool::BufferLaunch` (internally named template kernels).
 - `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
 
-## FusedPCG CUDA graph replay (linear_system/use_cuda_graph, default 1)
+## FusedPCG CUDA graph modes (linear_system/use_cuda_graph, default 1)
 
 The per-iteration kernel chain of `LinearFusedPCG` (spmv_dot → update_xr →
 preconditioner → dot → converged → update_p → swap_rz) is ~10 tiny launches
 whose launch gaps dominated the wall time (~80 µs of ~118 µs per iteration on
-case2-scale scenes). `linear_fused_pcg.cu` now captures `check_interval`
-iterations as one CUDA graph and replays it per block; the host convergence
-check cadence is unchanged. Numerics: identical kernels/args/order; expect
-ULP-level trajectory divergence after contact onset (see doc 08).
+case2-scale scenes). Two graph modes exist; `graph_mode` is auto-selected in
+`do_build` (logged at info level):
 
-- Graph validity key: x/b/r/z/p/Ap buffer pointers, matrix row/col/value
-  pointers, matrix triplet_count, N, check_interval, max_iter — any change
-  recaptures. rz_tol lives on device (`d_rz_tol`, synchronously uploaded per
-  solve) so tolerance changes do NOT force recapture.
+- **mode 2 — full-GPU while-loop** (toolkit AND driver ≥ CUDA 12.4): the whole
+  solve is ONE graph launch — setup chain (reset → r=b → precond → p=z →
+  rz=rᵀz → rz_tol=tol·|rz0| on device) → WHILE conditional node whose body is
+  one iteration + a control kernel that publishes convergence and calls
+  `cudaGraphSetConditional`. Exit happens at the exact convergence iteration
+  (finer than the block path's interval granularity); x is bit-identical
+  because post-convergence iterations were guarded no-ops anyway. Zero
+  D2H/H2D inside the loop; a single D2H at the end reads back the iteration
+  count. NaN/Inf guards moved into device kernels (`UIPC_KERNEL_ASSERT`).
+- **mode 1 — block replay** (older toolkits/drivers): `check_interval`
+  iterations captured per block via `cuda_tool::GraphCapture`, host
+  convergence check between blocks (same cadence as the plain loop).
+- **mode 0** — plain launches (config off, or `contact/constitution != ipc`).
+
+Shared infrastructure: `cuda_tool/graph.h` holds `GraphCapture` (flat block
+capture) and `GraphWhile` (WHILE-loop assembly via conditional nodes);
+instantiation API is dispatched by `CUDART_VERSION` (WithFlags ≥11.4 through
+13.x, legacy 5-arg below), and `GraphWhile` additionally runtime-checks the
+driver (≥12.4 for conditional nodes).
+
+Graph-stability design (no rebuilds from contact-pair fluctuation):
+- The SpMV triplet count lives on device (`triplet_count_dev`, uploaded once
+  per assembly) and the launch grid is sized by the reserved triplet
+  CAPACITY; the kernel guards with the device count and reads the triplet
+  arrays through raw pointers (`A.row_indices().data()` etc.) — the view's
+  `A(i)` accessor asserts against the capture-time count and must NOT be
+  used for this.
+- rz_tol is device-side; the validity key is buffer pointers + N + max_iter.
+  A matrix realloc (new pointers) still forces a rebuild.
 - Stream plumbing: `Spmv::rbk_sym_spmv_dot`, `GlobalLinearSystem::Impl`
   `spmv_dot/apply_preconditioner`, `IterativeSolver` pass-throughs,
   `ApplyPreconditionerInfo::stream()`, and the ABD/FEM diag preconditioners
   all accept an optional launch stream (default = legacy default stream =
-  unchanged behavior). The MAS preconditioner engine is NOT plumbed; scenes
-  using it fail capture and fall back to the plain loop permanently (warned
-  once).
+  unchanged behavior). The MAS preconditioner engine is NOT plumbed; its
+  scenes fail capture and fall back to the plain loop permanently.
 - `linear_system/check_interval` is now a registered config key (default 5) —
   it was previously unregistered and silently dropped.
-- Per-iteration "SpMV"/"Apply Preconditioner" Timer entries disappear from
-  reports when replaying (graph blocks only report under "FusedPCG").
+- Per-iteration "SpMV"/"Apply Preconditioner" Timer entries only exist on
+  the plain path (capture paths create no Timer objects — Timer creation
+  during stream capture deterministically fail-fasted the single-process
+  suite binary).
 
 ## GPU Coding Guidelines (excerpted from review-pr / simulation-dev)
 
