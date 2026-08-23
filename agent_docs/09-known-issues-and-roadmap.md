@@ -112,3 +112,34 @@ assertions).
 - `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.
+
+## MAS preconditioner parity check (2026-08-23, case 89)
+
+Cross-project comparison on the same scene (SNK bunny2, E=1e7, 100 frames;
+libuipc samples `89_mas_bunny` vs Stiff-GIPC `set_case7`, both with MAS):
+
+| run | total PCG | avg per solve | Newton/frame |
+|---|---|---|---|
+| Stiff MAS (P_type=1) | 60293 | 236 | 2.55 |
+| libuipc MAS (mesh_partition) | 3500 | **5** | 6.0 |
+| Stiff diag (P_type=0) | 376877 | 1513 | 2.49 |
+| libuipc diag (NO_MAS=1) | 922185 | 1310 | 6.0 |
+
+Verdicts:
+- diag-vs-diag is same order (1310 vs 1513) — solvers/systems are comparable.
+- libuipc's MAS is NOT under-performing Stiff's — it is ~47x fewer
+  iterations on this scene, and the trajectory matches the well-converged
+  diag reference to sub-millimetre at frame 100 (centroid y -0.7748 vs
+  -0.7753), so the fast convergence is genuine, not an early-exit artifact.
+- Structural reason libuipc's port is stronger: FEMMASPreconditioner
+  rebuilds the cluster inverses from the current full diagonal Hessian
+  (kinetic + material) every Newton iteration
+  (`fem_mas_preconditioner.cu` `set_preconditioner(A.values(), ...)`).
+- Not ported by design: Stiff's collision-aware clustering
+  (`_buildCollisionConnection`, deliberately skipped per owner decision)
+  and the size-specialized Schwarz kernels (`_schwarzLocalXSym3/6/9`,
+  `__inverse6_P96x96`) — the latter is a throughput optimization lead.
+- Stiff-GIPC local benchmark edits (uncommitted, local only): `set_case7`
+  in `gl_main.cu` (single bunny, E=1e7, P_type=1), a 100-frame cap writing
+  `timeCost.txt` (totalNT/totalCgCount), and a `GIPC_PTYPE` env var to flip
+  the preconditioner type.
