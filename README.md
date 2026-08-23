@@ -1,70 +1,193 @@
 # libuipc
 
-A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact.
+[![PyPI version](https://img.shields.io/pypi/v/pyuipc?color=blue)](https://pypi.org/project/pyuipc/)
+[![Downloads](https://static.pepy.tech/badge/pyuipc/month)](https://pepy.tech/projects/pyuipc)
+[![Documentation](https://img.shields.io/badge/docs-spirimirror.github.io%2Flibuipc--doc-green)](https://spirimirror.github.io/libuipc-doc/)
+[![Issues](https://img.shields.io/github/issues/spiriMirror/libuipc)](https://github.com/spiriMirror/libuipc/issues)
+[![License](https://img.shields.io/badge/license-Apache%202.0-red)](LICENSE)
 
-Both C++ and Python API are provided!
+A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact — both C++ and Python APIs.
 
-Website: ➡️ https://spirimirror.github.io/libuipc-web/
-
-Documentation: ➡️ https://spirimirror.github.io/libuipc-doc/
-
-Samples: ➡️ https://github.com/spiriMirror/libuipc-samples/
-
+Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io/libuipc-web/) ・ Samples ➡️ [github.com/spiriMirror/libuipc-samples](https://github.com/spiriMirror/libuipc-samples/)
 
 ![teaser](docs/media/teaser.png)
 
-## Introduction
+**Libuipc** is a GPU-accelerated simulation library built around a unified **Incremental Potential Contact** framework. It couples rigid bodies (affine body dynamics), soft bodies (FEM), cloth, and threads in one scene with accurate, **penetration-free frictional contact**, and is designed to be naturally **differentiable** for ML, inverse dynamics, and robotics workflows. The whole pipeline — collision detection, contact assembly, and a fused-PCG linear solver with CUDA-graph replay and an optional MAS preconditioner — runs on the GPU.
 
-**Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of rigid bodies, soft bodies, cloth, and threads, and their couplings. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
+We are **actively** developing Libuipc. Feedback and contributions are welcome!
 
-We are **actively** developing Libuipc and will continue to add more features and improve its performance. We welcome any feedback and contributions from the community!
+## Table of Contents
 
-## Why Libuipc
+- [libuipc](#libuipc)
+  - [Table of Contents](#table-of-contents)
+  - [What is libuipc?](#what-is-libuipc)
+    - [Why libuipc](#why-libuipc)
+  - [Catalogue](#catalogue)
+    - [Stiff-GIPC Benchmark Suite (88–93)](#stiff-gipc-benchmark-suite-8893)
+    - [Robotics](#robotics)
+    - [FEM \& Cloth](#fem--cloth)
+    - [Rigid Bodies, Joints \& Coupling](#rigid-bodies-joints--coupling)
+  - [Installation](#installation)
+    - [Python (PyPI)](#python-pypi)
+    - [From Source](#from-source)
+  - [Quick Start (Python)](#quick-start-python)
+  - [Contributing \& Support](#contributing--support)
+  - [News](#news)
+  - [License \& Acknowledgments](#license--acknowledgments)
+  - [Citation](#citation)
 
-- **Easy & Powerful**: Libuipc offers an intuitive and unified approach to creating and accessing vivid simulation scenes, supporting a variety of objects and constraints that can be easily added.
-- **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
-- **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
-- **Fully Differentiable**: Libuipc provides differentiable simulation APIs for backward optimizations. (Coming Soon)
+## What is libuipc?
 
-<table>
-  <tr>
-    <td>
-      <img src="docs/tutorial/media/concepts_code.svg" width="400">
-    </td>
-    <td>
-      <img src="docs/tutorial/media/concepts.drawio.svg" width="450">
-    </td>
-  </tr>
-</table>
+libuipc is organized in three layers: a friendly scene API on top, a reusable simulation core in the middle, and a fully-parallel CUDA backend underneath.
+
+- **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
+- **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: BDF1 time integration, line search with continuous collision detection, friction with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
+- **CUDA Backend** — fused-PCG linear solver with CUDA-graph block replay, MAS (Multi-Level Additive Schwarz) FEM preconditioner with internal auto-partitioning, stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
+
+### Why libuipc
+
+- **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
+- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics (SNK1 constitution, analytic SPD projections) and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
+- **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
+- **Fully Differentiable**: differentiable simulation APIs for backward optimization (Diff-Sim, coming soon).
+
+## Catalogue
+
+Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMirror/libuipc-samples/tree/main/examples) — each is a self-contained `main.py` with a GUI (run/stop) and most support `--headless [N]` benchmarking. Highlights:
+
+### Stiff-GIPC Benchmark Suite (88–93)
+
+- [88: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark)
+- [89: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny)
+- [90: set_case1](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/90_abd_fem_cube_stack)
+- [91: set_case4](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/91_pinned_cloth)
+- [92: set_case5](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/92_twisting_bar)
+- [93: set_case6](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/93_cube_wall_cloth)
+
+### Robotics
+
+- [87: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/87_robot_hand)
+
+### FEM & Cloth
+
+- [3: periodically pressed tetrahedron](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/3_periodically_pressed_tetrahedron)
+- [11: bunny + cloth](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/11_bunny_cloth)
+- [23: Kirchhoff rod bending](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/23_kirchoff_rod_bending)
+- [24: sewing pattern](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/24_sewing_pattern)
+- [34: cloth stack](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/34_cloth_stack)
+- [36: vertex stitch family](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/36_vertex_stitch_family)
+
+### Rigid Bodies, Joints & Coupling
+
+- [2: walking cube](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/2_walking_cube)
+- [6: wrecking balls](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/6_wrecking_balls)
+- [10: ramp sliding](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/10_ramp_sliding)
+- [12: soft transform constraint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/12_soft_transform_constraint)
+- [17: revolute joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/17_affine_body_revolute_joint)
+- [18: pendulum joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/18_pendulum_joint)
 
 
-## Key Features
+## Installation
 
-- Finite Element-Based Deformable Simulation
-- Rigid & Soft Body Strong Coupling Simulation
-- Penetration-Free & Accurate Frictional Contact Handling
-- User Scriptable Animation Control
-- Fully Differentiable Simulation (Diff-Sim Coming Soon)
+### Python (PyPI)
+
+```bash
+pip install pyuipc
+```
+
+Prebuilt wheels: **Windows / Linux, Python 3.10–3.13, CUDA 12.8**.
+
+### From Source
+
+**Prerequisites**: CMake ≥ 3.26, Python ≥ 3.11, CUDA ≥ 12.4, and [vcpkg](https://github.com/microsoft/vcpkg) (XMake ≥ 3.0.5 if you prefer that build path).
+
+```bash
+# 1) vcpkg (once): clone + bootstrap, then point CMake at the toolchain
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg && ./bootstrap-vcpkg.bat   # Linux: ./bootstrap-vcpkg.sh
+# set CMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
+
+# 2) clone (samples come along as a submodule)
+git clone https://github.com/spiriMirror/libuipc.git --recurse-submodules
+cd libuipc && mkdir build && cd build
+
+# 3) configure + build (NVCC is slow — use all cores)
+cmake -S .. -DUIPC_BUILD_PYBIND=1
+cmake --build . --config Release -j8   # Linux: add -DCMAKE_BUILD_TYPE=Release
+```
+
+With `UIPC_BUILD_PYBIND=ON`, the Python binding is built **and installed** into the active Python environment. If the install step fails, finish it manually with `cd build/python && pip install .`; to target a specific venv, pass `-DUIPC_PYTHON_EXECUTABLE_PATH=<python.exe>`.
+
+On Linux, a conda environment is recommended: `conda env create -f conda/env.yaml && conda activate uipc_env`, then `conda env config vars set CMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake` before the build commands above.
+
+**XMake alternative**: `xmake f -c && xmake build -j8` (Python binding: `xmake f --pybind=true --python_system=true --python_version=3.11.x -c`).
+
+**Check the install**: `cd python && python uipc_info.py`.
+
+Full guide (incl. Docker and CUDA/driver compatibility notes): [Build & Install](https://spirimirror.github.io/libuipc-doc/build_install/). For the samples' uv-based workflow, see the [libuipc-samples README](https://github.com/spiriMirror/libuipc-samples#readme).
+
+## Quick Start (Python)
+
+```python
+from uipc.core import Engine, World, Scene
+from uipc.geometry import SimplicialComplexIO, ground, label_surface, label_triangle_orient, flip_inward_triangles
+from uipc.constitution import StableNeoHookean, ElasticModuli
+
+engine = Engine("cuda", "output")
+world  = World(engine)
+scene  = Scene(Scene.default_config())
+scene.contact_tabular().default_model(0.2, 1e8)
+
+mesh = SimplicialComplexIO().read("bunny.msh")
+label_surface(mesh)
+label_triangle_orient(mesh)
+mesh = flip_inward_triangles(mesh)
+StableNeoHookean().apply_to(mesh, ElasticModuli.youngs_poisson(1e6, 0.49), mass_density=1e3)
+
+scene.objects().create("bunny").geometries().create(mesh)
+scene.objects().create("ground").geometries().create(ground(-1.0))
+
+world.init(scene)
+for _ in range(100):
+    world.advance()
+    world.retrieve()
+```
+
+Optional: enable the MAS preconditioner for stiff FEM scenes with one config line — `config["linear_system"]["fem_preconditioner"] = "mas"`.
+
+## Contributing & Support
+
+- **Bugs & features**: file an [Issue](https://github.com/spiriMirror/libuipc/issues); questions and ideas go to [Discussions](https://github.com/spiriMirror/libuipc/discussions).
+- **Pull requests** are welcome — CI runs the full simulation suite, please keep it green.
+- **For maintainers**: `.cursor/` holds AI-assisted build/test/commit/PR commands and style rules; `agent_docs/` documents the architecture.
 
 ## News
 
-**2026-3-29**: We thank [Genesis AI](https://genesis-embodied-ai.github.io/) for their contributions to supporting [AL-IPC](https://simulation-intelligence.github.io/barrier-free/) (Augmented Lagrangian IPC, from Juntian) integration in libuipc, developing a comprehensive Minimal **Coordinate Articulated Joint System**(ExternalArticulationConstraint) for affine bodies, and restructuring the CI packaging pipeline using CIBuildWheel for cross-platform PyPI wheel distribution.
+**2026-8-24**: We preliminarily optimized the CUDA backend, improving the framework's simulation performance across the board — and **Libuipc v1.0 will be ready soon**!
 
-**2026-2-13**: Libuipc now supports [Cursor](https://www.cursor.com/) AI-assisted development! Check out `.cursor/` for built-in commands (build, test, commit, PR workflows) and rules (C++ style, project structure, commit conventions).
+**2026-3-29**: Thanks [Genesis AI](https://genesis-embodied-ai.github.io/) for contributing [AL-IPC](https://simulation-intelligence.github.io/barrier-free/) (Augmented Lagrangian IPC) integration, a Minimal Coordinate Articulated Joint System (ExternalArticulationConstraint) for affine bodies, and the CIBuildWheel cross-platform PyPI packaging pipeline.
 
-**2026-2-7**: UIPC now supports PyPI install with `pip install pyuipc`. For the early test version, we support Win/Linux, Python 3.10–3.13 with CUDA 12.8.
+**2026-2-13**: [Cursor](https://www.cursor.com/) AI-assisted development support — see `.cursor/` for built-in commands and rules.
 
-**2025-11-01**: The prototype implementation of Libuipc has been open-sourced ([source code](https://github.com/KemengHuang/Stiff-GIPC)) and serves as the performance benchmark for comparisons with our paper.
+**2026-2-7**: `pip install pyuipc` on PyPI (Win/Linux, Python 3.10–3.13, CUDA 12.8).
 
-**2025-5-23**: [StiffGIPC](https://dl.acm.org/doi/10.1145/3735126) will be presented at Siggraph 2025, and Libuipc v1.0.0 will be released soon!
+**2025-11-01**: The prototype implementation of Libuipc was open-sourced ([Stiff-GIPC](https://github.com/KemengHuang/Stiff-GIPC)) as our performance benchmark reference.
 
-**2024-11-25**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome!
+**2025-5-23**: [StiffGIPC](https://dl.acm.org/doi/10.1145/3735126) presented at SIGGRAPH 2025.
+
+**2024-11-25**: Libuipc v0.9.0 (Alpha) published — feedback welcome via [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls)!
+
+## License & Acknowledgments
+
+libuipc is released under the **Apache License 2.0** (see [LICENSE](LICENSE)).
+
+This project is led by [Kemeng Huang](https://kemenghuang.github.io/) and Professor [Taku Komura](https://www.cs.hku.hk/~taku) (The University of Hong Kong), in collaboration with Professor [Minchen Li](https://www.cs.cmu.edu/~minchenl/) (Carnegie Mellon University), with comprehensive support from TransGP. It builds upon the GPU IPC project, originally developed and continuously optimized by Kemeng Huang. We also thank the many open-source contributors, with special thanks to Xinyu Lu, who initially worked with us at TransGP and helped a lot in this project.
 
 ## Citation
 
 If you use **Libuipc** in your project, please cite our works:
 
-```
+```bibtex
 @article{stiffgipc2025,
       author = {Huang, Kemeng and Lu, Xinyu and Lin, Huancheng and Komura, Taku and Li, Minchen},
       title = {StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation},
@@ -81,7 +204,7 @@ If you use **Libuipc** in your project, please cite our works:
 }
 ```
 
-```
+```bibtex
 @article{gipc2024,
       author = {Huang, Kemeng and Chitalu, Floyd M. and Lin, Huancheng and Komura, Taku},
       title = {GIPC: Fast and Stable Gauss-Newton Optimization of IPC Barrier Energy},
@@ -97,9 +220,3 @@ If you use **Libuipc** in your project, please cite our works:
       numpages = {18}
 }
 ```
-
-## CREDIT
-
-This project builds upon the GPU IPC project, originally developed and continuously optimized by Dr. Kemeng Huang. The work is led by Dr. Kemeng Huang and Professor Taku Komura (The University of Hong Kong), in collaboration with Professor Minchen Li (Carnegie Mellon University). With comprehensive support from TransGP, the project involves the reconstruction and encapsulation of the original technology to enhance its usability and scalability across various application scenarios. We would also like to extend our sincere gratitude to the many contributors from the open-source community, with special thanks to Xinyu Lu, who initially worked with us during his time at TransGP and has continued to help maintain the project even after leaving.
-
-
