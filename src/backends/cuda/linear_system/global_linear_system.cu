@@ -231,6 +231,9 @@ void GlobalLinearSystem::Impl::build_linear_system()
         Timer t{"Convert To BCOO"};
         converter.ge2sym(triplet_A);
         converter.convert(triplet_A, bcoo_A);
+        // upload the nnz count for graph-stable SpMV launches (async on the
+        // default stream; drained before any solve reads it)
+        triplet_count_dev = (IndexT)bcoo_A.triplet_count();
     }
 
     {
@@ -522,7 +525,15 @@ void GlobalLinearSystem::Impl::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                                         cuda_tool::VarView<Float> d_dot,
                                         cudaStream_t stream)
 {
-    spmver.rbk_sym_spmv_dot(1.0, bcoo_A.cview(), x, 0.0, y, d_dot, stream);
+    spmver.rbk_sym_spmv_dot(1.0,
+                            bcoo_A.cview(),
+                            x,
+                            0.0,
+                            y,
+                            d_dot,
+                            triplet_count_dev.cviewer(),
+                            bcoo_A.triplet_capacity(),
+                            stream);
 }
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)

@@ -40,8 +40,6 @@ class IterativeSolver : public SimSystem
                               cudaStream_t stream = nullptr);
     // data pointers of the assembled system matrix (FusedPCG graph key)
     std::array<const void*, 3> matrix_data_ptrs() const;
-    // baked into the captured SpMV kernel; part of the graph key
-    SizeT matrix_triplet_count() const;
     bool accuracy_statisfied(cuda_tool::DenseVectorView<Float> r);
     cuda_tool::LinearSystemContext& ctx() const;
 

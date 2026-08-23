@@ -311,6 +311,8 @@ class GlobalLinearSystem : public SimSystem
         cuda_tool::DeviceTripletMatrix<Float, 3> triplet_A;
         cuda_tool::DeviceBCOOMatrix<Float, 3>    bcoo_A;
         cuda_tool::DeviceDenseMatrix<Float>      debug_A;  // dense A for debug
+        // device-side copy of bcoo_A's triplet count (for graph-stable SpMV)
+        cuda_tool::DeviceVar<IndexT> triplet_count_dev;
 
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
@@ -341,10 +343,6 @@ class GlobalLinearSystem : public SimSystem
             return {v.row_indices().data(), v.col_indices().data(), v.values().data()};
         }
 
-        // triplet count is baked into the captured SpMV kernel as a by-value
-        // argument, so a reassembly that only changes the COUNT (same
-        // buffers) must also invalidate the graph
-        SizeT matrix_triplet_count() const { return bcoo_A.cview().triplet_count(); }
 
         bool accuracy_statisfied(cuda_tool::DenseVectorView<Float> r);
         void compute_gradient(ComputeGradientInfo& info);

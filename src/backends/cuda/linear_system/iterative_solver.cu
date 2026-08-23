@@ -48,10 +48,6 @@ std::array<const void*, 3> IterativeSolver::matrix_data_ptrs() const
     return m_system->m_impl.matrix_data_ptrs();
 }
 
-SizeT IterativeSolver::matrix_triplet_count() const
-{
-    return m_system->m_impl.matrix_triplet_count();
-}
 
 bool IterativeSolver::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
 {
