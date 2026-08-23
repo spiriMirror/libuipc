@@ -216,7 +216,7 @@ void MySimSystem::do_build()
 
 The backend common utilities will clean up the invalid systems — including any system that **strongly depends** on an invalid one (weak dependencies are tolerated) — and keep the valid systems in the backend engine. If such an exception propagates to the level of the backend engine, the engine will close itself and throw the exception to the frontend.
 
-It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. `find<T>({.exact=false})` (the default) may return a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one.
+It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. By default `find<T>` matches the exact type only (`{.exact = true}`); pass `find<T>({.exact = false})` to also accept a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one.
 
 To keep references to other systems, you **should** use `SimSystemSlot` and `SimSystemSlotCollection`. They manage the lifetime of the referenced systems properly: a system may be valid when you require it but invalid later (e.g. after a cascading cleanup), and the slots guard against such use-after-invalidation.
 

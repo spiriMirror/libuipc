@@ -24,7 +24,7 @@ Though friction is default enabled in `libuipc`, it's good to know how to turn o
 
     ```cpp
     auto config = Scene::default_config();
-    config['contact']['friction']['enable'] = true;
+    config["contact"]["friction"]["enable"] = true;
     ...
     auto scene = Scene(config);
     ```

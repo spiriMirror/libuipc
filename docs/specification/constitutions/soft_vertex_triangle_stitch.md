@@ -1,6 +1,6 @@
 # Soft Vertex Triangle Stitch
 
-**Soft Vertex Triangle Stitch** is an inter-primitive constitutive model where each (vertex, triangle) pair from two separate meshes forms a tetrahedron element. The tetrahedron's shape-keeping energy uses the [Stable Neo-Hookean](./stable_neo_hookean.md) model.
+**Soft Vertex Triangle Stitch** is an inter-primitive constitutive model where each (vertex, triangle) pair from two separate meshes forms a tetrahedron element. The tetrahedron's shape-keeping energy uses a simplified Stable Neo-Hookean variant (distinct from the current [#10 SNK1](./stable_neo_hookean.md) constitution).
 
 The first mesh provides a set of vertices, and the second mesh provides a set of triangles. For each paired vertex $\mathbf{x}_0$ and triangle $(\mathbf{x}_1, \mathbf{x}_2, \mathbf{x}_3)$, a tetrahedron is formed with vertices $\mathbf{x}_0$, $\mathbf{x}_1$, $\mathbf{x}_2$, $\mathbf{x}_3$.
 
@@ -30,7 +30,7 @@ $$
 
 ### Deformation Energy Density
 
-The energy density follows [#10 Stable Neo-Hookean](./stable_neo_hookean.md):
+The energy density follows the simplified Stable Neo-Hookean variant used by this stitch (not the [#10 SNK1](./stable_neo_hookean.md) constitution):
 
 $$
 \Psi = \frac{\mu}{2}(I_c - 3) - \mu(J - 1) + \frac{\lambda}{2}(J - 1)^2 + \frac{\mu^2}{\lambda^2}

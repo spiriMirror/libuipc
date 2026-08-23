@@ -44,7 +44,7 @@ In the global-local pattern, we always separate the ownership and access of the 
 
 For example, we use `DeviceBuffer<T>` for the global data, and pass the `BufferView<T>` to the local subsystems. The `BufferView<T>` is a subview of the `DeviceBuffer<T>`, containing the offset and the size of the subview.
 
-Such design can improve the memory access efficiency and the safety of the data access. With the safety check from `muda`, an out-of-bound access will be detected and reported.
+Such design can improve the memory access efficiency and the safety of the data access. With the safety check from the in-tree `cuda_tool` shim (buffer views with optional bounds checks, ported from muda), an out-of-bound access will be detected and reported.
 
 This separation is applied to all the data in the cuda backend, always keep it in mind when you are reading or writing the code.
 
@@ -52,13 +52,13 @@ This separation is applied to all the data in the cuda backend, always keep it i
 
 In GPU programming, it's hard to debug the code, because all the code is running parallelly, and the order of the execution is not guaranteed. 
 
-So always use the assertion to check the correctness of the code when possible. Typically, we use the `MUDA_KERNEL_ASSERT` to check the correctness of the code. E.g.
+So always use the assertion to check the correctness of the code when possible. Typically, we use the `UIPC_KERNEL_ASSERT` to check the correctness of the code. E.g.
 
 ```cpp
-MUDA_KERNEL_ASSERT(x > 0.0, "x should be positive, but x=%f", x);
+UIPC_KERNEL_ASSERT(x > 0.0, "x should be positive, but x=%f", x);
 ```
 
-The `MUDA_KERNEL_ASSERT` will check the condition in the kernel, and if the condition is not satisfied, it will print the error message the thread id and the block id, and then terminate the kernel.
+The `UIPC_KERNEL_ASSERT` will check the condition in the kernel, and if the condition is not satisfied, it will print the error message the thread id and the block id, and then terminate the kernel.
 
 ## Debug Print
 
@@ -71,7 +71,7 @@ I provide a simple `cout` implementation for the cuda backend, which can be used
 cout << Vector3{1.0, 2.0, 3.0} << "\n";
 ```
 
-which is a feature provided by the `muda` library, you can refer to the [muda](https://mugdxy.github.io/muda-doc/) for the detailed usage.
+`kernel_cout.h` is part of the in-tree `cuda_tool` shim (a device-printf based implementation ported from muda).
 
 The only problem is that, when a kernel is terminated by assertion, the `cout` message will not be kept. So always use the assertion to check the correctness of the code and use the `cout` to debug your calculation.
 

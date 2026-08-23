@@ -12,14 +12,23 @@ Practicalities (Now With Code!)
 
 ## #10 Stable Neo Hookean
 
+Since v0.0.26, this constitution is [Stiff-GIPC](https://github.com/KemengHuang/Stiff-GIPC)'s **SNK1** (energy, gradient, and analytically SPD-projected Hessian ported verbatim from `femEnergy.cu`).
+
 Deformation energy **density**:
 
 $$
-E = \frac{1}{2} \lambda (J - \alpha)^2 + \frac{1}{2} \mu (I_c - 3) - \frac{1}{2} \mu \ln(I_c + 1),
+E = \frac{1}{2} \mu (I_c - 3) + \frac{1}{2} \lambda (J - 1 - \mu / \lambda)^2,
 $$
 
-where $J = \det(F)$, $I_c = \|F\|_F^2$, $\alpha = 1 + \frac{3\mu}{4\lambda}$.
+where $J = \det(F)$ and $I_c = \|F\|_F^2$.
 
+First Piola-Kirchhoff stress (gradient):
+
+$$
+P = \frac{\partial E}{\partial F} = \mu F + (\lambda (J - 1) - \mu)\, \mathrm{cof}(F).
+$$
+
+The 9×9 energy Hessian is projected to SPD analytically — twist/flip eigensystem from the QR-SVD of $F$ plus a 3×3 direct eigensolve — instead of a generic eigendecomposition with clamping.
 
 In continuum mechanics, $F$ is called the deformation gradient, $\lambda$ and $\mu$ are the Lamé parameters. $I_c$ is the first invariant of the right Cauchy-Green deformation tensor $C = \|F\|_F^2$, $\|\cdot\|_F$ is the [Frobenius norm](https://en.wikipedia.org/wiki/Matrix_norm).
 

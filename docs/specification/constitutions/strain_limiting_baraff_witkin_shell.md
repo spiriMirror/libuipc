@@ -85,18 +85,16 @@ $$
 The total energy for each triangle element is:
 
 $$
-E = \Psi \cdot V, \quad V = 2 \, t \, A_0
+E = \Psi \cdot A_0
 $$
 
-where:
+where $A_0$ is the rest area of the triangle. The membrane weight is the **area**, not the volume: the shell thickness enters through the stiffness attributes instead — the stretch stiffness carries $t$ ($E_\text{stretch} \cdot t / (1 - \nu_\text{stretch}^2)$ per unit area), while the shear stiffness $E_\text{shear} / (2(1 + \nu_\text{shear}))$ is thickness-independent.
 
-- $t$ is the shell thickness parameter
-- $A_0$ is the rest area of the triangle
-- The factor of 2 accounts for the one-sided thickness convention
+The directional stretch metric is floored at $10^{-12}$ to guard the $1/\sqrt{I_5}$ singularity at fully collapsed triangles (finite huge response instead of NaN).
 
 ## Parameters
 
-The strain rate parameter $r$ is an internal backend constant (currently $r = 100$) that controls the strength of the cubic extension penalty.
+The strain rate parameter $r$ is set via the `strain_rate` argument of `apply_to` (default 100) and controls the strength of the cubic extension penalty.
 
 The thickness $t$ and mass density are inherited from the [Finite Element](./finite_element.md) base and set via the `apply_to` interface.
 
