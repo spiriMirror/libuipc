@@ -351,11 +351,11 @@ namespace
     {
         // count lives on device: a graph capturing this kernel then stays
         // valid when the matrix nnz changes within the reserved capacity
-        const int triplet_count = (int)(*d_triplet_count);
-        constexpr int warp_size = 32;
-        constexpr int block_dim = 256;
-        constexpr int N         = 3;
-        using T                 = Float;
+        const int     triplet_count = (int)(*d_triplet_count);
+        constexpr int warp_size     = 32;
+        constexpr int block_dim     = 256;
+        constexpr int N             = 3;
+        using T                     = Float;
 
         using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
         using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
@@ -385,9 +385,9 @@ namespace
         // raw triplet arrays: the view's A(i) accessor bounds-checks against
         // the count baked at capture time, while the device-side count may be
         // larger (matrix grew within capacity) — read through the pointers
-        const int*            rows = A.row_indices().data();
-        const int*            cols = A.col_indices().data();
-        const Matrix3x3*      vals = A.values().data();
+        const int*       rows = A.row_indices().data();
+        const int*       cols = A.col_indices().data();
+        const Matrix3x3* vals = A.values().data();
         if(global_thread_id < triplet_count)
         {
             if(global_thread_id > 0)
@@ -542,9 +542,9 @@ void Spmv::rbk_sym_spmv_dot(Float                                a,
                             Float                                b,
                             cuda_tool::DenseVectorView<Float>    y,
                             cuda_tool::VarView<Float>            d_dot,
-                            cuda_tool::CDense<IndexT>            d_triplet_count,
-                            SizeT               triplet_capacity,
-                            cudaStream_t        stream)
+                            cuda_tool::CDense<IndexT> d_triplet_count,
+                            SizeT                     triplet_capacity,
+                            cudaStream_t              stream)
 {
     if(b != 0)
     {
@@ -565,8 +565,8 @@ void Spmv::rbk_sym_spmv_dot(Float                                a,
     // grid covers the reserved capacity: blocks beyond the current
     // (device-side) count exit through the is_valid guard with zero work,
     // so the launch shape need not change when the count does
-    constexpr int block_dim   = 256;
-    int           block_count = (int)((triplet_capacity + block_dim - 1) / block_dim);
+    constexpr int block_dim = 256;
+    int block_count = (int)((triplet_capacity + block_dim - 1) / block_dim);
 
     if(block_count > 0)
     {

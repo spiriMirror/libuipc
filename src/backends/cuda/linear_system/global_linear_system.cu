@@ -502,8 +502,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
             auto count  = diag_dof_counts[i];
             auto z_sub  = z.subview(offset, count);
             auto r_sub  = r.subview(offset, count);
-            cuda_tool::BufferLaunch(stream).copy(z_sub.buffer_view(),
-                                                 r_sub.buffer_view());
+            cuda_tool::BufferLaunch(stream).copy(z_sub.buffer_view(), r_sub.buffer_view());
         }
     }
 }
@@ -523,7 +522,7 @@ void GlobalLinearSystem::Impl::spmv(Float                              a,
 void GlobalLinearSystem::Impl::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                                         cuda_tool::DenseVectorView<Float>  y,
                                         cuda_tool::VarView<Float> d_dot,
-                                        cudaStream_t stream)
+                                        cudaStream_t              stream)
 {
     spmver.rbk_sym_spmv_dot(1.0,
                             bcoo_A.cview(),

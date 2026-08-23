@@ -44,7 +44,7 @@ class Spmv
                           cuda_tool::VarView<Float>            d_dot,
                           cuda_tool::CDense<IndexT>            d_triplet_count,
                           SizeT                                triplet_capacity,
-                          cudaStream_t                         stream = nullptr);
+                          cudaStream_t stream = nullptr);
 
     // debug fallback cpu spmv
     // very slow, only for debug

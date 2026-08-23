@@ -90,7 +90,7 @@ TEST_CASE("59_fem_mas_vs_diag_benchmark", "[fem][mas][benchmark]")
 
         run_bunny_scene(mas_path, true);
 
-        auto json = mas_timer.report_merged_as_json();
+        auto          json = mas_timer.report_merged_as_json();
         std::ofstream ofs(std::string(base_path) + "timer_mas.json");
         ofs << json.dump(2);
         logger::info("MAS timer saved to {}timer_mas.json", base_path);
@@ -106,7 +106,7 @@ TEST_CASE("59_fem_mas_vs_diag_benchmark", "[fem][mas][benchmark]")
 
         run_bunny_scene(diag_path, false);
 
-        auto json = diag_timer.report_merged_as_json();
+        auto          json = diag_timer.report_merged_as_json();
         std::ofstream ofs(std::string(base_path) + "timer_diag.json");
         ofs << json.dump(2);
         logger::info("Diag timer saved to {}timer_diag.json", base_path);
@@ -122,8 +122,9 @@ TEST_CASE("59_fem_mas_vs_diag_benchmark", "[fem][mas][benchmark]")
             return Json::parse(ifs);
         };
 
-        auto find_timer = [](const Json& j, const std::string& name,
-                             auto&& self) -> std::pair<double, int>
+        auto find_timer = [](const Json&        j,
+                             const std::string& name,
+                             auto&&             self) -> std::pair<double, int>
         {
             if(j.contains("name") && j["name"].get<std::string>() == name)
             {
@@ -146,24 +147,32 @@ TEST_CASE("59_fem_mas_vs_diag_benchmark", "[fem][mas][benchmark]")
         auto mas_json  = read_json(std::string(base_path) + "timer_mas.json");
         auto diag_json = read_json(std::string(base_path) + "timer_diag.json");
 
-        auto [mas_pcg_time, mas_pcg_count]   = find_timer(mas_json, "PCG", find_timer);
+        auto [mas_pcg_time, mas_pcg_count] = find_timer(mas_json, "PCG", find_timer);
         auto [diag_pcg_time, diag_pcg_count] = find_timer(diag_json, "PCG", find_timer);
 
-        auto [mas_prec_time, mas_prec_count]   = find_timer(mas_json, "Apply Preconditioner", find_timer);
-        auto [diag_prec_time, diag_prec_count] = find_timer(diag_json, "Apply Preconditioner", find_timer);
+        auto [mas_prec_time, mas_prec_count] =
+            find_timer(mas_json, "Apply Preconditioner", find_timer);
+        auto [diag_prec_time, diag_prec_count] =
+            find_timer(diag_json, "Apply Preconditioner", find_timer);
 
-        auto [mas_spmv_time, mas_spmv_count]   = find_timer(mas_json, "SpMV", find_timer);
+        auto [mas_spmv_time, mas_spmv_count] = find_timer(mas_json, "SpMV", find_timer);
         auto [diag_spmv_time, diag_spmv_count] = find_timer(diag_json, "SpMV", find_timer);
 
         logger::info("===== PCG Benchmark: {} frames =====", BENCHMARK_FRAMES);
         logger::info("  MAS:  PCG total={:.3f}s, calls={}, spmv={:.3f}s ({} calls), precond={:.3f}s ({} calls)",
-                     mas_pcg_time, mas_pcg_count,
-                     mas_spmv_time, mas_spmv_count,
-                     mas_prec_time, mas_prec_count);
+                     mas_pcg_time,
+                     mas_pcg_count,
+                     mas_spmv_time,
+                     mas_spmv_count,
+                     mas_prec_time,
+                     mas_prec_count);
         logger::info("  Diag: PCG total={:.3f}s, calls={}, spmv={:.3f}s ({} calls), precond={:.3f}s ({} calls)",
-                     diag_pcg_time, diag_pcg_count,
-                     diag_spmv_time, diag_spmv_count,
-                     diag_prec_time, diag_prec_count);
+                     diag_pcg_time,
+                     diag_pcg_count,
+                     diag_spmv_time,
+                     diag_spmv_count,
+                     diag_prec_time,
+                     diag_prec_count);
 
         if(diag_spmv_count > 0 && mas_spmv_count > 0)
         {
@@ -177,8 +186,7 @@ TEST_CASE("59_fem_mas_vs_diag_benchmark", "[fem][mas][benchmark]")
         }
         if(diag_pcg_time > 0 && mas_pcg_time > 0)
         {
-            logger::info("  PCG time speedup (Diag/MAS): {:.2f}x",
-                         diag_pcg_time / mas_pcg_time);
+            logger::info("  PCG time speedup (Diag/MAS): {:.2f}x", diag_pcg_time / mas_pcg_time);
         }
 
         // MAS must produce fewer SpMV calls (= fewer PCG iterations) than Diagonal

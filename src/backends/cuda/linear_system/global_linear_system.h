@@ -332,7 +332,7 @@ class GlobalLinearSystem : public SimSystem
         void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                       cuda_tool::DenseVectorView<Float>  y,
                       cuda_tool::VarView<Float>          d_dot,
-                      cudaStream_t stream = nullptr);
+                      cudaStream_t                       stream = nullptr);
 
         // data pointers of the assembled matrix buffers (row/col/value),
         // for the FusedPCG CUDA-graph validity key: a reassembly that

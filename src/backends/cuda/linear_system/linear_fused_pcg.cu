@@ -80,7 +80,7 @@ namespace
     __global__ void fused_update_converged_kernel(cuda_tool::CDense<Float> d_rz_new,
                                                   cuda_tool::Dense<IndexT> d_converged,
                                                   cuda_tool::CDense<Float> d_rz_tol,
-                                                  int   n)
+                                                  int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -103,15 +103,13 @@ namespace
 
     // last node of the setup chain: rz_tol = tol_rate * |rz0| on device,
     // and the zero-system early exit (skip the loop body entirely)
-    __global__ void pcg_while_setup_kernel(cuda_tool::CDense<Float> d_rz,
-                                           cuda_tool::Dense<Float>  d_rz_tol,
-                                           Float                    tol_rate,
+    __global__ void pcg_while_setup_kernel(cuda_tool::CDense<Float>   d_rz,
+                                           cuda_tool::Dense<Float>    d_rz_tol,
+                                           Float                      tol_rate,
                                            cudaGraphConditionalHandle handle)
     {
         Float rz0 = *d_rz;
-        UIPC_KERNEL_ASSERT(::isfinite(rz0),
-                           "FusedPCG Init: r^T*z = {} is not finite",
-                           rz0);
+        UIPC_KERNEL_ASSERT(::isfinite(rz0), "FusedPCG Init: r^T*z = {} is not finite", rz0);
         *d_rz_tol = ::abs(rz0) * tol_rate;
         if(::abs(rz0) == Float{0.0})
             cudaGraphSetConditional(handle, 0u);
@@ -121,22 +119,20 @@ namespace
     // WHILE node re-executes the body. `k` counts completed iterations;
     // the plain loop runs at most max_iter-1 of them.
     __global__ void pcg_while_control_kernel(cudaGraphConditionalHandle handle,
-                                             cuda_tool::CDense<Float>  d_rz_new,
-                                             cuda_tool::CDense<Float>  d_rz_tol,
-                                             cuda_tool::Dense<IndexT>  d_converged,
-                                             cuda_tool::Dense<IndexT>  d_iter,
-                                             int                       max_iter_minus_1)
+                                             cuda_tool::CDense<Float> d_rz_new,
+                                             cuda_tool::CDense<Float> d_rz_tol,
+                                             cuda_tool::Dense<IndexT> d_converged,
+                                             cuda_tool::Dense<IndexT> d_iter,
+                                             int max_iter_minus_1)
     {
         Float rz_new = *d_rz_new;
-        UIPC_KERNEL_ASSERT(::isfinite(rz_new),
-                           "FusedPCG Iter: r^T*z = {} is not finite",
-                           rz_new);
+        UIPC_KERNEL_ASSERT(::isfinite(rz_new), "FusedPCG Iter: r^T*z = {} is not finite", rz_new);
         bool converged = ::abs(rz_new) <= *d_rz_tol;
         *d_converged   = converged ? 1 : 0;
 
-        int k      = (int)(*d_iter) + 1;
-        *d_iter    = k;
-        bool keep  = !converged && (k < max_iter_minus_1);
+        int k     = (int)(*d_iter) + 1;
+        *d_iter   = k;
+        bool keep = !converged && (k < max_iter_minus_1);
         cudaGraphSetConditional(handle, keep ? 1u : 0u);
     }
 #endif
@@ -177,8 +173,7 @@ void LinearFusedPCG::do_build(BuildInfo& info)
     // al-ipc scenes capture and replay fine) — root cause not yet found, so
     // keep al-ipc on the plain launch path until it is. See doc 09.
     auto constitution_attr = config.find<std::string>("contact/constitution");
-    if(constitution_attr && constitution_attr->view()[0] != "ipc"
-       && m_use_cuda_graph != 0)
+    if(constitution_attr && constitution_attr->view()[0] != "ipc" && m_use_cuda_graph != 0)
     {
         m_use_cuda_graph = 0;
         logger::info("LinearFusedPCG: contact/constitution != ipc — CUDA graph replay disabled");
@@ -359,10 +354,10 @@ void fused_swap_rz(cuda_tool::CVarView<Float>  d_rz_new,
 
 // d_converged = |rz_new| <= rz_tol (single-thread write); rz_tol lives on
 // device so a captured CUDA graph survives tolerance changes between solves.
-void fused_update_converged(cuda_tool::CVarView<Float>  d_rz_new,
-                            cuda_tool::VarView<IndexT>  d_converged,
-                            cuda_tool::CVarView<Float>  d_rz_tol,
-                            cudaStream_t                stream = nullptr)
+void fused_update_converged(cuda_tool::CVarView<Float> d_rz_new,
+                            cuda_tool::VarView<IndexT> d_converged,
+                            cuda_tool::CVarView<Float> d_rz_tol,
+                            cudaStream_t               stream = nullptr)
 {
     int n = 1;
     fused_update_converged_kernel<<<cuda_tool::best_grid_dim(n, fused_update_converged_kernel), cuda_tool::best_block_dim(fused_update_converged_kernel), 0, stream>>>(
@@ -374,8 +369,7 @@ void fused_update_converged(cuda_tool::CVarView<Float>  d_rz_new,
 // `timed` adds the per-iteration "SpMV"/"Apply Preconditioner" Timers —
 // plain path only; during graph capture no Timer objects may be created
 // (empirically corrupts state in the single-process test suite binary).
-void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x,
-                                   cudaStream_t stream, bool timed)
+void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x, cudaStream_t stream, bool timed)
 {
     // Ap = A * p,  pAp = p^T * Ap
     {
@@ -425,17 +419,24 @@ void LinearFusedPCG::destroy_while()
 
 bool LinearFusedPCG::while_key_matches(cuda_tool::DenseVectorView<Float>  x,
                                        cuda_tool::CDenseVectorView<Float> b,
-                                       SizeT                              max_iter) const
+                                       SizeT max_iter) const
 {
     if(!m_while.ready())
         return false;
-    auto A = matrix_data_ptrs();
-    std::array<const void*, 12> ptrs = {x.data(),  b.data(),  r.buffer_view().data(),
-                                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
-                                        A[0],      A[1],      A[2],
-                                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
-    return m_while_n == x.size() && m_while_max_iter == max_iter
-           && m_while_ptrs == ptrs;
+    auto                        A    = matrix_data_ptrs();
+    std::array<const void*, 12> ptrs = {x.data(),
+                                        b.data(),
+                                        r.buffer_view().data(),
+                                        z.buffer_view().data(),
+                                        p.buffer_view().data(),
+                                        Ap.buffer_view().data(),
+                                        A[0],
+                                        A[1],
+                                        A[2],
+                                        d_rz.data(),
+                                        d_rz_new.data(),
+                                        d_pAp.data()};
+    return m_while_n == x.size() && m_while_max_iter == max_iter && m_while_ptrs == ptrs;
 }
 
 void LinearFusedPCG::rebuild_while(cuda_tool::DenseVectorView<Float>  x,
@@ -450,63 +451,74 @@ void LinearFusedPCG::rebuild_while(cuda_tool::DenseVectorView<Float>  x,
         {
             pcg_while_reset_kernel<<<1, 1, 0, stream>>>(d_converged.viewer(),
                                                         d_iter.viewer());
-            cuda_tool::BufferLaunch(stream).copy(r.buffer_view(),
-                                                 b.buffer_view());
+            cuda_tool::BufferLaunch(stream).copy(r.buffer_view(), b.buffer_view());
             apply_preconditioner(z, r, d_converged.view(), stream);
-            cuda_tool::BufferLaunch(stream).copy(p.buffer_view(),
-                                                 z.buffer_view());
+            cuda_tool::BufferLaunch(stream).copy(p.buffer_view(), z.buffer_view());
             fused_dot(r.cview(), z.cview(), d_rz.view(), stream);
-            pcg_while_setup_kernel<<<1, 1, 0, stream>>>(d_rz.cviewer(),
-                                                        d_rz_tol.viewer(),
-                                                        global_tol_rate,
-                                                        handle);
+            pcg_while_setup_kernel<<<1, 1, 0, stream>>>(
+                d_rz.cviewer(), d_rz_tol.viewer(), global_tol_rate, handle);
         },
         // loop body: one iteration + the keep-going decision
         [&](cudaStream_t stream, cudaGraphConditionalHandle handle)
         {
             run_iteration(x, stream, false);
-            pcg_while_control_kernel<<<1, 1, 0, stream>>>(
-                handle,
-                d_rz_new.cviewer(),
-                d_rz_tol.cviewer(),
-                d_converged.viewer(),
-                d_iter.viewer(),
-                (int)max_iter - 1);
+            pcg_while_control_kernel<<<1, 1, 0, stream>>>(handle,
+                                                          d_rz_new.cviewer(),
+                                                          d_rz_tol.cviewer(),
+                                                          d_converged.viewer(),
+                                                          d_iter.viewer(),
+                                                          (int)max_iter - 1);
         });
 
     if(result != cuda_tool::GraphWhile::Result::Ok)
     {
-        logger::warn("LinearFusedPCG: while-loop graph capture failed (code {}: {}); "
-                     "falling back to block replay / plain launches",
-                     (int)result,
-                     m_while.failure_detail());
+        logger::warn(
+            "LinearFusedPCG: while-loop graph capture failed (code {}: {}); "
+            "falling back to block replay / plain launches",
+            (int)result,
+            m_while.failure_detail());
         return;
     }
 
-    auto A = matrix_data_ptrs();
-    m_while_ptrs     = {x.data(),  b.data(),  r.buffer_view().data(),
-                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
-                        A[0],      A[1],      A[2],
-                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
+    auto A           = matrix_data_ptrs();
+    m_while_ptrs     = {x.data(),
+                        b.data(),
+                        r.buffer_view().data(),
+                        z.buffer_view().data(),
+                        p.buffer_view().data(),
+                        Ap.buffer_view().data(),
+                        A[0],
+                        A[1],
+                        A[2],
+                        d_rz.data(),
+                        d_rz_new.data(),
+                        d_pAp.data()};
     m_while_n        = x.size();
     m_while_max_iter = max_iter;
-    logger::info("LinearFusedPCG: captured full-GPU while-loop graph (n = {})",
-                 x.size());
+    logger::info("LinearFusedPCG: captured full-GPU while-loop graph (n = {})", x.size());
 }
 #endif
 
 bool LinearFusedPCG::graph_key_matches(cuda_tool::DenseVectorView<Float>  x,
                                        cuda_tool::CDenseVectorView<Float> b,
-                                       SizeT                              interval,
-                                       SizeT                              max_iter) const
+                                       SizeT interval,
+                                       SizeT max_iter) const
 {
     if(!m_graph.ready())
         return false;
-    auto A = matrix_data_ptrs();
-    std::array<const void*, 12> ptrs = {x.data(),  b.data(),  r.buffer_view().data(),
-                                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
-                                        A[0],      A[1],      A[2],
-                                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
+    auto                        A    = matrix_data_ptrs();
+    std::array<const void*, 12> ptrs = {x.data(),
+                                        b.data(),
+                                        r.buffer_view().data(),
+                                        z.buffer_view().data(),
+                                        p.buffer_view().data(),
+                                        Ap.buffer_view().data(),
+                                        A[0],
+                                        A[1],
+                                        A[2],
+                                        d_rz.data(),
+                                        d_rz_new.data(),
+                                        d_pAp.data()};
     return m_graph_n == x.size() && m_graph_interval == interval
            && m_graph_max_iter == max_iter && m_graph_ptrs == ptrs;
 }
@@ -530,9 +542,10 @@ void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
     {
         // a callee launched outside the capture stream (e.g. the MAS
         // preconditioner engine) or the runtime rejected the capture
-        logger::warn("LinearFusedPCG: CUDA graph capture failed (code {}); "
-                     "graph replay disabled for this instance",
-                     (int)result);
+        logger::warn(
+            "LinearFusedPCG: CUDA graph capture failed (code {}); "
+            "graph replay disabled for this instance",
+            (int)result);
         return;
     }
 
@@ -540,11 +553,19 @@ void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
                  interval,
                  x.size());
 
-    auto A = matrix_data_ptrs();
-    m_graph_ptrs     = {x.data(),  b.data(),  r.buffer_view().data(),
-                        z.buffer_view().data(),  p.buffer_view().data(),  Ap.buffer_view().data(),
-                        A[0],      A[1],      A[2],
-                        d_rz.data(), d_rz_new.data(), d_pAp.data()};
+    auto A           = matrix_data_ptrs();
+    m_graph_ptrs     = {x.data(),
+                        b.data(),
+                        r.buffer_view().data(),
+                        z.buffer_view().data(),
+                        p.buffer_view().data(),
+                        Ap.buffer_view().data(),
+                        A[0],
+                        A[1],
+                        A[2],
+                        d_rz.data(),
+                        d_rz_new.data(),
+                        d_pAp.data()};
     m_graph_n        = x.size();
     m_graph_interval = interval;
     m_graph_max_iter = max_iter;
@@ -604,8 +625,7 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
     // the graph launch stream (blocking streams do not wait for
     // legacy-stream work), letting the converged kernel read a stale/uninit
     // tolerance. (Symptom was dx=0 -> flat line-search energy.)
-    CUDA_TOOL_CHECK(cudaMemcpy(
-        d_rz_tol.data(), &rz_tol, sizeof(Float), cudaMemcpyHostToDevice));
+    CUDA_TOOL_CHECK(cudaMemcpy(d_rz_tol.data(), &rz_tol, sizeof(Float), cudaMemcpyHostToDevice));
     SizeT effective_check_interval = check_interval > 0 ? check_interval : SizeT{1};
 
     SizeT total_iters = max_iter > 0 ? max_iter - 1 : 0;

@@ -240,8 +240,7 @@ class GraphWhile
             return fail(Result::BuildFailed, "cudaGraphCreate", err);
 
         cudaGraphConditionalHandle handle;
-        err = cudaGraphConditionalHandleCreate(
-            &handle, m_graph, 1u, cudaGraphCondAssignDefault);
+        err = cudaGraphConditionalHandleCreate(&handle, m_graph, 1u, cudaGraphCondAssignDefault);
         if(err != cudaSuccess)
             return fail(Result::BuildFailed, "cudaGraphConditionalHandleCreate", err);
 
@@ -263,35 +262,29 @@ class GraphWhile
 
         // 3) assemble: setup -> WHILE(body)
         cudaGraphNode_t setup_node;
-        err = cudaGraphAddChildGraphNode(
-            &setup_node, m_graph, nullptr, 0, m_setup_graph);
+        err = cudaGraphAddChildGraphNode(&setup_node, m_graph, nullptr, 0, m_setup_graph);
         if(err != cudaSuccess)
             return fail(Result::BuildFailed, "cudaGraphAddChildGraphNode(setup)", err);
 
         // NB: phGraph_out is an OUTPUT — the driver writes back a pointer to
         // its own body-graph array; do not point it at user storage
         cudaGraphNodeParams params = {};
-        params.type               = cudaGraphNodeTypeConditional;
-        params.conditional.handle = handle;
-        params.conditional.type   = cudaGraphCondTypeWhile;
-        params.conditional.size   = 1;
+        params.type                = cudaGraphNodeTypeConditional;
+        params.conditional.handle  = handle;
+        params.conditional.type    = cudaGraphCondTypeWhile;
+        params.conditional.size    = 1;
         cudaGraphNode_t while_node;
         err = cudaGraphAddNode(&while_node, m_graph, &setup_node, nullptr, 1, &params);
         cudaGraph_t body_container =
-            params.conditional.phGraph_out ? params.conditional.phGraph_out[0] :
-                                             nullptr;
+            params.conditional.phGraph_out ? params.conditional.phGraph_out[0] : nullptr;
         if(err != cudaSuccess || body_container == nullptr)
             return fail(Result::BuildFailed, "cudaGraphAddNode(conditional)", err);
 
         // 4) capture the loop body DIRECTLY into the conditional's body
         //    graph — a cloned child-graph node here would add one device-side
         //    dispatch level per iteration (measurably slower)
-        err = cudaStreamBeginCaptureToGraph(m_capture_stream,
-                                            body_container,
-                                            nullptr,
-                                            nullptr,
-                                            0,
-                                            cudaStreamCaptureModeThreadLocal);
+        err = cudaStreamBeginCaptureToGraph(
+            m_capture_stream, body_container, nullptr, nullptr, 0, cudaStreamCaptureModeThreadLocal);
         if(err != cudaSuccess)
         {
             cudaGetLastError();
@@ -331,8 +324,8 @@ class GraphWhile
         return cudaStreamSynchronize(m_launch_stream);
     }
 
-    bool ready() const { return m_exec != nullptr; }
-    bool disabled() const { return m_disabled; }
+    bool               ready() const { return m_exec != nullptr; }
+    bool               disabled() const { return m_disabled; }
     const std::string& failure_detail() const { return m_failure_detail; }
 
     void reset_graph()
