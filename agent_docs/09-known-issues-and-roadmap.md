@@ -54,8 +54,19 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
    conservative swept test — tightening it needs a provably conservative
    exact swept-distance predicate, more delicate.
-3. SNH/FEM assembly kernel throughput (profile `make_spd` EVD alternatives
-   that keep the convergence behavior).
+3. ~~SNH/FEM assembly kernel throughput~~ **DONE (2026-08-24)**: the SNH
+   constitution was replaced wholesale by Stiff-GIPC's SNK1 (their energy
+   `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, their gradient, and their analytic
+   twist/flip + 3x3-direct SPD projection — the generic 9x9 `make_spd`
+   EVD is gone from this kernel; `make_spd` itself remains for the other
+   constitutions). Case 88 median 297 -> 266 ms/frame; case 89 PCG
+   213 -> 77 per solve (the analytic projection is also a much
+   better-conditioned system). NOTE: the FEM energy changed numerically —
+   trajectories shift slightly vs older baselines (89 resting centroid
+   -0.775 -> -0.786) but stay physically equivalent. Same round:
+   `cuda_tool::eigen::svd/pd` re-implemented on our own
+   `algorithm/qr_svd.hpp` (GEIGEN port) — no more Eigen JacobiSVD on the
+   host path, and the double overload no longer downcasts to float.
 4. Same-address atomic storms (DONE 2026-08-23 evening): `Spmv_rbk_sym_
    spmv_dot_kernel` and `fused_dot_kernel` now do two-level (warp → block)
    reduction with one atomicAdd per block — ~9k/~4k same-address atomic

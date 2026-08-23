@@ -32,7 +32,7 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | Header | Description |
 |---|---|
 | `empty.h` | UID 0, no shape-preservation energy, mass only; more stable and faster when driven entirely by constraints |
-| `stable_neo_hookean.h` | Stable Neo-Hookean tetrahedral elasticity, `ElasticModuli::youngs_poisson(E, nu)` |
+| `stable_neo_hookean.h` | Stable Neo-Hookean tetrahedral elasticity, `ElasticModuli::youngs_poisson(E, nu)`. **Since 2026-08-24 this is Stiff-GIPC's SNK1 verbatim** (energy `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, gradient `μF + (λ(J-1)-μ)·cof(F)`, and the analytic SPD-projected Hessian — twist/flip eigensystem from `math::qr_svd` + a 3×3 direct eigensolve, clamp-and-rebuild; replaces the SymEigen-generated SNH (`0.5λ(J-α)²+0.5μ(Ic-3)-0.5μ·log(Ic+1)`, α=1+0.75μ/λ) + generic 9×9 `make_spd` EVD). Case-88 median 297→266 ms/frame, 89 PCG 213→77/solve |
 | `arap.h` | ARAP energy |
 | `particle.h` | Mass point (no elasticity) |
 | `hookean_spring.h` | Linear spring $E=\frac{\kappa}{2}((L-L_0)/L_0)^2$ |

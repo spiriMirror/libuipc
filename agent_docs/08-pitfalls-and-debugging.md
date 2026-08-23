@@ -82,11 +82,9 @@ touching that area; several of these have bitten us more than once.
   contact assemble 1.9->5.3 ms, bending 1.3->2.9 ms per call) — the local
   L matrix (81/144 doubles) blows the register budget of already-fat
   kernels and occupancy collapses. Do not retry unless the PD test is
-  register-free. The Stiff-GIPC 2.6x SNH advantage comes from their
-  analytic eigensystem (twist/flip + 3x3 direct), which does NOT apply to
-  our energy (ours: `0.5*λ(J-α)² + 0.5*μ(Ic-3) - 0.5*μ·log(Ic+1)`; theirs:
-  classic `-μ(J-1) + λ/2(J-1)²`) — porting it means deriving the analytic
-  eigensystem for OUR energy first.
+  register-free. RESOLVED differently (2026-08-24): we adopted Stiff's
+  SNK1 wholesale (their energy convention + their analytic eigensystem),
+  so the generic 9x9 EVD is simply gone from the SNH kernel — see doc 04.
 - **Same-address atomic storms** in reduction kernels: one atomicAdd per
   warp on a single counter costs 20-30 µs/call at ~300k threads — always
   do warp→block two-level reduction (done for `Spmv_rbk_sym_spmv_dot` and
