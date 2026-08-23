@@ -208,8 +208,7 @@ Verdicts:
   win (~2.5x), the graph plumbing adds its share on top.
 - COVERAGE RULE (measured on 88_stiff_gipc_benchmark, E=1e7, two 19k-vert
   bunnies + 4.2k-vert cloth, 60 frames, 2026-08-23): MAS only pays off when
-  it covers nearly all of the stiff DoFs. Partial coverage is net NEGATIVE:
-  | config | total PCG | avg/solve | wall |
+  it covers nearly all of the stiff DoFs. Partial coverage is net NEGATIVE:  | config | total PCG | avg/solve | wall |
   |---|---|---|---|
   | all diagonal | 366875 | 853 | 60s |
   | MAS on upper bunny only (~45% of FEM verts) | 397730 | 923 | 73s |
@@ -236,6 +235,18 @@ Verdicts:
   stitch regression (config switch instead of mesh_partition calls;
   58_hybrid_mix now verifies custom + auto partitions coexist), samples
   88/89 (NO_MAS=1 env flips the switch to "diag").
+- SCENE-ADAPTIVE KAPPA CORRIDOR (2026-08-24): Stiff-GIPC's
+  `suggestKappa`/`upperBoundKappa` (`GIPC.cu:9850-9888`) is ported into
+  `GlobalContactManager::init` with the dt^2 conversion (their barrier
+  applies kappa raw, ours scales by dt^2 → computed values divided by
+  dt^2). The corridor [suggest, 100×suggest] now rules all kappa clamping
+  (default-model resolution, per-model clamps, the adaptive strategy's
+  projection); `contact/adaptive/{min,max}_kappa` are fallback-only when
+  the corridor is not computable. The evaluation scale is user-configurable
+  via `contact/adaptive/kappa_eval_scale` (default 1e-16 — Stiff's value;
+  the /dt^2 conversion keeps it valid for any dt). Measured corridors:
+  case 89 → [4.4e7, 4.4e9], case 88 → [4.7e6, 4.7e8]; the established
+  κ=1e8 sits inside both, so aligned scenes are behaviorally unchanged.
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration

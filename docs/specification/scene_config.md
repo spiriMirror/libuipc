@@ -73,11 +73,14 @@ See [Newton Solver Details](scene_configs/newton.md) for the convergence criteri
 
 Only takes effect when `contact/constitution = "ipc"` **and** the contact tabular contains a resistance set to `-1.0` (i.e. `adaptive(-1.0)`), which triggers the adaptive $\kappa$ mechanism.
 
+At init the engine computes a **scene-adaptive $\kappa$ corridor** (a port of Stiff-GIPC's `suggestKappa`/`upperBoundKappa`, `GIPC.cu:9850-9888`, with the $dt^2$ convention conversion — their barrier applies $\kappa$ raw, ours is scaled by $dt^2$, so the computed values are divided by $dt^2$): $\kappa_{suggest} = c \cdot \bar m / (4 \cdot s \cdot \mathrm{diag}^2 \cdot H_b) / dt^2$ with $\bar m$ = total scene mass / vertex count, $\mathrm{diag}$ = rest-bbox diagonal, $s$ = `kappa_eval_scale`, $H_b$ the barrier curvature at $d = s \cdot \mathrm{diag}^2$ vs $\hat d^2$, and $\kappa_{upper} = 100 \times \kappa_{suggest}$. **The computed corridor rules** — all clamping (default-model resolution, per-model clamps, the adaptive strategy's projection result) uses it; the config `min/max_kappa` below only serve as fallback when the corridor is not computable.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `contact/adaptive/min_kappa` | Float | `1e8` | Minimum adaptive contact stiffness ($Pa$, 100 MPa) |
+| `contact/adaptive/min_kappa` | Float | `1e8` | Fallback minimum adaptive contact stiffness ($Pa$, 100 MPa) — used only when the corridor is not computable |
 | `contact/adaptive/init_kappa` | Float | `1e9` | Initial adaptive contact stiffness ($Pa$, 1 GPa) |
-| `contact/adaptive/max_kappa` | Float | `1e11` | Maximum adaptive contact stiffness ($Pa$, 100 GPa) |
+| `contact/adaptive/max_kappa` | Float | `1e11` | Fallback maximum adaptive contact stiffness ($Pa$, 100 GPa) — used only when the corridor is not computable |
+| `contact/adaptive/kappa_eval_scale` | Float | `1e-16` | Evaluation-point scale $s$ for the corridor (Stiff's raw-$\kappa$ value; the $/dt^2$ conversion makes it valid for any `dt`) |
 
 ### AL-IPC
 
