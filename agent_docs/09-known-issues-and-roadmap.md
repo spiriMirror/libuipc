@@ -148,6 +148,12 @@ Verdicts:
   signature). Free-fall no-contact: graph on/off bit-identical. One red
   herring cost a debug round: a "frozen" E=1e4 trajectory turned out to be
   a stale site-packages dll, not a solver bug (see doc 08 stale-dll trap).
+  Measured benefit (89_mas_bunny, E=1e7, 100 frames, 704 solves/~198k PCG
+  iters, identical iteration counts and f100 centroid on both paths):
+  graph on 29.8s vs graph off 36.0s wall = ~17% end-to-end (~32 us/PCG
+  iteration of launch-gap savings). For reference the same scene with the
+  diagonal preconditioner (graph on) takes ~74s — MAS itself is the bigger
+  win (~2.5x), the graph plumbing adds its share on top.
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration
