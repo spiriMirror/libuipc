@@ -14,6 +14,8 @@ class ContactReceiver;
 class GlobalTrajectoryFilter;
 class GlobalSimplicialSurfaceManager;
 class AdaptiveContactParameterReporter;
+class FiniteElementMethod;
+class AffineBodyDynamics;
 
 class GlobalContactManager final : public SimSystem
 {
@@ -63,6 +65,8 @@ class GlobalContactManager final : public SimSystem
         SimSystemSlot<GlobalVertexManager>            global_vertex_manager;
         SimSystemSlot<GlobalTrajectoryFilter>         global_trajectory_filter;
         SimSystemSlot<GlobalSimplicialSurfaceManager> global_surface_manager;
+        SimSystemSlot<FiniteElementMethod>            finite_element_method;
+        SimSystemSlot<AffineBodyDynamics>             affine_body_dynamics;
 
         bool cfl_enabled = false;
 
@@ -79,6 +83,14 @@ class GlobalContactManager final : public SimSystem
         Float                                   kappa = 0.0;
         S<const geometry::AttributeSlot<Float>> dt_attr;
         Float                                   eps_velocity = 0.0;
+
+        // Scene-adaptive kappa corridor, ported from Stiff-GIPC's
+        // suggestKappa/upperBoundKappa (GIPC.cu:9850-9888) with the dt^2
+        // convention conversion. Computed once in init(); <= 0 means "not
+        // computable for this scene" and callers fall back to the
+        // contact/adaptive/{min,max}_kappa config values.
+        Float kappa_lower_bound = -1.0;
+        Float kappa_upper_bound = -1.0;
 
 
         /***********************************************************************
@@ -100,6 +112,11 @@ class GlobalContactManager final : public SimSystem
     Float d_hat() const;
     Float eps_velocity() const;
     bool  cfl_enabled() const;
+
+    // Scene-adaptive kappa corridor (Stiff-GIPC suggestKappa/upperBoundKappa
+    // with the dt^2 conversion); <= 0 = not computable, use config fallback
+    Float kappa_lower_bound() const;
+    Float kappa_upper_bound() const;
 
     cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     cuda_tool::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
