@@ -9,7 +9,13 @@ namespace uipc::geometry
  * create a `mesh_part` <IndexT> attribute on the simplicial complex' vertices
  * 
  * @param sc simplicial complex
- * @param part_max_size the vertex number in each partition <= part_max_size
+ * @param part_max_size the vertex number in each partition <= part_max_size.
+ *        NOTE: the CUDA MAS preconditioner hard-codes BANKSIZE=16, so 16 is
+ *        the only value it accepts. End users should not call this to enable
+ *        MAS — set scene config `linear_system/fem_preconditioner = "mas"`
+ *        instead, which auto-partitions every FEM geometry internally with
+ *        the fixed size. This function remains for custom C++ partitioning
+ *        (a pre-existing mesh_part attribute is respected by MAS as-is).
  * 
  */
 void UIPC_GEOMETRY_API mesh_partition(SimplicialComplex& sc, SizeT part_max_size);
