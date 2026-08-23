@@ -1480,7 +1480,8 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 // Restrict: accumulate residual R from fine to all coarser levels
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
-                                                  cuda_tool::CVarView<IndexT> converged)
+                                                  cuda_tool::CVarView<IndexT> converged,
+                                                  cudaStream_t stream)
 {
     using namespace cuda_tool;
     int N = m_total_map_nodes;
@@ -1490,7 +1491,7 @@ void MASPreconditionerEngine::build_multi_level_R(cuda_tool::CDenseVectorView<Fl
     int block_size = DEFAULT_BLOCKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
 
-    MASPreconditionerEngine_build_multi_level_R_kernel<<<num_blocks, block_size, 0, nullptr>>>(
+    MASPreconditionerEngine_build_multi_level_R_kernel<<<num_blocks, block_size, 0, stream>>>(
         R,
         multi_level_R.view(),
         going_next.cview(0, m_total_num_clusters),
@@ -1506,7 +1507,8 @@ void MASPreconditionerEngine::build_multi_level_R(cuda_tool::CDenseVectorView<Fl
 // ---------------------------------------------------------------------------
 // Local solve: Z = cluster_inverse * R at each level
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> converged)
+void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> converged,
+                                                  cudaStream_t stream)
 {
     using namespace cuda_tool;
     int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
@@ -1516,7 +1518,7 @@ void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> co
     int block_size = BANKSIZE * BANKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
 
-    MASPreconditionerEngine_schwarz_local_solve_kernel<<<num_blocks, block_size, 0, nullptr>>>(
+    MASPreconditionerEngine_schwarz_local_solve_kernel<<<num_blocks, block_size, 0, stream>>>(
         cluster_inverses.cview(),
         multi_level_R.cview(),
         multi_level_Z.view(),
@@ -1528,7 +1530,8 @@ void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> co
 // Prolongate: sum Z contributions from all levels for each fine node
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
-                                              cuda_tool::CVarView<IndexT> converged)
+                                              cuda_tool::CVarView<IndexT> converged,
+                                              cudaStream_t stream)
 {
     using namespace cuda_tool;
     int N = m_total_nodes;
@@ -1537,7 +1540,7 @@ void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> 
 
     int level_num = (m_active_level_num > 0) ? m_active_level_num : m_level_num;
     auto k        = MASPreconditionerEngine_collect_final_Z_kernel;
-    k<<<cuda_tool::best_grid_dim(N, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+    k<<<cuda_tool::best_grid_dim(N, k), cuda_tool::best_block_dim(k), 0, stream>>>(
         Z,
         multi_level_Z.cview(),
         coarse_tables.cview(),
@@ -1553,7 +1556,8 @@ void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> 
 
 void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
                                     cuda_tool::DenseVectorView<Float>  z,
-                                    cuda_tool::CVarView<IndexT> converged)
+                                    cuda_tool::CVarView<IndexT> converged,
+                                    cudaStream_t                stream)
 {
     if(m_total_nodes < 1)
         return;
@@ -1569,19 +1573,19 @@ void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
     {
         multi_level_R
             .view(m_total_map_nodes, m_total_num_clusters - m_total_map_nodes)
-            .fill(Eigen::Vector3f::Zero());
+            .fill(Eigen::Vector3f::Zero(), stream);
     }
 
-    multi_level_Z.view(0, m_total_num_clusters).fill(float3{0, 0, 0});
+    multi_level_Z.view(0, m_total_num_clusters).fill(float3{0, 0, 0}, stream);
 
     // 1. Restrict: accumulate residual down through levels
-    build_multi_level_R(r, converged);
+    build_multi_level_R(r, converged, stream);
 
     // 2. Local solve: Z = cluster_inverse * R at each level
-    schwarz_local_solve(converged);
+    schwarz_local_solve(converged, stream);
 
     // 3. Prolongate: sum Z from all levels back to fine nodes
-    collect_final_Z(z, converged);
+    collect_final_Z(z, converged, stream);
 }
 
 void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view output_dir,

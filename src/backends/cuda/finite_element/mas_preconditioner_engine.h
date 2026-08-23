@@ -90,7 +90,8 @@ class MASPreconditionerEngine
 
     void apply(cuda_tool::CDenseVectorView<Float> r,
                cuda_tool::DenseVectorView<Float>  z,
-               cuda_tool::CVarView<IndexT>        converged);
+               cuda_tool::CVarView<IndexT>        converged,
+               cudaStream_t                       stream = nullptr);
 
     bool is_initialized() const { return m_initialized; }
 
@@ -153,10 +154,13 @@ class MASPreconditionerEngine
 
     // Preconditioning steps
     void build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
-                             cuda_tool::CVarView<IndexT>        converged);
-    void schwarz_local_solve(cuda_tool::CVarView<IndexT> converged);
+                             cuda_tool::CVarView<IndexT>        converged,
+                             cudaStream_t stream = nullptr);
+    void schwarz_local_solve(cuda_tool::CVarView<IndexT> converged,
+                             cudaStream_t                stream = nullptr);
     void collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
-                         cuda_tool::CVarView<IndexT>       converged);
+                         cuda_tool::CVarView<IndexT>       converged,
+                         cudaStream_t                      stream = nullptr);
 
   private:
     // ---- State ----

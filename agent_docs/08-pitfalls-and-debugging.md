@@ -93,6 +93,14 @@ touching that area; several of these have bitten us more than once.
   use it); `Warn` keeps kappa-clamp warnings visible.
 - stdout redirection block-buffers printf in some native code — a timeout
   kill loses logs; instrumented prints need `fflush(stdout)`.
+- **Stale-dll trap when benchmarking solver changes through the python
+  samples:** the samples load the dlls from
+  `<python>\\Lib\\site-packages\\uipc\\_native\\`, NOT from `build/`. After
+  rebuilding backend `.cu` files, re-copy `build/Release/bin/uipc_*.dll`
+  into both `build/python/src/uipc/_native/` and the site-packages
+  `_native/` dir before running — otherwise python silently runs the OLD
+  solver and trajectory/timing comparisons are garbage (this once cost a
+  full debug round chasing a MAS "freeze" that was just a stale dll).
 
 ## Simulation semantics (contact/constraints/ABD)
 

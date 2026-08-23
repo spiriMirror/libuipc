@@ -115,8 +115,15 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   `spmv_dot/apply_preconditioner`, `IterativeSolver` pass-throughs,
   `ApplyPreconditionerInfo::stream()`, and the ABD/FEM diag preconditioners
   all accept an optional launch stream (default = legacy default stream =
-  unchanged behavior). The MAS preconditioner engine is NOT plumbed; its
-  scenes fail capture and fall back to the plain loop permanently.
+  unchanged behavior). The MAS preconditioner is plumbed too:
+  `MASPreconditionerEngine::apply` and its three phases (restrict /
+  Schwarz local solve / prolongate) plus the unpartitioned-vertex diagonal
+  fallback in `FEMMASPreconditioner::do_apply` all launch on
+  `ApplyPreconditionerInfo::stream()`, so MAS scenes join the captured
+  graph instead of invalidating it. The engine's workspace buffers are
+  sized once at init from the mesh partition (contact does not recluster —
+  collision-aware clustering is deliberately not ported), so the captured
+  pointers stay valid as contact nnz fluctuates.
 - `linear_system/check_interval` is now a registered config key (default 5) —
   it was previously unregistered and silently dropped.
 - Per-iteration "SpMV"/"Apply Preconditioner" Timer entries only exist on
