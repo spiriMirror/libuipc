@@ -1,3 +1,6 @@
 [submodule "scripts/SymEigen"]
 	path = scripts/SymEigen
 	url = https://github.com/MuGdxy/SymEigen.git
+[submodule "libuipc-samples"]
+	path = libuipc-samples
+	url = https://github.com/spiriMirror/libuipc-samples.git
