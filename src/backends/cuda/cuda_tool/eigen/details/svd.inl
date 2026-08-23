@@ -1,80 +1,41 @@
-#ifdef __CUDA_ARCH__
-#include <cuda_tool/eigen/svd_impl.h>
+#include <Eigen/Dense>
+#include <algorithm/qr_svd.hpp>
 
 namespace uipc::backend::cuda_tool::eigen
 {
 namespace details
 {
-    UIPC_INLINE UIPC_DEVICE void device_svd(const Eigen::Matrix<float, 3, 3>& F,
-                                            Eigen::Matrix<float, 3, 3>&       U,
-                                            Eigen::Vector3<float>&      Sigma,
-                                            Eigen::Matrix<float, 3, 3>& V)
+    // Enforce the signed-SVD convention: proper rotations U,V (det = +1)
+    // with a possible reflection absorbed into the smallest singular value
+    // Sigma[2] (which may go negative when det(F) < 0).
+    template <typename T>
+    UIPC_INLINE UIPC_GENERIC void signed_svd_fixup(Eigen::Matrix<T, 3, 3>& U,
+                                                   Eigen::Vector3<T>& Sigma,
+                                                   Eigen::Matrix<T, 3, 3>& V)
     {
-        cuda_tool::details::eigen::svd3x3(F(0, 0),
-                                          F(0, 1),
-                                          F(0, 2),
-                                          F(1, 0),
-                                          F(1, 1),
-                                          F(1, 2),
-                                          F(2, 0),
-                                          F(2, 1),
-                                          F(2, 2),
-                                          U(0, 0),
-                                          U(0, 1),
-                                          U(0, 2),
-                                          U(1, 0),
-                                          U(1, 1),
-                                          U(1, 2),
-                                          U(2, 0),
-                                          U(2, 1),
-                                          U(2, 2),
-                                          Sigma(0),
-                                          Sigma(1),
-                                          Sigma(2),
-                                          V(0, 0),
-                                          V(0, 1),
-                                          V(0, 2),
-                                          V(1, 0),
-                                          V(1, 1),
-                                          V(1, 2),
-                                          V(2, 0),
-                                          V(2, 1),
-                                          V(2, 2));
+        using mat3 = Eigen::Matrix<T, 3, 3>;
+        mat3 L     = mat3::Identity();
+        L(2, 2)    = (U * V.transpose()).determinant();
+
+        const T detU = U.determinant();
+        const T detV = V.determinant();
+
+        if(detU < 0.0 && detV > 0)
+            U = U * L;
+        if(detU > 0.0 && detV < 0.0)
+            V = V * L;
+        Sigma[2] = Sigma[2] * L(2, 2);
     }
 }  // namespace details
-}  // namespace uipc::backend::cuda_tool::eigen
-#endif
 
-#include <Eigen/Dense>
-namespace uipc::backend::cuda_tool::eigen
-{
 UIPC_INLINE UIPC_GENERIC void svd(const Eigen::Matrix<float, 3, 3>& F,
                                   Eigen::Matrix<float, 3, 3>&       U,
                                   Eigen::Vector3<float>&            Sigma,
                                   Eigen::Matrix<float, 3, 3>&       V)
 {
-    using mat3 = Eigen::Matrix<float, 3, 3>;
-    using vec3 = Eigen::Vector3<float>;
-#ifdef __CUDA_ARCH__
-    details::device_svd(F, U, Sigma, V);
-#else
-    const Eigen::JacobiSVD<mat3, Eigen::NoQRPreconditioner> svd(
-        F, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    U     = svd.matrixU();
-    V     = svd.matrixV();
-    Sigma = svd.singularValues();
-#endif
-    mat3 L  = mat3::Identity();
-    L(2, 2) = (U * V.transpose()).determinant();
-
-    const float detU = U.determinant();
-    const float detV = V.determinant();
-
-    if(detU < 0.0 && detV > 0)
-        U = U * L;
-    if(detU > 0.0 && detV < 0.0)
-        V = V * L;
-    Sigma[2] = Sigma[2] * L(2, 2);
+    // native QR-SVD (algorithm/qr_svd.hpp) — no Eigen JacobiSVD dependency
+    uipc::backend::cuda::math::qr_svd(F, Sigma, U, V);
+    details::signed_svd_fixup(U, Sigma, V);
 }
 
 UIPC_INLINE UIPC_GENERIC void pd(const Eigen::Matrix<float, 3, 3>& F,
@@ -93,24 +54,20 @@ UIPC_INLINE UIPC_GENERIC void svd(const Eigen::Matrix<double, 3, 3>& F,
                                   Eigen::Vector3<double>&            Sigma,
                                   Eigen::Matrix<double, 3, 3>&       V)
 {
-    Eigen::Matrix3f fU;
-    Eigen::Vector3f fSigma;
-    Eigen::Matrix3f fV;
-    svd(F.cast<float>(), fU, fSigma, fV);
-    U     = fU.cast<double>();
-    Sigma = fSigma.cast<double>();
-    V     = fV.cast<double>();
+    // native double precision (the previous implementation downcast to float)
+    uipc::backend::cuda::math::qr_svd(F, Sigma, U, V);
+    details::signed_svd_fixup(U, Sigma, V);
 }
 
 UIPC_INLINE UIPC_GENERIC void pd(const Eigen::Matrix<double, 3, 3>& F,
                                  Eigen::Matrix<double, 3, 3>&       R,
                                  Eigen::Matrix<double, 3, 3>&       S)
 {
-    Eigen::Matrix3f fR;
-    Eigen::Matrix3f fS;
-    pd(F.cast<float>(), fR, fS);
-    R = fR.cast<double>();
-    S = fS.cast<double>();
+    Eigen::Matrix<double, 3, 3> U, V;
+    Eigen::Vector3<double>      Sigma;
+    svd(F, U, Sigma, V);
+    R = U * V.transpose();
+    S = V * Sigma.asDiagonal() * V.transpose();
 }
 
 }  // namespace uipc::backend::cuda_tool::eigen
