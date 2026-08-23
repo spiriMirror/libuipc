@@ -58,7 +58,7 @@ Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular ref
 Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
 - `dt=0.01`, `gravity`, `cfl/enable`
 - `integrator/type="bdf1"`
-- `newton/*` (max_iter, velocity_tol use unit literals such as `0.05_m/1.0_s`; `semi_implicit/{enable,beta_tol}` = Stiff-GIPC-style early exit: from `min_iter` on, β←(1-α)β per iteration, exit when β≤beta_tol)
+- `newton/*` (max_iter, velocity_tol use unit literals such as `0.05_m/1.0_s`; `semi_implicit/{enable,beta_tol,K_min}` = Stiff-GIPC-style early exit: from iteration `K_min` on, β←(1-α)β per iteration, exit when β≤beta_tol. `newton/min_iter` is a pure hard floor, default 0 = no forced minimum — normal convergence may exit at any iteration)
 - `linear_system/solver="fused_pcg"`
 - `line_search/*`
 - `contact/enable`, `contact/d_hat`, `contact/constitution="ipc"` (or `"al-ipc"` and its tuning parameters); `contact/d_hat_relative` (when >0, d_hat = relative value × scene diagonal, the Stiff-GIPC convention), `newton/velocity_tol_relative` (when >0, exit threshold = relative value × diagonal × dt), `contact/eps_velocity_relative` (when >0, friction C1 smoothing threshold = relative value × diagonal × dt) — scene-adaptive parameters, default 0 (disabled); `contact/adaptive/{min_kappa,max_kappa,init_kappa}` bound the effective contact stiffness

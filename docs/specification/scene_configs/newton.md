@@ -25,14 +25,15 @@ where $\Delta q$ is the change in affine body degrees of freedom. The default `t
 ## Iteration Bounds
 
 - `max_iter` (default 1024): hard cap on Newton iterations. If reached, a warning is issued (or an exception if `extras/strict_mode/enable = 1`).
-- `min_iter` (default 1): minimum iterations before early exit is allowed. Relevant for semi-implicit mode.
+- `min_iter` (default 0): hard floor on Newton iterations. The default `0` means no forced minimum — the loop exits as soon as the convergence criteria are met.
 
 ## Semi-Implicit Mode
 
 When `newton/semi_implicit/enable = 1`, the solver uses a $\beta$-schedule that blends implicit and explicit updates:
 
-1. Run at least `min_iter` Newton iterations.
-2. After `min_iter`, compute $\beta$ from the residual ratio.
-3. Terminate when $\beta \leq \texttt{beta\_tol}$.
+1. From Newton iteration `newton/semi_implicit/K_min` (default 1) on, accumulate $\beta \leftarrow (1 - \alpha)\,\beta$ after each line search.
+2. Terminate when $\beta \leq \texttt{beta\_tol}$.
+
+`K_min` is Stiff-GIPC's Kmin: it only gates when $\beta$ accumulation starts and is **not** a floor on the iteration count — the normal convergence criteria above may terminate the loop earlier.
 
 This trades strict convergence for speed — useful for real-time or interactive scenarios where frame budget matters more than per-step accuracy.
