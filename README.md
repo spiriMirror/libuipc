@@ -1,7 +1,7 @@
 # libuipc
 
 [![PyPI version](https://img.shields.io/pypi/v/pyuipc?color=blue)](https://pypi.org/project/pyuipc/)
-[![Downloads](https://img.shields.io/pypi/dm/pyuipc?color=blue)](https://pepy.tech/projects/pyuipc)
+[![Downloads](https://static.pepy.tech/badge/pyuipc/month)](https://pepy.tech/projects/pyuipc)
 [![Documentation](https://img.shields.io/badge/docs-spirimirror.github.io%2Flibuipc--doc-green)](https://spirimirror.github.io/libuipc-doc/)
 [![Issues](https://img.shields.io/github/issues/spiriMirror/libuipc)](https://github.com/spiriMirror/libuipc/issues)
 [![License](https://img.shields.io/badge/license-Apache%202.0-red)](LICENSE)
