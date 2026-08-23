@@ -66,9 +66,7 @@ Cross-project-aligned scenes used for performance and numerics parity work again
 
 ### Robotics
 
-| | | |
-|---|---|---|
-| [87: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/87_robot_hand) | | |
+- [87: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/87_robot_hand)
 
 ### FEM & Cloth
 
