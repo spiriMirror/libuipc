@@ -135,6 +135,19 @@ Verdicts:
   now invalidate capture -> automatic fallback). After the fix, MAS averages
   ~41/solve vs diag ~86/solve on the E=1e4 bunny, with trajectories matching
   to 0.3mm at frame 100. The MAS preconditioner itself was never wrong.
+- MAS + CUDA graph (closed 2026-08-23): the engine's `apply` path is now
+  stream-plumbed (`MASPreconditionerEngine::apply(..., stream)` +
+  `FEMMASPreconditioner::do_apply` forwards `info.stream()`), so MAS scenes
+  join the captured graph instead of falling back to plain launches
+  (graph_mode=1 confirmed active with mesh_part present). Validation at
+  E=1e7/100 frames with contact: MAS+graph trajectory identical to the
+  diag+graph reference at 1e-4 print precision; resting centroid -0.7753 vs
+  the rigid-body geometric prediction -0.7731 (2mm compression); iteration
+  counts real (frame-20 solves: MAS 5/20/155/435/495/410/505 vs diag
+  2380/1625/880/1585/1650/1625/785 — MAS 3-4x fewer, no false-convergence
+  signature). Free-fall no-contact: graph on/off bit-identical. One red
+  herring cost a debug round: a "frozen" E=1e4 trajectory turned out to be
+  a stale site-packages dll, not a solver bug (see doc 08 stale-dll trap).
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration
