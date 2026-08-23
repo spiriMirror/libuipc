@@ -48,6 +48,11 @@ Test target names are rewritten by the `uipc_test` rule into binary names `uipc_
 | `sim_case/` | **94 numbered simulation cases**: `abd_*` (affine body/joints), `fem_*`, `fem_mas_*` (linear systems), `*_stitch`, `discrete_shell_bending*`, joint series (revolute/prismatic/spherical/fixed + limit/driving/external force) |
 | `usd/`, `gui/` | Conditionally compiled / unfinished |
 
+The `fem_mas_*` cases (53-61, 81 + the stitch regression) activate MAS via
+`config["linear_system"]["fem_preconditioner"] = "mas"` — not via
+`mesh_partition()` calls (2026-08-24 switch redesign; 58_hybrid_mix still
+uses one manual `mesh_partition` to verify custom partitions are respected).
+
 Run: `./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`.
 
 **Catch2 v3.8 filtering, empirically verified**: multiple specs as separate argv entries are combined with **AND** (intersection) — often causing "No tests ran"; **OR must be written inside a single argv separated by commas**: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`. List cases: `--list-tests --verbosity quiet` (one case name per line).

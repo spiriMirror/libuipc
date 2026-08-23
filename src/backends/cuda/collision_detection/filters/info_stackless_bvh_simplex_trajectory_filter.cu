@@ -252,16 +252,29 @@ namespace
                && !body_self_collision(info.bid_i))
                 return false;
 
-            Vector3 P0  = Ps(V);
-            Vector3 dP0 = alpha * dxs(V);
-
-            Vector3 P1  = Ps(codimV);
-            Vector3 dP1 = alpha * dxs(codimV);
+            Vector3 P0 = Ps(V);
+            Vector3 P1 = Ps(codimV);
 
             Float thickness = PP_thickness(thicknesses(V), thicknesses(codimV));
             Float d_hat     = PP_d_hat(d_hats(V), d_hats(codimV));
 
             Float expand = d_hat + thickness;
+
+            if(alpha == 0.0)
+            {
+                // DCD detect pass: exact distance test. The conservative
+                // ccd_broadphase degenerates to a per-axis box test at
+                // alpha==0 and passes ~50x more candidates than the exact
+                // activation filter downstream re-keeps anyway. Pairs with
+                // D2 <= thickness^2 are kept so the thickness-violation
+                // handling in filter_active still sees them.
+                Float D2;
+                distance::point_point_distance2(P0, P1, D2);
+                return D2 < expand * expand;
+            }
+
+            Vector3 dP0 = alpha * dxs(V);
+            Vector3 dP1 = alpha * dxs(codimV);
 
             if(!distance::point_point_ccd_broadphase(P0, P1, dP0, dP1, expand))
                 return false;
@@ -312,19 +325,29 @@ namespace
                && !body_self_collision(info.bid_i))
                 return false;
 
-            Vector3 E0  = Ps(E[0]);
-            Vector3 E1  = Ps(E[1]);
-            Vector3 dE0 = alpha * dxs(E[0]);
-            Vector3 dE1 = alpha * dxs(E[1]);
+            Vector3 E0 = Ps(E[0]);
+            Vector3 E1 = Ps(E[1]);
 
-            Vector3 P  = Ps(codimV);
-            Vector3 dP = alpha * dxs(codimV);
+            Vector3 P = Ps(codimV);
 
             Float thickness =
                 PE_thickness(thicknesses(codimV), thicknesses(E[0]), thicknesses(E[1]));
             Float d_hat = PE_d_hat(d_hats(codimV), d_hats(E[0]), d_hats(E[1]));
 
             Float expand = d_hat + thickness;
+
+            if(alpha == 0.0)
+            {
+                // DCD detect pass: exact distance test (see PP pred)
+                Float    D2;
+                Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
+                distance::point_edge_distance2(flag, P, E0, E1, D2);
+                return D2 < expand * expand;
+            }
+
+            Vector3 dE0 = alpha * dxs(E[0]);
+            Vector3 dE1 = alpha * dxs(E[1]);
+            Vector3 dP  = alpha * dxs(codimV);
 
             if(!distance::point_edge_ccd_broadphase(P, E0, E1, dP, dE0, dE1, expand))
                 return false;
@@ -376,15 +399,11 @@ namespace
                && !body_self_collision(info.bid_i))
                 return false;
 
-            Vector3 E0_0  = Ps(E0[0]);
-            Vector3 E0_1  = Ps(E0[1]);
-            Vector3 dE0_0 = alpha * dxs(E0[0]);
-            Vector3 dE0_1 = alpha * dxs(E0[1]);
+            Vector3 E0_0 = Ps(E0[0]);
+            Vector3 E0_1 = Ps(E0[1]);
 
-            Vector3 E1_0  = Ps(E1[0]);
-            Vector3 E1_1  = Ps(E1[1]);
-            Vector3 dE1_0 = alpha * dxs(E1[0]);
-            Vector3 dE1_1 = alpha * dxs(E1[1]);
+            Vector3 E1_0 = Ps(E1[0]);
+            Vector3 E1_1 = Ps(E1[1]);
 
             Float thickness = EE_thickness(thicknesses(E0[0]),
                                            thicknesses(E0[1]),
@@ -395,6 +414,22 @@ namespace
                 EE_d_hat(d_hats(E0[0]), d_hats(E0[1]), d_hats(E1[0]), d_hats(E1[1]));
 
             Float expand = d_hat + thickness;
+
+            if(alpha == 0.0)
+            {
+                // DCD detect pass: exact distance test (see PP pred); the
+                // plain EE distance is a correct superset of the mollified
+                // degenerate handling in filter_active
+                Float D2;
+                Vector4i flag = distance::edge_edge_distance_flag(E0_0, E0_1, E1_0, E1_1);
+                distance::edge_edge_distance2(flag, E0_0, E0_1, E1_0, E1_1, D2);
+                return D2 < expand * expand;
+            }
+
+            Vector3 dE0_0 = alpha * dxs(E0[0]);
+            Vector3 dE0_1 = alpha * dxs(E0[1]);
+            Vector3 dE1_0 = alpha * dxs(E1[0]);
+            Vector3 dE1_1 = alpha * dxs(E1[1]);
 
             if(!distance::edge_edge_ccd_broadphase(
                    E0_0, E0_1, E1_0, E1_1, dE0_0, dE0_1, dE1_0, dE1_1, expand))
@@ -448,16 +483,11 @@ namespace
                && !body_self_collision(info.bid_i))
                 return false;
 
-            Vector3 P  = Ps(V);
-            Vector3 dP = alpha * dxs(V);
+            Vector3 P = Ps(V);
 
             Vector3 F0 = Ps(F[0]);
             Vector3 F1 = Ps(F[1]);
             Vector3 F2 = Ps(F[2]);
-
-            Vector3 dF0 = alpha * dxs(F[0]);
-            Vector3 dF1 = alpha * dxs(F[1]);
-            Vector3 dF2 = alpha * dxs(F[2]);
 
             Float thickness = PT_thickness(thicknesses(V),
                                            thicknesses(F[0]),
@@ -467,6 +497,21 @@ namespace
             Float d_hat = PT_d_hat(d_hats(V), d_hats(F[0]), d_hats(F[1]), d_hats(F[2]));
 
             Float expand = d_hat + thickness;
+
+            if(alpha == 0.0)
+            {
+                // DCD detect pass: exact distance test (see PP pred)
+                Float D2;
+                Vector4i flag = distance::point_triangle_distance_flag(P, F0, F1, F2);
+                distance::point_triangle_distance2(flag, P, F0, F1, F2, D2);
+                return D2 < expand * expand;
+            }
+
+            Vector3 dP = alpha * dxs(V);
+
+            Vector3 dF0 = alpha * dxs(F[0]);
+            Vector3 dF1 = alpha * dxs(F[1]);
+            Vector3 dF2 = alpha * dxs(F[2]);
 
             if(!distance::point_triangle_ccd_broadphase(P, F0, F1, F2, dP, dF0, dF1, dF2, expand))
                 return false;

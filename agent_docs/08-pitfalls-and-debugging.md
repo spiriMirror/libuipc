@@ -76,6 +76,34 @@ touching that area; several of these have bitten us more than once.
   per-call temp allocation.
 - `linear_system/check_interval` tuning is a **negative result** (5→25 did
   nothing): PCG's cost is iteration count, not convergence-check stalls.
+- **`make_spd` Cholesky early-out is a NEGATIVE RESULT (2026-08-23)**:
+  gating the 9x9/12x12 EVD behind an in-register Cholesky PD test made
+  every constitution/contact kernel 1.7-2.7x SLOWER (SNH 3.9->6.7 ms,
+  contact assemble 1.9->5.3 ms, bending 1.3->2.9 ms per call) — the local
+  L matrix (81/144 doubles) blows the register budget of already-fat
+  kernels and occupancy collapses. Do not retry unless the PD test is
+  register-free. RESOLVED differently (2026-08-24): we adopted Stiff's
+  SNK1 wholesale (their energy convention + their analytic eigensystem),
+  so the generic 9x9 EVD is simply gone from the SNH kernel — see doc 04.
+- **Same-address atomic storms** in reduction kernels: one atomicAdd per
+  warp on a single counter costs 20-30 µs/call at ~300k threads — always
+  do warp→block two-level reduction (done for `Spmv_rbk_sym_spmv_dot` and
+  `fused_dot`).
+- **Cloth membrane `1/sqrt(I5)` singularity** (`strain_limiting_baraff_
+  witkin_shell_2d.h`): a fully collapsed triangle (directional stretch
+  λ→0) produced inf/NaN forces — and even the NEAR-singular regime was
+  silently poisoning PCG conditioning (case 88: 145 PCG/solve with
+  pathological 14-Newton frames). Fixed with a 1e-12 floor on I5; case 88
+  dropped 266 -> 203 ms/frame as a side effect (35/solve now). Stiff-GIPC
+  has the same unguarded hole.
+- **Cloth vs Stiff-GIPC alignment audit (2026-08-24)**: the SLBWS membrane
+  (energy/gradient/Hessian incl. the one-sided cubic limiter and both
+  analytic SPD projections) matches Stiff's Baraff-Witkin term for term.
+  Convention differences are stiffness mappings (ours `E·t/(1-ν²)` per
+  area; Stiff `E/(2(1+ν))` per area×thickness) and the bending model
+  (ours: dihedral hinge with rest angle + per-Newton 12x12 EVD; Stiff's
+  default build: flat-rest quadratic cotangent-Q with a constant PSD
+  Hessian — their perf edge, our feature edge).
 
 ## Python / runtime API
 

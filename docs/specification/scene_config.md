@@ -34,13 +34,14 @@ scene = Scene(config)
 | Key | Type | Default | Option | Description |
 |-----|------|---------|--------|-------------|
 | `newton/max_iter` | Int | `1024` | | Maximum Newton iterations per step |
-| `newton/min_iter` | Int | `1` | | Minimum Newton iterations before early exit |
+| `newton/min_iter` | Int | `0` | | Hard floor on Newton iterations; `0` = no forced minimum (exit as soon as converged) |
 | `newton/use_adaptive_tol` | Int | `0` | | Enable adaptive convergence tolerance |
 | `newton/velocity_tol` | Float | `0.05` | | Velocity tolerance ($m/s$); absolute displacement tolerance = `velocity_tol * dt` |
 | `newton/ccd_tol` | Float | `1.0` | | CCD alpha convergence threshold; Newton continues while `ccd_alpha < ccd_tol` |
 | `newton/transrate_tol` | Float | `0.1` | | Rotation-rate tolerance ($1/s$); absolute rotation tolerance = `transrate_tol * dt` |
 | `newton/semi_implicit/enable` | Int | `0` | | Enable semi-implicit beta schedule |
 | `newton/semi_implicit/beta_tol` | Float | `1e-3` | | Terminate semi-implicit when `beta <= beta_tol` |
+| `newton/semi_implicit/K_min` | Int | `1` | | Semi-implicit beta accumulation starts at this Newton iteration (Stiff-GIPC Kmin); not a floor on the iteration count |
 
 See [Newton Solver Details](scene_configs/newton.md) for the convergence criteria and semi-implicit mode.
 

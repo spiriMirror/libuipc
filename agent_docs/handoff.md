@@ -42,6 +42,30 @@
 >   The al-ipc pipeline is gated off graph replay for now (crash observed only
 >   in the C++ suite binary's al-ipc section; python repro passes — root cause
 >   open, see doc 09).
+> - **MAS preconditioner line (2026-08-23, PRs #473/#474)**: ported from
+>   Stiff-GIPC and then hardened. The apply path is stream-plumbed so MAS
+>   scenes join the PCG CUDA graph. Activation is now all-or-nothing via
+>   scene config `linear_system/fem_preconditioner = "mas"` (default
+>   "diag"): every non-Empty FEM geometry is auto-partitioned internally
+>   (fixed cluster size 16 = BANKSIZE) on a private clone; the python
+>   `mesh_partition` export was REMOVED (partial coverage measured
+>   net-negative — the coverage-rule table is in doc 09). Sim cases 53-61/81
+>   migrated to the switch. Escape hatch if MAS+graph ever misbehaves:
+>   `linear_system/use_cuda_graph = 0`.
+> - **Newton exit semantics split (2026-08-24)**: `newton/min_iter` is a pure
+>   hard floor (default 0 = off); the semi-implicit beta start moved to
+>   `newton/semi_implicit/K_min` (default 1). Found via the case-89 parity
+>   run: Stiff averages 2.55 Newton/frame while we forced >=6. Case 88
+>   429 -> 320 ms/frame from this alone.
+> - **Perf rounds on case 88 (2026-08-24, now ~266 ms mean / ~299 ms
+>   median)**: two-level warp->block reduction in `Spmv_rbk_sym_spmv_dot` /
+>   `fused_dot` (same-address atomic storms eliminated); exact-distance DCD
+>   leaf predicates (kills the 450k-candidate retry double-traversal).
+>   Negative result: make_spd Cholesky early-out (register blow-up) — see
+>   doc 08. Frame budget and next levers in doc 09.
+> - **Samples repo**: 87 robot_hand, 88 case2 benchmark, 89 MAS parity
+>   bunny (NO_MAS/NO_GRAPH env A/B), 90-93 = the remaining Stiff set_cases
+>   1/4/5/6 (see doc 09 samples section for the mapping + asset notes).
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

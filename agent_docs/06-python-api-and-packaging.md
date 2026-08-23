@@ -45,3 +45,17 @@
 - When adding a new C++ public API, consider syncing the pybind side: add a `PyXxx` binding file in the corresponding submodule directory and register it in that directory's `module.cpp`; keep the namespace mapping consistent.
 - Do not break the import chain in `__init__.py` (`pyuipc` → `init()` → `config["module_dir"]`).
 - New binding surfaces need tests added in `python/tests/`.
+
+## Frontend-visible changes (2026-08-24)
+
+- `uipc.geometry.mesh_partition` was REMOVED from the python API. The MAS
+  preconditioner is now a scene-level switch:
+  `config["linear_system"]["fem_preconditioner"] = "mas"` (default
+  `"diag"`), which auto-partitions every FEM geometry internally (fixed
+  cluster size 16). Old scripts calling `mesh_partition(...)` raise
+  ImportError — migrate them to the config switch.
+- `newton/min_iter` semantics narrowed: it is now a pure hard floor with
+  default `0` (no forced minimum). The semi-implicit beta accumulation
+  start moved to `config["newton"]["semi_implicit"]["K_min"]` (default 1).
+  Old scenes that set `min_iter` for the Stiff-GIPC Kmin role should set
+  `K_min` instead.

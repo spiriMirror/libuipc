@@ -26,6 +26,15 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
 - Contact assembly ≈ 26 ms; SNH G/H 2.12 ms/call ×7 (Stiff's equivalent:
   0.77 ms — 2.75×; `make_spd` 9×9 EVD is a suspect but removing it hurts
   convergence — see doc 08)
+- Newton iterations per frame (found 2026-08-23 evening, case 89 parity
+  run): Stiff averages **2.55 Newton/frame** while libuipc ran **7.04** —
+  the old `newton/min_iter` doubled as a hard floor (≥6 with the benchmark
+  configs), cancelling the semi-implicit early exit. Since then
+  `min_iter` is a pure floor with default 0 and the beta-accumulation
+  start moved to `newton/semi_implicit/K_min` (default 1). Per-Newton
+  solver time already beats Stiff on the same MAS bunny (≈39 ms wall vs
+  48.8 ms GPU), so the frame-time gap on MAS scenes is dominated by the
+  Newton count, not solver efficiency.
 
 **Planned levers (in priority order)**:
 1. ~~Cooperative-groups persistent-kernel fusion or CUDA-graph capture of the
@@ -33,10 +42,43 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    `check_interval`-sized iteration blocks as CUDA graphs
    (`linear_system/use_cuda_graph`, default on; details in doc 05).
    Remaining within-PCG cost is the ~83-iteration count itself.
-2. Fuse exact distance tests into BVH query predicates; materialize only
-   active pairs (kills the 450k-candidate overhead).
-3. SNH/FEM assembly kernel throughput (profile `make_spd` EVD alternatives
-   that keep the convergence behavior).
+2. ~~Fuse exact distance tests into BVH query predicates~~ **PARTIALLY DONE
+   (2026-08-23 evening)**: the four DCD leaf predicates in
+   `info_stackless_bvh_simplex_trajectory_filter.cu` now run the exact
+   `distance::*_distance2` test when `alpha == 0` (DCD detect pass),
+   keeping only `D2 < (d_hat+thickness)^2` pairs; the `alpha > 0`
+   trajectory pass keeps the conservative `ccd_broadphase` (CCD superset
+   requirement). Kills the 450k-candidate materialization + the
+   overflow-retry double traversal on the DCD path; Detect DCD Candidates
+   dropped 39 → 29 ms/frame on case 88. The trajectory/CCD pass
+   (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
+   conservative swept test — tightening it needs a provably conservative
+   exact swept-distance predicate, more delicate.
+3. ~~SNH/FEM assembly kernel throughput~~ **DONE (2026-08-24)**: the SNH
+   constitution was replaced wholesale by Stiff-GIPC's SNK1 (their energy
+   `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, their gradient, and their analytic
+   twist/flip + 3x3-direct SPD projection — the generic 9x9 `make_spd`
+   EVD is gone from this kernel; `make_spd` itself remains for the other
+   constitutions). Case 88 median 297 -> 266 ms/frame; case 89 PCG
+   213 -> 77 per solve (the analytic projection is also a much
+   better-conditioned system). NOTE: the FEM energy changed numerically —
+   trajectories shift slightly vs older baselines (89 resting centroid
+   -0.775 -> -0.786) but stay physically equivalent. Same round:
+   `cuda_tool::eigen::svd/pd` re-implemented on our own
+   `algorithm/qr_svd.hpp` (GEIGEN port) — no more Eigen JacobiSVD on the
+   host path, and the double overload no longer downcasts to float.
+4. Same-address atomic storms (DONE 2026-08-23 evening): `Spmv_rbk_sym_
+   spmv_dot_kernel` and `fused_dot_kernel` now do two-level (warp → block)
+   reduction with one atomicAdd per block — ~9k/~4k same-address atomic
+   doubles per call serialized ~20-30 us before. SpMV 114 → 93 us/call;
+   case 88 median 312 → 297 ms/frame. NEXT within-PCG target: the
+   symmetric-storage transpose scatter (~243k atomic vec3 per SpMV);
+   a full-storage row-based SpMV would eliminate atomics entirely but
+   doubles matrix traffic and needs a converter variant — deferred.
+5. Case-88 frame budget after these rounds (60 frames, mean ~263 ms):
+   FusedPCG 92 ms + Build Linear System 54 ms + trajectory detect 38 ms +
+   DCD 29 ms + DyTopo 27 ms + misc. No single 2x item remains; it's a
+   grind of 10-30 ms items.
 Every such change must re-pass the full sim suite (95 cases / 14214
 assertions).
 
@@ -112,6 +154,16 @@ assertions).
 - `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.
+- `89_mas_bunny` — Stiff set_case7 parity (single MAS bunny, E=1e7);
+  `NO_MAS=1` / `NO_GRAPH=1` env A/B switches.
+- `90_abd_fem_cube_stack` / `91_pinned_cloth` / `92_twisting_bar` /
+  `93_cube_wall_cloth` — the remaining Stiff-GIPC set_cases 1/4/5/6
+  (2026-08-24). 92 uses animated SoftPositionConstraint ends (twist);
+  93 has MAS on (case6 P_type=1) plus a 1920-body ABD wall. Assets added:
+  `stiff_cube.msh` (Stiff's own 0.4-size cube — the samples' cube.msh is
+  dimensionally different and overlaps at case1/6 spacings) and
+  `high_mat.msh`. Both Stiff meshes were missing `\$MeshFormat` /
+  `\$EndNodes` / `\$EndElements` tags and were completed for igl::readMSH.
 
 ## MAS preconditioner parity check (2026-08-23, case 89)
 

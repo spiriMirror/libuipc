@@ -15,7 +15,9 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("integrator/type", std::string{"bdf1"});
 
     config.create("newton/max_iter", IndexT{1024});
-    config.create("newton/min_iter", IndexT{1});
+    // hard floor on Newton iterations; 0 (default) = no forced minimum —
+    // the loop exits as soon as the convergence criteria are met
+    config.create("newton/min_iter", IndexT{0});
     config.create("newton/use_adaptive_tol", IndexT{0});
     config.create("newton/velocity_tol", Float{0.05_m / 1.0_s});
     // > 0: effective velocity_tol = velocity_tol_relative * scene_diagonal
@@ -27,6 +29,10 @@ geometry::AttributeCollection default_scene_config() noexcept
 
     config.create("newton/semi_implicit/enable", IndexT{0});
     config.create("newton/semi_implicit/beta_tol", Float{1e-3});
+    // Stiff-GIPC Kmin: semi-implicit beta accumulation starts at this Newton
+    // iteration (beta = (1-alpha)*beta from iter >= K_min, early exit when
+    // beta <= beta_tol). Not a floor — normal convergence can exit earlier.
+    config.create("newton/semi_implicit/K_min", IndexT{1});
 
     config.create("linear_system/tol_rate", Float{1e-3});
 
