@@ -154,6 +154,22 @@ Verdicts:
   iteration of launch-gap savings). For reference the same scene with the
   diagonal preconditioner (graph on) takes ~74s — MAS itself is the bigger
   win (~2.5x), the graph plumbing adds its share on top.
+- COVERAGE RULE (measured on 88_stiff_gipc_benchmark, E=1e7, two 19k-vert
+  bunnies + 4.2k-vert cloth, 60 frames, 2026-08-23): MAS only pays off when
+  it covers nearly all of the stiff DoFs. Partial coverage is net NEGATIVE:
+  | config | total PCG | avg/solve | wall |
+  |---|---|---|---|
+  | all diagonal | 366875 | 853 | 60s |
+  | MAS on upper bunny only (~45% of FEM verts) | 397730 | 923 | 73s |
+  | MAS on both bunnies (~90%) | 79225 | 184 | 29s |
+  f59 centroids identical in all three — physics unaffected; only the
+  preconditioner spectrum changes. PCG converges at the rate of the
+  worst-preconditioned block, so a diag-covered stiff block (the lower
+  bunny in ground contact + the cloth) dominates and the MAS per-iteration
+  overhead (cluster-inverse assembly + 5-launch apply) is pure cost.
+  Practical rule: partition ALL stiff FEM objects (`mesh_partition`); leave
+  only soft/small ones unpartitioned. `NO_MAS=1` / `ALL_MAS=1` env switches
+  in the sample reproduce this table.
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration
