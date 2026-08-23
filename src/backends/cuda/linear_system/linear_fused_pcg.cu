@@ -29,8 +29,21 @@ namespace
         int   lane_id  = threadIdx.x & (warp_size - 1);
         Float warp_sum = WarpReduce(temp_storage[warp_id]).Sum(val);
 
+        // two-level reduction: one atomic per block instead of one per warp —
+        // ~4k same-address atomic doubles serialize badly on a single counter
+        __shared__ Float s_partials[num_warps];
         if(lane_id == 0)
-            cuda_tool::atomic_add(d_result.data(), warp_sum);
+            s_partials[warp_id] = warp_sum;
+        __syncthreads();
+        if(threadIdx.x < warp_size)
+        {
+            Float partial =
+                (threadIdx.x < num_warps) ? s_partials[threadIdx.x] : Float(0);
+            __syncwarp();
+            partial = WarpReduce(temp_storage[0]).Sum(partial);
+            if(threadIdx.x == 0)
+                cuda_tool::atomic_add(d_result.data(), partial);
+        }
     }
 
     __global__ void fused_update_xr_kernel(cuda_tool::CDense<Float> d_rz,

@@ -443,8 +443,23 @@ namespace
         }
 
         dot_local = WarpReduceFloat(temp_storage_float[warp_id]).Sum(dot_local);
+
+        // two-level reduction: one atomicAdd per BLOCK, not per warp —
+        // ~9k same-address atomic doubles serialized ~20-30us per call
+        __shared__ Float s_dot_partials[block_dim / warp_size];
         if(lane_id == 0)
-            atomicAdd(d_dot.data(), dot_local);
+            s_dot_partials[warp_id] = dot_local;
+        __syncthreads();
+        if(thread_id_in_block < warp_size)
+        {
+            Float partial = (thread_id_in_block < block_dim / warp_size) ?
+                                s_dot_partials[thread_id_in_block] :
+                                Float{0};
+            __syncwarp();
+            partial = WarpReduceFloat(temp_storage_float[0]).Sum(partial);
+            if(thread_id_in_block == 0)
+                atomicAdd(d_dot.data(), partial);
+        }
     }
 }  // namespace
 
