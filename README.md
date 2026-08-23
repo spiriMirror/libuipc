@@ -8,7 +8,7 @@
 
 A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact — both C++ and Python APIs.
 
-Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io/libuipc-web/) ・ Documentation ➡️ [spirimirror.github.io/libuipc-doc](https://spirimirror.github.io/libuipc-doc/) ・ Samples ➡️ [github.com/spiriMirror/libuipc-samples](https://github.com/spiriMirror/libuipc-samples/)
+Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io/libuipc-web/) ・ Samples ➡️ [github.com/spiriMirror/libuipc-samples](https://github.com/spiriMirror/libuipc-samples/)
 
 ![teaser](docs/media/teaser.png)
 
@@ -86,7 +86,6 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 - [17: revolute joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/17_affine_body_revolute_joint)
 - [18: pendulum joint](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/18_pendulum_joint)
 
-Demo videos: see the [gallery](docs/gallery.md).
 
 ## Installation
 
