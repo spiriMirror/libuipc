@@ -75,12 +75,27 @@ class LinearFusedPCG : public IterativeSolver
 
     // --- CUDA graph state ---
     IndexT m_use_cuda_graph = 1;  // config: linear_system/use_cuda_graph
+    // 0 = plain loop, 1 = block replay, 2 = full-GPU while-loop graph
+    IndexT m_graph_mode = 0;
     cuda_tool::GraphCapture m_graph;
     // validity key: every device pointer baked into the captured kernels
     std::array<const void*, 12> m_graph_ptrs{};
     SizeT m_graph_n        = 0;
     SizeT m_graph_interval = 0;
     SizeT m_graph_max_iter = 0;
-    SizeT m_graph_triplets = 0;  // baked into the captured SpMV kernel args
+
+    // --- full-GPU while-loop graph (CUDA >= 12.4) ---
+    cuda_tool::GraphWhile          m_while;
+    cuda_tool::DeviceVar<IndexT>   d_iter;
+    std::array<const void*, 12>    m_while_ptrs{};
+    SizeT                          m_while_n        = 0;
+    SizeT                          m_while_max_iter = 0;
+    bool  while_key_matches(cuda_tool::DenseVectorView<Float>  x,
+                            cuda_tool::CDenseVectorView<Float> b,
+                            SizeT                              max_iter) const;
+    void  rebuild_while(cuda_tool::DenseVectorView<Float>  x,
+                        cuda_tool::CDenseVectorView<Float> b,
+                        SizeT                              max_iter);
+    void  destroy_while();
 };
 }  // namespace uipc::backend::cuda
