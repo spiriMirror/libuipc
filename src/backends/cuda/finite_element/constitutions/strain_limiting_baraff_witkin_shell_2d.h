@@ -154,8 +154,11 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         shear_pk1 = 2 * (I6 - anisotropic_a.transpose() * anisotropic_b)
                     * (F * anisotropic_a * anisotropic_b.transpose()
                        + F * anisotropic_b * anisotropic_a.transpose());
-        Float I5u    = (F * anisotropic_a).transpose() * F * anisotropic_a;
-        Float I5v    = (F * anisotropic_b).transpose() * F * anisotropic_b;
+        // guard the 1/sqrt(I5) singularity: a fully collapsed triangle
+        // (stretch -> 0) must not produce NaN/Inf (same hole exists in
+        // Stiff-GIPC; finite huge response is strictly better)
+        Float I5u = std::max((F * anisotropic_a).squaredNorm(), Float(1e-12));
+        Float I5v = std::max((F * anisotropic_b).squaredNorm(), Float(1e-12));
         Float ucoeff = Float{1} - Float{1} / sqrt(I5u);
         Float vcoeff = Float{1} - Float{1} / sqrt(I5v);
 
@@ -186,8 +189,9 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     {
         Eigen::Matrix<Float, 6, 6> H_stretc = Eigen::Matrix<Float, 6, 6>::Zero();
         {
-            Float I5u = (F * anisotropic_a).transpose() * F * anisotropic_a;
-            Float I5v = (F * anisotropic_b).transpose() * F * anisotropic_b;
+            // same 1/sqrt(I5) singularity guard as dEdF
+            Float I5u = std::max((F * anisotropic_a).squaredNorm(), Float(1e-12));
+            Float I5v = std::max((F * anisotropic_b).squaredNorm(), Float(1e-12));
             Float invSqrtI5u = Float{1} / sqrt(I5u);
             Float invSqrtI5v = Float{1} / sqrt(I5v);
 
