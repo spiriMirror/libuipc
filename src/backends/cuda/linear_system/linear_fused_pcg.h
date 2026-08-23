@@ -1,6 +1,7 @@
 #pragma once
 #include <linear_system/iterative_solver.h>
 #include <cuda_tool/cuda_tool.h>
+#include <cuda_tool/graph.h>
 #include <array>
 
 namespace uipc::backend::cuda
@@ -25,7 +26,6 @@ class LinearFusedPCG : public IterativeSolver
 {
   public:
     using IterativeSolver::IterativeSolver;
-    virtual ~LinearFusedPCG();
 
   protected:
     virtual void do_build(BuildInfo& info) override;
@@ -44,7 +44,7 @@ class LinearFusedPCG : public IterativeSolver
     // capture and of the uncaptured fallback path).
     void run_iteration(cuda_tool::DenseVectorView<Float> x, cudaStream_t stream, bool timed);
 
-    // Capture `interval` iterations into m_graph_exec (no execution during
+    // Capture `interval` iterations into m_graph (no execution during
     // capture); on any failure disable graph replay for this instance.
     void rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
                        cuda_tool::CDenseVectorView<Float> b,
@@ -74,12 +74,8 @@ class LinearFusedPCG : public IterativeSolver
     SizeT check_interval  = 5;
 
     // --- CUDA graph state ---
-    IndexT          m_use_cuda_graph = 1;   // config: linear_system/use_cuda_graph
-    bool            m_graph_disabled = false;  // capture failed: permanent fallback
-    cudaStream_t    m_capture_stream = nullptr;
-    cudaStream_t    m_graph_stream   = nullptr;  // blocking stream for replay
-    cudaGraph_t     m_graph          = nullptr;
-    cudaGraphExec_t m_graph_exec     = nullptr;
+    IndexT m_use_cuda_graph = 1;  // config: linear_system/use_cuda_graph
+    cuda_tool::GraphCapture m_graph;
     // validity key: every device pointer baked into the captured kernels
     std::array<const void*, 12> m_graph_ptrs{};
     SizeT m_graph_n        = 0;

@@ -93,15 +93,6 @@ namespace
 
 REGISTER_SIM_SYSTEM(LinearFusedPCG);
 
-LinearFusedPCG::~LinearFusedPCG()
-{
-    destroy_graph();
-    if(m_capture_stream)
-        cudaStreamDestroy(m_capture_stream);
-    if(m_graph_stream)
-        cudaStreamDestroy(m_graph_stream);
-}
-
 void LinearFusedPCG::do_build(BuildInfo& info)
 {
     auto& config = world().scene().config();
@@ -355,16 +346,7 @@ void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x,
 
 void LinearFusedPCG::destroy_graph()
 {
-    if(m_graph_exec)
-    {
-        cudaGraphExecDestroy(m_graph_exec);
-        m_graph_exec = nullptr;
-    }
-    if(m_graph)
-    {
-        cudaGraphDestroy(m_graph);
-        m_graph = nullptr;
-    }
+    m_graph.reset_graph();
     m_graph_n = 0;
 }
 
@@ -373,7 +355,7 @@ bool LinearFusedPCG::graph_key_matches(cuda_tool::DenseVectorView<Float>  x,
                                        SizeT                              interval,
                                        SizeT                              max_iter) const
 {
-    if(!m_graph_exec)
+    if(!m_graph.ready())
         return false;
     auto A = matrix_data_ptrs();
     std::array<const void*, 12> ptrs = {x.data(),  b.data(),  r.buffer_view().data(),
@@ -392,46 +374,21 @@ void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
 {
     destroy_graph();
 
-    if(!m_capture_stream)
-        cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamNonBlocking);
-
-    cudaError_t err =
-        cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
-    if(err != cudaSuccess)
-    {
-        cudaGetLastError();
-        logger::warn("LinearFusedPCG: cudaStreamBeginCapture failed ({}); "
-                     "CUDA graph replay disabled for this instance",
-                     cudaGetErrorString(err));
-        m_graph_disabled = true;
-        return;
-    }
-
     // recorded, not executed; the block is launched for real right after
-    for(SizeT i = 0; i < interval; ++i)
-        run_iteration(x, m_capture_stream, false);
-    err = cudaStreamEndCapture(m_capture_stream, &m_graph);
-    if(err != cudaSuccess || m_graph == nullptr)
+    auto result = m_graph.capture(
+        [&](cudaStream_t capture_stream)
+        {
+            for(SizeT i = 0; i < interval; ++i)
+                run_iteration(x, capture_stream, false);
+        });
+
+    if(result != cuda_tool::GraphCapture::Result::Ok)
     {
         // a callee launched outside the capture stream (e.g. the MAS
-        // preconditioner engine): the capture is invalidated
-        cudaGetLastError();
-        logger::warn("LinearFusedPCG: stream capture invalidated ({}); "
-                     "CUDA graph replay disabled for this instance",
-                     cudaGetErrorString(err));
-        m_graph          = nullptr;
-        m_graph_disabled = true;
-        return;
-    }
-    err = cudaGraphInstantiateWithFlags(&m_graph_exec, m_graph, 0);
-    if(err != cudaSuccess)
-    {
-        cudaGetLastError();
-        logger::warn("LinearFusedPCG: cudaGraphInstantiate failed ({}); "
-                     "CUDA graph replay disabled for this instance",
-                     cudaGetErrorString(err));
-        destroy_graph();
-        m_graph_disabled = true;
+        // preconditioner engine) or the runtime rejected the capture
+        logger::warn("LinearFusedPCG: CUDA graph capture failed (code {}); "
+                     "graph replay disabled for this instance",
+                     (int)result);
         return;
     }
 
@@ -481,7 +438,7 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
 
     Float rz_tol = global_tol_rate * abs_rz0;
     // synchronous upload: an async copy on the default stream would race with
-    // the graph launch on m_graph_stream (blocking streams do not wait for
+    // the graph launch stream (blocking streams do not wait for
     // legacy-stream work), letting the converged kernel read a stale/uninit
     // tolerance. (Symptom was dx=0 -> flat line-search energy.)
     CUDA_TOOL_CHECK(cudaMemcpy(
@@ -496,20 +453,16 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
     {
         SizeT block = std::min(effective_check_interval, total_iters - iter_done);
 
-        bool graph_block = m_use_cuda_graph && !m_graph_disabled
+        bool graph_block = m_use_cuda_graph && !m_graph.disabled()
                            && block == effective_check_interval;
         if(graph_block)
         {
             if(!graph_key_matches(x, b, effective_check_interval, max_iter))
                 rebuild_graph(x, b, effective_check_interval, max_iter);
 
-            if(m_graph_exec)
+            if(m_graph.ready())
             {
-                if(!m_graph_stream)
-                    cudaStreamCreateWithFlags(&m_graph_stream, cudaStreamDefault);
-                cudaGraphLaunch(m_graph_exec, m_graph_stream);
-                // order the host check after the replayed block
-                cudaStreamSynchronize(m_graph_stream);
+                m_graph.launch_sync();  // replay, then host-check below
             }
             else  // capture failed: plain path
             {
