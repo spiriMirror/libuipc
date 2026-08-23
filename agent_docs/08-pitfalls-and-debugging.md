@@ -163,6 +163,11 @@ touching that area; several of these have bitten us more than once.
   - Graph replay vs plain launches can schedule blocks differently →
     different atomic-add arrival order → ULP divergence → chaotic scenes
     diverge after contact onset. Expected; do not chase bit-equality there.
+  - **A WHILE conditional node is not automatically faster than host-checked
+    block replay**: per-iteration condition evaluation + body dispatch cost
+    real microseconds; measured on ~85-iteration solves the block path (host
+    check every 5) wins by ~10%. Graphs kill *launch* gaps, not *loop-control*
+    gaps — amortize the control decision over several iterations.
 - `DeviceVector::resize(n)` value-initializes the grown tail (thrust
   parity); `loose_resize_entries` deliberately does NOT initialize —
   see below.

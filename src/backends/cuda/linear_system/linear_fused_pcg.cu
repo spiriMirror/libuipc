@@ -185,16 +185,19 @@ void LinearFusedPCG::do_build(BuildInfo& info)
     }
 
     // graph mode: 2 = full-GPU while-loop (CUDA >= 12.4 toolkit+driver),
-    // 1 = host-checked block replay, 0 = plain launches
+    // 1 = host-checked block replay, 0 = plain launches.
+    // Measured on case2-scale scenes (RTX 5090, ~85 iters/solve): block
+    // replay median 203ms/frame vs while-loop 221-226ms — the WHILE node's
+    // per-iteration evaluation costs more than the amortized host check
+    // every 5 iterations, so 1 is the default; 2 keeps the CPU completely
+    // out of the loop if that matters more than raw frame time.
     m_graph_mode = 0;
-    if(m_use_cuda_graph)
-    {
-#if CUDA_TOOL_GRAPH_WHILE
-        m_graph_mode = cuda_tool::GraphWhile::runtime_supported() ? 2 : 1;
-#else
+    if(m_use_cuda_graph == 1)
         m_graph_mode = 1;
+#if CUDA_TOOL_GRAPH_WHILE
+    else if(m_use_cuda_graph >= 2)
+        m_graph_mode = cuda_tool::GraphWhile::runtime_supported() ? 2 : 1;
 #endif
-    }
 
     auto dump_attr = config.find<IndexT>("extras/debug/dump_linear_pcg");
     if(dump_attr && dump_attr->view()[0] != 0)

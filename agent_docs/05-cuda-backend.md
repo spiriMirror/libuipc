@@ -80,18 +80,20 @@ whose launch gaps dominated the wall time (~80 µs of ~118 µs per iteration on
 case2-scale scenes). Two graph modes exist; `graph_mode` is auto-selected in
 `do_build` (logged at info level):
 
-- **mode 2 — full-GPU while-loop** (toolkit AND driver ≥ CUDA 12.4): the whole
-  solve is ONE graph launch — setup chain (reset → r=b → precond → p=z →
-  rz=rᵀz → rz_tol=tol·|rz0| on device) → WHILE conditional node whose body is
-  one iteration + a control kernel that publishes convergence and calls
-  `cudaGraphSetConditional`. Exit happens at the exact convergence iteration
-  (finer than the block path's interval granularity); x is bit-identical
-  because post-convergence iterations were guarded no-ops anyway. Zero
-  D2H/H2D inside the loop; a single D2H at the end reads back the iteration
-  count. NaN/Inf guards moved into device kernels (`UIPC_KERNEL_ASSERT`).
-- **mode 1 — block replay** (older toolkits/drivers): `check_interval`
-  iterations captured per block via `cuda_tool::GraphCapture`, host
-  convergence check between blocks (same cadence as the plain loop).
+- **mode 2 — full-GPU while-loop** (opt-in, toolkit AND driver ≥ CUDA 12.4):
+  the whole solve is ONE graph launch — setup chain (reset → r=b → precond →
+  p=z → rz=rᵀz → rz_tol=tol·|rz0| on device) → WHILE conditional node whose
+  body is one iteration + a control kernel that publishes convergence and
+  calls `cudaGraphSetConditional`. Exit happens at the exact convergence
+  iteration; zero D2H/H2D inside the loop; a single D2H at the end reads
+  back the iteration count. **Measured SLOWER than mode 1 on case2-scale
+  scenes (median ~226 vs ~203 ms/frame): the WHILE node's per-iteration
+  evaluation costs more than the amortized host check every 5 iterations —
+  so it is opt-in (`use_cuda_graph=2`), useful when freeing the CPU matters
+  more than raw frame time.**
+- **mode 1 — block replay (default)**: `check_interval` iterations captured
+  per block via `cuda_tool::GraphCapture`, host convergence check between
+  blocks (same cadence as the plain loop).
 - **mode 0** — plain launches (config off, or `contact/constitution != ipc`).
 
 Shared infrastructure: `cuda_tool/graph.h` holds `GraphCapture` (flat block

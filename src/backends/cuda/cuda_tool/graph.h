@@ -261,23 +261,7 @@ class GraphWhile
             return fail(Result::CaptureFailed);
         }
 
-        // 3) loop body (cloned into the conditional node's body graph)
-        err = cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
-        if(err != cudaSuccess)
-        {
-            cudaGetLastError();
-            return fail(Result::CaptureFailed);
-        }
-        loop_body(m_capture_stream, handle);
-        err = cudaStreamEndCapture(m_capture_stream, &m_body_capture);
-        if(err != cudaSuccess || m_body_capture == nullptr)
-        {
-            cudaGetLastError();
-            m_body_capture = nullptr;
-            return fail(Result::CaptureFailed);
-        }
-
-        // 4) assemble: setup -> WHILE(body)
+        // 3) assemble: setup -> WHILE(body)
         cudaGraphNode_t setup_node;
         err = cudaGraphAddChildGraphNode(
             &setup_node, m_graph, nullptr, 0, m_setup_graph);
@@ -299,11 +283,27 @@ class GraphWhile
         if(err != cudaSuccess || body_container == nullptr)
             return fail(Result::BuildFailed, "cudaGraphAddNode(conditional)", err);
 
-        cudaGraphNode_t body_node;
-        err = cudaGraphAddChildGraphNode(
-            &body_node, body_container, nullptr, 0, m_body_capture);
+        // 4) capture the loop body DIRECTLY into the conditional's body
+        //    graph — a cloned child-graph node here would add one device-side
+        //    dispatch level per iteration (measurably slower)
+        err = cudaStreamBeginCaptureToGraph(m_capture_stream,
+                                            body_container,
+                                            nullptr,
+                                            nullptr,
+                                            0,
+                                            cudaStreamCaptureModeThreadLocal);
         if(err != cudaSuccess)
-            return fail(Result::BuildFailed, "cudaGraphAddChildGraphNode(body)", err);
+        {
+            cudaGetLastError();
+            return fail(Result::CaptureFailed);
+        }
+        loop_body(m_capture_stream, handle);
+        err = cudaStreamEndCapture(m_capture_stream, nullptr);
+        if(err != cudaSuccess)
+        {
+            cudaGetLastError();
+            return fail(Result::CaptureFailed);
+        }
 
         // 5) instantiate
 #if CUDART_VERSION >= 11040
@@ -347,16 +347,12 @@ class GraphWhile
             cudaGraphDestroy(m_graph);  // also destroys the driver-owned body graph
             m_graph = nullptr;
         }
-        // setup/body captures were cloned into child nodes
+        // the setup capture was cloned into a child node; the loop body was
+        // captured directly into the driver-owned conditional body graph
         if(m_setup_graph)
         {
             cudaGraphDestroy(m_setup_graph);
             m_setup_graph = nullptr;
-        }
-        if(m_body_capture)
-        {
-            cudaGraphDestroy(m_body_capture);
-            m_body_capture = nullptr;
         }
     }
 
@@ -387,7 +383,6 @@ class GraphWhile
     cudaStream_t    m_capture_stream = nullptr;
     cudaStream_t    m_launch_stream  = nullptr;
     cudaGraph_t     m_setup_graph    = nullptr;
-    cudaGraph_t     m_body_capture   = nullptr;
     cudaGraph_t     m_graph          = nullptr;
     cudaGraphExec_t m_exec           = nullptr;
     bool            m_disabled       = false;
