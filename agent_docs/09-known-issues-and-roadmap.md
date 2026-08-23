@@ -139,7 +139,7 @@ Verdicts:
   stream-plumbed (`MASPreconditionerEngine::apply(..., stream)` +
   `FEMMASPreconditioner::do_apply` forwards `info.stream()`), so MAS scenes
   join the captured graph instead of falling back to plain launches
-  (graph_mode=1 confirmed active with mesh_part present). Validation at
+  (graph_mode=1 confirmed active in MAS scenes). Validation at
   E=1e7/100 frames with contact: MAS+graph trajectory identical to the
   diag+graph reference at 1e-4 print precision; resting centroid -0.7753 vs
   the rigid-body geometric prediction -0.7731 (2mm compression); iteration
@@ -167,9 +167,23 @@ Verdicts:
   worst-preconditioned block, so a diag-covered stiff block (the lower
   bunny in ground contact + the cloth) dominates and the MAS per-iteration
   overhead (cluster-inverse assembly + 5-launch apply) is pure cost.
-  Practical rule: partition ALL stiff FEM objects (`mesh_partition`); leave
-  only soft/small ones unpartitioned. `NO_MAS=1` / `ALL_MAS=1` env switches
-  in the sample reproduce this table.
+  This table was measured with per-mesh tagging; it is the direct
+  motivation for the all-or-nothing redesign below.
+- ALL-OR-NOTHING REDESIGN (2026-08-23): MAS activation is now a scene
+  config switch — `linear_system/fem_preconditioner = "mas"` (default
+  `"diag"`). When on, `FEMMASPreconditioner::do_init` auto-partitions
+  EVERY non-Empty FEM SimplicialComplex internally on a private clone
+  (fixed cluster size = `BANKSIZE` 16, the only size the engine's shared-
+  memory kernels accept); a pre-existing `mesh_part` attribute (custom C++
+  partitioning) is still respected as-is, but manual tagging alone no
+  longer activates MAS. The python `uipc.geometry.mesh_partition` export
+  was removed (the exposed `part_max_size` was a footgun — any value > 16
+  trips the BANKSIZE assert). Defensive fix included: switch on but
+  nothing partitionable (e.g. all-Empty FEM) -> do_apply falls back to
+  z=r instead of leaving z stale. Migrated: sim_case 53-61/81 + the
+  stitch regression (config switch instead of mesh_partition calls;
+  58_hybrid_mix now verifies custom + auto partitions coexist), samples
+  88/89 (NO_MAS=1 env flips the switch to "diag").
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian
   (kinetic + material) every Newton iteration

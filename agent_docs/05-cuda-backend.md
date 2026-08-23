@@ -124,6 +124,18 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   sized once at init from the mesh partition (contact does not recluster —
   collision-aware clustering is deliberately not ported), so the captured
   pointers stay valid as contact nnz fluctuates.
+- MAS activation (all-or-nothing, since 2026-08-23): scene config
+  `linear_system/fem_preconditioner = "mas"` (default `"diag"`) selects the
+  FEM local preconditioner. When on, `FEMMASPreconditioner::do_init`
+  auto-partitions EVERY non-Empty FEM SimplicialComplex internally (fixed
+  cluster size = `MASPreconditionerEngine::BANKSIZE` 16 — the only size the
+  Schwarz kernels' shared-memory layout accepts) on a private clone, so
+  scene geometries are never mutated; a pre-existing `mesh_part` vertex
+  attribute (custom C++ partitioning) is respected as-is. Empty-constitution
+  geometries are skipped and stay on the internal diagonal fallback. If the
+  switch is on but nothing is partitionable, `do_apply` falls back to z=r.
+  The python `mesh_partition` export is gone — per-mesh manual tagging no
+  longer activates MAS (partial coverage measured net-negative, doc 09).
 - `linear_system/check_interval` is now a registered config key (default 5) —
   it was previously unregistered and silently dropped.
 - Per-iteration "SpMV"/"Apply Preconditioner" Timer entries only exist on
