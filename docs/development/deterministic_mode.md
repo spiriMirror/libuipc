@@ -48,9 +48,9 @@ but it hurts three workflows:
    "count → sort by target dof → segmented reduce" scheme. Cost: one extra pass
    over the triplets; memory: one index array. This is the classical
    deterministic-assembly tradeoff.
-2. **Reductions (dot/norm)**: use fixed-order tree reductions (muda provides
-   deterministic reduce variants; otherwise implement a two-level reduce with a
-   fixed split). Never use atomics for scalar accumulation.
+2. **Reductions (dot/norm)**: use fixed-order tree reductions (e.g. the
+   warp→block two-level reduction used in the solver's dot kernels). Never
+   use atomics for scalar accumulation.
 3. **Sorting**: use stable sorts (or sort by (key, index) pairs) in BVH and
    candidate-list construction.
 4. **Contact set**: after filtering, sort candidate pairs by

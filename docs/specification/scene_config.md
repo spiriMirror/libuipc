@@ -51,6 +51,9 @@ See [Newton Solver Details](scene_configs/newton.md) for the convergence criteri
 |-----|------|---------|--------|-------------|
 | `linear_system/tol_rate` | Float | `1e-3` | | Relative tolerance for PCG solver |
 | `linear_system/solver` | String | `"fused_pcg"` | `"fused_pcg"` `"linear_pcg"` | Linear solver; `linear_pcg` is ~ 30% slower |
+| `linear_system/fem_preconditioner` | String | `"diag"` | `"diag"` `"mas"` | FEM local preconditioner: 3x3 block-Jacobi, or MAS (Multi-Level Additive Schwarz) which auto-partitions every FEM geometry internally (fixed cluster size 16) |
+| `linear_system/use_cuda_graph` | Int | `1` | | FusedPCG CUDA graph mode: 1 = replay `check_interval`-sized iteration blocks, 2 = full-GPU while-loop graph (CUDA ≥ 12.4), 0 = plain per-iteration launches |
+| `linear_system/check_interval` | Int | `5` | | Host convergence-check cadence in PCG iterations |
 
 ## Line Search
 

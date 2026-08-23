@@ -25,11 +25,12 @@
 | 20  | [AffineBodyPrismaticJoint](./affine_body_prismatic_joint.md)            | Affine Body Prismatic Joint Constitutions                                            |
 | 21  | [AffineBodyDrivingPrismaticJoint](./affine_body_driving_prismatic_joint.md) | Affine Body Driving Prismatic Joint Constitutions                                    |
 | 22  | [SoftVertexStitch](./soft_vertex_stitch.md)                             | Soft Vertex Stitch Constitutions                                                     |
-| 23  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions                                       |
+| 23  | ExternalArticulationConstitution | External Articulation Constitution (InterAffineBody) |
+| 24  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions |
 | 25  | [AffineBodyFixedJoint](./affine_body_fixed_joint.md)                    | Affine Body Fixed Joint Constitutions                                                |
 | 26  | [AffineBodySphericalJoint](./affine_body_spherical_joint.md)            | Affine Body Spherical Joint (ball-and-socket): shared anchor, free relative rotation |
-| 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions (Reserved)                         |
-| 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                                        |
+| 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions                                    |
+| 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions                                                   |
 | 29  | [SoftVertexEdgeStitch](./soft_vertex_edge_stitch.md)                    | Inter-primitive: (vertex, edge) pairs as triangles with StVK membrane energy         |
 | 30  | [SoftVertexTriangleStitch](./soft_vertex_triangle_stitch.md)            | Inter-primitive: (vertex, triangle) pairs as tetrahedra with StableNeoHookean energy |
 | 31  | [StrainPlasticDiscreteShellBending](./strain_plastic_discrete_shell_bending.md) | Strain-threshold discrete shell bending with plastic rest-angle evolution          |
