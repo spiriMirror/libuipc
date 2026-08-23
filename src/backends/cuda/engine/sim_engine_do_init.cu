@@ -72,6 +72,7 @@ void SimEngine::init_scene()
         info.find<IndexT>("newton/semi_implicit/enable")->view()[0];
     m_semi_implicit_beta_tol =
         info.find<Float>("newton/semi_implicit/beta_tol")->view()[0];
+    m_semi_implicit_kmin = info.find<IndexT>("newton/semi_implicit/K_min");
 
     m_strict_mode = info.find<IndexT>("extras/strict_mode/enable");
 

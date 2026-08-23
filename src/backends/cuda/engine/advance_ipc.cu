@@ -204,7 +204,11 @@ void SimEngine::advance()
         if(m_semi_implicit_enabled)
         {
             // Ref: https://arxiv.org/abs/2512.12151, Algorithm 1.
-            auto k_min = m_newton_min_iter->view()[0];
+            // newton/semi_implicit/K_min plays Stiff-GIPC's Kmin role: beta
+            // accumulation only starts from this iteration on; it is not a
+            // floor on the Newton iteration count (that is newton/min_iter,
+            // default 0 = no forced minimum).
+            auto k_min = m_semi_implicit_kmin->view()[0];
             auto eps   = m_semi_implicit_beta_tol;
             if(newton_iter >= k_min)
                 beta = (1.0 - alpha) * beta;
@@ -284,9 +288,8 @@ void SimEngine::advance()
         }
         else
         {
-            logger::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
+            logger::info("Newton Iteration Converged with Iteration Count: {}, Max: {}",
                          newton_iter_after_loop,
-                         m_newton_min_iter->view()[0],
                          newton_max);
         }
     };
@@ -464,6 +467,8 @@ void SimEngine::advance()
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
                     check_line_search_iter(line_search_iter, E0, last_E);
 
+                    // newton/min_iter is a pure hard floor (default 0 = off);
+                    // the semi-implicit Kmin lives in newton/semi_implicit/K_min
                     bool terminated = converged && (newton_iter >= newton_min_iter);
                     if(terminated)
                         break;

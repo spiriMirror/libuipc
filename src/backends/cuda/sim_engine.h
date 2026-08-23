@@ -117,8 +117,8 @@ class SimEngine final : public backend::SimEngine
     Float m_semi_implicit_beta_tol = 1e-3;
     Float m_newton_scene_tol       = 0.01;
 
-    bool m_friction_enabled = false;
-    PipelineType m_pipeline_type = PipelineType::Basic;
+    bool         m_friction_enabled = false;
+    PipelineType m_pipeline_type    = PipelineType::Basic;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;
@@ -126,6 +126,7 @@ class SimEngine final : public backend::SimEngine
     CAS<Float>  m_newton_velocity_tol;
     CAS<IndexT> m_newton_max_iter;
     CAS<IndexT> m_newton_min_iter;
+    CAS<IndexT> m_semi_implicit_kmin;
     CAS<IndexT> m_strict_mode;
     CAS<Float>  m_ccd_tol;
     CAS<IndexT> m_dump_surface;
