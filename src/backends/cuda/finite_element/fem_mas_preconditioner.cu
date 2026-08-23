@@ -109,13 +109,14 @@ void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& 
                                       cuda_tool::DenseVectorView<Float>  z,
                                       cuda_tool::CDenseVectorView<Float> r,
                                       cuda_tool::CVarView<IndexT> converged,
-                                      SizeT                       num_verts)
+                                      SizeT                       num_verts,
+                                      cudaStream_t                stream)
 {
     int n = (int)num_verts;
     if(n > 0)
     {
         auto k = apply_diag_inv_for_unpartitioned_kernel;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, stream>>>(
             r, z, diag_inv.cview(), unpart_flags.cview(), converged.cviewer(), n);
     }
 }
@@ -463,7 +464,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto converged = info.converged();
 
         // MAS for partitioned vertices
-        engine.apply(info.r(), info.z(), converged);
+        engine.apply(info.r(), info.z(), converged, info.stream());
 
         // Diagonal fallback for unpartitioned vertices
         if(m_has_unpartitioned)
@@ -473,7 +474,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
                                              info.z(),
                                              info.r(),
                                              converged,
-                                             diag_inv.size());
+                                             diag_inv.size(),
+                                             info.stream());
         }
     }
 };
