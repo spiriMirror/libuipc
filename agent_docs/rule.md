@@ -32,10 +32,16 @@ record it here in the same commit.**
 
 ## Build system
 
-5. **CMake and XMake stay in sync**: every build-affecting change (sources,
+5. **clang-format-18 before every C++ commit/PR**: run
+   `python scripts/format_changed.py` (formats the C++ files changed vs the
+   base ref, CI's exact selection) or `--check` for a dry run. CI rejects
+   non-conforming diffs; the pinned local formatter is
+   `output/venv_clangfmt/Scripts/clang-format.exe` (18.1.8, same major as
+   CI's clang-format-18).
+6. **CMake and XMake stay in sync**: every build-affecting change (sources,
    flags, dependencies, pins) must be applied to both build systems, even
    if only one can be verified locally.
-6. **No ccache.** It was integrated once and the owner had it reverted; do
+7. **No ccache.** It was integrated once and the owner had it reverted; do
    not re-introduce it (or similar compiler-cache layers) without an
    explicit request.
 
