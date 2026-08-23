@@ -22,13 +22,16 @@ Recent important changes (README News):
 | `apps/` | `tests/` (Catch2 tests), `examples/` (3 C++ examples), `benchmarks/`, `app/` (test utility library) |
 | `python/` | Python package source `src/uipc/`, `tests/`, examples; plus a standalone `pyproject.toml` (for development) |
 | `docs/` | mkdocs documentation source: `tutorial/ specification/ development/ build_install/ media/`, etc. |
-| `external/` | Third-party source dependencies, mainly `muda/` (CUDA launch / linear algebra wrapper library) |
+| `external/` | Third-party in-tree sources: `GKlib/` + `METIS/` only (muda was fully removed; the CUDA backend now uses the in-house `src/backends/cuda/cuda_tool/`) |
+| `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`), `symbol_calculation/` (~25 symbolic derivation notebooks), `SymEigen/` |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
 | `agent_docs/` | This directory; agent guide |
 | `CMakeLists.txt` / `CMakePresets.json` / `pyproject.toml` | Build entry points |
+
+> **Sibling checkouts in a typical working copy (untracked, do NOT commit into this repo)**: `libuipc-samples/` (separate repo `spiriMirror/libuipc-samples`, 88 numbered Python example cases), `Stiff-GIPC/` (the reference implementation used for performance alignment), `references/` (third-party demo code, e.g. the robot-hand example case 87 was ported from).
 
 ## Three Core Concepts
 

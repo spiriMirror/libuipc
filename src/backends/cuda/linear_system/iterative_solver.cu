@@ -1,5 +1,6 @@
 #include <linear_system/iterative_solver.h>
 #include <linear_system/global_linear_system.h>
+#include <array>
 namespace uipc::backend::cuda
 {
 void IterativeSolver::do_build()
@@ -28,17 +29,25 @@ void IterativeSolver::spmv(cuda_tool::CDenseVectorView<Float> x,
 
 void IterativeSolver::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                                cuda_tool::DenseVectorView<Float>  y,
-                               cuda_tool::VarView<Float>          d_dot)
+                               cuda_tool::VarView<Float>          d_dot,
+                               cudaStream_t                       stream)
 {
-    m_system->m_impl.spmv_dot(x, y, d_dot);
+    m_system->m_impl.spmv_dot(x, y, d_dot, stream);
 }
 
 void IterativeSolver::apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                            cuda_tool::CDenseVectorView<Float> r,
-                                           cuda_tool::CVarView<IndexT> converged)
+                                           cuda_tool::CVarView<IndexT> converged,
+                                           cudaStream_t stream)
 {
-    m_system->m_impl.apply_preconditioner(z, r, converged);
+    m_system->m_impl.apply_preconditioner(z, r, converged, stream);
 }
+
+std::array<const void*, 3> IterativeSolver::matrix_data_ptrs() const
+{
+    return m_system->m_impl.matrix_data_ptrs();
+}
+
 
 bool IterativeSolver::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
 {

@@ -1,22 +1,66 @@
 # Handoff — Current State of the Repo
 
-> Written 2026-08-20 (evening). Supersedes the earlier handoffs. **The
-> muda→cuda_tool migration is complete AND fully verified: all apps/tests
-> pass, including the 95-case sim suite (2/2 runs, 14214 assertions — same
-> count as the pre-migration baseline).**
+> **Post-merge update (2026-08-23)**: everything below (the whole
+> refactor-main line: muda→cuda_tool, raw kernels, Stiff-GIPC alignment,
+> cloth stiffness model, kappa policy, hygiene batch) was merged to `main`
+> via **PR #468** (merge commit `9bf45950`, 2026-08-22). CI on the PR was
+> green at merge time. `refactor-main` is done; new work branches off
+> `main`. Sections below are pre-merge history — still accurate as records
+> of *why* things are the way they are. For open issues and plans see
+> **`09-known-issues-and-roadmap.md`**; for the collected pitfalls see
+> **`08-pitfalls-and-debugging.md`**.
+>
+> Post-merge events:
+> - CI repair round on the PR (all pushed, all green): mass clang-format
+>   (327 files, `72cf876b`); tinygltf v2.9.6 stale hash → overlay port
+>   `ports/tinygltf` wired via `overlay-ports` in the generated
+>   `vcpkg-configuration.json` (`bcd04cc2`; env-var wiring does NOT reach
+>   cibuildwheel's inner vcpkg install — see doc 07/08); xmake pins
+>   `octree v2.5` (`f4230c31`) and `tinygltf <3` (`557f7017`) against
+>   upstream v3 layout drift.
+> - PR #469 merged: pytest >=9.0.3 (dependabot tmpdir CVE), `uv.lock`
+>   regenerated with uv 0.12.5 (large diff — it backfilled missing entries).
+> - Samples repo (separate, `spiriMirror/libuipc-samples`): added case
+>   **87_robot_hand** (URDF hand + ABD cube, manual GUI posing; ported from
+>   references/Robotics-Libuipc and rewritten; scripted auto-grasp removed
+>   at user request) and case **88_stiff_gipc_benchmark** (the old
+>   `Stiff-GIPC-benchmark.py` moved there with a GUI; `--headless [N]`
+>   keeps the benchmark loop; parameters untouched).
+> - External PR #461 (EmbeddedCollisionMesh) reviewed — verdict and the
+>   three must-fix bugs recorded in doc 09.
+> - **FusedPCG CUDA-graph block replay (2026-08-23)**: `check_interval`-sized
+>   iteration blocks are captured once per (buffer-set, N, triplet-count) and
+>   replayed as single graph launches; case2 250-frame benchmark 301 →
+>   233 ms/frame (~1.29×). Config `linear_system/use_cuda_graph` (default 1);
+>   `linear_system/check_interval` is now a registered key (default 5 — it was
+>   unregistered and silently dropped before). Details and traps in doc 05/08.
+>   Notable bugs found during the work: rz_tol async-upload vs graph-launch
+>   stream race (sync upload now), triplet_count missing from the graph key,
+>   and Timer objects created during stream capture deterministically crashing
+>   the single-process suite binary (0xC0000409) — capture path creates no
+>   Timer objects anymore (plain path keeps them for case 59's SpMV counts).
+>   The al-ipc pipeline is gated off graph replay for now (crash observed only
+>   in the C++ suite binary's al-ipc section; python repro passes — root cause
+>   open, see doc 09).
+>
+> Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
+> is complete AND fully verified: all apps/tests pass, including the
+> 95-case sim suite (2/2 runs, 14214 assertions — same count as the
+> pre-migration baseline).
 > Verify against the working tree before assuming anything beyond this file.
 
 ## TL;DR
 
-- Branch `refactor-main`. The CUDA backend no longer depends on muda in any
-  form (no submodule, no vendored copy, no xmake package).
+- **All of this is merged to `main`** (PR #468, `9bf45950`). The CUDA
+  backend no longer depends on muda in any form (no submodule, no vendored
+  copy, no xmake package).
 - All 273 lambda kernel launch sites were rewritten as named `__global__`
   functions with raw `<<<>>>` launches.
 - **All tests green**: 6 fast binaries (common/core/geometry/sanity_check/
   backend_cuda/regression) + `uipc_test_sim_case.exe` full suite 95/95 cases,
   14214 assertions, run twice deterministically.
-- One uncommitted fix batch remains in the working tree (see "Pending
-  commit" below) — it is the root-cause fix for the full-suite failure.
+- (The "uncommitted fix batch" mentioned in older revisions was committed
+  and merged as part of PR #468.)
 
 ## Commits (oldest → newest, on top of `74a5df62`)
 
@@ -270,7 +314,7 @@ calls in bvh (verbatim from baseline), buffer fill/copy block sizes
   Verification means on record: linear-system dump (config
   `extras/debug/dump_linear_system=1`) + scipy recomputation.
 
-## Stiff-GIPC set_case2 ported benchmark (samples `examples/Stiff-GIPC-benchmark.py`)
+## Stiff-GIPC set_case2 ported benchmark (now samples case `88_stiff_gipc_benchmark`; formerly `examples/Stiff-GIPC-benchmark.py`)
 
 - Scene: ABD bunny (scale 0.2, y+0.5, ρ1000, ABD κ=1e8) + FEM bunny (same
   mesh, y-0.65, SNH E=1e4/ν0.49/ρ1000) + cloth (cloth_high.obj 4225

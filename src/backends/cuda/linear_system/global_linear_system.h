@@ -1,6 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <functional>
+#include <array>
 #include <uipc/common/list.h>
 #include <uipc/common/vector.h>
 #include <cuda_tool/cuda_tool.h>
@@ -191,13 +192,17 @@ class GlobalLinearSystem : public SimSystem
         DenseVectorView             z() { return m_z; }
         CDenseVectorView            r() { return m_r; }
         cuda_tool::CVarView<IndexT> converged() { return m_converged; }
+        // launch stream for the apply kernels (capture stream while
+        // recording a CUDA graph; legacy default stream otherwise)
+        cudaStream_t stream() const noexcept { return m_stream; }
 
       private:
         friend class Impl;
         DenseVectorView             m_z;
         CDenseVectorView            m_r;
         cuda_tool::CVarView<IndexT> m_converged;
-        Impl*                       m_impl = nullptr;
+        cudaStream_t                m_stream = nullptr;
+        Impl*                       m_impl   = nullptr;
     };
 
     class AccuracyInfo
@@ -306,6 +311,8 @@ class GlobalLinearSystem : public SimSystem
         cuda_tool::DeviceTripletMatrix<Float, 3> triplet_A;
         cuda_tool::DeviceBCOOMatrix<Float, 3>    bcoo_A;
         cuda_tool::DeviceDenseMatrix<Float>      debug_A;  // dense A for debug
+        // device-side copy of bcoo_A's triplet count (for graph-stable SpMV)
+        cuda_tool::DeviceVar<IndexT> triplet_count_dev;
 
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
@@ -315,7 +322,8 @@ class GlobalLinearSystem : public SimSystem
 
         void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                   cuda_tool::CDenseVectorView<Float> r,
-                                  cuda_tool::CVarView<IndexT>        converged);
+                                  cuda_tool::CVarView<IndexT>        converged,
+                                  cudaStream_t stream = nullptr);
 
         void spmv(Float                              a,
                   cuda_tool::CDenseVectorView<Float> x,
@@ -323,7 +331,18 @@ class GlobalLinearSystem : public SimSystem
                   cuda_tool::DenseVectorView<Float>  y);
         void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                       cuda_tool::DenseVectorView<Float>  y,
-                      cuda_tool::VarView<Float>          d_dot);
+                      cuda_tool::VarView<Float>          d_dot,
+                      cudaStream_t                       stream = nullptr);
+
+        // data pointers of the assembled matrix buffers (row/col/value),
+        // for the FusedPCG CUDA-graph validity key: a reassembly that
+        // reallocates any of them invalidates the captured graph
+        std::array<const void*, 3> matrix_data_ptrs() const
+        {
+            auto v = bcoo_A.cview();
+            return {v.row_indices().data(), v.col_indices().data(), v.values().data()};
+        }
+
 
         bool accuracy_statisfied(cuda_tool::DenseVectorView<Float> r);
         void compute_gradient(ComputeGradientInfo& info);

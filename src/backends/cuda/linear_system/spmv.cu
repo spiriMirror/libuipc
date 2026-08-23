@@ -347,12 +347,15 @@ namespace
                                                  cuda_tool::CDenseVectorView<Float> x,
                                                  cuda_tool::DenseVectorView<Float> y,
                                                  cuda_tool::Dense<Float> d_dot,
-                                                 int triplet_count)
+                                                 cuda_tool::CDense<IndexT> d_triplet_count)
     {
-        constexpr int warp_size = 32;
-        constexpr int block_dim = 256;
-        constexpr int N         = 3;
-        using T                 = Float;
+        // count lives on device: a graph capturing this kernel then stays
+        // valid when the matrix nnz changes within the reserved capacity
+        const int     triplet_count = (int)(*d_triplet_count);
+        constexpr int warp_size     = 32;
+        constexpr int block_dim     = 256;
+        constexpr int N             = 3;
+        using T                     = Float;
 
         using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
         using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
@@ -379,20 +382,22 @@ namespace
         flags.is_valid      = 0;
         flags.is_head       = 0;
 
+        // raw triplet arrays: the view's A(i) accessor bounds-checks against
+        // the count baked at capture time, while the device-side count may be
+        // larger (matrix grew within capacity) — read through the pointers
+        const int*       rows = A.row_indices().data();
+        const int*       cols = A.col_indices().data();
+        const Matrix3x3* vals = A.values().data();
         if(global_thread_id < triplet_count)
         {
             if(global_thread_id > 0)
-            {
-                auto prev_triplet = A(global_thread_id - 1);
-                prev_i            = prev_triplet.row_index;
-            }
+                prev_i = rows[global_thread_id - 1];
 
-            auto Triplet = A(global_thread_id);
-            i            = Triplet.row_index;
-            auto j       = Triplet.col_index;
+            i      = rows[global_thread_id];
+            auto j = cols[global_thread_id];
 
             Eigen::Vector<T, N> x_j = x.segment<N>(j * N).as_eigen();
-            vec                     = Triplet.value * x_j;
+            vec                     = vals[global_thread_id] * x_j;
 
             flags.is_valid = 1;
 
@@ -405,7 +410,7 @@ namespace
                 Eigen::Vector<T, N> x_i = x.segment<N>(i * N).as_eigen();
                 dot_local               = 2.0 * a * x_i.dot(vec);
 
-                Vector3 vec_ = a * Triplet.value.transpose() * x_i;
+                Vector3 vec_ = a * vals[global_thread_id].transpose() * x_i;
                 y.segment<N>(j * N).atomic_add(vec_);
             }
 
@@ -536,33 +541,37 @@ void Spmv::rbk_sym_spmv_dot(Float                                a,
                             cuda_tool::CDenseVectorView<Float>   x,
                             Float                                b,
                             cuda_tool::DenseVectorView<Float>    y,
-                            cuda_tool::VarView<Float>            d_dot)
+                            cuda_tool::VarView<Float>            d_dot,
+                            cuda_tool::CDense<IndexT> d_triplet_count,
+                            SizeT                     triplet_capacity,
+                            cudaStream_t              stream)
 {
     if(b != 0)
     {
         int n = y.size();
         if(n > 0)
         {
-            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, nullptr>>>(
+            Spmv_scale_y_kernel<<<cuda_tool::best_grid_dim(n, Spmv_scale_y_kernel), cuda_tool::best_block_dim(Spmv_scale_y_kernel), 0, stream>>>(
                 b, y, n);
         }
     }
     else
     {
-        cuda_tool::BufferLaunch().fill<Float>(y.buffer_view(), 0);
+        cuda_tool::BufferLaunch(stream).fill<Float>(y.buffer_view(), 0);
     }
 
-    cudaMemsetAsync(d_dot.data(), 0, sizeof(Float));
+    cudaMemsetAsync(d_dot.data(), 0, sizeof(Float), stream);
 
-    constexpr int block_dim   = 256;
-    int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
-
-    int triplet_count = A.triplet_count();
+    // grid covers the reserved capacity: blocks beyond the current
+    // (device-side) count exit through the is_valid guard with zero work,
+    // so the launch shape need not change when the count does
+    constexpr int block_dim = 256;
+    int block_count = (int)((triplet_capacity + block_dim - 1) / block_dim);
 
     if(block_count > 0)
     {
-        Spmv_rbk_sym_spmv_dot_kernel<<<block_count, block_dim, 0, nullptr>>>(
-            a, A, x, y, d_dot.viewer(), triplet_count);
+        Spmv_rbk_sym_spmv_dot_kernel<<<block_count, block_dim, 0, stream>>>(
+            a, A, x, y, d_dot.viewer(), d_triplet_count);
     }
 }
 

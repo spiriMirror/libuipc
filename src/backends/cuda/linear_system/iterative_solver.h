@@ -32,10 +32,14 @@ class IterativeSolver : public SimSystem
     void spmv(cuda_tool::CDenseVectorView<Float> x, cuda_tool::DenseVectorView<Float> y);
     void spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                   cuda_tool::DenseVectorView<Float>  y,
-                  cuda_tool::VarView<Float>          d_dot);
+                  cuda_tool::VarView<Float>          d_dot,
+                  cudaStream_t                       stream = nullptr);
     void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                               cuda_tool::CDenseVectorView<Float> r,
-                              cuda_tool::CVarView<IndexT>        converged);
+                              cuda_tool::CVarView<IndexT>        converged,
+                              cudaStream_t stream = nullptr);
+    // data pointers of the assembled system matrix (FusedPCG graph key)
+    std::array<const void*, 3> matrix_data_ptrs() const;
     bool accuracy_statisfied(cuda_tool::DenseVectorView<Float> r);
     cuda_tool::LinearSystemContext& ctx() const;
 

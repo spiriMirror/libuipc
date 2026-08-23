@@ -31,12 +31,20 @@ class Spmv
 
     // reduce by key symmetric spmv with fused dot product
     // computes y = a * A * x  AND  d_dot = x^T * (a * A * x) in a single pass
+    // `stream` defaults to the legacy default stream; pass a capture stream
+    // when recording a CUDA graph.
+    // The triplet count is read on device (`d_triplet_count`) and the grid is
+    // sized by `triplet_capacity`, so a captured graph stays valid while the
+    // matrix nnz varies within the reserved capacity.
     void rbk_sym_spmv_dot(Float                                a,
                           cuda_tool::CBCOOMatrixView<Float, 3> A,
                           cuda_tool::CDenseVectorView<Float>   x,
                           Float                                b,
                           cuda_tool::DenseVectorView<Float>    y,
-                          cuda_tool::VarView<Float>            d_dot);
+                          cuda_tool::VarView<Float>            d_dot,
+                          cuda_tool::CDense<IndexT>            d_triplet_count,
+                          SizeT                                triplet_capacity,
+                          cudaStream_t stream = nullptr);
 
     // debug fallback cpu spmv
     // very slow, only for debug

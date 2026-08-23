@@ -8,13 +8,17 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 | File | Content |
 |---|---|
+| **`rule.md`** | **Owner-mandated working agreements — read first, they override habit** (branch/commit policy, minimal diffs, doc sync, English-only artifacts, CMake+XMake parity, raw kernels, no muda/ccache/geigen) |
 | `01-project-overview.md` | Project positioning, top-level directories, three core concepts, typical simulation workflow |
 | `02-core-architecture.md` | Three-layer architecture, Engine/World/Scene lifecycle, RMR pattern, backend plugin ABI |
 | `03-geometry-and-io.md` | SimplicialComplex, attribute system, geometry algorithms, IO classes |
 | `04-constitutions.md` | Full list of constitution models (UID, parameters, physical meaning), Constraints and joints |
-| `05-cuda-backend.md` | CUDA backend subsystems, advance pipeline, muda kernel naming, performance analysis |
+| `05-cuda-backend.md` | CUDA backend subsystems, advance pipeline, cuda_tool (raw-CUDA utilities) and kernel naming, performance analysis |
 | `06-python-api-and-packaging.md` | pybind structure, Python package layout, wheel packaging pipeline |
-| `07-build-test-workflow.md` | CMake/XMake builds, test system, development conventions (summary of .cursor rules) |
+| `07-build-test-workflow.md` | CMake/XMake builds, test system, CI drift incidents and the pin/overlay pattern, development conventions (summary of .cursor rules) |
+| `08-pitfalls-and-debugging.md` | **Collected hard-won pitfalls**: build/CI traps, suite pollution, perf-measurement pitfalls, Python/runtime API traps, contact/constraint semantics gotchas, cuda_tool contracts |
+| `09-known-issues-and-roadmap.md` | **Open issues and plans**: remaining Stiff-GIPC perf gap with levers, deferred CFL floor, dependency pins to unwind, external PR review status, samples repo state |
+| `handoff.md` | Session history: what was done and why (muda→cuda_tool, Stiff-GIPC alignment, cloth model, kappa policy, hygiene), with verification evidence |
 
 ## 30-Second Overview
 
@@ -29,7 +33,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 ## Onboarding Checklist for New Agents
 
-1. Read the documents in this directory to build understanding (about 15 minutes).
+1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then `handoff.md`'s post-merge note, `09-known-issues-and-roadmap.md` (what's open), and `08-pitfalls-and-debugging.md` (what not to step on).
 2. Before coding, must read `.cursor/rules/cpp-format.mdc` (C++ style) and the conventions summary in `agent_docs/07-build-test-workflow.md`.
 3. Before modifying solver/constraints/GPU kernels, read `.cursor/skills/simulation-dev/SKILL.md` (index safety, NaN checks, debugging workflow).
 4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization see `.cursor/skills/gpu-optimization/SKILL.md`.
