@@ -65,7 +65,14 @@ class GraphCapture
         reset_graph();
 
         if(!m_capture_stream)
-            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamNonBlocking);
+            // blocking on purpose: any callee launching into the legacy
+            // default stream during capture then INVALIDATES the capture
+            // (our automatic fallback signal). With a non-blocking capture
+            // stream, such kernels would silently EXECUTE during capture and
+            // be missing from the graph — the replayed graph would run the
+            // solver with the preconditioner frozen at its capture-time
+            // output (this produced false PCG convergence on MAS scenes).
+            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamDefault);
 
         cudaError_t err =
             cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
@@ -232,7 +239,14 @@ class GraphWhile
             return fail(Result::Unsupported);
 
         if(!m_capture_stream)
-            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamNonBlocking);
+            // blocking on purpose: any callee launching into the legacy
+            // default stream during capture then INVALIDATES the capture
+            // (our automatic fallback signal). With a non-blocking capture
+            // stream, such kernels would silently EXECUTE during capture and
+            // be missing from the graph — the replayed graph would run the
+            // solver with the preconditioner frozen at its capture-time
+            // output (this produced false PCG convergence on MAS scenes).
+            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamDefault);
 
         cudaError_t err;
         // 1) main graph + conditional handle first: both bodies bake the

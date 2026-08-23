@@ -163,6 +163,15 @@ touching that area; several of these have bitten us more than once.
   - Graph replay vs plain launches can schedule blocks differently →
     different atomic-add arrival order → ULP divergence → chaotic scenes
     diverge after contact onset. Expected; do not chase bit-equality there.
+  - **Use a BLOCKING stream as the capture stream** (cudaStreamDefault).
+    With a non-blocking capture stream, a callee launching into the legacy
+    default stream during capture neither invalidates the capture nor joins
+    the graph — the kernel just EXECUTES, uncaptured: the graph then replays
+    with that work frozen at its capture-time output. (In FusedPCG this made
+    MAS scenes replay with a frozen preconditioner output — false rᵀz
+    collapse, "converged" in 5 iterations with residual 3.3×‖b‖, wrong
+    physics at E=1e4. Caught by a dump-based residual check + a trajectory
+    A/B against the diagonal preconditioner.)
   - **A WHILE conditional node is not automatically faster than host-checked
     block replay**: per-iteration condition evaluation + body dispatch cost
     real microseconds; measured on ~85-iteration solves the block path (host
