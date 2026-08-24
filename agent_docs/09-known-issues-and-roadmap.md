@@ -22,10 +22,10 @@ below:
 - **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
   differs in external-force sequencing and timer behavior. Changes that claim
   support for both constitutions need two focused tests.
-- **Generated API links require the full documentation toolchain.** The prose-only
-  build intentionally cannot resolve `Libuipc/...` pages. The geometry tutorial's
-  `SpreadSheetIO` link and the API navigation must be confirmed in a successful
-  Doxygen/MkDoxy build.
+- **Non-doc CI action runtimes still need a coordinated refresh.** The docs
+  workflow uses current Node 24-based `checkout`/`setup-python` actions, but the
+  CMake, XMake, clang-format, and wheel workflows retain older major pins. Upgrade
+  those only with their corresponding matrix/release validation.
 
 ## Performance: remaining gap vs Stiff-GIPC
 

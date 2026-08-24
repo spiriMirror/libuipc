@@ -4,7 +4,10 @@
 > deterministic-mode guides are now reachable from the site navigation, directory
 > links point at explicit index pages, and the RMR/SpreadSheetIO links use valid
 > MkDocs source paths. Prose-only builds now leave only expected generated-API
-> warnings when Doxygen output is absent.
+> warnings when Doxygen output is absent. Workflow-dispatch run `32758550867`
+> completed the UID, Doxygen, MkDoxy, and MkDocs stages successfully without
+> deploying; the docs workflow then moved checkout/setup-python to their current
+> Node 24-based v7 majors.
 
 > **XMake parity and deterministic packaging (2026-08-25, `refactor-main`)**:
 > stale GUI/torch/RPC configuration was removed, ccache is explicitly disabled,

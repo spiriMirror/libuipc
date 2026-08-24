@@ -200,7 +200,9 @@ If every API link is 404, check in this order:
 The workflow `.github/workflows/docs.yml` builds on pull requests but deploys only
 for pushes to `main`. Deployment copies the generated site into the separate
 `spiriMirror/libuipc-doc` repository's `docs/` directory. It watches `docs/**` and
-both `mkdocs*.yml` and `mkdocs*.yaml` patterns.
+both `mkdocs*.yml` and `mkdocs*.yaml` patterns. A manual `workflow_dispatch`
+builds but does not deploy because the copy/push steps are push-only. The workflow
+uses Node 24-based `actions/checkout@v7` and `actions/setup-python@v7`.
 
 The old browser login popup was caused by `polyfill.io` returning an authentication
 response. Both active configurations now use the local MathJax setup plus jsDelivr

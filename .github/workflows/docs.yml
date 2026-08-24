@@ -51,13 +51,13 @@ jobs:
     
     steps:
       - name: Checkout libuipc repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: false
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -82,7 +82,7 @@ jobs:
       - name: Checkout libuipc-doc repository
         if: |
           (github.event_name == 'push')
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/libuipc-doc
           token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
