@@ -66,6 +66,15 @@
 > - **Samples repo**: 87 robot_hand, 88 case2 benchmark, 89 MAS parity
 >   bunny (NO_MAS/NO_GRAPH env A/B), 90-93 = the remaining Stiff set_cases
 >   1/4/5/6 (see doc 09 samples section for the mapping + asset notes).
+> - **Documentation authentication-popup fix (2026-08-24)**: replacing
+>   Bilibili iframes with links removed one popup source, but the deployed
+>   site still loaded `polyfill.io` globally from both MkDocs configs. The
+>   service now returns HTTP 401, causing a browser authentication dialog on
+>   every page. The obsolete ES6 polyfill was removed; MathJax 3 remains
+>   loaded from jsDelivr. The docs workflow's path filters were also fixed
+>   to watch the repository's actual `mkdocs*.yaml` files (it previously
+>   watched only the unused `.yml` suffix, so config-only fixes did not
+>   deploy).
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the
