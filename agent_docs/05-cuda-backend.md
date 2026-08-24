@@ -164,7 +164,11 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 ## Performance Analysis Toolchain
 
-- `python -m uipc.cli.benchmark run/profile/analyze/compare` (CLI) and `uipc.profile` / `uipc.profile.nsight` (Python API).
+- `python -m uipc.cli.benchmark run/profile/analyze/compare/baseline/check`
+  (CLI) and `uipc.profile` / `uipc.profile.nsight` (Python API). `run --warmup`
+  excludes warmup/recovery from both wall time and the first Timer frame;
+  versioned baselines gate wall average plus Timer median/p95 and reject runner,
+  build, frame-count, or phase-plan drift by default.
 - Workflow: first `run` to get per-stage wall-clock (`report/report.md` + `timer_frames.json`), then `profile` to get per-kernel metrics (ncu), and cross-reference to locate "hot stages + inefficient kernels"; stages taking <5% of frame time are not optimized.
 - See `.cursor/skills/gpu-optimization/SKILL.md` for details.
 

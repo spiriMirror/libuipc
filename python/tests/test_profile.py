@@ -118,6 +118,23 @@ def test_session_scene_advance_profile():
     assert s.result['steps'] == [('advance', 2), ('profile', 3)]
 
 
+@pytest.mark.basic
+def test_session_wall_time_excludes_warmup(monkeypatch):
+    """Only profile blocks contribute to the reported wall time."""
+    import uipc.profile as profile_module
+
+    ticks = iter([20.0, 22.5])
+    monkeypatch.setattr(profile_module, '_clock', lambda: next(ticks))
+
+    scene = _make_scene()
+    with session(scene, name='test', backend='none') as s:
+        s.advance(2)
+        s.profile(3)
+
+    assert s.result['wall_time'] == pytest.approx(2.5)
+    assert s.result['environment']['backend'] == 'none'
+
+
 # ---------------------------------------------------------------------------
 # Session with World (primary API)
 # ---------------------------------------------------------------------------
@@ -203,6 +220,24 @@ def test_session_only_advance_raises():
     with pytest.raises(ValueError, match='No profile'):
         with session(scene, name='test', backend='none') as s:
             s.advance(5)
+
+
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ('operation', 'value', 'error'),
+    [
+        ('advance', -1, ValueError),
+        ('advance', 1.5, TypeError),
+        ('profile', 0, ValueError),
+        ('profile', -1, ValueError),
+        ('profile', True, TypeError),
+    ],
+)
+def test_session_rejects_invalid_frame_counts(operation, value, error):
+    scene = _make_scene()
+    benchmark = session(scene, name='test', backend='none')
+    with pytest.raises(error):
+        getattr(benchmark, operation)(value)
 
 
 # ---------------------------------------------------------------------------

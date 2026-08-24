@@ -35,6 +35,8 @@ from __future__ import annotations
 
 import json
 import pathlib
+import platform
+import sys
 import time
 import traceback
 from typing import TYPE_CHECKING
@@ -47,7 +49,12 @@ __all__ = [
     'run',
     'load_result',
     'compare',
+    'create_baseline',
+    'check_baseline',
 ]
+
+
+_clock = time.perf_counter
 
 
 # ---------------------------------------------------------------------------
@@ -100,11 +107,19 @@ class Session:
 
     def advance(self, num_frames: int) -> 'Session':
         """Queue *num_frames* warmup frames (no stats collected)."""
+        if not isinstance(num_frames, int) or isinstance(num_frames, bool):
+            raise TypeError('num_frames must be an integer')
+        if num_frames < 0:
+            raise ValueError('advance num_frames must be non-negative')
         self._steps.append(('advance', num_frames))
         return self
 
     def profile(self, num_frames: int) -> 'Session':
         """Queue *num_frames* frames to benchmark (stats collected)."""
+        if not isinstance(num_frames, int) or isinstance(num_frames, bool):
+            raise TypeError('num_frames must be an integer')
+        if num_frames <= 0:
+            raise ValueError('profile num_frames must be greater than zero')
         self._steps.append(('profile', num_frames))
         return self
 
@@ -198,7 +213,7 @@ def _execute_session(s: Session) -> dict:
 
     # Execute steps
     stats = SimulationStats()
-    t0 = time.perf_counter()
+    profile_wall_time = 0.0
 
     for op, n in s._steps:
         if op == 'advance':
@@ -213,12 +228,24 @@ def _execute_session(s: Session) -> dict:
                     world.retrieve()
                     world.dump()
         elif op == 'profile':
+            # Discard timers accumulated by preceding warmup/recovery work so
+            # the first measured frame has the same boundary as later frames.
+            from uipc import Timer
+
+            Timer.report_as_json()
+            profile_started = _clock()
             for _ in range(n):
                 world.advance()
                 world.retrieve()
                 stats.collect()
+            profile_wall_time += _clock() - profile_started
 
-    wall_time = time.perf_counter() - t0
+    wall_time = profile_wall_time
+
+    from uipc.backend import WorldVisitor
+
+    engine = WorldVisitor(world).engine()
+    environment = _environment_metadata(engine)
 
     summary = (
         f'Scene: {name}  |  Frames: {profile_frames}  |  '
@@ -235,6 +262,7 @@ def _execute_session(s: Session) -> dict:
         'summary': summary,
         'workspace': workspace,
         'steps': s._steps,
+        'environment': environment,
     }
 
     # Persist
@@ -412,6 +440,40 @@ def compare(
     return md_text
 
 
+def create_baseline(
+    result_dirs,
+    output_path,
+    *,
+    max_regression_percent: float = 10.0,
+):
+    """Create a versioned performance baseline from benchmark result folders."""
+    from uipc.profile.baseline import create_baseline as _create_baseline
+
+    return _create_baseline(
+        result_dirs,
+        output_path,
+        max_regression_percent=max_regression_percent,
+    )
+
+
+def check_baseline(
+    result_dirs,
+    baseline_path,
+    *,
+    max_regression_percent: float | None = None,
+    require_environment_match: bool = True,
+):
+    """Check benchmark results against a versioned performance baseline."""
+    from uipc.profile.baseline import check_baseline as _check_baseline
+
+    return _check_baseline(
+        result_dirs,
+        baseline_path,
+        max_regression_percent=max_regression_percent,
+        require_environment_match=require_environment_match,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -426,6 +488,41 @@ def _deep_update(base: dict, overrides: dict) -> dict:
     return base
 
 
+def _environment_metadata(engine) -> dict:
+    """Return stable compatibility facts for a benchmark artifact."""
+    import uipc
+
+    try:
+        build = dict(uipc.build_info())
+    except (AttributeError, TypeError):
+        build = {}
+
+    backend = str(engine.backend_name())
+    nvidia_gpus = None
+    if backend == 'cuda':
+        try:
+            from uipc.cli.doctor import query_gpus
+
+            detected_gpus, _ = query_gpus()
+            nvidia_gpus = detected_gpus or None
+        except (ImportError, OSError):
+            pass
+
+    return {
+        'backend': backend,
+        'uipc_version': str(getattr(uipc, '__version__', 'unknown')),
+        'python_abi': build.get('python_abi'),
+        'build_type': build.get('build_type'),
+        'python_version': f'{sys.version_info.major}.{sys.version_info.minor}',
+        'python_implementation': platform.python_implementation(),
+        'platform_system': platform.system(),
+        'platform_machine': platform.machine(),
+        'cuda_toolkit_version': build.get('cuda_toolkit_version'),
+        'cuda_architectures': build.get('cuda_architectures'),
+        'nvidia_gpus': nvidia_gpus,
+    }
+
+
 def _save_result(result: dict, output_dir: str) -> None:
     """Write benchmark result to *output_dir*."""
     out = pathlib.Path(output_dir)
@@ -433,11 +530,14 @@ def _save_result(result: dict, output_dir: str) -> None:
 
     # Metadata (without bulky frames or non-serialisable objects)
     meta = {
+        'schema_version': 1,
         'name': result['name'],
         'num_frames': result['num_frames'],
         'wall_time': result['wall_time'],
         'summary': result['summary'],
         'workspace': result.get('workspace'),
+        'steps': result.get('steps', []),
+        'environment': result.get('environment', {}),
     }
     (out / 'benchmark.json').write_text(
         json.dumps(meta, indent=2), encoding='utf-8'

@@ -40,6 +40,41 @@ print(s.result['summary'])
 # Scene: phased  |  Frames: 10  |  Wall time: 2.345s  |  Avg: 234.5ms/frame
 ```
 
+Warmup/recovery time is excluded from `wall_time`, and timers accumulated by a
+warmup phase are drained before the first measured frame. The saved
+`benchmark.json` records the exact warmup/profile plan plus backend, Python,
+platform, UIPC, CUDA-toolkit, and architecture compatibility facts.
+
+The command-line runner exposes the same boundary:
+
+```bash
+python -m uipc benchmark run --scene cube_ground --warmup 20 --frames 50 --output bench
+```
+
+### Performance regression gates
+
+Create a baseline on a stable runner, then check later results on that same
+runner:
+
+```bash
+python -m uipc benchmark baseline bench/cube_ground -o baselines/cube_ground.json
+python -m uipc benchmark check bench-candidate/cube_ground \
+    --baseline baselines/cube_ground.json \
+    --json-output bench-candidate/gate.json
+```
+
+The check exits nonzero when an enforced metric exceeds its saved allowance
+(10% by default), a benchmark/frame plan is missing, or compatibility facts do
+not match. It gates profile-only wall time and Timer median/p95 frame time;
+Newton iterations are retained as a diagnostic so a faster algorithm is not
+rejected solely because its iteration count changed. Use
+`--max-regression-percent` to override the saved allowance. Only use
+`--allow-environment-mismatch` for exploratory comparisons: timings from
+different GPUs, builds, CUDA toolkits, or platforms are not a valid CI gate.
+
+The equivalent Python API is
+`uipc.profile.create_baseline(...)` / `uipc.profile.check_baseline(...)`.
+
 ## GPU Profiling (`uipc.profile.nsight`)
 
 `nsight.session` has the same `advance` / `profile` interface, but runs the simulation under [Nsight Compute](https://developer.nvidia.com/nsight-compute) (`ncu`) to collect kernel-level GPU metrics.

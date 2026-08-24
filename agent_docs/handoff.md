@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **Reproducible performance gates (2026-08-25, `refactor-main`)**:
+> `uipc.profile` now excludes warmup/recovery from reported wall time and drains
+> warmup Timer data before the first measured frame. Saved artifacts use a
+> versioned schema and include the exact phase plan plus runner/build
+> compatibility facts. `python -m uipc benchmark baseline/check` (also Python
+> APIs) creates deterministic JSON baselines and returns a structured,
+> CI-friendly nonzero regression result for wall average and Timer median/p95;
+> Newton counts are diagnostic. Checks reject missing scenes, frame/phase drift,
+> and environment mismatch unless explicitly relaxed. Focused validation covers
+> pass/fail thresholds, overrides, deterministic output, schema rejection,
+> environment matching, CLI output, and CUDA/none session integration.
+
 > **IPC/AL frame-lifecycle parity (2026-08-25, `refactor-main`)**: both CUDA
 > advance paths now share the ordered external-force lifecycle (clear old
 > device buffers, run animation, consume current forces) before DOF prediction.

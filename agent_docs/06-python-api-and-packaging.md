@@ -16,7 +16,8 @@
 - `core.py / geometry.py / constitution.py / backend.py / builtin.py / diff_sim.py / unit.py`: each is a single line `from uipc._native.pyuipc.xxx import *` (pure forwarding of the native module).
 - Pure-Python enhancement layer:
   - `gui.py` (polyscope visualization)
-  - `profile/` (benchmark timing + `nsight.py` Nsight Compute wrapper)
+  - `profile/` (phase-correct benchmark timing, deterministic performance
+    baseline/check gates, and the `nsight.py` Nsight Compute wrapper)
   - `cli/` (`benchmark`, queryable `config-schema`, compatibility `doctor`,
     `mesh_doctor`, `uid_info`);
   `python -m uipc <command>` and the `uipc` console script dispatch these tools
