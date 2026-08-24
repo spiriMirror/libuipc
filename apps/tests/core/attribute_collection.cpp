@@ -93,5 +93,20 @@ TEST_CASE("attribute_collection", "[geometry]")
         // pos has a later modification time than vel
         REQUIRE(pos->last_modified() > vel->last_modified());
     }
-}
 
+    SECTION("commit_preserves_target_size")
+    {
+        AttributeCollection current;
+        current.resize(5);
+
+        AttributeCollection reference;
+        reference.resize(2);
+
+        AttributeCollectionCommit commit = current - reference;
+        REQUIRE(commit.attribute_collection().attribute_count() == 0);
+        REQUIRE(commit.target_size() == 5);
+
+        reference.update_from(commit);
+        REQUIRE(reference.size() == 5);
+    }
+}

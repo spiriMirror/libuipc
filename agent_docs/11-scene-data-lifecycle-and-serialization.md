@@ -136,8 +136,9 @@ argument is a Geometry.
 - Pair insertion is symmetric. A missing pair resolves to model index 0.
 - The optional JSON `config` arguments accepted by `create/insert/default_model`
   are currently ignored; returned model configs are empty objects.
-- `build_from` clears and reconstructs model topology, while `update_from` does
-  not clear the pair map first and can retain stale keys.
+- Both `build_from` and `update_from` clear and reconstruct model topology. The
+  default model's explicit-user-set state is preserved by full snapshots and
+  commits.
 
 ### SubsceneTabular
 
@@ -145,7 +146,7 @@ argument is a Geometry.
 - Pair insertion is symmetric.
 - An unspecified pair returns `true` only when both element IDs are equal.
 - Its JSON config argument is also currently ignored.
-- `update_from` likewise does not clear the existing pair map first.
+- Both full builds and incremental updates clear and reconstruct the pair map.
 
 Subscenes filter whether collision/contact is allowed; they are not nested Scene
 objects and do not create separate solvers.
@@ -156,40 +157,41 @@ These three concepts are related but not interchangeable:
 
 | Mechanism | Purpose | Includes | Important limits |
 |---|---|---|---|
-| `SceneSnapshot(scene)` | deep in-memory baseline for change detection | config, current/rest geometry, objects, contact data, and an internal copy of subscene data | refuses pending geometry; public getters do not expose the copied subscene data |
+| `SceneSnapshot(scene)` | deep in-memory baseline for change detection | config, current/rest geometry, objects, contact/subscene data, allocator state, and attribute row counts | refuses pending geometry; it is consumed through `SceneSnapshotCommit` rather than exposed as a general inspection API |
 | `SceneIO::save/load`, `to_json/from_json` | full Scene persistence | full serializers for Scene components | use for durable files and topology-changing transfers; still add a round-trip test for every schema extension |
-| `SceneIO::commit/update`, `commit_to_json/update_from_json` | incremental changes relative to a snapshot | config, objects, current/rest geometry commits, contact elements/models | currently append/update oriented; not a general lossless Scene replication protocol |
+| `SceneIO::commit/update`, `commit_to_json/update_from_json` | incremental changes relative to a snapshot | config, objects, current/rest geometry commits, removals, exact IDs, allocator state, and contact/subscene tables | lossless relative to a compatible full baseline; commits are not standalone Scene files |
 
-Verified incremental-path limitations at `2b954973`:
+The lifecycle hardening on `refactor-main` fixed the previously verified
+incremental-path defects:
 
-1. `internal::Scene::update_from` does not apply the commit's subscene elements or
-   models.
-2. `GeometryCollection::update_from` updates existing geometries and adds new ones,
-   but does not remove a geometry missing from the source commit.
-3. A newly committed geometry is inserted using the destination collection's next
-   ID instead of explicitly restoring the committed map key. Append-only scenes
-   usually align; sparse/non-contiguous IDs are unsafe.
-4. Attribute commits do represent removed attribute names, but that does not imply
-   that removed GeometrySlots propagate.
-5. `GeometryAtlas::create(..., evolving_only)` accepts the flag, but the current
-   implementation does not use it while collecting geometry or named attributes.
-6. `ContactTabular::update_from` and `SubsceneTabular::update_from` can preserve
-   stale pair-map entries because they do not clear topology first.
-7. `SceneSnapshotCommit` calls the same setup lambda for current and rest commit
-   maps, but that lambda always iterates `dst.m_geometries/src.m_geometries`.
-   Consequently the rest-geometry commit currently duplicates current-geometry
-   diffs instead of comparing `m_rest_geometries`.
+1. Current and rest geometries are diffed independently and validated to describe
+   the same topology.
+2. Slot removal and exact committed IDs propagate; both geometry allocators restore
+   their recorded next ID, so sparse IDs and trailing allocation gaps remain stable.
+3. Contact and subscene elements/models are both applied, their pair maps are
+   rebuilt without stale keys, and the contact default-model user-set flag survives.
+4. `AttributeCollectionCommit` records its target row count. Full attribute
+   serialization records row count separately from columns, preserving empty but
+   nonzero collections.
+5. Commit JSON rejects duplicate/missing geometry entries, current/rest topology
+   mismatches, invalid commits, and commit/removal overlap.
+
+New fields are read compatibly: old full snapshots infer allocator positions, and
+old commits default to no removals and preserve/infer allocator state. Such legacy
+commits cannot express deletions or intentional trailing ID gaps that were never
+serialized. The remaining lifecycle gap is
+`GeometryAtlas::create(..., evolving_only)`, whose flag is still ignored.
 
 The legacy `include/uipc/core/scene_archieve.h` and matching implementation are
 fully commented artifacts and are not an alternate supported serializer.
 
 ### Choosing the right path
 
-- Use full `save/load` for durable scenes, initial transfer, topology deletion, or
-  when IDs may be sparse.
-- Use `commit/update` for controlled append/update streams similar to sample
-  `15_scene_commit`, after establishing a full baseline and keeping both ends in
-  lockstep.
+- Use full `save/load` for durable scenes and to establish the initial receiver
+  baseline.
+- Use `commit/update` for subsequent replication, including topology creation,
+  deletion, and sparse IDs, while keeping schema-compatible endpoints in lockstep.
+  A commit requires the exact compatible baseline from which it was calculated.
 - Take snapshots immediately after a successful `world.init()` or after
   `world.advance(); world.retrieve();`, with no unresolved pending mutations.
 - When changing any serializer, test contact and subscene pair tables separately;

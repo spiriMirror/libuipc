@@ -96,8 +96,10 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 
     void flush() const;
 
-    void build_from(span<S<geometry::GeometrySlot>> slots) noexcept;
-    void update_from(const unordered_map<IndexT, S<GeometryCommit>>& commits) noexcept;
+    void build_from(span<S<geometry::GeometrySlot>> slots, IndexT next_id = -1) noexcept;
+    void update_from(const unordered_map<IndexT, S<GeometryCommit>>& commits,
+                     span<const IndexT> removed_ids,
+                     IndexT             next_id);
 };
 }  // namespace uipc::geometry
 

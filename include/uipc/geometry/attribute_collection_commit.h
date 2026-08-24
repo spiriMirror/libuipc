@@ -31,10 +31,13 @@ class UIPC_CORE_API AttributeCollectionCommit
         return span<const std::string>(m_removed_names);
     }
 
+    IndexT target_size() const noexcept { return m_target_size; }
+
   private:
     AttributeCollectionCommit(const AttributeCollection& dst, const AttributeCollection& src);
     AttributeCollection m_attribute_collection;
     vector<std::string> m_removed_names;
+    IndexT              m_target_size = -1;
 };
 
 UIPC_CORE_API AttributeCollectionCommit operator-(const AttributeCollection& dst,

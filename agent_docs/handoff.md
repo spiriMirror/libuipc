@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **Scene lifecycle hardening (2026-08-25, `refactor-main`)**: snapshot commits
+> now replicate current/rest geometry independently, explicit slot removals,
+> sparse IDs and next-ID state, contact/subscene topology, and the contact default
+> model's user-set state. Attribute commits and full attribute serialization also
+> preserve row counts when a collection has no columns. Decoders validate
+> duplicate IDs, current/rest topology, commit/removal overlap, and invalid atlas
+> entries while retaining legacy-field fallbacks. Focused core tests cover
+> full-snapshot and commit-JSON round trips, different current/rest mutations,
+> deletion plus exact-ID insertion, allocation gaps, table state, and empty
+> nonzero attribute collections. `GeometryAtlas::evolving_only` remains the next
+> lifecycle item.
+
 > **Post-merge update (2026-08-23)**: everything below (the whole
 > refactor-main line: muda→cuda_tool, raw kernels, Stiff-GIPC alignment,
 > cloth stiffness model, kappa policy, hygiene batch) was merged to `main`

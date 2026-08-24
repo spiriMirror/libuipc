@@ -1,6 +1,6 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-24, source audit at `2b954973`. Completed performance work is
+Status as of 2026-08-25, source audit at `947bb921`. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
@@ -9,13 +9,11 @@ before planning new work.
 These are verified code/documentation gaps, independent of the performance plan
 below:
 
-- **Incremental Scene updates are not lossless.** Subscene commits are not applied;
-  GeometryCollection update does not propagate slot removal; newly inserted
-  geometry relies on destination next-ID alignment; `evolving_only` is accepted
-  by GeometryAtlas creation but ignored; contact/subscene pair-map updates can
-  retain stale keys; and SceneSnapshotCommit accidentally builds its rest commit
-  map from current geometries. Use full SceneIO for topology-changing transfers
-  and see doc 11 before fixing this cluster.
+- **`GeometryAtlas::create(..., evolving_only)` ignores its filter.** Scene commit
+  replication itself is now lossless after a compatible full baseline: current
+  and rest topology, removals, sparse IDs, allocator state, table topology, and
+  attribute row counts all round-trip. The atlas flag remains the open part of
+  this original lifecycle cluster; see doc 11 before changing its semantics.
 - **XMake violates current owner/build-parity rules.** Default `dev=true` enables
   `build.ccache`; stale `gui`/`torch` options remain; `src/xmake.lua` checks an
   undeclared `grpc` option and a missing `rpc` directory; optional USD/VDB have no

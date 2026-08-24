@@ -22,8 +22,12 @@ TEST_CASE("geometry_atlas", "[serialization]")
     auto                my_data = ac.create<IndexT>("I", 0);
     ac.resize(10);
 
+    AttributeCollection empty_ac;
+    empty_ac.resize(7);
+
     GeometryAtlas atlas;
     atlas.create("my_data", ac);
+    atlas.create("empty_data", empty_ac);
     atlas.create(mesh);
     atlas.create(mesh_copy);
 
@@ -46,6 +50,11 @@ TEST_CASE("geometry_atlas", "[serialization]")
     auto ac2 = atlas.find("my_data");
     REQUIRE(ac2 != nullptr);
     REQUIRE(ac.to_json() == ac2->to_json());
+
+    auto empty_ac2 = atlas.find("empty_data");
+    REQUIRE(empty_ac2 != nullptr);
+    REQUIRE(empty_ac2->attribute_count() == 0);
+    REQUIRE(empty_ac2->size() == 7);
 }
 
 TEST_CASE("geometry_atlas_commit", "[serialization]")
@@ -116,4 +125,3 @@ TEST_CASE("geometry_atlas_commit", "[serialization]")
         REQUIRE(instances2_it->second->attribute_collection().size() == 2);
     }
 }
-

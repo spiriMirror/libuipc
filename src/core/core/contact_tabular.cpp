@@ -198,13 +198,16 @@ class ContactTabular::Impl
         m_models.resize(new_size);
     }
 
-    void build_from(const geometry::AttributeCollection& ac, span<const ContactElement> ce)
+    void build_from(const geometry::AttributeCollection& ac,
+                    span<const ContactElement>           ce,
+                    bool                                 default_model_user_set)
     {
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
 
-        m_models = ac;
-        m_topo   = m_models.find<Vector2i>("topo");
+        m_models                 = ac;
+        m_default_model_user_set = default_model_user_set;
+        m_topo                   = m_models.find<Vector2i>("topo");
         UIPC_ASSERT_THROW(m_topo, "Contact model topology is not found, please check the attribute collection.");
         m_friction_rates = m_models.find<Float>("friction_rate");
         UIPC_ASSERT_THROW(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
@@ -223,13 +226,15 @@ class ContactTabular::Impl
     }
 
     void update_from(const geometry::AttributeCollectionCommit& ac,
-                     span<const ContactElement>                 ce)
+                     span<const ContactElement>                 ce,
+                     bool default_model_user_set)
     {
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
 
         m_models.update_from(ac);
-        m_topo = m_models.find<Vector2i>("topo");
+        m_default_model_user_set = default_model_user_set;
+        m_topo                   = m_models.find<Vector2i>("topo");
         UIPC_ASSERT_THROW(m_topo, "Contact model topology is not found, please check the attribute collection.");
         m_friction_rates = m_models.find<Float>("friction_rate");
         UIPC_ASSERT_THROW(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
@@ -238,6 +243,7 @@ class ContactTabular::Impl
         m_is_enabled = m_models.find<IndexT>("is_enabled");
         UIPC_ASSERT_THROW(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
+        m_model_map.clear();
         auto topo_view = m_topo->view();
         for(SizeT i = 0; i < topo_view.size(); ++i)
         {
@@ -328,20 +334,23 @@ Json ContactTabular::default_config() noexcept
 }
 
 void ContactTabular::build_from(const geometry::AttributeCollection& ac,
-                                span<const ContactElement>           ce)
+                                span<const ContactElement>           ce,
+                                bool default_model_user_set)
 {
-    m_impl->build_from(ac, ce);
+    m_impl->build_from(ac, ce, default_model_user_set);
 }
 
 void ContactTabular::update_from(const geometry::AttributeCollectionCommit& ac,
-                                 span<const ContactElement>                 ce)
+                                 span<const ContactElement>                 ce,
+                                 bool default_model_user_set)
 {
-    m_impl->update_from(ac, ce);
+    m_impl->update_from(ac, ce, default_model_user_set);
 }
 
 void to_json(Json& j, const ContactTabular& ct)
 {
-    j["contact_elements"] = ct.contact_elements();
-    j["contact_models"]   = ct.contact_models().to_json();
+    j["contact_elements"]       = ct.contact_elements();
+    j["contact_models"]         = ct.contact_models().to_json();
+    j["default_model_user_set"] = ct.default_model_is_user_set();
 }
 }  // namespace uipc::core

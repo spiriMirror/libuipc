@@ -140,11 +140,11 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
         {
             // just share
             UIPC_ASSERT_THROW(this->size() == other.size(),
-                        "Attribute size mismatch, "
-                        "dst size is {}, src size is {}. "
-                        "Did you forget to resize the dst attribute collection before copying?",
-                        this->size(),
-                        other.size());
+                              "Attribute size mismatch, "
+                              "dst size is {}, src size is {}. "
+                              "Did you forget to resize the dst attribute collection before copying?",
+                              this->size(),
+                              other.size());
 
             auto this_it = m_attributes.find(name);
             if(this_it != m_attributes.end())
@@ -167,7 +167,8 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
             auto c = other_slot->do_clone_empty(other_slot->name(),
                                                 other_slot->allow_destroy());
 
-            UIPC_ASSERT_THROW(c->is_shared() == false, "The attribute is shared, why can it happen?");
+            UIPC_ASSERT_THROW(c->is_shared() == false,
+                              "The attribute is shared, why can it happen?");
 
             m_attributes[name] = c;
 
@@ -233,6 +234,20 @@ Json AttributeCollection::to_json() const
 
 void AttributeCollection::update_from(const AttributeCollectionCommit& commit)
 {
+    SizeT target_size = size();
+    if(commit.m_target_size >= 0)
+    {
+        target_size = static_cast<SizeT>(commit.m_target_size);
+    }
+    else if(commit.m_attribute_collection.attribute_count() > 0)
+    {
+        // Legacy commits did not store their target size explicitly.
+        target_size = commit.m_attribute_collection.size();
+    }
+
+    if(target_size != size())
+        resize(target_size);
+
     copy_from(commit.m_attribute_collection, AttributeCopy::same_dim());
 
     for(auto&& name : commit.m_removed_names)
