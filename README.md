@@ -95,10 +95,21 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 pip install pyuipc
 ```
 
-Prebuilt wheels: **Windows / Linux, Python 3.10–3.13, CUDA 12.8 runtime**.
+The release pipeline builds **Windows / Linux, Python 3.10–3.14, CUDA 12.8
+runtime** wheels. The immutable 0.0.26 release predates Python 3.14 support, so
+Python 3.14 users need the next release or a source build.
 The Windows wheel dynamically loads `cublas64_12.dll`; a CUDA 13-only install
 does not provide that versioned runtime. Use CUDA 12.8 side-by-side, or build
 from source for CUDA 13.
+
+New wheels contain native code for compute capabilities 7.5, 8.0, 8.6, and 8.9,
+plus compute-8.9 PTX for forward JIT on newer GPUs. Diagnose an installation
+before running a scene:
+
+```bash
+python -m uipc doctor
+python -m uipc doctor --probe-cuda
+```
 
 ### From Source
 

@@ -7,7 +7,7 @@
 - Submodules: `unit`, `geometry`, `constitution`, `diff_sim`, `core`, `backend`, `builtin`, `usd`. The `usd` module object is created unconditionally, but USD classes are registered only when `UIPC_WITH_USD_SUPPORT` is enabled.
 - C++ namespaces `pyuipc::xxx` map one-to-one to Python submodules `pyuipc.xxx`; each subdirectory has its own `module.cpp` that binds classes one by one via the `PyXxx{m}` constructor.
 - **Early exposure**: the main `module.cpp` first binds the core data structures (`PyFeature`, `PyBufferView`, `PyAttributeSlot`, `PyGeometry`, `PySimplicialComplex`, the various Slots, `PyParameterCollection`), then calls each submodule's `PyModule` (geometry utilities/IO depend on core types).
-- Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `uipc::Exception`, `__version__`.
+- Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` + `uipc::backends`, and POST_BUILD runs `scripts/after_build_pyuipc.py` (copies the package, copies dependency libraries, generates `.pyi` via pybind11_stubgen).
 
 ## Python package layout (`python/src/uipc/`)
@@ -17,7 +17,8 @@
 - Pure-Python enhancement layer:
   - `gui.py` (polyscope visualization)
   - `profile/` (benchmark timing + `nsight.py` Nsight Compute wrapper)
-  - `cli/` (`benchmark`, `mesh_doctor`, `uid_info`)
+  - `cli/` (`benchmark`, compatibility `doctor`, `mesh_doctor`, `uid_info`);
+    `python -m uipc <command>` and the `uipc` console script dispatch these tools
   - `adapter/torch`, `adapter/warp` (ML framework adapters)
   - `assets/` (downloads scenes from HuggingFace `MuGdxy/uipc-assets`; each asset has a `scene.py` with `build_scene(scene)`)
   - `stats.py`, `dev/`
@@ -31,7 +32,10 @@ torch/warp adapters still require their own optional frameworks.
 
 **Official release (root `pyproject.toml`, scikit-build-core)**:
 - Version is generated dynamically by `setuptools_scm` (release-branch-semver).
-- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, `UIPC_CUDA_ARCHITECTURES=89`, and disables tests/examples/benchmarks.
+- `python/src/uipc/compatibility.json` is the canonical release support policy.
+  `scripts/check_release_policy.py` verifies both pyprojects, classifiers, the
+  workflow ABI/toolkit matrix, and the CMake wheel architecture list against it.
+- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada native code plus a forward-compatible PTX path instead of the 0.0.26 wheel's Ada-only target.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
 - cibuildwheel: on linux, auditwheel excludes all CUDA libraries (relies on system CUDA 12.8).
 - The Windows wheel also relies on the system CUDA 12 runtime. In 0.0.26,
@@ -52,6 +56,18 @@ torch/warp adapters still require their own optional frameworks.
 the audited revision. Prerequisite: pyuipc installed (CMake build or
 `uv pip install -e .`).
 
+The release matrix covers CPython 3.10-3.14 on Windows and manylinux. The
+immutable 0.0.26 release stops at 3.13; Python 3.14 support begins with the next
+wheel release.
+
+Pytest excludes `example` and `cuda` by default, so the portable unit suite can
+run on wheel builders without a display or NVIDIA device. Select GPU coverage
+explicitly with `pytest -m "cuda and not example" python/tests`; interactive
+examples remain opt-in with `-m example`. Tests that replace `uipc` modules must
+restore `sys.modules` before returning so collection order cannot hide the real
+package. Each cibuildwheel environment runs both the metadata/backend smoke test
+and the portable pytest suite against the installed wheel.
+
 Release verification must go beyond `import uipc`: importing loads the pybind
 extension and core DLLs, while the backend is loaded lazily. At minimum create
 `Engine("cuda", temporary_workspace)` from a clean environment; preferably
@@ -64,14 +80,20 @@ escapes the smoke test.
 - Do not break the import chain in `__init__.py` (`pyuipc` → `init()` → `config["module_dir"]`).
 - New binding surfaces need tests added in `python/tests/`.
 - Audit exports rather than assuming C++/Python parity. `RotatingMotor` and
-  `LinearMotor` are public C++ classes in `soft_transform_constraint.h` but are not
-  registered in the Python constitution module.
+  `LinearMotor` are registered by
+  `constitution/soft_transform_constraint.cpp`; an earlier hand-maintained audit
+  incorrectly called them missing, which is why generated drift checks are
+  preferable to prose inventories.
 
 ## Packaging/helper invariants
 
 - Root and development metadata both include `matplotlib`, require
   `pytest>=9.0.3` for the dev extra, and describe the prebuilt-wheel CUDA 12.8
   runtime requirement consistently.
+- `python -m uipc doctor [--probe-cuda] [--json]` separates Python ABI, native
+  extension ABI, CUDA runtime-library, backend-load, driver, and GPU-code-image
+  failures. It consumes both packaged `compatibility.json` and native
+  `build_info()` instead of guessing from the package version.
 - The Warp adapter falls back to the dtype's element size when a one-dimensional
   array reports no stride; a focused optional-Warp test covers this path.
 - Python exposes `Scene.Objects.created_count()` as the exclusive object-ID upper

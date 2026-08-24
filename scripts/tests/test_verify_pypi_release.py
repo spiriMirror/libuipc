@@ -7,7 +7,7 @@ from scripts.verify_pypi_release import validate_release
 
 def release_payload(version: str = "0.0.26") -> dict[str, object]:
     urls = []
-    for python_tag in ("cp310", "cp311", "cp312", "cp313"):
+    for python_tag in ("cp310", "cp311", "cp312", "cp313", "cp314"):
         urls.extend(
             [
                 {
@@ -29,12 +29,12 @@ def release_payload(version: str = "0.0.26") -> dict[str, object]:
 class VerifyPyPIReleaseTests(unittest.TestCase):
     def test_accepts_complete_release_matrix(self) -> None:
         wheels = validate_release(release_payload(), "pyuipc", "0.0.26")
-        self.assertEqual(len(wheels), 8)
+        self.assertEqual(len(wheels), 10)
 
     def test_rejects_missing_platform_variant(self) -> None:
         payload = release_payload()
         payload["urls"] = payload["urls"][:-1]  # type: ignore[index]
-        with self.assertRaisesRegex(ValueError, "cp313/win_amd64"):
+        with self.assertRaisesRegex(ValueError, "cp314/win_amd64"):
             validate_release(payload, "pyuipc", "0.0.26")
 
     def test_rejects_unexpected_release_version(self) -> None:

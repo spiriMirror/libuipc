@@ -44,6 +44,24 @@ target("pyuipc")
                 "UIPC_VERSION_PATCH=" .. version:patch()
             )
         end
+        if has_config("backend_cuda") then
+            local architectures = "native"
+            if has_config("github_actions") then
+                architectures = "89"
+            end
+            target:add("defines",
+                "UIPC_PY_CUDA_BACKEND=1",
+                'UIPC_PY_CUDA_ARCHITECTURES="' .. architectures .. '"',
+                'UIPC_PY_CUDA_TOOLKIT_VERSION="unknown"'
+            )
+        else
+            target:add("defines",
+                "UIPC_PY_CUDA_BACKEND=0",
+                'UIPC_PY_CUDA_ARCHITECTURES="none"',
+                'UIPC_PY_CUDA_TOOLKIT_VERSION="none"'
+            )
+        end
+        target:add("defines", 'UIPC_PY_BUILD_TYPE="' .. target:mode() .. '"')
         -- depend on backend
         if has_config("backend_cuda") then
             target:add("deps", "cuda", {inherit = false})

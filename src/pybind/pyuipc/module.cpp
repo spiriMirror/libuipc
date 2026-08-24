@@ -70,10 +70,25 @@ PYBIND11_MODULE(pyuipc, m)
         fmt::format("{}.{}.{}", UIPC_VERSION_MAJOR, UIPC_VERSION_MINOR, UIPC_VERSION_PATCH);
 
     m.def(
-        "init",
-        &uipc::init,
-        py::arg("dict"),
-        R"(Initialize the libuipc library with the given configuration.
+        "build_info",
+        []()
+        {
+            py::dict info;
+            info["version"] =
+                fmt::format("{}.{}.{}", UIPC_VERSION_MAJOR, UIPC_VERSION_MINOR, UIPC_VERSION_PATCH);
+            info["python_abi"] = fmt::format("cp{}{}", PY_MAJOR_VERSION, PY_MINOR_VERSION);
+            info["build_type"]           = UIPC_PY_BUILD_TYPE;
+            info["cuda_backend"]         = bool(UIPC_PY_CUDA_BACKEND);
+            info["cuda_architectures"]   = UIPC_PY_CUDA_ARCHITECTURES;
+            info["cuda_toolkit_version"] = UIPC_PY_CUDA_TOOLKIT_VERSION;
+            return info;
+        },
+        R"(Return immutable build-time compatibility metadata for diagnostics.)");
+
+    m.def("init",
+          &uipc::init,
+          py::arg("dict"),
+          R"(Initialize the libuipc library with the given configuration.
 Args:
     dict: Configuration dictionary containing library settings.)");
 

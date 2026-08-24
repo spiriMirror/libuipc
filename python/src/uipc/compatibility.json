@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "python": {
+    "requires": ">=3.10, <3.15",
+    "abi_tags": [
+      "cp310",
+      "cp311",
+      "cp312",
+      "cp313",
+      "cp314"
+    ]
+  },
+  "wheel": {
+    "cuda_toolkit": "12.8",
+    "cuda_architectures": [
+      "75-real",
+      "80-real",
+      "86-real",
+      "89-real",
+      "89-virtual"
+    ],
+    "platform_tokens": [
+      "manylinux",
+      "win_amd64"
+    ]
+  }
+}

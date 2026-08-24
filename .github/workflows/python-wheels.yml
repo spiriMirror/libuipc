@@ -51,6 +51,7 @@ jobs:
           - "cp311"
           - "cp312"
           - "cp313"
+          - "cp314"
     timeout-minutes: 360
 
     steps:
@@ -74,11 +75,14 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v7
-    
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: '3.11'
+
+      - name: Check release compatibility policy
+        run: python scripts/check_release_policy.py
 
       - name: Install a specific version
         uses: eifinger/setup-uv@v1
@@ -116,7 +120,11 @@ jobs:
         if: matrix.os == 'windows-2022'
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-*"
-          CIBW_TEST_COMMAND: "python {project}/scripts/smoke_test_wheel.py"
+          CIBW_TEST_REQUIRES: "pytest>=9.0.3"
+          CIBW_TEST_COMMAND: >-
+            python {project}/scripts/smoke_test_wheel.py &&
+            python -m pytest -q -m "not cuda and not example"
+            {project}/python/tests
           # Relative path to vcpkg, to avoid linux container path issues
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
@@ -139,7 +147,11 @@ jobs:
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-manylinux*"
           CIBW_SKIP: "${{ matrix.python-version }}-musllinux*"
-          CIBW_TEST_COMMAND: "python {project}/scripts/smoke_test_wheel.py"
+          CIBW_TEST_REQUIRES: "pytest>=9.0.3"
+          CIBW_TEST_COMMAND: >-
+            python {project}/scripts/smoke_test_wheel.py &&
+            python -m pytest -q -m "not cuda and not example"
+            {project}/python/tests
           # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
           # Pinned to known-good digest (2026-05-10) to avoid upstream breakage.
           # See: https://github.com/ameli/manylinux-cuda/issues/17

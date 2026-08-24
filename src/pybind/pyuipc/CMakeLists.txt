@@ -7,6 +7,26 @@ target_link_libraries(pyuipc PUBLIC uipc::uipc)
 add_dependencies(pyuipc uipc::backends)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
+
+set(_uipc_py_cuda_backend 0)
+set(_uipc_py_cuda_architectures "none")
+set(_uipc_py_cuda_toolkit_version "none")
+if(UIPC_WITH_CUDA_BACKEND)
+    set(_uipc_py_cuda_backend 1)
+    set(_uipc_py_cuda_architectures "${UIPC_CUDA_ARCHITECTURES}")
+    string(REPLACE ";" "," _uipc_py_cuda_architectures
+           "${_uipc_py_cuda_architectures}")
+    if(UIPC_CUDA_TOOLKIT_VERSION)
+        set(_uipc_py_cuda_toolkit_version "${UIPC_CUDA_TOOLKIT_VERSION}")
+    else()
+        set(_uipc_py_cuda_toolkit_version "unknown")
+    endif()
+endif()
+target_compile_definitions(pyuipc PRIVATE
+    UIPC_PY_CUDA_BACKEND=${_uipc_py_cuda_backend}
+    UIPC_PY_CUDA_ARCHITECTURES="${_uipc_py_cuda_architectures}"
+    UIPC_PY_CUDA_TOOLKIT_VERSION="${_uipc_py_cuda_toolkit_version}"
+    UIPC_PY_BUILD_TYPE="$<CONFIG>")
 uipc_target_set_output_directory(pyuipc)
 uipc_target_set_rpath(pyuipc)
 

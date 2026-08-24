@@ -215,7 +215,7 @@ warnings are generated-API routes that do not exist until MkDoxy runs.
 ## Release Workflow Boundary
 
 `.github/workflows/python-wheels.yml` builds Windows/Linux wheels for CPython
-3.10–3.13 on CUDA 12.8. The normal flow is:
+3.10–3.14 on CUDA 12.8 (0.0.26 remains a 3.10–3.13 release). The normal flow is:
 
 ```text
 tag/build -> installed-wheel smoke tests -> wheel artifacts -> TestPyPI

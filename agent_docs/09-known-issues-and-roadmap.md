@@ -136,11 +136,12 @@ assertions).
   a missing bundled vcpkg DLL and not a driver-compatibility problem. Current
   workaround: install CUDA 12.8 side-by-side and expose its `bin` directory,
   or build from source against CUDA 13. The immutable 0.0.26 wheel cannot be
-  corrected in place. Before the next release, decide whether to keep the
-  explicit CUDA 12.8 runtime requirement, bundle/link CUDA runtime components
-  where licensing and wheel size permit, or publish a deliberate multi-CUDA
-  packaging strategy. In every case, CI/release verification must instantiate
-  the CUDA engine from the produced wheel; a plain Python import is insufficient.
+  corrected in place. The next-release policy keeps the explicit system CUDA
+  12.8 runtime, adds CPython 3.14, replaces the Ada-only code image with native
+  7.5/8.0/8.6/8.9 images plus 8.9 PTX, embeds build metadata, and ships
+  `python -m uipc doctor`. Remaining before calling this closed: release those
+  wheels and add a GPU-capable CI job that constructs the CUDA engine; a hosted
+  no-GPU import/none-backend smoke test is insufficient.
 - **CUDA-graph capture crash in the C++ suite binary (worked around)**: with
   Timer objects created inside the captured call chain, the single-process
   suite deterministically fail-fasted (0xC0000409) at the second engine's

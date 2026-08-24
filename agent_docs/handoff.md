@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Python/CUDA compatibility policy and doctor (2026-08-25,
+> `refactor-main`)**: the next wheel matrix covers CPython 3.10–3.14; the
+> immutable 0.0.26 release still stops at 3.13. Published builds now target
+> 75/80/86/89 SASS plus compute-89 PTX rather than only architecture 89, and
+> embed ABI/toolkit/architecture metadata in `build_info()`. The packaged
+> `compatibility.json` is checked against both pyprojects and CI. `python -m
+> uipc doctor` diagnoses Python ABI, CUDA 12 cuBLAS discovery, backend dynamic
+> loading, NVIDIA driver/GPU architecture, and optionally a real CUDA engine
+> construction via `--probe-cuda`.
+> Pytest now defaults to the portable `not example and not cuda` suite; GPU and
+> interactive cases have explicit markers, module-stubbing tests restore global
+> import state, and every cibuildwheel job executes the portable suite against
+> the installed artifact. Local validation covered 59 portable tests and 47
+> non-interactive CUDA tests on CPython 3.14.
+
 > **Executable CI and release gates (2026-08-25, `refactor-main`)**: CMake now
 > registers all C++ tests with CTest and labels the `common`/`core`/`geometry`
 > CPU suite for fast CI execution; the CMake and XMake workflows execute those

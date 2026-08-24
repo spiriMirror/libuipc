@@ -236,6 +236,7 @@ def _make_particle_scene():
     return scene
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_session_world(tmp_path):
     """CUDA: session(world) benchmarks from the world's current frame."""
@@ -261,6 +262,7 @@ def test_cuda_session_world(tmp_path):
     assert len(s.result['timer_frames']) == 2
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_session_advance_profile(tmp_path):
     """CUDA: session(world) advance + profile with real simulation."""
@@ -281,6 +283,7 @@ def test_cuda_session_advance_profile(tmp_path):
         assert 'children' in frame_data or 'name' in frame_data
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_run_world(tmp_path):
     """CUDA: run(world) returns a result with timer stats."""
@@ -296,6 +299,7 @@ def test_cuda_run_world(tmp_path):
     assert len(result['timer_frames']) == 3
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_world_visitor_engine(tmp_path):
     """CUDA: WorldVisitor.engine() returns correct workspace/backend."""

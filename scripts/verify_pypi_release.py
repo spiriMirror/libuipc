@@ -10,11 +10,22 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 
-DEFAULT_PYTHON_TAGS = ("cp310", "cp311", "cp312", "cp313")
-DEFAULT_PLATFORM_TOKENS = ("manylinux", "win_amd64")
+POLICY_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "python"
+    / "src"
+    / "uipc"
+    / "compatibility.json"
+)
+with POLICY_PATH.open(encoding="utf-8") as policy_stream:
+    _POLICY = json.load(policy_stream)
+
+DEFAULT_PYTHON_TAGS = tuple(_POLICY["python"]["abi_tags"])
+DEFAULT_PLATFORM_TOKENS = tuple(_POLICY["wheel"]["platform_tokens"])
 
 
 def validate_release(
@@ -88,6 +99,8 @@ def wait_for_release(
     version: str,
     timeout: float,
     poll_interval: float,
+    python_tags: Iterable[str] = DEFAULT_PYTHON_TAGS,
+    platform_tokens: Iterable[str] = DEFAULT_PLATFORM_TOKENS,
 ) -> list[str]:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
@@ -95,7 +108,13 @@ def wait_for_release(
     while True:
         try:
             payload = fetch_release(repository_url, package, version)
-            return validate_release(payload, package, version)
+            return validate_release(
+                payload,
+                package,
+                version,
+                python_tags=python_tags,
+                platform_tokens=platform_tokens,
+            )
         except (OSError, ValueError, urllib.error.HTTPError) as error:
             last_error = error
             if time.monotonic() >= deadline:
@@ -112,6 +131,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repository-url", default="https://pypi.org")
     parser.add_argument("--package", default="pyuipc")
     parser.add_argument("--version", required=True)
+    parser.add_argument("--python-tags", nargs="+", default=DEFAULT_PYTHON_TAGS)
+    parser.add_argument(
+        "--platform-tokens", nargs="+", default=DEFAULT_PLATFORM_TOKENS
+    )
     parser.add_argument("--timeout", type=float, default=600.0)
     parser.add_argument("--poll-interval", type=float, default=10.0)
     return parser.parse_args()
@@ -125,6 +148,8 @@ def main() -> int:
         args.version,
         timeout=args.timeout,
         poll_interval=args.poll_interval,
+        python_tags=args.python_tags,
+        platform_tokens=args.platform_tokens,
     )
     print(
         f"Verified {args.package}=={args.version} on "

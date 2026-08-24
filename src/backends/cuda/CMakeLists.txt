@@ -1,6 +1,8 @@
 set(CMAKE_CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES})
 uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}.")
 enable_language(CUDA)
+set(UIPC_CUDA_TOOLKIT_VERSION "${CMAKE_CUDA_COMPILER_VERSION}"
+    CACHE INTERNAL "CUDA toolkit version used to compile the backend" FORCE)
 
 # CUDA >= 13 CCCL requires the standard-conforming MSVC preprocessor for host code.
 if(MSVC AND CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)

@@ -32,6 +32,7 @@ from uipc.geometry import label_surface, label_triangle_orient, tetmesh
 from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_finite_element_external_force_clear():
     engine = Engine("cuda")
