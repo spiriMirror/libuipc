@@ -22,10 +22,9 @@ touching that area; several of these have bitten us more than once.
 - **`file(GLOB ... CONFIGURE_DEPENDS)`** is now on all project CMake files:
   adding/removing sources does NOT need a manual re-configure (the older
   note in handoff's environment section predates this).
-- **ccache is forbidden by the owner, but one stale XMake setting remains.**
-  Root `xmake.lua` currently enables `build.ccache` when its default `dev=true`
-  option is active. Do not rely on it or describe the tree as ccache-free until
-  that drift is removed; do not add ccache anywhere else.
+- **ccache is forbidden by the owner.** Root `xmake.lua` now explicitly sets
+  `build.ccache=false` for every configuration, including `dev=true`. Do not
+  re-enable compiler-cache wrappers in either CMake or XMake.
 - **GitHub regenerates release tarballs** → pinned source hashes go stale.
   Our fix pattern: overlay port in `ports/` + `overlay-ports` in the
   *generated* `vcpkg-configuration.json` (env vars don't reach

@@ -33,11 +33,12 @@ xmake run sim_case         # Run a test target
 ```
 Test target names are rewritten by the `uipc_test` rule into binary names `uipc_test_<target>`; `xmake run --help` lists all runnable targets.
 
-**Known XMake drift**: root `xmake.lua` still declares unused/stale `gui` and
-`torch` options, `src/xmake.lua` checks an undeclared `grpc` option before
-including a missing `rpc` directory, and default `dev=true` enables
-`build.ccache`. The latter conflicts with the owner rule forbidding ccache. Do not
-claim CMake/XMake parity for an affected change until both paths are inspected.
+XMake mirrors the active CMake feature set: `backend_cuda`, `pybind`, `examples`,
+`tests`, and `benchmarks`, plus optional `usd` and `vdb` targets. The removed C++
+GUI, torch extension, and nonexistent RPC module have no stale options. Project
+policy explicitly disables `build.ccache`. The pybind post-build step copies the
+package, extension, and colocated runtime libraries synchronously before
+packaging begins.
 
 ## Test System
 

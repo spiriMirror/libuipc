@@ -55,4 +55,4 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 - The deterministic execution mode currently only has a design document (`docs/development/deterministic_mode.md`) and is not yet implemented.
 - `libuipc-samples/` is a tracked submodule with 52 current example directories; numbering is historical and includes two `40_*` directories.
 - The incremental Scene commit path has verified topology/ID/subscene limitations; read doc 11 before treating it as a general replication protocol.
-- XMake currently enables ccache in its default developer mode despite the owner rule forbidding it; this is recorded drift, not an endorsed setup.
+- XMake explicitly disables ccache, mirrors the active optional USD/VDB modules, and synchronizes pybind package copies before packaging.

@@ -1,0 +1,10 @@
+add_requires("openvdb", {configs = {shared = true, print = false}})
+
+target("uipc_vdb")
+    add_rules("component")
+    add_files("**.cpp")
+    add_headerfiles(path.join(os.projectdir(), "include/uipc/vdb/**.h"))
+    add_includedirs(os.scriptdir())
+    add_defines("UIPC_WITH_VDB_SUPPORT=1", {public = true})
+    add_deps("uipc_core")
+    add_packages("openvdb")

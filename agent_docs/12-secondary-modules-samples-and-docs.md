@@ -226,17 +226,15 @@ and publishes them to PyPI, so it depends on those artifacts still being retaine
 A release smoke test must construct `Engine("cuda", workspace)`; `import uipc`
 alone does not load `uipc_backend_cuda` and cannot detect missing CUDA runtime DLLs.
 
-## Current Build-Metadata Drift to Keep Visible
+## Current Build-Metadata Differences to Keep Visible
 
-- CMake is the primary and wheel-tested build. XMake still declares stale `gui`
-  and `torch` options and checks undeclared `grpc/rpc` configuration.
-- XMake's default `dev=true` enables `build.ccache`, contrary to the owner rule
-  that ccache must not be used. Do not describe the repository as ccache-free
-  until that code is removed.
+- CMake remains the primary and wheel-tested build. XMake now mirrors the
+  active USD/VDB options, omits removed GUI/torch/RPC surfaces, and explicitly
+  disables ccache.
 - CMake/vcpkg pins fmt 10.2.1 while XMake pins fmt 12.1.0 for an NVCC compatibility
   workaround; keep ABI/version effects in mind.
-- The XMake pybind post-build path launches duplicate asynchronous package-copy
-  actions, which is redundant and potentially racy.
+- XMake's pybind target is an importable shared module (`.pyd` on Windows),
+  enables USD consistently, and performs packaging copies synchronously.
 
-These observations belong here and in doc 09 until fixed; they are not permission
-to perform an unrelated build-system cleanup.
+When changing a component or option, update and validate both build descriptions;
+package-manager version differences still require deliberate review.

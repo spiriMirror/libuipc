@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **XMake parity and deterministic packaging (2026-08-25, `refactor-main`)**:
+> stale GUI/torch/RPC configuration was removed, ccache is explicitly disabled,
+> and optional OpenUSD/OpenVDB targets now mirror CMake. The pybind target enables
+> USD consistently and performs one synchronous source copy plus explicit
+> extension/runtime-library copies, eliminating duplicate detached copy races.
+> The XMake user guide and build-agent notes describe the current switches.
+
 > **Python packaging and helper parity (2026-08-25, `refactor-main`)**: release
 > and development metadata now both include matplotlib, require pytest 9.0.3+ for
 > development, and state the prebuilt-wheel CUDA 12.8 runtime requirement. The
@@ -609,10 +616,9 @@ regression).
   sim case in its own process (`--filter/--start-from/--timeout`) —
   complements the single-process suite to separate cross-case global-state
   pollution from case-local failures.
-- (The CMake-side ccache integration from this session was implemented and then
-  reverted at user request. A later full-tree audit found a separate stale
-  `set_policy("build.ccache", true)` in root `xmake.lua` when `dev=true`; docs
-  07/08/09/12 record that unresolved owner-rule violation.)
+- The CMake-side ccache integration from this session was implemented and then
+  reverted at user request. The later XMake audit also removed its stale
+  `dev=true` ccache policy; both build paths now keep compiler caches disabled.
 
 ## Build-time optimization (after `88965feb`)
 

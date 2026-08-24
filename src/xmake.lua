@@ -4,12 +4,16 @@ includes(
     "geometry"
 )
 
-if has_config("pybind") then
-    includes("pybind")
+if has_config("vdb") then
+    includes("vdb")
 end
 
-if has_config("grpc") then
-    includes("rpc")
+if has_config("usd") then
+    includes("usd")
+end
+
+if has_config("pybind") then
+    includes("pybind")
 end
 
 add_requires("urdfdom")
@@ -37,5 +41,8 @@ target("uipc_sanity_check")
 rule("uipc_deps")
     on_load(function (target)
         local deps = {"uipc_core", "uipc_geometry", "uipc_io", "uipc_constitution", "uipc_sanity_check", "none"}
+        if has_config("usd") then
+            table.insert(deps, "uipc_usd")
+        end
         target:add("deps", deps)
     end)

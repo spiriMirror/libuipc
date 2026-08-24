@@ -9,11 +9,6 @@ before planning new work.
 These are verified code/documentation gaps, independent of the performance plan
 below:
 
-- **XMake violates current owner/build-parity rules.** Default `dev=true` enables
-  `build.ccache`; stale `gui`/`torch` options remain; `src/xmake.lua` checks an
-  undeclared `grpc` option and a missing `rpc` directory; optional USD/VDB have no
-  equivalent target; the pybind post-build path starts duplicate asynchronous
-  package-copy actions.
 - **One constitution header is only a placeholder.**
   `baraff_witkin_shell.h` and its `.cpp` are zero bytes. The implemented cloth
   model is `StrainLimitingBaraffWitkinShell` in
