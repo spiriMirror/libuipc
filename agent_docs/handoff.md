@@ -71,7 +71,10 @@
 >   site still loaded `polyfill.io` globally from both MkDocs configs. The
 >   service now returns HTTP 401, causing a browser authentication dialog on
 >   every page. The obsolete ES6 polyfill was removed; MathJax 3 remains
->   loaded from jsDelivr.
+>   loaded from jsDelivr. The docs workflow's path filters were also fixed
+>   to watch the repository's actual `mkdocs*.yaml` files (it previously
+>   watched only the unused `.yml` suffix, so config-only fixes did not
+>   deploy).
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

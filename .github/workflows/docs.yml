@@ -1,5 +1,5 @@
 # This workflow automatically builds and deploys documentation to the libuipc-doc repository
-# when docs/ directory, mkdocs*.yml files, or this workflow file is updated in the main branch.
+# when docs/, a MkDocs config, or this workflow file is updated in the main branch.
 #
 # Setup required:
 # 1. Create a Personal Access Token (PAT) with 'repo' scope in GitHub Settings > Developer settings > Personal access tokens
@@ -15,6 +15,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs*.yml'
+      - 'mkdocs*.yaml'
       - '.github/workflows/docs.yml'
   pull_request:
     types: [opened, synchronize, closed]
@@ -23,6 +24,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs*.yml'
+      - 'mkdocs*.yaml'
       - '.github/workflows/docs.yml'
   workflow_dispatch: # Allow manual triggering
 

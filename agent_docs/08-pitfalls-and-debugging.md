@@ -36,6 +36,10 @@ touching that area; several of these have bitten us more than once.
   popup on every page load. MathJax 3 does not need that ES6 polyfill; both
   MkDocs configurations intentionally load only the local MathJax setup and
   the MathJax bundle from jsDelivr.
+- The documentation workflow must watch both `mkdocs*.yml` and
+  `mkdocs*.yaml`. The repository's real configurations use the `.yaml`
+  suffix; watching only `.yml` silently leaves configuration-only fixes
+  undeployed.
 - In-progress GitHub Actions jobs expose logs only for **completed steps**;
   grep on a running step returns nothing. Use `gh run view --job <id>` for
   step status instead.
