@@ -190,7 +190,9 @@ preview by design; use `mkdocs-with-api.yaml` to validate API documentation.
 
 `scripts/build_docs.py` invokes MkDocs with `mkdocs-with-api.yaml`. MkDoxy runs
 Doxygen over public headers and generates the `Libuipc/...` pages referenced by
-`docs/nav.md`. If every API link is 404, check in this order:
+`docs/nav.md`. The wrapper prints the requested output directory and propagates a
+nonzero MkDocs/Doxygen result to its caller, so a failed API build also fails CI.
+If every API link is 404, check in this order:
 
 1. the build used `mkdocs-with-api.yaml`, not the prose-only config;
 2. Doxygen and mkdoxy completed without errors;
@@ -207,13 +209,10 @@ The old browser login popup was caused by `polyfill.io` returning an authenticat
 response. Both active configurations now use the local MathJax setup plus jsDelivr
 and must not reintroduce that dependency.
 
-Minor tooling drift: `scripts/build_docs.py -o <dir>` builds into the requested
-directory correctly but prints the default output directory instead of
-`args.output`, which can confuse log inspection. A current prose-only build also
-reports `build_install/xmake.md` and `development/deterministic_mode.md` outside
-the nav, and a missing `#Reporter-Manager-Receiver-Model` anchor in
-`development/index.md`; these are user-doc cleanup items, not API-generation
-failures.
+A current prose-only build reports `build_install/xmake.md` and
+`development/deterministic_mode.md` outside the nav, and a missing
+`#Reporter-Manager-Receiver-Model` anchor in `development/index.md`; these are
+user-doc cleanup items, not API-generation failures.
 
 ## Release Workflow Boundary
 

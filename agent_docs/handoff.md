@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **Complete UID documentation generation (2026-08-25, `refactor-main`)**:
+> `scripts/gen_uid_doc.py` now parses designated initializers and statement-based
+> `UIDInfo` assignments, restoring constitution UIDs 15, 17, 31, and 32 to the
+> generated specification. A dependency-free unit test covers both forms and the
+> formerly missing real registrations. Documentation CI now runs the test plus
+> the generator's `--check`, and UID source changes trigger that workflow. The
+> docs build wrapper also reports the requested output path and propagates
+> MkDocs/Doxygen failures instead of returning success after a failed build.
+
 > **Runtime lifecycle parity (2026-08-25, `refactor-main`)**: an implicit
 > synchronization performed by `World::retrieve()` now marks the engine
 > synchronized, so repeated retrieves do not issue redundant backend syncs until

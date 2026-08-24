@@ -14,10 +14,6 @@ below:
   undeclared `grpc` option and a missing `rpc` directory; optional USD/VDB have no
   equivalent target; the pybind post-build path starts duplicate asynchronous
   package-copy actions.
-- **The UID documentation generator is incomplete while still passing `--check`.**
-  Its parser misses statement-assigned `UIDInfo` registrations, currently omitting
-  UIDs 15, 17, 31, and 32. The generated constitution UID page must not be treated
-  as exhaustive until parser regression tests cover both registration styles.
 - **One constitution header is only a placeholder.**
   `baraff_witkin_shell.h` and its `.cpp` are zero bytes. The implemented cloth
   model is `StrainLimitingBaraffWitkinShell` in

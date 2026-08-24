@@ -86,19 +86,10 @@ Python constitution module; the two motor helpers have no pybind registration.
 - Parameter formulas/ranges are documented where available under `docs/specification/constitutions/` (for example, ABD $\kappa$: 100 MPa–100 GPa). Verify constructor validation in source before treating a prose range as enforced.
 - A new material model requires: implementing the `IConstitution` family interface + assigning a UID + writing attributes in `apply_to` + implementing the corresponding SimSystem in the backend to claim the UID + validating/clamping parameters (negative stiffness/density forbidden).
 - Joint runtime state such as the angle can be read from edge attributes of the joint geometry (e.g. the `angle` attribute of a revolute joint; see `apps/tests/sim_case/37_abd_revolute_joint.cpp`).
-- `scripts/gen_uid_doc.py --check` currently misses registration blocks that assign
-  `UIDInfo` fields in statement form rather than using its expected designated
-  initializer pattern. At least UIDs 15, 17, 31, and 32 are absent from the
-  generated table even though the source registrations exist. Treat
-  `docs/specification/constitution_uid.md` as incomplete until the parser and a
-  regression test are fixed.
-
-  | Missing UID | Name | Registered type | Source |
-  |---|---|---|---|
-  | 15 | `KirchhoffRodBending` | FiniteElement | `src/constitution/kirchhoff_rod_bending.cpp` |
-  | 17 | `DiscreteShellBending` | FiniteElement | `src/constitution/discrete_shell_bending.cpp` |
-  | 31 | `StrainPlasticDiscreteShellBending` | FiniteElement | `src/constitution/strain_plastic_discrete_shell_bending.cpp` |
-  | 32 | `StressPlasticDiscreteShellBending` | FiniteElement | `src/constitution/stress_plastic_discrete_shell_bending.cpp` |
+- `scripts/gen_uid_doc.py` recognizes both designated `UIDInfo{...}` values and
+  statement-assigned `UIDInfo` registrations. Its unit test locks the two syntax
+  styles and the historically omitted UIDs 15, 17, 31, and 32; the docs workflow
+  runs that test and `--check` before building the site.
 
 - Internal auto-registration contains UID 27 (`AffineBodyDrivingSphericalJoint`)
   and UID 28 (`AffineBodyD6Joint`) without matching public constitution classes or

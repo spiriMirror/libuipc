@@ -31,7 +31,9 @@ When applying a constitution to a geometry, the `constitution_uid` attribute of 
 | 12 | HookeanSpring | FiniteElement | `src/constitution/hookean_spring.cpp` |
 | 13 | Particle | FiniteElement | `src/constitution/particle.cpp` |
 | 14 | SoftPositionConstraint | Constraint | `src/constitution/soft_position_constraint.cpp` |
+| 15 | KirchhoffRodBending | FiniteElement | `src/constitution/kirchhoff_rod_bending.cpp` |
 | 16 | SoftTransformConstraint | Constraint | `src/constitution/soft_transform_constraint.cpp` |
+| 17 | DiscreteShellBending | FiniteElement | `src/constitution/discrete_shell_bending.cpp` |
 | 18 | AffineBodyRevoluteJoint | InterAffineBody | `src/constitution/affine_body_revolute_joint.cpp` |
 | 19 | AffineBodyDrivingRevoluteJoint | Constraint | `src/constitution/affine_body_driving_revolute_joint.cpp` |
 | 20 | AffineBodyPrismaticJoint | InterAffineBody | `src/constitution/affine_body_prismatic_joint.cpp` |
@@ -45,6 +47,8 @@ When applying a constitution to a geometry, the `constitution_uid` attribute of 
 | 28 | AffineBodyD6Joint | InterAffineBody | `src/constitution/affine_body_d6_joint.cpp` |
 | 29 | SoftVertexEdgeStitch | InterPrimitive | `src/constitution/soft_vertex_edge_stitch.cpp` |
 | 30 | SoftVertexTriangleStitch | InterPrimitive | `src/constitution/soft_vertex_triangle_stitch.cpp` |
+| 31 | StrainPlasticDiscreteShellBending | FiniteElement | `src/constitution/strain_plastic_discrete_shell_bending.cpp` |
+| 32 | StressPlasticDiscreteShellBending | FiniteElement | `src/constitution/stress_plastic_discrete_shell_bending.cpp` |
 | 666 | AffineBodyExternalForce | Constraint | `src/constitution/affine_body_external_force.cpp` |
 | 667 | AffineBodyPrismaticJointExternalForce | Constraint | `src/constitution/affine_body_prismatic_joint_external_force.cpp` |
 | 668 | AffineBodyRevoluteJointExternalForce | Constraint | `src/constitution/affine_body_revolute_joint_external_force.cpp` |
