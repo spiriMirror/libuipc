@@ -92,13 +92,13 @@ rest data accidentally when intending to teleport or drive current state.
 | between frames | user may edit attributes and enqueue object/geometry changes | changes after Scene start enter pending collections |
 | CUDA rebuild at `advance` | rebuild events settle pending creates/destroys and refresh backend data | the mutation is not guaranteed visible before this point |
 | `World::sync` | waits for asynchronous backend work | does not itself copy all state into Scene |
-| `World::retrieve` | implicitly syncs when needed, then writes device state into current geometry | repeated retrieve calls may sync again because an implicit sync does not currently update the wrapper's sync flag |
+| `World::retrieve` | implicitly syncs once when needed, then writes device state into current geometry | repeated retrieves do not resync until the next `advance`; an explicit `sync` also satisfies the synchronization requirement |
 | after `retrieve` | inspect/export state; take a stable `SceneSnapshot` | avoid snapshotting while pending geometry exists |
 
-The CUDA backend calls `begin_pending` at initialization and `solve_pending` in
-its rebuild phase. The `none` backend does not run that machinery: additions made
-after init remain pending there. Treat `none` as an interface/template backend,
-not as a faithful CPU execution or mutation backend.
+The CUDA and `none` backends call `begin_pending` at initialization and settle
+pending additions/deletions during `advance`. The `none` backend therefore models
+the frontend mutation lifecycle, but it still performs no physical simulation;
+treat it as an interface/template backend rather than a CPU solver.
 
 ## Animator Contract
 

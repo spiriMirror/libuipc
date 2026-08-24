@@ -3,7 +3,49 @@
 
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
+#include <uipc/backend/visitors/scene_visitor.h>
+#include <uipc/core/i_engine.h>
 #include <fstream>
+
+namespace
+{
+class CountingEngine final : public uipc::core::IEngine
+{
+  public:
+    uipc::SizeT advance_count  = 0;
+    uipc::SizeT sync_count     = 0;
+    uipc::SizeT retrieve_count = 0;
+
+  private:
+    void do_init(uipc::core::internal::World&) override {}
+
+    void do_advance() override
+    {
+        ++advance_count;
+        ++m_frame;
+    }
+
+    void do_sync() override { ++sync_count; }
+
+    void do_retrieve() override { ++retrieve_count; }
+
+    uipc::SizeT get_frame() const override { return m_frame; }
+
+    uipc::core::EngineStatusCollection& get_status() override
+    {
+        return m_status;
+    }
+
+    const uipc::core::FeatureCollection& get_features() const override
+    {
+        return m_features;
+    }
+
+    uipc::SizeT                        m_frame = 0;
+    uipc::core::EngineStatusCollection m_status;
+    uipc::core::FeatureCollection      m_features;
+};
+}  // namespace
 
 void test_engine(std::string_view name)
 {
@@ -74,4 +116,80 @@ void test_engine(std::string_view name)
 TEST_CASE("engine", "[world]")
 {
     test_engine("none");
+}
+
+TEST_CASE("retrieve synchronizes at most once per advance", "[world]")
+{
+    using namespace uipc;
+    using namespace uipc::core;
+
+    auto   output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto   backend     = make_shared<CountingEngine>();
+    Engine engine{"counting", backend, output_path};
+    World  world{engine};
+
+    auto config                      = Scene::default_config();
+    config["sanity_check"]["enable"] = 0;
+    Scene scene{config};
+    world.init(scene);
+
+    world.retrieve();
+    world.retrieve();
+    REQUIRE(backend->sync_count == 1);
+    REQUIRE(backend->retrieve_count == 2);
+
+    world.advance();
+    world.retrieve();
+    REQUIRE(backend->advance_count == 1);
+    REQUIRE(backend->sync_count == 2);
+
+    world.sync();
+    world.retrieve();
+    REQUIRE(backend->sync_count == 3);
+    REQUIRE(backend->retrieve_count == 4);
+}
+
+TEST_CASE("none backend settles pending scene mutations on advance", "[world]")
+{
+    using namespace uipc;
+    using namespace uipc::core;
+    using namespace uipc::geometry;
+
+    auto   output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    Engine engine{"none", output_path};
+    World  world{engine};
+
+    auto config                      = Scene::default_config();
+    config["sanity_check"]["enable"] = 0;
+    Scene scene{config};
+    world.init(scene);
+
+    backend::SceneVisitor visitor{scene};
+    REQUIRE(visitor.is_pending());
+
+    std::vector<Vector3> positions = {Vector3::Zero()};
+    auto                 mesh      = pointcloud(positions);
+    auto                 object    = scene.objects().create("point");
+    object->geometries().create(mesh);
+
+    REQUIRE(visitor.geometries().empty());
+    REQUIRE(visitor.pending_geometries().size() == 1);
+    REQUIRE(visitor.pending_rest_geometries().size() == 1);
+
+    world.advance();
+
+    REQUIRE_FALSE(visitor.is_pending());
+    REQUIRE(visitor.geometries().size() == 1);
+    REQUIRE(visitor.rest_geometries().size() == 1);
+    REQUIRE(visitor.pending_geometries().empty());
+    REQUIRE(visitor.pending_rest_geometries().empty());
+
+    scene.objects().destroy(object->id());
+    REQUIRE(visitor.pending_destroy_ids().size() == 1);
+
+    world.advance();
+
+    REQUIRE(visitor.geometries().empty());
+    REQUIRE(visitor.rest_geometries().empty());
+    REQUIRE(visitor.pending_destroy_ids().empty());
 }

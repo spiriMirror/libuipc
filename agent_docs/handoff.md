@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Runtime lifecycle parity (2026-08-25, `refactor-main`)**: an implicit
+> synchronization performed by `World::retrieve()` now marks the engine
+> synchronized, so repeated retrieves do not issue redundant backend syncs until
+> another `advance()`. The `none` backend now enters the Scene pending phase at
+> initialization and settles pending geometry creation/destruction on each
+> advance, matching the frontend lifecycle contract without pretending to run a
+> physical simulation. Core tests cover both behaviors.
+
 > **Evolving-only atlas projection (2026-08-25, `refactor-main`)**:
 > `GeometryAtlas::create(..., true)` now filters named collections and every
 > collection inside a geometry to slots marked `is_evolving`, preserving

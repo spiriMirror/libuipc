@@ -142,7 +142,10 @@ class Engine::Impl
     {
         LogPatternGuard guard{backend_name()};
         if(!m_sync_flag)
+        {
             m_engine->sync();
+            m_sync_flag = true;
+        }
         m_engine->retrieve();
     }
 
