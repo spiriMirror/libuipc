@@ -30,30 +30,45 @@ record it here in the same commit.**
 4. **English only in repo artifacts**: documentation, code comments, commit
    messages. (The conversation language stays whatever the owner uses.)
 
+## Documentation scope
+
+5. **Demo showcases belong on the project homepage, not in the technical
+   documentation.** Keep video/demo catalogues in the root README or project
+   website; keep `docs/` focused on tutorials, reference, specifications,
+   build guidance, and development documentation. The documentation must
+   expose a global link back to the project repository. (Set 2026-08-24.)
+   Scene-configuration reference material must state every registered key's
+   default, unit, effective-value rule, and valid domain/selector where one is
+   defined. Representative simulation tutorials must cover rigid bodies, FEM,
+   cloth, rigid-soft coupling, and contact in both C++ and Python, verified
+   against `libuipc-samples`, public APIs/bindings, and the consuming backend
+   implementation. Educational examples are documentation; showcase/demo
+   catalogues remain homepage-only. (Expanded 2026-08-24.)
+
 ## Build system
 
-5. **clang-format-18 before every C++ commit/PR**: run
+6. **clang-format-18 before every C++ commit/PR**: run
    `python scripts/format_changed.py` (formats the C++ files changed vs the
    base ref, CI's exact selection) or `--check` for a dry run. CI rejects
    non-conforming diffs; the pinned local formatter is
    `output/venv_clangfmt/Scripts/clang-format.exe` (18.1.8, same major as
    CI's clang-format-18).
-6. **CMake and XMake stay in sync**: every build-affecting change (sources,
+7. **CMake and XMake stay in sync**: every build-affecting change (sources,
    flags, dependencies, pins) must be applied to both build systems, even
    if only one can be verified locally.
-7. **No ccache.** It was integrated once and the owner had it reverted; do
+8. **No ccache.** It was integrated once and the owner had it reverted; do
    not re-introduce it (or similar compiler-cache layers) without an
    explicit request.
 
 ## CUDA backend
 
-7. **Raw kernels only**: business GPU code is written as named
+9. **Raw kernels only**: business GPU code is written as named
    `__global__` functions with `<<<>>>` launches — no lambda kernels, no
    ParallelFor-style wrappers.
-8. **`cuda_tool` is the only device utility layer and must not contain
+10. **`cuda_tool` is the only device utility layer and must not contain
    muda** (no vendored copy, no submodule, no compat header). Keep
    cuda_tool minimal: no primitive without an in-tree user.
-9. **Eigen stays** as the host/device small-matrix dependency. (A
+11. **Eigen stays** as the host/device small-matrix dependency. (A
    replacement experiment — geigen under `src/math/` — was tried and
    deliberately reverted; do not resurrect it without an explicit request.)
 

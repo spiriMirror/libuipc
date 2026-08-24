@@ -30,6 +30,12 @@
 - `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, `UIPC_CUDA_ARCHITECTURES=89`, and disables tests/examples/benchmarks.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
 - cibuildwheel: on linux, auditwheel excludes all CUDA libraries (relies on system CUDA 12.8).
+- The Windows wheel also relies on the system CUDA 12 runtime. In 0.0.26,
+  `dumpbin /DEPENDENTS uipc_backend_cuda.dll` shows a direct
+  `cublas64_12.dll` import. CUDA 13 installs only `cublas64_13.dll`, so a
+  CUDA 13-only machine can import `uipc` but cannot construct
+  `Engine("cuda", ...)`. The prebuilt-wheel compatibility statement must say
+  CUDA **12.8 runtime**, not "12.6+". Source builds can target CUDA 13.
 
 **Development mode (`python/pyproject.toml` + `python/setup.py`)**:
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
@@ -39,6 +45,12 @@
 ## Python tests
 
 `python/tests/`, pytest. Prerequisite: pyuipc installed (CMake build or `uv pip install -e .`).
+
+Release verification must go beyond `import uipc`: importing loads the pybind
+extension and core DLLs, while the backend is loaded lazily. At minimum create
+`Engine("cuda", temporary_workspace)` from a clean environment; preferably
+advance one asset-free frame. Otherwise a missing CUDA-major runtime dependency
+escapes the smoke test.
 
 ## Key points for extending bindings
 

@@ -9,17 +9,6 @@ Both **<font color=red>C++</font>** and **<font color=red>Python</font>** APIs a
 
 ![](./media/teaser.png)
 
-## Demos
-
-- [Cloth & soft body demo](https://www.bilibili.com/video/BV1FMU6Y6Eu2)
-- [Rigid–soft coupling demo](https://www.bilibili.com/video/BV1sBU7YDENs)
-- [Frictional contact demo](https://www.bilibili.com/video/BV1NBU7YQEGL)
-- [Joint & articulated demo](https://www.bilibili.com/video/BV1iQzcYvEsx)
-- [Thread & rod demo](https://www.bilibili.com/video/BV1pTr9YAEBB)
-- [Benchmark scene demo](https://www.bilibili.com/video/BV195c5eXELV)
-
-[More Application](./gallery.md)
-
 ## Introduction
 
 **Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of rigid bodies, soft bodies, cloth, and threads, and their couplings. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
