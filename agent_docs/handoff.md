@@ -78,7 +78,9 @@
 > - **Documentation demo separation (2026-08-24)**: demo/video showcases now
 >   live only on the project homepage. The docs home Demos section, Gallery
 >   navigation entry, and `docs/gallery.md` were removed so the technical
->   documentation stays focused on tutorials and reference material.
+>   documentation stays focused on tutorials and reference material. Both
+>   MkDocs configurations expose `spiriMirror/libuipc` as the global project
+>   repository link in the site header.
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

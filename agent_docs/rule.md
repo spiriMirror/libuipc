@@ -35,7 +35,8 @@ record it here in the same commit.**
 5. **Demo showcases belong on the project homepage, not in the technical
    documentation.** Keep video/demo catalogues in the root README or project
    website; keep `docs/` focused on tutorials, reference, specifications,
-   build guidance, and development documentation. (Set 2026-08-24.)
+   build guidance, and development documentation. The documentation must
+   expose a global link back to the project repository. (Set 2026-08-24.)
 
 ## Build system
 

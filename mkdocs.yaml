@@ -1,5 +1,7 @@
 site_name: Libuipc Documentation
-site_description:  
+site_description:
+repo_name: spiriMirror/libuipc
+repo_url: https://github.com/spiriMirror/libuipc
 theme:
   name: material
   custom_dir: docs/overrides
