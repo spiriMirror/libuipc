@@ -88,7 +88,7 @@ metadata and `Engine("none")` smoke test.
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, and immutable-action checks), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.
@@ -134,11 +134,12 @@ current pattern to follow:
    existing `dylib <3`).
 
 **Standing debt**: remove the `ports/tinygltf` overlay and relax the two
-xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Also
-`johnwason/vcpkg-action` still tracks `revision: master` — pinning it to a
-known-good commit would remove the same class of drift for the action
-itself. Local clang-format matching CI's clang-format-18 lives in
-`output/venv_clangfmt/`.
+xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Workflow
+actions are pinned to reviewed full commit SHAs; the vcpkg executable revision
+matches `scripts/gen_vcpkg_json.py`'s `dd3097e...` registry baseline, including
+the Linux wheel container clone. `scripts/check_workflow_pins.py` prevents
+floating action/revision refs from returning. Local clang-format matching CI's
+clang-format-18 lives in `output/venv_clangfmt/`.
 
 ## Development Conventions Summary (from .cursor/)
 

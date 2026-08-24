@@ -37,7 +37,7 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `particle.h` | Mass point (no elasticity) |
 | `hookean_spring.h` | Linear spring $E=\frac{\kappa}{2}((L-L_0)/L_0)^2$ |
 | `neo_hookean_shell.h` | 2D Neo-Hookean shell |
-| `baraff_witkin_shell.h` | **Zero-byte placeholder** (and `src/constitution/baraff_witkin_shell.cpp` is also empty); no usable public model is implemented here |
+| `baraff_witkin_shell.h` | Compatibility include for the historical header name; forwards to the implemented `StrainLimitingBaraffWitkinShell` API below |
 | `strain_limiting_baraff_witkin.h` | Implemented `StrainLimitingBaraffWitkinShell` (`apply_to(sc, stretch_moduli, shear_moduli, ..., strain_rate=100)` dual-moduli overload: stretch/shear use independent (E,ν); the single-modulus overload is retained. Writes triangle attributes `lambda/mu/strain_rate`; **membrane element weight = triangle area (not volume)**, stiffness attributes carry thickness: stretch=`E_s·t/(1-ν_s²)`=(λ_s+2μ_s)·t, shear=μ_sh=`E_sh/(2(1+ν_sh))` which is thickness-independent) |
 | `discrete_shell_bending.h` | Discrete shell bending energy (**bending measure = area**; raw `apply_to(sc, κ)` directly gives per-unit-area stiffness; formula overload `apply_to(sc, E, ν)` — **thickness is read from the mesh vertex `thickness` attribute** (averaged over edge endpoints, supports non-uniform shells); a membrane/stretch constitution must be applied first; static helper `bending_stiffness(E,ν,t)`=κ=`E·t³/(12(1-ν²))` literal value) |
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | Shell bending with strain/stress plasticity |

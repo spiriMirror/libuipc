@@ -6,24 +6,20 @@ before planning new work.
 
 ## Cross-cutting source-audit findings
 
-These are verified code/documentation gaps, independent of the performance plan
-below:
+These previously verified gaps are closed on `refactor-main` as of 2026-08-25:
 
-- **One constitution header is only a placeholder.**
-  `baraff_witkin_shell.h` and its `.cpp` are zero bytes. The implemented cloth
-  model is `StrainLimitingBaraffWitkinShell` in
-  `strain_limiting_baraff_witkin.h`.
-- **Public C++ and Python surfaces still need automated drift checks.**
-  `RotatingMotor` and `LinearMotor` are bound in
-  `src/pybind/pyuipc/constitution/soft_transform_constraint.cpp`; an older audit
-  incorrectly reported them as missing. Internal UID 27/28 registrations still
-  have no public classes. Generate/check API facts in CI instead of maintaining
-  this kind of inventory only by hand.
-- **Third-party CI actions are not immutable.** The first-party checkout and
-  setup-python actions now use their Node 24-based v7 majors across workflows,
-  but `johnwason/vcpkg-action` still tracks `revision: master` and several
-  third-party actions use floating major tags. Pin reviewed commit SHAs to remove
-  supply-chain and upstream-drift ambiguity.
+- The historical `baraff_witkin_shell.h` is now a compatibility include for the
+  implemented `StrainLimitingBaraffWitkinShell`; its empty `.cpp` and other
+  unreferenced zero-byte scaffolds were removed. A repository gate rejects new
+  zero-byte files under `include/` and `src/`.
+- `scripts/check_constitution_api.py` compares every exported constitution class
+  with its pybind class name and verifies every binding initializer is registered.
+  `RotatingMotor` and `LinearMotor` are both covered. Internal UID 27/28 remain
+  intentionally internal and therefore outside the public-header contract.
+- Every external GitHub Action is pinned to a reviewed full commit SHA. Both
+  `johnwason/vcpkg-action` inputs and the Linux wheel container use the same
+  immutable vcpkg commit as the generated registry baseline. The repository
+  contracts workflow rejects floating action and revision refs.
 
 ## Performance: remaining gap vs Stiff-GIPC
 
@@ -119,7 +115,6 @@ assertions).
 | `ports/tinygltf` overlay (SHA512 of regenerated v2.9.6 tarball) | `ports/`, `scripts/gen_vcpkg_json.py` | microsoft/vcpkg fixes the tinygltf port hash |
 | `octree v2.5` | `src/geometry/xmake.lua` | xmake-repo layout stabilizes |
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
-| `johnwason/vcpkg-action revision: master` | `.github/workflows/*.yml` | pin to a known-good commit proactively (drift risk, same class as the three above) |
 
 ## Open issues
 

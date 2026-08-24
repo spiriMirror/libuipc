@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Repository contracts and source hygiene (2026-08-25,
+> `refactor-main`)**: all external GitHub Actions now use reviewed full commit
+> SHAs, and the vcpkg action/container revision matches the project's registry
+> baseline. A dedicated repository-contracts workflow rejects mutable action
+> refs, zero-byte source files, and drift between exported constitution classes,
+> pybind classes, and binding initializer registration. Thirteen empty CUDA/C++
+> scaffold translation units were removed; the two public zero-byte headers are
+> now documented compatibility includes. The full docs helper finds a standard
+> Windows Doxygen install even when it is absent from `PATH`, and the local
+> preview guide distinguishes deployable API builds from prose-only previews.
+> Local validation: full C++/CUDA pybind build; 36 core cases / 988 assertions;
+> 79 portable Python tests; 48 non-interactive CUDA tests; 5 repository-contract
+> tests; clang-format-18; release-policy/parity/pin/zero-byte checks; and a full
+> Doxygen + MkDoxy site containing the `Engine::frame_stats()` API page.
+
 > **Structured solver observability (2026-08-25, `refactor-main`)**:
 > the backend-neutral `Engine::frame_stats()` API (also Python) returns `{}` by
 > default; CUDA schema v1 reports latest-frame pipeline, completion/convergence,
