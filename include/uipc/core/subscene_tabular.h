@@ -42,6 +42,9 @@ class UIPC_CORE_API SubsceneTabular final
                   bool                   enable = false,
                   const Json&            config = default_config());
 
+    // No per-model extension keys are currently defined. A non-empty config
+    // is rejected instead of being silently ignored.
+
     SubsceneModel at(IndexT i, IndexT j) const;
 
     SubsceneModelCollection  subscene_models() noexcept;

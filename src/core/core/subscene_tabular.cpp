@@ -58,6 +58,11 @@ class SubsceneTabular::Impl
 
     IndexT insert(const SubsceneElement& L, const SubsceneElement& R, bool enable, const Json& config)
     {
+        UIPC_ASSERT_THROW(config.is_object() && config.empty(),
+                          "SubsceneTabular::insert does not define per-model config keys; "
+                          "expected an empty object, got {}. Use enable for supported "
+                          "subscene coupling behavior.",
+                          config.dump());
         Vector2i ids = {L.id(), R.id()};
 
         // check if the subscene element id is valid.

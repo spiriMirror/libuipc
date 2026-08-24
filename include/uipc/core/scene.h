@@ -154,6 +154,22 @@ class UIPC_CORE_API Scene final
 
     static Json default_config() noexcept;
 
+    /**
+     * @brief Return machine-readable metadata for every registered scene config key.
+     *
+     * Each entry includes its default, storage/type information, constraints,
+     * lifecycle, status, description, and backend consumer locations.
+     */
+    static Json config_schema();
+
+    /**
+     * @brief Validate the current mutable configuration against config_schema().
+     *
+     * Construction validates the input JSON. World::init validates again so
+     * edits made through config() cannot silently bypass the contract.
+     */
+    void validate_config() const;
+
     class UIPC_CORE_API Objects
     {
         friend class Scene;

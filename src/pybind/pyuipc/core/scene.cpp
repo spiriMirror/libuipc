@@ -147,6 +147,18 @@ Returns:
 Returns:
     dict: Default configuration dictionary.)");
 
+    class_Scene.def_static("config_schema",
+                           &Scene::config_schema,
+                           R"(Get machine-readable metadata for every scene configuration key.
+Returns:
+    dict: Defaults, types, constraints, lifecycle, status, and consumers.)");
+
+    class_Scene.def("validate_config",
+                    &Scene::validate_config,
+                    R"(Validate the current mutable scene configuration.
+
+World.init(scene) calls this automatically before backend initialization.)");
+
     class_Scene.def(
         "objects",  //
         [](Scene& self) { return self.objects(); },

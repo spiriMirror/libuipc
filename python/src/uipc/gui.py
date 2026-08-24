@@ -166,6 +166,7 @@ class _SceneGUISplit:
 class SceneGUI:
     def __init__(self, scene:Scene, surf_type:Literal['merge', 'split']='merge'):
         self.scene = scene
+        self._scene_config_entries = Scene.config_schema().get('entries', {})
         self.surf_type = surf_type  # default type for registration, can be 'merge' or 'split'
         if surf_type == 'merge':
             self.gui = _SceneGUIMerge(scene)
@@ -282,6 +283,15 @@ class SceneGUI:
             except Exception:
                 type_name = ''
             t_upper = type_name.upper()
+
+            metadata = self._scene_config_entries.get(path, {})
+            if metadata.get('status') != 'active':
+                imgui.InputText(
+                    widget_label,
+                    str(raw),
+                    imgui.ImGuiInputTextFlags_ReadOnly,
+                )
+                return
 
             if 'STRING' in t_upper or isinstance(raw, str):
                 imgui.InputText(widget_label, raw, imgui.ImGuiInputTextFlags_ReadOnly)

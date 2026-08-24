@@ -141,5 +141,6 @@ is a starting point, not a universal preset.
     scene = Scene(config)
     ```
 
-Keep `newton/use_adaptive_tol` at its default: it is registered for schema
-compatibility but is not consumed by the current CUDA backend.
+Keep `newton/use_adaptive_tol` at its default. It remains registered for schema
+compatibility, but because no CUDA consumer exists, the validator rejects any
+value other than `0` instead of accepting a silent no-op.

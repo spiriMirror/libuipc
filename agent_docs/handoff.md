@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **Validated scene-configuration contract (2026-08-25,
+> `refactor-main`)**: `Scene::config_schema()` / `Scene.config_schema()` exposes
+> all 46 registered keys with defaults, types, units, hard constraints,
+> lifecycle/status, descriptions, and source consumers; `python -m uipc
+> config-schema [key]` makes it available to tools and agents. Construction and
+> `World::init(scene)` validate the contract, including mutable edits and
+> cross-field kappa/Newton ordering. The unimplemented
+> `newton/use_adaptive_tol` is constrained to `0`, `sanity_check/mode=quiet` is
+> now an explicit choice, and non-empty Contact/Subscene extension configs are
+> rejected instead of silently ignored. `SceneGUI` consumes the same schema and
+> renders reserved entries read-only.
+
 > **Python/CUDA compatibility policy and doctor (2026-08-25,
 > `refactor-main`)**: the next wheel matrix covers CPython 3.10–3.14; the
 > immutable 0.0.26 release still stops at 3.13. Published builds now target
@@ -171,7 +183,8 @@
 >   reference now enumerates all 46 unique keys registered by
 >   `scene_default_config.cpp`, including defaults, SI units, selector values,
 >   operational domains, relative-value precedence, lifecycle rules, and
->   current no-op/reserved behavior (`newton/use_adaptive_tol`). Dedicated
+>   the reserved `newton/use_adaptive_tol` key, whose nonzero values are now
+>   rejected instead of silently ignored. Dedicated
 >   Newton/linear-solver and contact/collision pages trace behavior through the
 >   CUDA consumers and explain MAS, graph modes, adaptive kappa, pairwise
 >   contact elements, and sanity checks. Navigation exposes all three pages.

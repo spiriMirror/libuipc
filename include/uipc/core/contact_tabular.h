@@ -40,12 +40,15 @@ class UIPC_CORE_API ContactTabular final
                   bool                  enable = true,
                   const Json&           config = default_config());
 
+    // No per-model extension keys are currently defined. A non-empty config
+    // is rejected instead of being silently ignored.
+
     ContactModel at(IndexT i, IndexT j) const;
 
     void default_model(Float       friction_rate,
                        Float       resistance,
                        bool        enable = true,
-                       const Json& config = default_config()) noexcept;
+                       const Json& config = default_config());
 
     ContactElement default_element() noexcept;
     ContactModel   default_model() const noexcept;

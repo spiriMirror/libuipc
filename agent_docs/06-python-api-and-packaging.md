@@ -17,8 +17,9 @@
 - Pure-Python enhancement layer:
   - `gui.py` (polyscope visualization)
   - `profile/` (benchmark timing + `nsight.py` Nsight Compute wrapper)
-  - `cli/` (`benchmark`, compatibility `doctor`, `mesh_doctor`, `uid_info`);
-    `python -m uipc <command>` and the `uipc` console script dispatch these tools
+  - `cli/` (`benchmark`, queryable `config-schema`, compatibility `doctor`,
+    `mesh_doctor`, `uid_info`);
+  `python -m uipc <command>` and the `uipc` console script dispatch these tools
   - `adapter/torch`, `adapter/warp` (ML framework adapters)
   - `assets/` (downloads scenes from HuggingFace `MuGdxy/uipc-assets`; each asset has a `scene.py` with `build_scene(scene)`)
   - `stats.py`, `dev/`

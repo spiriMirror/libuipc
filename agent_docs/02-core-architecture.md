@@ -66,7 +66,15 @@ Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
 - `contact/enable`, `contact/d_hat`, `contact/constitution="ipc"` (or `"al-ipc"` and its tuning parameters); `contact/d_hat_relative` (when >0, d_hat = relative value × scene diagonal, the Stiff-GIPC convention), `newton/velocity_tol_relative` (when >0, exit threshold = relative value × diagonal × dt), `contact/eps_velocity_relative` (when >0, friction C1 smoothing threshold = relative value × diagonal × dt) — scene-adaptive parameters, default 0 (disabled); `contact/adaptive/{min_kappa,max_kappa,init_kappa}` bound the effective contact stiffness
 - `collision_detection/*` (`method`: `info_stackless_bvh` default, `info_stackless_bvh_v0`), `sanity_check/*`, `diff_sim/enable`
 
-**Config strictness**: `from_config_json` recursively validates the user json against the registered defaults and **throws a guided error on unregistered keys** (they were silently dropped before). Two consequences: (1) adding a new config key REQUIRES registering its default in `scene_default_config.cpp`; (2) old scenes with typo/dead keys now fail loudly — fix the key, don't bypass the check.
+**Config contract**: `Scene::config_schema()` returns all 46 entries with their
+defaults, JSON/storage types, units, hard bounds/enums, lifecycle, status,
+descriptions, and source consumers. `from_config_json` rejects unknown keys and
+validates constraints during construction; `World::init(Scene&)` validates the
+mutable attribute collection again. Adding, destroying, or changing a config
+attribute through `Scene::config()` therefore cannot silently bypass the
+contract. `newton/use_adaptive_tol` remains visible for compatibility but is
+reserved at exactly `0` until a real consumer exists. Contact/Subscene per-model
+`config` arguments accept only `{}` while no extension keys are implemented.
 
 **Default kappa policy**: the scene-adaptive corridor (Stiff-GIPC `suggestKappa`/`upperBoundKappa` ported with the $/dt^2$ conversion, computed at `GlobalContactManager::init` from scene diagonal, mean mass and `d_hat`) rules all clamping; `contact/adaptive/{min,max}_kappa` are only the fallback when the corridor is not computable. If `default_model(...)` is never called, the effective default stiffness is the corridor lower bound; a user-set value is clamped into the corridor with a range-printing warning; negative kappa (adaptive-kappa opt-in marker) is never clamped. The evaluation scale is configurable via `contact/adaptive/kappa_eval_scale` (default `1e-16`, Stiff's value; the $/dt^2$ conversion makes it dt-independent).
 

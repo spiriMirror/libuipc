@@ -169,6 +169,11 @@ for _ in range(100):
 
 Optional: enable the MAS preconditioner for stiff FEM scenes with one config line — `config["linear_system"]["fem_preconditioner"] = "mas"`.
 
+Inspect the validated configuration contract (defaults, units, ranges,
+selectors, lifecycle, and backend consumers) with `python -m uipc
+config-schema`, or read the [Scene Configuration
+Reference](https://spirimirror.github.io/libuipc-doc/specification/scene_config/).
+
 ## Contributing & Support
 
 - **Bugs & features**: file an [Issue](https://github.com/spiriMirror/libuipc/issues); questions and ideas go to [Discussions](https://github.com/spiriMirror/libuipc/discussions).

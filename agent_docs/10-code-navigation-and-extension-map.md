@@ -86,15 +86,20 @@ The IPC orchestration is split across
 ### Add or change a scene config key
 
 1. Register its type and default in `src/core/core/scene_default_config.cpp`.
-2. Read it in the owning manager/system; search for neighboring keys rather than
+2. Add its type, unit, hard constraints, lifecycle/status, description, and
+   source consumer to the metadata table in the same file. Schema coverage is
+   exact: a missing or extra entry fails tests.
+3. Read it in the owning manager/system; search for neighboring keys rather than
    duplicating JSON parsing.
-3. Define accepted values, units, range, and fallback behavior in
+4. Define accepted values, units, range, and fallback behavior in
    `docs/specification/scene_config.md`.
-4. Add a strict-config test (unknown keys intentionally throw) and a behavior test.
-5. Keep C++ and Python examples synchronized if users set the key directly.
+5. Add constructor and post-mutation validation tests plus a behavior test for
+   every supported selector/pipeline.
+6. Keep C++ and Python examples synchronized if users set the key directly.
 
-An entry existing only in the default schema is not an implemented behavior. The
-current audit found `newton/use_adaptive_tol` registered but no consumer.
+An entry existing only in the default schema is not an implemented behavior.
+Reserved entries must use a validator-enforced constant until a real consumer
+and behavior test are added; `newton/use_adaptive_tol` demonstrates this rule.
 
 ### Add a built-in attribute
 

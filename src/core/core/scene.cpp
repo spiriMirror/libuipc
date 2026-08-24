@@ -19,6 +19,11 @@ Json Scene::default_config() noexcept
     return to_config_json(default_scene_config());
 }
 
+Json Scene::config_schema()
+{
+    return scene_config_schema();
+}
+
 Scene::Scene(const Json& j)
 {
     geometry::AttributeCollection config = default_scene_config();
@@ -39,6 +44,11 @@ Scene::CConfigAttributes Scene::config() const noexcept
 Scene::ConfigAttributes Scene::config() noexcept
 {
     return ConfigAttributes{m_internal->config()};
+}
+
+void Scene::validate_config() const
+{
+    validate_scene_config(m_internal->config());
 }
 
 Scene::~Scene() = default;

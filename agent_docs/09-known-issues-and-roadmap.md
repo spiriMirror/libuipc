@@ -19,9 +19,6 @@ below:
   incorrectly reported them as missing. Internal UID 27/28 registrations still
   have no public classes. Generate/check API facts in CI instead of maintaining
   this kind of inventory only by hand.
-- **Schema does not guarantee behavior.** `newton/use_adaptive_tol` is registered
-  but has no consumer. Contact/Subscene JSON config arguments are accepted but
-  ignored. Adding a default must be paired with a runtime reader and behavior test.
 - **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
   differs in external-force sequencing and timer behavior. Changes that claim
   support for both constitutions need two focused tests.

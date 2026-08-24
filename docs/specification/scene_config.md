@@ -1,19 +1,51 @@
 # Scene Configuration Reference
 
-`Scene::default_config()` / `Scene.default_config()` is the authoritative
-schema for a simulation scene. The table below covers every registered key in
-v0.0.26. Defaults come from
+`Scene::default_config()` / `Scene.default_config()` provides the values for a
+simulation scene. `Scene::config_schema()` / `Scene.config_schema()` is the
+machine-readable contract for every registered key: defaults, storage and JSON
+types, units, hard constraints, lifecycle, implementation status, descriptions,
+and source-level consumers. The tables below present the same contract for
+humans. Defaults and metadata come from
 [`scene_default_config.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene_default_config.cpp),
 while effective-value rules and selector values were checked against the CUDA
 backend that consumes them.
 
 !!! important
 
-    Scene configuration is strict: an unknown key is rejected recursively when
-    constructing a `Scene`. This catches misspellings instead of silently
-    ignoring them. Most numeric values, however, do not have a central range
-    validator. In the tables, **valid domain** therefore means the domain
-    required by the algorithm, not necessarily a constructor-time check.
+    Scene configuration is strict: unknown keys, wrong storage types, non-finite
+    values, unsupported selectors, and values outside the documented hard
+    constraints are rejected. Validation runs when constructing a `Scene` and
+    again in `World::init(scene)`, after any mutable `scene.config()` edits.
+
+## Querying the contract
+
+The schema is available without reading backend source and can be consumed by
+tools, agents, editors, and configuration generators.
+
+=== "C++"
+
+    ```cpp
+    auto schema = uipc::core::Scene::config_schema();
+    auto dt = schema["entries"]["dt"];
+    std::cout << dt.dump(2) << '\n';
+    ```
+
+=== "Python"
+
+    ```python
+    from uipc import Scene
+
+    schema = Scene.config_schema()
+    print(schema["entries"]["dt"])
+    ```
+
+The installed command-line interface can dump either the complete schema or a
+single slash-separated key:
+
+```bash
+python -m uipc config-schema
+python -m uipc config-schema contact/d_hat
+```
 
 ## Creating and editing a configuration
 
@@ -48,7 +80,8 @@ A scene also exposes its registered configuration as attributes. This is
 useful when a scene has already been created or loaded. Make these changes
 **before** `world.init(scene)`: several backend systems cache configuration
 values during initialization, so `scene.config()` is not a general hot-reload
-interface.
+interface. Call `scene.validate_config()` for an earlier explicit check;
+`world.init(scene)` calls it automatically.
 
 === "C++"
 
@@ -98,7 +131,7 @@ appropriate geometry instead.
 | --- | --- | --- | --- | --- |
 | `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Reaching it warns, or throws in strict mode. |
 | `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Hard floor before ordinary Newton convergence may terminate. `0` disables the floor. |
-| `newton/use_adaptive_tol` | flag | `0` | `0`, `1` | Reserved in the current schema. The current CUDA backend has no consumer, so changing it has no effect. |
+| `newton/use_adaptive_tol` | reserved integer | `0` | exactly `0` | Reserved for compatibility. Because no adaptive-tolerance consumer exists, setting it to `1` is rejected rather than silently doing nothing. |
 | `newton/velocity_tol` | float, m/s | `0.05` | `> 0` when used | Absolute velocity tolerance. The displacement test is `max_axis_displacement <= velocity_tol * dt`. |
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
 | `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
@@ -118,7 +151,7 @@ termination logic and tuning guidance.
 | `linear_system/solver` | string | `"fused_pcg"` | `"fused_pcg"`, `"linear_pcg"` | Global iterative solver. `fused_pcg` is the optimized default; `linear_pcg` supports detailed PCG vector dumps. |
 | `linear_system/fem_preconditioner` | string | `"diag"` | `"diag"`, `"mas"` | FEM local preconditioner. MAS auto-partitions every non-empty FEM geometry into fixed-size clusters and is intended for stiff/ill-conditioned FEM scenes. |
 | `linear_system/use_cuda_graph` | integer mode | `1` | `0`, `1`, `2` | Fused-PCG launch mode: `0` plain launches; `1` host-checked block replay; `2` full-GPU while-loop graph. Mode 2 requires CUDA 12.4+ and falls back when unsupported. Non-IPC pipelines currently force graphs off. |
-| `linear_system/check_interval` | integer | `5` | `>= 1`; values `<= 0` become `1` | Number of fused-PCG iterations between host convergence checks in modes 0/1. Larger values reduce checks but make exit granularity coarser. |
+| `linear_system/check_interval` | integer | `5` | `>= 1` | Number of fused-PCG iterations between host convergence checks in modes 0/1. Larger values reduce checks but make exit granularity coarser. |
 
 ## Line search
 
@@ -177,7 +210,7 @@ over the configured fallback bounds.
 | --- | --- | --- | --- | --- |
 | `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`, `"stackless_bvh"`, `"linear_bvh"`; `"info_stackless_bvh_v0"` is a legacy comparison path | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
 | `sanity_check/enable` | flag | `1` | `0`, `1` | Runs pre-initialization intersection and distance checks. A failed check makes the world invalid. |
-| `sanity_check/mode` | string | `"normal"` | documented mode: `"normal"` | `normal` also writes diagnostic geometry when a check fails. Other strings currently suppress that export but are not a stable named API. |
+| `sanity_check/mode` | string | `"normal"` | `"normal"`, `"quiet"` | `normal` also writes diagnostic geometry when a check fails; `quiet` reports the failure without exporting that geometry. |
 | `diff_sim/enable` | flag | `0` | `0`, `1` | Initializes differentiable-simulation state. Calling non-const `scene.diff_sim()` sets this flag automatically; do so before world initialization. |
 | `extras/debug/dump_surface` | flag | `0` | `0`, `1` | Dumps intermediate surface state during the nonlinear solve. Produces substantial output. |
 | `extras/debug/dump_linear_system` | flag | `0` | `0`, `1` | Dumps assembled global linear systems for diagnosis. |

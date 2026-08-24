@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 COMMANDS = {
     "benchmark": "uipc.cli.benchmark",
+    "config-schema": "uipc.cli.config_schema",
     "doctor": "uipc.cli.doctor",
     "mesh-doctor": "uipc.cli.mesh_doctor",
     "uid-info": "uipc.cli.uid_info",
@@ -40,7 +41,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     module = importlib.import_module(module_name)
     command_main = getattr(module, "main")
-    if command == "doctor":
+    if command in {"config-schema", "doctor"}:
         return int(command_main(args))
 
     previous_argv = sys.argv

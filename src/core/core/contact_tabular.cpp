@@ -61,6 +61,7 @@ class ContactTabular::Impl
                   bool                  enable,
                   const Json&           config)
     {
+        validate_config(config, "ContactTabular::insert");
         Vector2i ids = {L.id(), R.id()};
 
         // check if the contact element id is valid.
@@ -145,8 +146,9 @@ class ContactTabular::Impl
         return ContactModel{Vector2i{i, j}, friction_rate, resistance, enable, Json::object()};
     }
 
-    void default_model(Float friction_rate, Float resistance, bool enable, const Json& config) noexcept
+    void default_model(Float friction_rate, Float resistance, bool enable, const Json& config)
     {
+        validate_config(config, "ContactTabular::default_model");
         view(*m_friction_rates)[0] = friction_rate;
         view(*m_resistances)[0]    = resistance;
         view(*m_is_enabled)[0]     = enable;
@@ -173,6 +175,16 @@ class ContactTabular::Impl
 
 
     static Json default_config() noexcept { return Json::object(); }
+
+    static void validate_config(const Json& config, std::string_view caller)
+    {
+        UIPC_ASSERT_THROW(config.is_object() && config.empty(),
+                          "{} does not define per-model config keys; expected an empty "
+                          "object, got {}. Use friction_rate, resistance, and enable for "
+                          "supported contact behavior.",
+                          caller,
+                          config.dump());
+    }
 
     vector<ContactElement>        m_elements;
     geometry::AttributeCollection m_models;
@@ -280,10 +292,7 @@ ContactModel ContactTabular::at(IndexT i, IndexT j) const
     return m_impl->at(i, j);
 }
 
-void ContactTabular::default_model(Float       friction_rate,
-                                   Float       resistance,
-                                   bool        enable,
-                                   const Json& config) noexcept
+void ContactTabular::default_model(Float friction_rate, Float resistance, bool enable, const Json& config)
 {
     m_impl->default_model(friction_rate, resistance, enable, config);
 }
