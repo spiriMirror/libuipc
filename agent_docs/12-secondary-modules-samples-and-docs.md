@@ -206,10 +206,9 @@ The old browser login popup was caused by `polyfill.io` returning an authenticat
 response. Both active configurations now use the local MathJax setup plus jsDelivr
 and must not reintroduce that dependency.
 
-A current prose-only build reports `build_install/xmake.md` and
-`development/deterministic_mode.md` outside the nav, and a missing
-`#Reporter-Manager-Receiver-Model` anchor in `development/index.md`; these are
-user-doc cleanup items, not API-generation failures.
+The XMake and deterministic-mode pages are part of the navigation, and the RMR
+development link uses MkDocs' lowercase heading anchor. Remaining prose-only
+warnings are generated-API routes that do not exist until MkDoxy runs.
 
 ## Release Workflow Boundary
 

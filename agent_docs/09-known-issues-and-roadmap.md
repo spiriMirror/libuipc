@@ -22,12 +22,10 @@ below:
 - **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
   differs in external-force sequencing and timer behavior. Changes that claim
   support for both constitutions need two focused tests.
-- **User-doc navigation has small standing drift.** The prose-only MkDocs build
-  succeeds but reports `docs/build_install/xmake.md` and
-  `docs/development/deterministic_mode.md` as orphan pages, plus a missing
-  `#Reporter-Manager-Receiver-Model` anchor from `development/index.md`. The
-  geometry tutorial also has a generated-class link that can only be confirmed in
-  a successful Doxygen/MkDoxy build.
+- **Generated API links require the full documentation toolchain.** The prose-only
+  build intentionally cannot resolve `Libuipc/...` pages. The geometry tutorial's
+  `SpreadSheetIO` link and the API navigation must be confirmed in a successful
+  Doxygen/MkDoxy build.
 
 ## Performance: remaining gap vs Stiff-GIPC
 
