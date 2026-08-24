@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Portable local docs builder (2026-08-25, `refactor-main`)**:
+> `scripts/build_docs.py` now runs MkDocs through the active Python interpreter
+> (`sys.executable -m mkdocs`) instead of assuming a `mkdocs` launcher is on
+> `PATH`. This fixes full local builds from ordinary Windows virtual
+> environments while preserving the production `mkdocs-with-api.yaml` path.
+
 > **Validated scene-configuration contract (2026-08-25,
 > `refactor-main`)**: `Scene::config_schema()` / `Scene.config_schema()` exposes
 > all 46 registered keys with defaults, types, units, hard constraints,

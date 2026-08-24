@@ -13,9 +13,21 @@ if __name__ == '__main__':
     print(f'output_dir={doc_dir}')
     config_file = proj_dir / 'mkdocs-with-api.yaml'
     print(f'config_file={config_file}')
-    Value = sp.call(['mkdocs', 'build', '-f', config_file, '-d', doc_dir], cwd=proj_dir)
-    if Value == 0:
+    result = sp.call(
+        [
+            sys.executable,
+            '-m',
+            'mkdocs',
+            'build',
+            '-f',
+            str(config_file),
+            '-d',
+            str(doc_dir),
+        ],
+        cwd=proj_dir,
+    )
+    if result == 0:
         print('Success')
     else:
         print('Failure')
-    sys.exit(Value)
+    sys.exit(result)

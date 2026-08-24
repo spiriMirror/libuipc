@@ -185,10 +185,12 @@ preview by design; use `mkdocs-with-api.yaml` to validate API documentation.
 
 ### How API pages are produced
 
-`scripts/build_docs.py` invokes MkDocs with `mkdocs-with-api.yaml`. MkDoxy runs
-Doxygen over public headers and generates the `Libuipc/...` pages referenced by
-`docs/nav.md`. The wrapper prints the requested output directory and propagates a
-nonzero MkDocs/Doxygen result to its caller, so a failed API build also fails CI.
+`scripts/build_docs.py` invokes `sys.executable -m mkdocs` with
+`mkdocs-with-api.yaml`, so it uses the same Python environment that launched the
+wrapper even when that environment's scripts directory is not on `PATH`. MkDoxy
+runs Doxygen over public headers and generates the `Libuipc/...` pages referenced
+by `docs/nav.md`. The wrapper prints the requested output directory and propagates
+a nonzero MkDocs/Doxygen result to its caller, so a failed API build also fails CI.
 If every API link is 404, check in this order:
 
 1. the build used `mkdocs-with-api.yaml`, not the prose-only config;
