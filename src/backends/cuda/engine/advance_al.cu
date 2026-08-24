@@ -8,7 +8,6 @@
 #include <line_search/line_searcher.h>
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
-#include <external_force/global_external_force_manager.h>
 #include <diff_sim/global_diff_sim_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
@@ -46,16 +45,6 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto detect_dcd_candidates = [this]
-    {
-        if(m_global_trajectory_filter)
-        {
-            Timer timer{"Detect DCD Candidates"};
-            m_global_trajectory_filter->detect(0.0);
-            m_global_trajectory_filter->filter_active();
-        }
-    };
-
     auto detect_trajectory_candidates = [this](Float alpha)
     {
         if(m_global_trajectory_filter)
@@ -65,20 +54,11 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto filter_dcd_candidates = [this]
-    {
-        if(m_global_trajectory_filter)
-        {
-            Timer timer{"Filter Contact Candidates"};
-            m_global_trajectory_filter->filter_active();
-        }
-    };
-
-
     auto compute_adaptive_mu = [this]
     {
         if(m_global_active_set_manager)
         {
+            Timer timer{"Compute Adaptive Mu"};
             m_global_active_set_manager->disable();
 
             m_global_active_set_manager->init_mu();
@@ -102,6 +82,7 @@ void SimEngine::advance_AL()
     {
         if(m_global_contact_manager)
         {
+            Timer timer{"Compute CFL Condition"};
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
             if(cfl_alpha < alpha)
             {
@@ -129,7 +110,7 @@ void SimEngine::advance_AL()
         return alpha;
     };
 
-    auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
+    auto compute_energy = [this](Float alpha) -> Float
     {
         // Step Forward => x = x_0 + alpha * dx
         m_global_vertex_manager->step_forward(alpha);
@@ -140,15 +121,6 @@ void SimEngine::advance_AL()
 
         // Compute New Energy => E
         return m_line_searcher->compute_energy(false);
-    };
-
-    auto step_animation = [this]()
-    {
-        if(m_global_animator)
-        {
-            Timer timer{"Step Animation"};
-            m_global_animator->step();
-        }
     };
 
     auto compute_animation_substep_ratio = [this](SizeT newton_iter)
@@ -312,7 +284,7 @@ void SimEngine::advance_AL()
             m_state = SimEngineState::PredictMotion;
             // MUST step animation before predicting dof (following basic IPC pattern)
             // and before compute_adaptive_mu to ensure constraints report extents
-            step_animation();
+            step_animation_and_external_forces();
             m_time_integrator_manager->predict_dof();
 
             // 3. Adaptive Parameter Calculation
@@ -328,6 +300,7 @@ void SimEngine::advance_AL()
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
+                m_newton_iter = newton_iter;
 
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
@@ -385,6 +358,7 @@ void SimEngine::advance_AL()
                         while(line_search_iter < m_line_searcher->max_iter())
                         {
                             Timer timer{"Line Search Iteration"};
+                            m_line_search_iter = line_search_iter;
 
                             // Check Energy Decrease
                             // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
@@ -455,14 +429,16 @@ void SimEngine::advance_AL()
 
     try
     {
-        Timer::enable_all();
         pipeline();
-        Timer::report(std::cout);
     }
     catch(const SimEngineException& e)
     {
         logger::error("Engine Advance Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
+    }
+    catch(const std::exception& e)
+    {
+        UIPC_ASSERT(false, "Unexpected Exception: {}", e.what());
     }
 }
 }  // namespace uipc::backend::cuda

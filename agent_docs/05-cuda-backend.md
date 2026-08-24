@@ -60,10 +60,15 @@ Note: a parent timer's duration **includes** its child timers (e.g. when Newton 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 
 The diagram above describes the IPC path. `advance_al.cu` implements a separate
-AL-IPC active-set pipeline. It currently does not mirror every IPC orchestration
-detail: for example, its per-frame animation block does not run the same external-
-force clear/step sequence, and it enables/reports timers unconditionally. Treat
-IPC/AL changes as two verification surfaces rather than assuming shared behavior.
+AL-IPC active-set pipeline, but both paths call
+`SimEngine::step_animation_and_external_forces()` immediately before
+`predict_dof()`. The shared frame hook deliberately orders the operations as
+**clear prior device force buffers -> run user animation -> consume the freshly
+animated forces**. Keep orchestration that is common to both contact
+constitutions in this hook and retain focused IPC/AL tests; the Newton, contact,
+CCD, and termination algorithms remain intentionally distinct. Timer enablement
+and reporting are caller-controlled--neither advance path changes the
+process-global Timer state or prints a report implicitly.
 
 ## Kernels and Kernel Naming
 

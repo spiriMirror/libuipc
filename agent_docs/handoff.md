@@ -1,5 +1,15 @@
 # Handoff — Current State of the Repo
 
+> **IPC/AL frame-lifecycle parity (2026-08-25, `refactor-main`)**: both CUDA
+> advance paths now share the ordered external-force lifecycle (clear old
+> device buffers, run animation, consume current forces) before DOF prediction.
+> AL-IPC no longer enables the process-global Timer or prints a merged report on
+> every frame, and its adaptive-mu/CFL stages plus Newton/line-search indices are
+> timed/tracked consistently. A parameterized FEM regression exercises the same
+> two-frame apply/clear sequence under `ipc` and `al-ipc` and rejects implicit
+> Timer output. Local validation: 2 focused cases, 48 non-interactive CUDA
+> tests, and 64 portable Python tests pass.
+
 > **Portable local docs builder (2026-08-25, `refactor-main`)**:
 > `scripts/build_docs.py` now runs MkDocs through the active Python interpreter
 > (`sys.executable -m mkdocs`) instead of assuming a `mkdocs` launcher is on

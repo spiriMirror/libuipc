@@ -19,9 +19,6 @@ below:
   incorrectly reported them as missing. Internal UID 27/28 registrations still
   have no public classes. Generate/check API facts in CI instead of maintaining
   this kind of inventory only by hand.
-- **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
-  differs in external-force sequencing and timer behavior. Changes that claim
-  support for both constitutions need two focused tests.
 - **Third-party CI actions are not immutable.** The first-party checkout and
   setup-python actions now use their Node 24-based v7 majors across workflows,
   but `johnwason/vcpkg-action` still tracks `revision: master` and several

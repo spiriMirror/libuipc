@@ -67,6 +67,7 @@ class SimEngine final : public backend::SimEngine
     void set_pipeline_type();
     void advance();
     void advance_AL();
+    void step_animation_and_external_forces();
     void dump_global_surface();
     void dump_global_surface_pre_ccd(SizeT newton_iter);
 

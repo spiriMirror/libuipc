@@ -5,6 +5,8 @@
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
+#include <animator/global_animator.h>
+#include <external_force/global_external_force_manager.h>
 #include <uipc/common/timer.h>
 #include <backends/common/backend_path_tool.h>
 #include <uipc/backend/engine_create_info.h>
@@ -102,6 +104,30 @@ void SimEngine::event_write_scene()
 {
     for(auto& action : m_on_write_scene.view())
         action();
+}
+
+void SimEngine::step_animation_and_external_forces()
+{
+    // External-force reporters accumulate into shared dynamics buffers. Clear
+    // the previous frame before user animation mutates force attributes, then
+    // consume the freshly animated values before predicting the next state.
+    if(m_global_external_force_manager)
+    {
+        Timer timer{"Clear External Forces"};
+        m_global_external_force_manager->clear();
+    }
+
+    if(m_global_animator)
+    {
+        Timer timer{"Step Animation"};
+        m_global_animator->step();
+    }
+
+    if(m_global_external_force_manager)
+    {
+        Timer timer{"Compute External Force Accelerations"};
+        m_global_external_force_manager->step();
+    }
 }
 
 void SimEngine::dump_global_surface()
