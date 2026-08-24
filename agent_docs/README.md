@@ -35,7 +35,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
   `scripts/symbol_calculation/` notebooks, while other models use handwritten or
   ported analytic derivatives; header count is not model count (doc 04).
 - Dual build systems: CMake (primary) + XMake (backup); dual APIs: C++ + Python (pybind11, PyPI package name `pyuipc`).
-- Tests: Catch2 (`apps/tests/`, currently 95 sim-case source files; IDs are not unique/contiguous) + pytest (`python/tests/`, 17 files / 73 top-level tests).
+- Tests: Catch2 (`apps/tests/`, currently 95 sim-case source files; IDs are not unique/contiguous) + pytest (`python/tests/`, 19 files / 75 top-level tests).
 
 ## Onboarding Checklist for New Agents
 

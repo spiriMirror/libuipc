@@ -85,22 +85,19 @@ The native extension is only part of `python/src/uipc/`. The pure-Python layer a
 | assets | `assets/` | downloads/builds scenes from Hugging Face |
 | statistics/development | `stats.py`, `dev/` | some reporting paths use matplotlib |
 
-Packaging caveats verified in the current tree:
+Packaging/helper invariants verified in the current tree:
 
-- root `pyproject.toml` declares `numpy`, `polyscope`, and `huggingface_hub`, but
-  not `matplotlib`; the development `python/pyproject.toml` does include it;
-- root `dev = ["pytest"]` is unpinned even though the development metadata pins
-  `pytest>=9.0.3`;
-- `python/pyproject.toml` still says “CUDA 12.6+” while prebuilt wheels are built
-  for and depend on the CUDA 12.8 runtime;
-- `adapter/warp/buffer.py` has an empty-strides fallback that references
-  undefined `BufferUtils.element_size`;
-- `assets.strip_constitutions` iterates `range(objects().size())`, which can miss
-  higher object IDs after deletions make IDs sparse;
-- `assets.show(..., gui=False)` is a continuous runner with no built-in frame cap.
+- root and development metadata include `matplotlib`, pin the dev extra to
+  `pytest>=9.0.3`, and use the same prebuilt-wheel CUDA 12.8 statement;
+- the Warp empty-strides fallback uses the dtype element size;
+- `Scene.Objects.created_count()` is bound to Python and
+  `assets.strip_constitutions` uses that ID upper bound, so sparse object IDs are
+  handled correctly;
+- `assets.show(..., gui=False)` remains a continuous runner with no built-in
+  frame cap.
 
-These are current limitations, not recommended patterns. Base functionality is
-covered by 17 `test_*.py` files containing 73 top-level test functions.
+Base functionality is covered by 19 `test_*.py` files containing 75 top-level
+test functions.
 
 ## Sample Repository as Executable API Evidence
 

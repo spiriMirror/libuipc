@@ -251,6 +251,16 @@ Args:
 Returns:
     int: Number of objects.)");
 
+    class_Objects.def(
+        "created_count",
+        [](Scene::Objects& self) { return std::move(self).created_count(); },
+        R"(Get the number of object IDs allocated since Scene creation.
+
+This is also the exclusive upper bound for object IDs. Unlike size(), it does
+not decrease when objects are destroyed.
+Returns:
+    int: Exclusive upper bound for object IDs.)");
+
     class_Geometries.def(
         "find",
         [](Scene::Geometries& self, IndexT id)

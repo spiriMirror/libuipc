@@ -23,11 +23,9 @@
   - `stats.py`, `dev/`
 - Examples: `python/examples/` (4 demos: shell plastic crease ×2, prismatic/revolute joint limit GUI).
 
-Base-wheel dependency coverage is narrower than the pure-Python tree: root
-`pyproject.toml` installs `numpy`, `polyscope`, and `huggingface_hub`, while some
-stats/report paths use `matplotlib` and the torch/warp adapters require their own
-frameworks. The development metadata includes matplotlib; callers of optional
-helpers must install the relevant extras/dependencies explicitly.
+The base wheel installs `numpy`, `matplotlib`, `polyscope`, and
+`huggingface_hub`, covering the statistics/reporting and asset layers. The
+torch/warp adapters still require their own optional frameworks.
 
 ## Packaging pipeline
 
@@ -50,7 +48,7 @@ helpers must install the relevant extras/dependencies explicitly.
 
 ## Python tests
 
-`python/tests/`, pytest: 17 `test_*.py` files and 73 top-level test functions at
+`python/tests/`, pytest: 19 `test_*.py` files and 75 top-level test functions at
 the audited revision. Prerequisite: pyuipc installed (CMake build or
 `uv pip install -e .`).
 
@@ -69,18 +67,16 @@ escapes the smoke test.
   `LinearMotor` are public C++ classes in `soft_transform_constraint.h` but are not
   registered in the Python constitution module.
 
-## Current packaging/helper drift
+## Packaging/helper invariants
 
-- Root `dev = ["pytest"]` is unpinned while `python/pyproject.toml` specifies
-  `pytest>=9.0.3`; keep security/version fixes synchronized between both metadata
-  files.
-- The development package description still says “CUDA 12.6+”; the wheel metadata
-  correctly states that prebuilt wheels require the CUDA 12.8 runtime.
-- The Warp adapter's empty-strides fallback references undefined
-  `BufferUtils.element_size`; do not rely on that path without fixing/testing it.
-- `assets.strip_constitutions` assumes dense object IDs by iterating
-  `range(objects().size())`; scenes with deleted/sparse IDs can be only partially
-  processed.
+- Root and development metadata both include `matplotlib`, require
+  `pytest>=9.0.3` for the dev extra, and describe the prebuilt-wheel CUDA 12.8
+  runtime requirement consistently.
+- The Warp adapter falls back to the dtype's element size when a one-dimensional
+  array reports no stride; a focused optional-Warp test covers this path.
+- Python exposes `Scene.Objects.created_count()` as the exclusive object-ID upper
+  bound. `assets.strip_constitutions` uses it so deleted/sparse object IDs do not
+  leave higher-ID geometry partially processed.
 
 ## Frontend-visible changes (2026-08-24)
 

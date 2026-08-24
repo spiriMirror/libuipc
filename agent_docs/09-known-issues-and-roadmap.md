@@ -21,11 +21,6 @@ below:
 - **Public C++ and Python surfaces differ.** `RotatingMotor` and `LinearMotor` are
   implemented C++ classes sharing UID 16 with `SoftTransformConstraint`, but are
   not bound to Python. Internal UID 27/28 registrations have no public classes.
-- **Python metadata/helper drift remains.** Root package metadata omits matplotlib
-  used by reporting paths and leaves the dev pytest dependency unpinned; the
-  development description still says CUDA 12.6+; the Warp empty-strides path
-  references undefined `BufferUtils.element_size`; `strip_constitutions` assumes
-  dense object IDs.
 - **Schema does not guarantee behavior.** `newton/use_adaptive_tol` is registered
   but has no consumer. Contact/Subscene JSON config arguments are accepted but
   ignored. Adding a default must be paired with a runtime reader and behavior test.
@@ -184,10 +179,8 @@ assertions).
 
 ## Security advisories
 
-- pytest `< 9.0.3` tmpdir CVE → development metadata/lock are fixed
-  (`pytest>=9.0.3`, lock at 9.1.1), but root `pyproject.toml` still declares the
-  dev extra as unpinned `pytest`; synchronize it before calling the metadata fix
-  complete. Dev-only dependency.
+- pytest `< 9.0.3` tmpdir CVE → both metadata files require
+  `pytest>=9.0.3`; `python/uv.lock` resolves 9.1.1. Dev-only dependency.
 - usd-core `< 25.8` (critical) is marked fixed in the repo, but USD is a
   local/optional dep — upgrade any local install to `usd-core >= 25.8`.
 

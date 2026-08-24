@@ -19,7 +19,7 @@ class WarpBuffer:
         """
         Returns the stride of an element in bytes.
         """
-        return array.strides[0] if array.strides else BufferUtils.element_size(array)
+        return array.strides[0] if array.strides else WarpBuffer.element_size(array)
 
     @staticmethod
     def _a2b(a: pywarp.array) -> BufferView:

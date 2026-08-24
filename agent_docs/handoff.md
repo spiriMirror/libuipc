@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Python packaging and helper parity (2026-08-25, `refactor-main`)**: release
+> and development metadata now both include matplotlib, require pytest 9.0.3+ for
+> development, and state the prebuilt-wheel CUDA 12.8 runtime requirement. The
+> Warp empty-strides fallback calls the real element-size helper. Python now
+> exposes the C++ `Scene.Objects.created_count()` ID upper bound, and
+> `assets.strip_constitutions` uses it to process sparse-ID scenes. Focused Python
+> tests cover the Warp fallback and sparse create/delete lifecycle.
+
 > **Complete UID documentation generation (2026-08-25, `refactor-main`)**:
 > `scripts/gen_uid_doc.py` now parses designated initializers and statement-based
 > `UIDInfo` assignments, restoring constitution UIDs 15, 17, 31, and 32 to the
