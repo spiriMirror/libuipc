@@ -15,6 +15,12 @@ class UIPC_CORE_API GeometryAtlas
 
     /**
      * @brief Create a geometry in the atlas
+     *
+     * @param geo The geometry to copy into the atlas.
+     * @param evolving_only Keep only attribute slots marked as evolving. The
+     * attribute-collection topology and row counts are preserved, but the
+     * resulting geometry is a streaming projection that requires a full
+     * baseline to recover omitted static attributes.
      */
     IndexT create(const Geometry& geo, bool evolving_only = false);
 
@@ -29,6 +35,11 @@ class UIPC_CORE_API GeometryAtlas
 
     /**
      * @brief Create a named AttributeCollection in the atlas
+     *
+     * @param name Name used to retrieve the collection.
+     * @param ac The attribute collection to copy into the atlas.
+     * @param evolving_only Keep only attribute slots marked as evolving while
+     * preserving the collection row count.
      */
     void create(std::string_view name, const AttributeCollection& ac, bool evolving_only = false);
 

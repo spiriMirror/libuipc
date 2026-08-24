@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **Evolving-only atlas projection (2026-08-25, `refactor-main`)**:
+> `GeometryAtlas::create(..., true)` now filters named collections and every
+> collection inside a geometry to slots marked `is_evolving`, preserving
+> collection topology and row counts for baseline-dependent streaming. Evolving
+> markers now survive attribute clones and atlas JSON round trips (legacy JSON
+> defaults to `false`), and Python exposes the same optional argument. Core tests
+> cover strict filtering, clone behavior, dimension preservation, and serialized
+> round trips; the modified pybind translation unit also compiles independently.
+
 > **Scene lifecycle hardening (2026-08-25, `refactor-main`)**: snapshot commits
 > now replicate current/rest geometry independently, explicit slot removals,
 > sparse IDs and next-ID state, contact/subscene topology, and the contact default
@@ -9,8 +18,7 @@
 > entries while retaining legacy-field fallbacks. Focused core tests cover
 > full-snapshot and commit-JSON round trips, different current/rest mutations,
 > deletion plus exact-ID insertion, allocation gaps, table state, and empty
-> nonzero attribute collections. `GeometryAtlas::evolving_only` remains the next
-> lifecycle item.
+> nonzero attribute collections.
 
 > **Post-merge update (2026-08-23)**: everything below (the whole
 > refactor-main line: muda→cuda_tool, raw kernels, Stiff-GIPC alignment,

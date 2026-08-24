@@ -66,6 +66,7 @@ class AttributeCollectionFactory::Impl
                         attr_slot_json["index"] = index;
                         attr_slot_json["name"]  = name;
                         attr_slot_json["allow_destroy"] = attr_slot->allow_destroy();
+                        attr_slot_json["is_evolving"] = attr_slot->is_evolving();
                     }
                 }
                 else
@@ -151,12 +152,14 @@ class AttributeCollectionFactory::Impl
                 continue;
             }
             auto allow_destroy = allow_destroy_it->get<bool>();
+            auto is_evolving   = object.value("is_evolving", false);
 
             S<IAttributeSlot> attr = ctx.attribute_slot_of(index);
             UIPC_ASSERT_THROW(attr, "Attribute with serialized index {} was not found.", index);
             if(target_size < 0 && ac->attribute_count() == 0)
                 ac->resize(attr->size());
-            ac->share(name, *attr, allow_destroy);
+            auto slot = ac->share(name, *attr, allow_destroy);
+            slot->is_evolving(is_evolving);
         }
 
         return ac;

@@ -10,6 +10,7 @@
 #include <uipc/common/zip.h>
 #include <uipc/builtin/factory_keyword.h>
 #include <uipc/geometry/shared_attribute_context.h>
+#include <algorithm>
 
 namespace uipc::geometry
 {
@@ -17,6 +18,11 @@ template <>
 class AttributeFriend<GeometryAtlas>
 {
   public:
+    static auto& attribute_slots(AttributeCollection& ac)
+    {
+        return ac.m_attributes;
+    }
+
     static const auto& attribute_slots(const AttributeCollection& ac)
     {
         return ac.m_attributes;
@@ -32,6 +38,13 @@ template <>
 class GeometryFriend<GeometryAtlas>
 {
   public:
+    static void attribute_collections(Geometry&                     geometry,
+                                      vector<std::string>&          names,
+                                      vector<AttributeCollection*>& collections)
+    {
+        geometry.collect_attribute_collections(names, collections);
+    }
+
     static void attribute_collections(Geometry&            geometry,
                                       vector<std::string>& names,
                                       vector<const AttributeCollection*>& collections)
@@ -39,6 +52,15 @@ class GeometryFriend<GeometryAtlas>
         geometry.collect_attribute_collections(names, collections);
     }
 };
+
+static void retain_evolving_collection_attributes(AttributeCollection& ac)
+{
+    using AF = AttributeFriend<GeometryAtlas>;
+
+    auto& attr_slots = AF::attribute_slots(ac);
+    std::erase_if(attr_slots,
+                  [](const auto& item) { return !item.second->is_evolving(); });
+}
 
 
 static void _build_attributes_index_from_attribute_collection(
@@ -59,9 +81,9 @@ static void _build_attributes_index_from_attribute_collection(
             IndexT index        = static_cast<IndexT>(attr_to_index.size());
             attr_to_index[attr] = index;
             UIPC_ASSERT_THROW(index_to_attr.size() == index,
-                        "Index to attribute size mismatch, expected {}, got {}",
-                        index_to_attr.size(),
-                        index);
+                              "Index to attribute size mismatch, expected {}, got {}",
+                              index_to_attr.size(),
+                              index);
             index_to_attr.push_back(attr);
         }
     }
@@ -90,6 +112,8 @@ class GeometryAtlas::Impl
         IndexT id = static_cast<IndexT>(m_geometries.size());
 
         auto slot = gf().create_slot(id, geometry);
+        if(evolving_only)
+            retain_evolving_attributes(slot->geometry());
         build_attributes_index_from_geometry(slot->geometry());
         slot->id(id);
         m_geometries.push_back(std::move(slot));
@@ -109,6 +133,8 @@ class GeometryAtlas::Impl
     void create(std::string_view name, const AttributeCollection& ac, bool evolving_only)
     {
         S<AttributeCollection> new_ac = uipc::make_shared<AttributeCollection>(ac);
+        if(evolving_only)
+            retain_evolving_collection_attributes(*new_ac);
         build_attributes_index_from_attribute_collection(*new_ac);
         auto it = m_attribute_collections.find(std::string{name});
         if(it == m_attribute_collections.end())
@@ -151,6 +177,17 @@ class GeometryAtlas::Impl
         {
             build_attributes_index_from_attribute_collection(*ac);
         }
+    }
+
+    void retain_evolving_attributes(Geometry& geo)
+    {
+        using GF = GeometryFriend<GeometryAtlas>;
+
+        vector<std::string>          collection_names;
+        vector<AttributeCollection*> attribute_collections;
+        GF::attribute_collections(geo, collection_names, attribute_collections);
+        for(auto&& ac : attribute_collections)
+            retain_evolving_collection_attributes(*ac);
     }
 
     /**************************************************************

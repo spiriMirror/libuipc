@@ -109,4 +109,18 @@ TEST_CASE("attribute_collection", "[geometry]")
         reference.update_from(commit);
         REQUIRE(reference.size() == 5);
     }
+
+    SECTION("copy_preserves_evolving_state")
+    {
+        AttributeCollection source;
+        auto                evolving = source.create<Float>("evolving");
+        evolving->is_evolving(true);
+
+        AttributeCollection copy = source;
+        REQUIRE(copy.find("evolving")->is_evolving());
+
+        AttributeCollection assigned;
+        assigned = source;
+        REQUIRE(assigned.find("evolving")->is_evolving());
+    }
 }

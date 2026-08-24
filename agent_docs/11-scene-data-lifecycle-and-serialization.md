@@ -65,7 +65,8 @@ the same row count. `create`, `share`, `destroy`, `find`, `resize`, `reorder`, a
 A non-const attribute view is not observational. Requesting read/write access
 updates the attribute's modification generation so that commit logic can detect
 it. An attribute marked `evolving` is included in commits even when ordinary
-change detection would omit it. Avoid taking mutable views merely to inspect data.
+change detection would omit it. The marker survives collection/geometry clones
+and atlas JSON round trips. Avoid taking mutable views merely to inspect data.
 
 ### Current versus rest geometry
 
@@ -179,8 +180,24 @@ incremental-path defects:
 New fields are read compatibly: old full snapshots infer allocator positions, and
 old commits default to no removals and preserve/infer allocator state. Such legacy
 commits cannot express deletions or intentional trailing ID gaps that were never
-serialized. The remaining lifecycle gap is
-`GeometryAtlas::create(..., evolving_only)`, whose flag is still ignored.
+serialized.
+
+### Evolving-only atlas projections
+
+`GeometryAtlas::create(geometry, true)` and
+`GeometryAtlas::create(name, collection, true)` retain only slots whose
+`is_evolving()` marker is set. Attribute-collection names and row counts remain
+intact, so an empty filtered collection still carries its dimension. Full atlas
+serialization records the marker per slot; legacy JSON without the field reads
+it as `false`. The Python overloads expose the same `evolving_only=False`
+argument.
+
+This mode is a streaming projection, not a standalone geometry archive: static
+positions, transforms, topology, labels, and material fields are omitted unless
+they were explicitly marked evolving. Apply or interpret it relative to a full
+baseline. `FiniteElementConstitution` marks vertex `position` as evolving and
+`AffineBodyConstitution` marks instance `transform`; custom changing attributes
+must be marked by their producer.
 
 The legacy `include/uipc/core/scene_archieve.h` and matching implementation are
 fully commented artifacts and are not an alternate supported serializer.

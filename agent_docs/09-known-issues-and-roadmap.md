@@ -9,11 +9,6 @@ before planning new work.
 These are verified code/documentation gaps, independent of the performance plan
 below:
 
-- **`GeometryAtlas::create(..., evolving_only)` ignores its filter.** Scene commit
-  replication itself is now lossless after a compatible full baseline: current
-  and rest topology, removals, sparse IDs, allocator state, table topology, and
-  attribute row counts all round-trip. The atlas flag remains the open part of
-  this original lifecycle cluster; see doc 11 before changing its semantics.
 - **XMake violates current owner/build-parity rules.** Default `dev=true` enables
   `build.ccache`; stale `gui`/`torch` options remain; `src/xmake.lua` checks an
   undeclared `grpc` option and a missing `rpc` directory; optional USD/VDB have no
