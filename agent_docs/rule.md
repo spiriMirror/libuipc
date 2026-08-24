@@ -37,6 +37,13 @@ record it here in the same commit.**
    website; keep `docs/` focused on tutorials, reference, specifications,
    build guidance, and development documentation. The documentation must
    expose a global link back to the project repository. (Set 2026-08-24.)
+   Scene-configuration reference material must state every registered key's
+   default, unit, effective-value rule, and valid domain/selector where one is
+   defined. Representative simulation tutorials must cover rigid bodies, FEM,
+   cloth, rigid-soft coupling, and contact in both C++ and Python, verified
+   against `libuipc-samples`, public APIs/bindings, and the consuming backend
+   implementation. Educational examples are documentation; showcase/demo
+   catalogues remain homepage-only. (Expanded 2026-08-24.)
 
 ## Build system
 

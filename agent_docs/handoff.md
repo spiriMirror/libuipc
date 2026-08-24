@@ -81,6 +81,14 @@
 >   documentation stays focused on tutorials and reference material. Both
 >   MkDocs configurations expose `spiriMirror/libuipc` as the global project
 >   repository link in the site header.
+> - **Configuration documentation audit (2026-08-24)**: the scene-config
+>   reference now enumerates all 47 keys registered by
+>   `scene_default_config.cpp`, including defaults, SI units, selector values,
+>   operational domains, relative-value precedence, lifecycle rules, and
+>   current no-op/reserved behavior (`newton/use_adaptive_tol`). Dedicated
+>   Newton/linear-solver and contact/collision pages trace behavior through the
+>   CUDA consumers and explain MAS, graph modes, adaptive kappa, pairwise
+>   contact elements, and sanity checks. Navigation exposes all three pages.
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

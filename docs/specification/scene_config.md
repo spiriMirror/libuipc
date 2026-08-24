@@ -1,129 +1,220 @@
-# Scene Config
+# Scene Configuration Reference
 
-`Scene.default_config()` returns the full default configuration. Override any fields before passing it to the `Scene` constructor:
+`Scene::default_config()` / `Scene.default_config()` is the authoritative
+schema for a simulation scene. The table below covers every registered key in
+v0.0.26. Defaults come from
+[`scene_default_config.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene_default_config.cpp),
+while effective-value rules and selector values were checked against the CUDA
+backend that consumes them.
 
-```python
-config = Scene.default_config()
-config['dt'] = 0.005
-config['gravity'] = [[0.0], [0.0], [-9.8]]
-config['contact']['d_hat'] = 0.005
-scene = Scene(config)
-```
+!!! important
 
-## Global
+    Scene configuration is strict: an unknown key is rejected recursively when
+    constructing a `Scene`. This catches misspellings instead of silently
+    ignoring them. Most numeric values, however, do not have a central range
+    validator. In the tables, **valid domain** therefore means the domain
+    required by the algorithm, not necessarily a constructor-time check.
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `dt` | Float | `0.01` | | Timestep in seconds |
-| `gravity` | Vector3 | `[0, -9.8, 0]` | | Gravity acceleration ($m/s^2$) |
+## Creating and editing a configuration
 
-## CFL
+The usual path is to copy the defaults, change only what the scene needs, and
+then construct the scene.
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `cfl/enable` | Int | `0` | | Enable CFL-based step limiting |
+=== "C++"
 
-## Integrator
+    ```cpp
+    auto config = uipc::core::Scene::default_config();
+    config["dt"] = 0.01;
+    config["gravity"] = uipc::Vector3{0.0, -9.8, 0.0};
+    config["contact"]["friction"]["enable"] = true;
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `integrator/type` | String | `"bdf1"` | `"bdf1"` `"bdf2"` | Time integrator |
+    uipc::core::Scene scene{config};
+    ```
 
-## Newton Solver
+=== "Python"
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `newton/max_iter` | Int | `1024` | | Maximum Newton iterations per step |
-| `newton/min_iter` | Int | `0` | | Hard floor on Newton iterations; `0` = no forced minimum (exit as soon as converged) |
-| `newton/use_adaptive_tol` | Int | `0` | | Enable adaptive convergence tolerance |
-| `newton/velocity_tol` | Float | `0.05` | | Velocity tolerance ($m/s$); absolute displacement tolerance = `velocity_tol * dt` |
-| `newton/ccd_tol` | Float | `1.0` | | CCD alpha convergence threshold; Newton continues while `ccd_alpha < ccd_tol` |
-| `newton/transrate_tol` | Float | `0.1` | | Rotation-rate tolerance ($1/s$); absolute rotation tolerance = `transrate_tol * dt` |
-| `newton/semi_implicit/enable` | Int | `0` | | Enable semi-implicit beta schedule |
-| `newton/semi_implicit/beta_tol` | Float | `1e-3` | | Terminate semi-implicit when `beta <= beta_tol` |
-| `newton/semi_implicit/K_min` | Int | `1` | | Semi-implicit beta accumulation starts at this Newton iteration (Stiff-GIPC Kmin); not a floor on the iteration count |
+    ```python
+    from uipc.core import Scene
 
-See [Newton Solver Details](scene_configs/newton.md) for the convergence criteria and semi-implicit mode.
+    config = Scene.default_config()
+    config["dt"] = 0.01
+    config["gravity"] = [[0.0], [-9.8], [0.0]]
+    config["contact"]["friction"]["enable"] = True
 
-## Linear System
+    scene = Scene(config)
+    ```
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `linear_system/tol_rate` | Float | `1e-3` | | Relative tolerance for PCG solver |
-| `linear_system/solver` | String | `"fused_pcg"` | `"fused_pcg"` `"linear_pcg"` | Linear solver; `linear_pcg` is ~ 30% slower |
-| `linear_system/fem_preconditioner` | String | `"diag"` | `"diag"` `"mas"` | FEM local preconditioner: 3x3 block-Jacobi, or MAS (Multi-Level Additive Schwarz) which auto-partitions every FEM geometry internally (fixed cluster size 16) |
-| `linear_system/use_cuda_graph` | Int | `1` | | FusedPCG CUDA graph mode: 1 = replay `check_interval`-sized iteration blocks, 2 = full-GPU while-loop graph (CUDA ≥ 12.4), 0 = plain per-iteration launches |
-| `linear_system/check_interval` | Int | `5` | | Host convergence-check cadence in PCG iterations |
+A scene also exposes its registered configuration as attributes. This is
+useful when a scene has already been created or loaded. Make these changes
+**before** `world.init(scene)`: several backend systems cache configuration
+values during initialization, so `scene.config()` is not a general hot-reload
+interface.
 
-## Line Search
+=== "C++"
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `line_search/max_iter` | Int | `8` | | Maximum line search iterations |
-| `line_search/report_energy` | Int | `0` | | Log energy at each line search step |
+    ```cpp
+    auto config = scene.config();
+    auto dt = config.find<uipc::Float>("dt");
+    uipc::geometry::view(*dt)[0] = 0.02;
+    ```
 
-## Contact
+=== "Python"
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `contact/enable` | Int | `1` | | Enable contact handling |
-| `contact/d_hat` | Float | `0.01` | | Barrier activation distance ($m$) |
-| `contact/friction/enable` | Int | `1` | | Enable frictional contact |
-| `contact/eps_velocity` | Float | `0.01` | | Friction regularization velocity ($m/s$) |
-| `contact/constitution` | String | `"ipc"` | `"ipc"` `"al-ipc"` | Contact pipeline |
+    ```python
+    from uipc import view
 
-### IPC Adaptive Stiffness
+    dt = scene.config().find("dt")
+    view(dt)[:] = 0.02
+    ```
 
-Only takes effect when `contact/constitution = "ipc"` **and** the contact tabular contains a resistance set to `-1.0` (i.e. `adaptive(-1.0)`), which triggers the adaptive $\kappa$ mechanism.
+Do not use `scene.config().create(...)` as an application metadata store.
+Unregistered values have no backend consumer; attach custom attributes to the
+appropriate geometry instead.
 
-At init the engine computes a **scene-adaptive $\kappa$ corridor** (a port of Stiff-GIPC's `suggestKappa`/`upperBoundKappa`, `GIPC.cu:9850-9888`, with the $dt^2$ convention conversion — their barrier applies $\kappa$ raw, ours is scaled by $dt^2$, so the computed values are divided by $dt^2$): $\kappa_{suggest} = c \cdot \bar m / (4 \cdot s \cdot \mathrm{diag}^2 \cdot H_b) / dt^2$ with $\bar m$ = total scene mass / vertex count, $\mathrm{diag}$ = rest-bbox diagonal, $s$ = `kappa_eval_scale`, $H_b$ the barrier curvature at $d = s \cdot \mathrm{diag}^2$ vs $\hat d^2$, and $\kappa_{upper} = 100 \times \kappa_{suggest}$. **The computed corridor rules** — all clamping (default-model resolution, per-model clamps, the adaptive strategy's projection result) uses it; the config `min/max_kappa` below only serve as fallback when the corridor is not computable.
+## Types and units
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `contact/adaptive/min_kappa` | Float | `1e8` | Fallback minimum adaptive contact stiffness ($Pa$, 100 MPa) — used only when the corridor is not computable |
-| `contact/adaptive/init_kappa` | Float | `1e9` | Initial adaptive contact stiffness ($Pa$, 1 GPa) |
-| `contact/adaptive/max_kappa` | Float | `1e11` | Fallback maximum adaptive contact stiffness ($Pa$, 100 GPa) — used only when the corridor is not computable |
-| `contact/adaptive/kappa_eval_scale` | Float | `1e-16` | Evaluation-point scale $s$ for the corridor (Stiff's raw-$\kappa$ value; the $/dt^2$ conversion makes it valid for any `dt`) |
+- `flag` is stored as an integer (`0` or `1`); Python `False`/`True` is
+  accepted.
+- Length, time, velocity, acceleration, pressure, and density use SI units:
+  m, s, m/s, m/s², Pa, and kg/m³.
+- A vector is a three-component column vector. Python JSON therefore displays
+  gravity as `[[x], [y], [z]]`.
+- A selector must match one of the documented strings exactly. An unsupported
+  selector normally leaves a required backend system unavailable and makes
+  world initialization fail.
 
-### AL-IPC
+## Time integration
 
-Only takes effect when `contact/constitution = "al-ipc"`.
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `dt` | float, s | `0.01` | finite, `> 0` | Time represented by one call to `world.advance()`. |
+| `gravity` | Vector3, m/s² | `[0, -9.8, 0]` | finite components | Global acceleration applied to dynamic bodies and FEM vertices. |
+| `integrator/type` | string | `"bdf1"` | `"bdf1"`, `"bdf2"` | Backward differentiation formula used for time integration. Start with BDF1; BDF2 changes numerical damping and transient response. |
+| `cfl/enable` | flag | `0` | `0`, `1` | Enables the contact-system CFL step filter. This is an advanced/experimental high-speed-contact control; leave it off unless a scene has been diagnosed to need it. |
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `contact/al-ipc/mu_scale_fem` | Float | `5e7` | Penalty scale for FEM |
-| `contact/al-ipc/mu_scale_abd` | Float | `1e5` | Penalty scale for affine bodies |
-| `contact/al-ipc/toi_threshold` | Float | `0.1` | TOI threshold for active set |
-| `contact/al-ipc/alpha_lower_bound` | Float | `1e-6` | Minimum step size |
-| `contact/al-ipc/decay_factor` | Float | `0.3` | Active-set decay factor |
+## Newton solve
 
-See [Contact Details](scene_configs/contact.md) for IPC vs AL-IPC pipeline selection and parameter tuning.
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Reaching it warns, or throws in strict mode. |
+| `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Hard floor before ordinary Newton convergence may terminate. `0` disables the floor. |
+| `newton/use_adaptive_tol` | flag | `0` | `0`, `1` | Reserved in the current schema. The current CUDA backend has no consumer, so changing it has no effect. |
+| `newton/velocity_tol` | float, m/s | `0.05` | `> 0` when used | Absolute velocity tolerance. The displacement test is `max_axis_displacement <= velocity_tol * dt`. |
+| `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
+| `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
+| `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
+| `newton/semi_implicit/enable` | flag | `0` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
+| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Semi-implicit early-exit threshold for accumulated beta. |
+| `newton/semi_implicit/K_min` | integer | `1` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
 
-## Collision Detection
+See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
+termination logic and tuning guidance.
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `collision_detection/method` | String | `"info_stackless_bvh"` | `"info_stackless_bvh"` `"stackless_bvh"` `"linear_bvh"` | `info_stackless_bvh`: general-purpose; `stackless_bvh`: better when few collisions need culling; `linear_bvh`: slow, only for benchmarking |
+## Linear system
 
-## Sanity Check
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `linear_system/tol_rate` | float | `1e-3` | normally `(0, 1)` | Relative PCG residual tolerance. Smaller is more accurate and usually more expensive. |
+| `linear_system/solver` | string | `"fused_pcg"` | `"fused_pcg"`, `"linear_pcg"` | Global iterative solver. `fused_pcg` is the optimized default; `linear_pcg` supports detailed PCG vector dumps. |
+| `linear_system/fem_preconditioner` | string | `"diag"` | `"diag"`, `"mas"` | FEM local preconditioner. MAS auto-partitions every non-empty FEM geometry into fixed-size clusters and is intended for stiff/ill-conditioned FEM scenes. |
+| `linear_system/use_cuda_graph` | integer mode | `1` | `0`, `1`, `2` | Fused-PCG launch mode: `0` plain launches; `1` host-checked block replay; `2` full-GPU while-loop graph. Mode 2 requires CUDA 12.4+ and falls back when unsupported. Non-IPC pipelines currently force graphs off. |
+| `linear_system/check_interval` | integer | `5` | `>= 1`; values `<= 0` become `1` | Number of fused-PCG iterations between host convergence checks in modes 0/1. Larger values reduce checks but make exit granularity coarser. |
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `sanity_check/enable` | Int | `1` | | Enable sanity checks before simulation |
-| `sanity_check/mode` | String | `"normal"` | `"normal"` `"quiet"` | `normal` writes diagnostic meshes on failure; `quiet` skips file output |
+## Line search
 
-## Differentiable Simulation
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `line_search/max_iter` | integer | `8` | `>= 1` | Maximum backtracking iterations per Newton step. |
+| `line_search/report_energy` | flag | `0` | `0`, `1` | Logs the energy contribution of every line-search reporter. Useful for diagnosis, noisy for normal runs. |
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `diff_sim/enable` | Int | `0` | | Enable differentiable simulation |
+## Contact and friction
 
-## Extras
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `contact/enable` | flag | `1` | `0`, `1` | Builds contact detection and response systems. Disable for a deliberately contact-free scene. |
+| `contact/d_hat` | float, m | `0.01` | `> 0` when used | Absolute IPC activation distance. |
+| `contact/d_hat_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Overrides `d_hat` with `value * rest_scene_bbox_diagonal`. |
+| `contact/friction/enable` | flag | `1` | `0`, `1` | Enables frictional contact terms. Normal non-penetration remains active when disabled. |
+| `contact/eps_velocity` | float, m/s | `0.01` | `> 0` when used | Absolute friction transition velocity. |
+| `contact/eps_velocity_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Overrides `eps_velocity` with `value * rest_scene_bbox_diagonal`. |
+| `contact/constitution` | string | `"ipc"` | `"ipc"`, `"al-ipc"` | Selects the standard IPC or augmented-Lagrangian IPC pipeline. |
 
-| Key | Type | Default | Option | Description |
-|-----|------|---------|--------|-------------|
-| `extras/debug/dump_surface` | Int | `0` | | Dump surface meshes during Newton solve |
-| `extras/debug/dump_linear_system` | Int | `0` | | Dump linear system (matrix + RHS) |
-| `extras/debug/dump_linear_pcg` | Int | `0` | | Dump per-PCG-iteration data (only for `linear_pcg` solver) |
-| `extras/debug/dump_mas_matrices` | Int | `0` | | Dump MAS preconditioner matrices |
-| `extras/strict_mode/enable` | Int | `0` | | Promote line-search / Newton max-iter warnings to exceptions |
+These global keys do not define pairwise material behavior. Friction and
+contact resistance for geometry pairs are set through `ContactTabular`; see
+[Contact and Collision](scene_configs/contact.md).
+
+## AL-IPC parameters
+
+The following keys are read only by the `"al-ipc"` pipeline. They are
+algorithm parameters rather than material contact resistance.
+
+| Key | Type | Default | Valid domain | Meaning |
+| --- | --- | --- | --- | --- |
+| `contact/al-ipc/mu_scale_fem` | float | `5e7` | `> 0` | Scales FEM augmented-Lagrangian penalty estimates. |
+| `contact/al-ipc/mu_scale_abd` | float | `1e5` | `> 0` | Scales ABD penalty estimates; the estimator multiplies body mass, this value, and `dt²`. |
+| `contact/al-ipc/toi_threshold` | float | `0.1` | normally `(0, 1]` | TOI threshold used by active-set handling. |
+| `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | normally `(0, 1]` | Lower bound for AL step length. |
+| `contact/al-ipc/decay_factor` | float | `0.3` | normally `(0, 1)` | Penalty/constraint decay factor. |
+
+## Adaptive contact resistance
+
+| Key | Type | Default | Valid domain | Meaning |
+| --- | --- | --- | --- | --- |
+| `contact/adaptive/min_kappa` | float, Pa | `1e8` (100 MPa) | `> 0` | Lower fallback bound and the effective default resistance when the user never calls `default_model(...)`. |
+| `contact/adaptive/init_kappa` | float, Pa | `1e9` (1 GPa) | `> 0` | Initial resistance used by the adaptive-kappa strategy. |
+| `contact/adaptive/max_kappa` | float, Pa | `1e11` (100 GPa) | `> 0` | Upper fallback bound. Keep `min <= init <= max`. |
+| `contact/adaptive/kappa_eval_scale` | float | `1e-16` | `> 0` | Evaluation scale for the scene-adaptive kappa corridor. This is an expert parameter; keep the default unless reproducing a calibrated method. |
+
+If a user explicitly sets a non-negative default contact resistance, the
+backend clamps it into `[min_kappa, max_kappa]` and reports the range. A
+negative resistance is the explicit opt-in marker for adaptive kappa and is
+not clamped. When a scene-derived corridor is computable, it takes precedence
+over the configured fallback bounds.
+
+## Collision detection, validation, differentiation, and diagnostics
+
+| Key | Type | Default | Valid domain / choices | Meaning |
+| --- | --- | --- | --- | --- |
+| `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`, `"stackless_bvh"`, `"linear_bvh"`; `"info_stackless_bvh_v0"` is a legacy comparison path | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
+| `sanity_check/enable` | flag | `1` | `0`, `1` | Runs pre-initialization intersection and distance checks. A failed check makes the world invalid. |
+| `sanity_check/mode` | string | `"normal"` | documented mode: `"normal"` | `normal` also writes diagnostic geometry when a check fails. Other strings currently suppress that export but are not a stable named API. |
+| `diff_sim/enable` | flag | `0` | `0`, `1` | Initializes differentiable-simulation state. Calling non-const `scene.diff_sim()` sets this flag automatically; do so before world initialization. |
+| `extras/debug/dump_surface` | flag | `0` | `0`, `1` | Dumps intermediate surface state during the nonlinear solve. Produces substantial output. |
+| `extras/debug/dump_linear_system` | flag | `0` | `0`, `1` | Dumps assembled global linear systems for diagnosis. |
+| `extras/debug/dump_linear_pcg` | flag | `0` | `0`, `1` | Dumps PCG vectors for `linear_pcg`. `fused_pcg` warns and ignores this option. |
+| `extras/debug/dump_mas_matrices` | flag | `0` | `0`, `1` | Dumps MAS matrices when the MAS FEM preconditioner is active. |
+| `extras/strict_mode/enable` | flag | `0` | `0`, `1` | Converts nonlinear/line-search limit warnings into engine errors. Recommended for automated validation, not exploratory tuning. |
+
+## Effective-value precedence
+
+Three pairs of absolute/relative controls follow the same pattern. Let `L` be
+the diagonal of the rest-scene bounding box:
+
+| Effective quantity | Rule |
+| --- | --- |
+| Newton velocity tolerance | `velocity_tol_relative > 0 ? velocity_tol_relative * L : velocity_tol` |
+| Contact activation distance | `d_hat_relative > 0 ? d_hat_relative * L : d_hat` |
+| Friction transition velocity | `eps_velocity_relative > 0 ? eps_velocity_relative * L : eps_velocity` |
+
+Relative controls are useful when the same scene recipe is run at different
+scales. Absolute controls are easier to reason about when mesh units are known
+and stable. Do not enable both with the expectation that they are added: a
+positive relative value overrides the absolute value.
+
+## Source map
+
+For audits and future documentation updates, the main implementation points
+are:
+
+- schema, defaults, and unknown-key rejection:
+  [`src/core/core/scene_default_config.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene_default_config.cpp)
+- scene construction and mutable config attributes:
+  [`src/core/core/scene.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene.cpp)
+- backend initialization and cached values:
+  [`src/backends/cuda/engine/sim_engine_do_init.cu`](https://github.com/spiriMirror/libuipc/blob/main/src/backends/cuda/engine/sim_engine_do_init.cu)
+- relative tolerances:
+  [`max_translation_checker.cu`](https://github.com/spiriMirror/libuipc/blob/main/src/backends/cuda/newton_tolerance/max_translation_checker.cu)
+  and
+  [`global_contact_manager.cu`](https://github.com/spiriMirror/libuipc/blob/main/src/backends/cuda/contact_system/global_contact_manager.cu)
+- solver modes:
+  [`linear_fused_pcg.cu`](https://github.com/spiriMirror/libuipc/blob/main/src/backends/cuda/linear_system/linear_fused_pcg.cu)

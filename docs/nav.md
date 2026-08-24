@@ -11,7 +11,10 @@
     - [Animation](tutorial/animation.md)
     - [Profiling](tutorial/profiling.md)
 - [Specification](specification/index.md)
-    - [Scene Config](specification/scene_config.md)
+    - Scene Configuration
+        - [Full Reference](specification/scene_config.md)
+        - [Newton & Linear Solvers](specification/scene_configs/newton.md)
+        - [Contact & Collision](specification/scene_configs/contact.md)
     - [Constitution UID](specification/constitution_uid.md)
     - [Constitutions](specification/constitutions/)
     - [Implicit Geometry UID](specification/implicit_geometry_uid.md)
