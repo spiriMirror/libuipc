@@ -72,6 +72,15 @@ copy topology, compute rest-state data, and cache configuration during
 updated scene state back to the host-side geometry slots. Call `retrieve()`
 before reading positions/transforms or exporting that frame.
 
+<figure style="text-align: center">
+  <video style="width: 75%" muted controls playsinline preload="metadata"
+         poster="./media/falling_tet.png"
+         aria-label="Successive retrieved frames of a falling tetrahedron">
+    <source src="./media/falling_tet.mp4" type="video/mp4">
+  </video>
+  <figcaption>The montage shows successive retrieved frames of one tetrahedron, not multiple bodies in one scene.</figcaption>
+</figure>
+
 ## Choose topology, constitution, and constraints together
 
 | Intended behavior | Geometry | Primary constitution | Fixed-state attribute |
