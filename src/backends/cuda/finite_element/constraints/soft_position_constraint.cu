@@ -40,7 +40,7 @@ namespace
         }
     }
 
-    __global__ void SoftPositionConstraint_do_compute_gradient_hessian_kernel(
+    __global__ void SoftPositionConstraint_do_compute_gradient_hessian_k1_kernel(
         Float                                  substep_ratio,
         cuda_tool::BufferView<IndexT>          indices,
         cuda_tool::CBufferView<Vector3>        xs,
@@ -49,9 +49,7 @@ namespace
         cuda_tool::BufferView<Float>           strength_ratio,
         cuda_tool::CBufferView<Float>          masses,
         cuda_tool::DoubletVectorView<Float, 3> gradients,
-        cuda_tool::TripletMatrixView<Float, 3> hessians,
         cuda_tool::CBufferView<IndexT>         is_fixed,
-        bool                                   gradient_only,
         int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -59,8 +57,6 @@ namespace
             return;
         auto    i = indices(I);
         Vector3 G;
-        Float   m = 0.0;
-        Float   s = 0.0;
         if(is_fixed(i))
         {
             G = Vector3::Zero();
@@ -70,21 +66,40 @@ namespace
             Vector3 x      = xs(i);
             Vector3 x_prev = x_prevs(i);
             Vector3 aim_x  = lerp(x_prev, aim_positions(I), substep_ratio);
-            m              = masses(i);
-            s              = strength_ratio(I);
+            Float   m      = masses(i);
+            Float   s      = strength_ratio(I);
             Vector3 dx     = x - aim_x;
 
             G = s * m * dx;
         }
 
         gradients(I).write(i, G);
+    }
 
-        if(gradient_only)
+    __global__ void SoftPositionConstraint_do_compute_gradient_hessian_k2_kernel(
+        cuda_tool::BufferView<IndexT>          indices,
+        cuda_tool::BufferView<Float>           strength_ratio,
+        cuda_tool::CBufferView<Float>          masses,
+        cuda_tool::TripletMatrixView<Float, 3> hessians,
+        cuda_tool::CBufferView<IndexT>         is_fixed,
+        int                                    n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
             return;
+        auto i = indices(I);
 
-        Matrix3x3 H = s * m * Matrix3x3::Identity();
+        Matrix3x3 H;
         if(is_fixed(i))
+        {
             H = Matrix3x3::Zero();
+        }
+        else
+        {
+            Float m = masses(i);
+            Float s = strength_ratio(I);
+            H       = s * m * Matrix3x3::Identity();
+        }
         hessians(I).write(i, i, H);
     }
 }  // namespace
@@ -198,10 +213,10 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_compute_gradient_hessian(FiniteElementAnimator::ComputeGradientHessianInfo& info) override
     {
-        auto k = SoftPositionConstraint_do_compute_gradient_hessian_kernel;
-        int  n = (int)constrained_vertices.size();
+        int n = (int)constrained_vertices.size();
         if(n > 0)
         {
+            auto k = SoftPositionConstraint_do_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 info.substep_ratio(),
                 constrained_vertices.view(),
@@ -211,9 +226,22 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                 strength_ratios.view(),
                 info.masses(),
                 info.gradients(),
+                info.is_fixed(),
+                n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = SoftPositionConstraint_do_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                constrained_vertices.view(),
+                strength_ratios.view(),
+                info.masses(),
                 info.hessians(),
                 info.is_fixed(),
-                info.gradient_only(),
                 n);
         }
     }
