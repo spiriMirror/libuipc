@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
-from uipc import Engine, World, Scene, SceneIO
+from uipc import Engine, World, Scene, SceneIO, core
 from uipc.backend import WorldVisitor
 from uipc.geometry import (
     tetmesh, ground, pointcloud,
@@ -85,6 +85,23 @@ def test_make_world(tmp_path):
     engine, world = _make_world(scene, tmp_path / 'ws_make_world')
     assert world.is_valid()
     assert world.frame() == 0
+
+
+@pytest.mark.basic
+def test_engine_metadata_status_and_optional_frame_stats(tmp_path):
+    scene = _make_scene()
+    engine, world = _make_world(scene, tmp_path / 'ws_engine_metadata')
+
+    metadata = engine.to_json()
+    assert 'sim_systems' in metadata
+    assert 'features' in metadata
+    assert engine.frame_stats() == {}
+
+    status = engine.status()
+    status.push_back(core.EngineStatus.warning('test warning'))
+    assert status.to_json()['warnings']
+    status.clear()
+    assert status.to_json()['warnings'] == []
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +312,15 @@ def test_cuda_session_world(tmp_path):
     assert s.result['wall_time'] > 0
     assert world.frame() == 5
     assert len(s.result['timer_frames']) == 2
+    assert len(s.result['frame_stats']) == 2
+    latest = s.result['frame_stats'][-1]
+    assert latest['schema_version'] == 1
+    assert latest['frame'] == 5
+    assert latest['pipeline'] == 'ipc'
+    assert latest['completed']
+    assert latest['newton_iterations'] >= 1
+    assert latest['line_search_trials'] >= latest['newton_iterations']
+    assert latest['linear_solver_iterations'] >= 0
 
 
 @pytest.mark.cuda

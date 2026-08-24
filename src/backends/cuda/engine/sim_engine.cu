@@ -130,6 +130,40 @@ void SimEngine::step_animation_and_external_forces()
     }
 }
 
+void SimEngine::reset_frame_stats()
+{
+    m_frame_newton_iterations        = 0;
+    m_frame_line_search_trials       = 0;
+    m_frame_linear_solver_iterations = 0;
+    m_frame_completed                = false;
+    m_frame_converged                = false;
+    m_frame_hit_newton_limit         = false;
+    m_frame_hit_line_search_limit    = false;
+    m_frame_last_line_search_alpha   = 1.0;
+    m_frame_last_ccd_toi             = 1.0;
+    m_frame_last_cfl_alpha           = 1.0;
+}
+
+Json SimEngine::do_frame_stats() const
+{
+    Json stats              = Json::object();
+    stats["schema_version"] = 1;
+    stats["backend"]        = "cuda";
+    stats["frame"]          = m_current_frame;
+    stats["pipeline"] = m_pipeline_type == PipelineType::Basic ? "ipc" : "al-ipc";
+    stats["completed"]                = m_frame_completed;
+    stats["converged"]                = m_frame_converged;
+    stats["newton_iterations"]        = m_frame_newton_iterations;
+    stats["line_search_trials"]       = m_frame_line_search_trials;
+    stats["linear_solver_iterations"] = m_frame_linear_solver_iterations;
+    stats["hit_newton_limit"]         = m_frame_hit_newton_limit;
+    stats["hit_line_search_limit"]    = m_frame_hit_line_search_limit;
+    stats["last_line_search_alpha"]   = m_frame_last_line_search_alpha;
+    stats["last_ccd_toi"]             = m_frame_last_ccd_toi;
+    stats["last_cfl_alpha"]           = m_frame_last_cfl_alpha;
+    return stats;
+}
+
 void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};

@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Structured solver observability (2026-08-25, `refactor-main`)**:
+> the backend-neutral `Engine::frame_stats()` API (also Python) returns `{}` by
+> default; CUDA schema v1 reports latest-frame pipeline, completion/convergence,
+> Newton and cumulative line-search/linear-solver counts, iteration-limit hits,
+> and final line-search/CCD/CFL factors. Python also now exposes the existing
+> C++ `Engine::to_json()`, `Engine::status()`, and status `clear()`. Profile runs
+> persist one `frame_stats.json` entry per measured frame, and performance
+> baselines consume the structured counters as diagnostics instead of scraping
+> log messages. Focused none/IPC/AL tests cover optional-backend behavior,
+> status access, schema values, and profile persistence.
+
 > **Reproducible performance gates (2026-08-25, `refactor-main`)**:
 > `uipc.profile` now excludes warmup/recovery from reported wall time and drains
 > warmup Timer data before the first measured frame. Saved artifacts use a

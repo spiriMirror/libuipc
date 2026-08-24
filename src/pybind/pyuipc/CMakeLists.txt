@@ -5,6 +5,16 @@ target_link_libraries(pyuipc PUBLIC pybind11::module)
 target_link_libraries(pyuipc PUBLIC uipc::uipc)
 # ensure all backends are built before pyuipc
 add_dependencies(pyuipc uipc::backends)
+# A backend-only rebuild must also relink pyuipc so its POST_BUILD packaging
+# step refreshes runtime libraries and stubs. A target dependency alone only
+# guarantees build order and otherwise leaves site-packages stale.
+get_property(_uipc_backend_targets GLOBAL PROPERTY UIPC_BACKEND_TARGETS)
+foreach(_uipc_backend_target IN LISTS _uipc_backend_targets)
+    set_property(TARGET pyuipc APPEND PROPERTY LINK_DEPENDS
+        "$<TARGET_FILE:${_uipc_backend_target}>")
+endforeach()
+unset(_uipc_backend_target)
+unset(_uipc_backend_targets)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
 

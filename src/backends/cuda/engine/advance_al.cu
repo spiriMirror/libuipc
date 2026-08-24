@@ -84,6 +84,7 @@ void SimEngine::advance_AL()
         {
             Timer timer{"Compute CFL Condition"};
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
+            m_frame_last_cfl_alpha = cfl_alpha;
             if(cfl_alpha < alpha)
             {
                 logger::info("CFL Filter: {} < {}", cfl_alpha, alpha);
@@ -100,6 +101,7 @@ void SimEngine::advance_AL()
         {
             Timer timer{"Filter CCD TOI"};
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
+            m_frame_last_ccd_toi = ccd_alpha;
             if(ccd_alpha < alpha)
             {
                 logger::info("CCD Filter: {} < {}", ccd_alpha, alpha);
@@ -182,6 +184,7 @@ void SimEngine::advance_AL()
     {
         if(iter >= m_line_searcher->max_iter())
         {
+            m_frame_hit_line_search_limit = true;
             // (alpha, E) is the last actually tried pair in this loop form
             Float abs_E0         = std::abs(E0);
             Float rel_E_increase = (E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
@@ -207,6 +210,7 @@ void SimEngine::advance_AL()
     {
         if(iter >= m_newton_max_iter->view()[0])
         {
+            m_frame_hit_newton_limit = true;
             logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          m_newton_max_iter->view()[0],
                          m_current_frame);
@@ -237,6 +241,7 @@ void SimEngine::advance_AL()
         Timer timer{"Pipeline"};
 
         ++m_current_frame;
+        reset_frame_stats();
 
         logger::info(R"(>>> Begin Frame: {})", m_current_frame);
 
@@ -300,7 +305,8 @@ void SimEngine::advance_AL()
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
-                m_newton_iter = newton_iter;
+                m_newton_iter             = newton_iter;
+                m_frame_newton_iterations = newton_iter + 1;
 
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
@@ -320,6 +326,8 @@ void SimEngine::advance_AL()
                 {
                     Timer timer{"Solve Global Linear System"};
                     m_global_linear_system->solve();
+                    m_frame_linear_solver_iterations +=
+                        m_global_linear_system->last_solve_iterations();
                 }
 
                 NewtonToleranceManager::ResultInfo result_info;
@@ -351,7 +359,9 @@ void SimEngine::advance_AL()
 
                     // * Step Forward => x = x_0 + alpha * dx
                     // Compute Test Energy => E
-                    Float E = compute_energy(alpha);
+                    m_frame_last_line_search_alpha = alpha;
+                    Float E                        = compute_energy(alpha);
+                    ++m_frame_line_search_trials;
 
                     {
                         SizeT line_search_iter = 0;
@@ -369,7 +379,9 @@ void SimEngine::advance_AL()
 
                             // If not success, then shrink alpha
                             alpha /= 2;
+                            m_frame_last_line_search_alpha = alpha;
                             E = compute_energy(alpha);
+                            ++m_frame_line_search_trials;
 
                             line_search_iter++;
                         }
@@ -406,7 +418,10 @@ void SimEngine::advance_AL()
                     converged && (newton_iter + 1 >= newton_min_iter || newton_converged);
 
                 if(terminated)
+                {
+                    m_frame_converged = true;
                     break;
+                }
             }
 
             m_state = SimEngineState::RecoverNonPenetrate;
@@ -422,6 +437,7 @@ void SimEngine::advance_AL()
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
             check_newton_iter(newton_iter);
+            m_frame_completed = true;
         }
 
         logger::info("<<< End Frame: {}", m_current_frame);

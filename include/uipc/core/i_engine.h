@@ -17,6 +17,8 @@ class UIPC_CORE_API IEngine
     void sync();
     void retrieve();
     Json to_json() const;
+    /** @brief Return backend-specific statistics for the latest frame. */
+    Json frame_stats() const;
 
     bool                     dump();
     bool                     recover(SizeT dst_frame);
@@ -27,11 +29,13 @@ class UIPC_CORE_API IEngine
     void insert_sanity_checkers(ISanityCheckerCollection& collection);
 
   protected:
-    virtual void                     do_init(internal::World&) = 0;
-    virtual void                     do_advance()              = 0;
-    virtual void                     do_sync()                 = 0;
-    virtual void                     do_retrieve()             = 0;
-    virtual Json                     do_to_json() const;
+    virtual void do_init(internal::World&) = 0;
+    virtual void do_advance()              = 0;
+    virtual void do_sync()                 = 0;
+    virtual void do_retrieve()             = 0;
+    virtual Json do_to_json() const;
+    /** @brief Override to publish a small, versioned JSON frame contract. */
+    virtual Json                     do_frame_stats() const;
     virtual bool                     do_dump();
     virtual bool                     do_recover(SizeT dst_frame);
     virtual SizeT                    get_frame() const    = 0;

@@ -211,8 +211,13 @@ def _execute_session(s: Session) -> dict:
         world = World(engine)
         world.init(s._scene)
 
+    from uipc.backend import WorldVisitor
+
+    engine = WorldVisitor(world).engine()
+
     # Execute steps
     stats = SimulationStats()
+    frame_stats = []
     profile_wall_time = 0.0
 
     for op, n in s._steps:
@@ -238,13 +243,12 @@ def _execute_session(s: Session) -> dict:
                 world.advance()
                 world.retrieve()
                 stats.collect()
+                structured_stats = engine.frame_stats()
+                if structured_stats:
+                    frame_stats.append(structured_stats)
             profile_wall_time += _clock() - profile_started
 
     wall_time = profile_wall_time
-
-    from uipc.backend import WorldVisitor
-
-    engine = WorldVisitor(world).engine()
     environment = _environment_metadata(engine)
 
     summary = (
@@ -259,6 +263,7 @@ def _execute_session(s: Session) -> dict:
         'wall_time': wall_time,
         'stats': stats,
         'timer_frames': list(stats._frames),
+        'frame_stats': frame_stats,
         'summary': summary,
         'workspace': workspace,
         'steps': s._steps,
@@ -345,6 +350,12 @@ def load_result(result_dir: str) -> dict:
     if frames_path.exists():
         data['timer_frames'] = json.loads(
             frames_path.read_text(encoding='utf-8')
+        )
+
+    frame_stats_path = p / 'frame_stats.json'
+    if frame_stats_path.exists():
+        data['frame_stats'] = json.loads(
+            frame_stats_path.read_text(encoding='utf-8')
         )
 
     # Reconstruct SimulationStats if possible
@@ -547,6 +558,11 @@ def _save_result(result: dict, output_dir: str) -> None:
     if 'timer_frames' in result:
         (out / 'timer_frames.json').write_text(
             json.dumps(result['timer_frames'], indent=2), encoding='utf-8'
+        )
+
+    if result.get('frame_stats'):
+        (out / 'frame_stats.json').write_text(
+            json.dumps(result['frame_stats'], indent=2), encoding='utf-8'
         )
 
     # Generate stats report if we have a SimulationStats object

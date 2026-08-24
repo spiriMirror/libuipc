@@ -92,6 +92,7 @@ void test_engine(std::string_view name)
 
     // initialize the world using the scene
     world.init(scene);
+    REQUIRE(engine.frame_stats() == Json::object());
 
     //std::string output_path = fmt::format("{}/{}", this_output_path, name);
 
@@ -132,6 +133,7 @@ TEST_CASE("retrieve synchronizes at most once per advance", "[world]")
     config["sanity_check"]["enable"] = 0;
     Scene scene{config};
     world.init(scene);
+    REQUIRE(engine.frame_stats() == Json::object());
 
     world.retrieve();
     world.retrieve();

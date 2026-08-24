@@ -130,6 +130,14 @@ def test_finite_element_external_force_clear(
     captured = capfd.readouterr()
     assert "TIMING BREAKDOWN: MERGED TIMERS" not in captured.out
 
+    frame_stats = engine.frame_stats()
+    assert frame_stats["schema_version"] == 1
+    assert frame_stats["pipeline"] == contact_constitution
+    assert frame_stats["frame"] == 2
+    assert frame_stats["completed"]
+    assert frame_stats["newton_iterations"] >= 1
+    assert frame_stats["line_search_trials"] >= 1
+
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

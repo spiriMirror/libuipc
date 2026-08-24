@@ -63,6 +63,12 @@ SizeT SimEngine::get_frame() const
 {
     return m_frame;
 }
+
+Json SimEngine::do_frame_stats() const
+{
+    return Json::object();
+}
+
 bool SimEngine::do_dump(DumpInfo&)
 {
     // Now just do nothing

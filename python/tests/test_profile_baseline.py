@@ -77,6 +77,28 @@ def _write_result(
     (root / 'timer_frames.json').write_text(
         json.dumps(frames, indent=2), encoding='utf-8'
     )
+    structured_frames = [
+        {
+            'schema_version': 1,
+            'backend': 'cuda',
+            'frame': index + 1,
+            'pipeline': 'ipc',
+            'completed': True,
+            'converged': True,
+            'newton_iterations': count,
+            'line_search_trials': count + 1,
+            'linear_solver_iterations': count * 10,
+            'hit_newton_limit': False,
+            'hit_line_search_limit': False,
+            'last_line_search_alpha': 1.0,
+            'last_ccd_toi': 1.0,
+            'last_cfl_alpha': 1.0,
+        }
+        for index, count in enumerate(newton_counts)
+    ]
+    (root / 'frame_stats.json').write_text(
+        json.dumps(structured_frames, indent=2), encoding='utf-8'
+    )
     return root
 
 
@@ -87,12 +109,17 @@ def test_result_metrics_extracts_time_and_solver_diagnostics(tmp_path):
     metadata['timer_frames'] = json.loads(
         (result_dir / 'timer_frames.json').read_text()
     )
+    metadata['frame_stats'] = json.loads(
+        (result_dir / 'frame_stats.json').read_text()
+    )
 
     metrics = result_metrics(metadata)
     assert metrics['wall_time_ms_per_frame'] == pytest.approx(100.0)
     assert metrics['timer_median_ms'] == pytest.approx(100.0)
     assert metrics['timer_p95_ms'] == pytest.approx(109.0)
     assert metrics['newton_iterations_median'] == pytest.approx(3.0)
+    assert metrics['line_search_trials_median'] == pytest.approx(4.0)
+    assert metrics['linear_solver_iterations_median'] == pytest.approx(30.0)
 
 
 @pytest.mark.basic

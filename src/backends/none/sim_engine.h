@@ -22,6 +22,7 @@ class SimEngine final : public backend::SimEngine
     void  do_sync() override;
     void  do_retrieve() override;
     SizeT get_frame() const override;
+    Json  do_frame_stats() const override;
 
     NoneSimSystem* m_system = nullptr;
     SizeT          m_frame  = 0;

@@ -41,7 +41,13 @@ class UIPC_CORE_API Engine final
     EngineStatusCollection&  status();
     const FeatureCollection& features();
     Json                     to_json() const;
-    static Json              default_config();
+    /**
+     * @brief Return structured statistics for the latest backend frame.
+     *
+     * Backends that do not publish frame statistics return an empty object.
+     */
+    Json        frame_stats() const;
+    static Json default_config();
 
     // Allow creating a core::Engine from a core::internal::Engine
     Engine(S<internal::Engine> e) noexcept;

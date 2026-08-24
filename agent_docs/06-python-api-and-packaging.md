@@ -8,12 +8,17 @@
 - C++ namespaces `pyuipc::xxx` map one-to-one to Python submodules `pyuipc.xxx`; each subdirectory has its own `module.cpp` that binds classes one by one via the `PyXxx{m}` constructor.
 - **Early exposure**: the main `module.cpp` first binds the core data structures (`PyFeature`, `PyBufferView`, `PyAttributeSlot`, `PyGeometry`, `PySimplicialComplex`, the various Slots, `PyParameterCollection`), then calls each submodule's `PyModule` (geometry utilities/IO depend on core types).
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
-- Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` + `uipc::backends`, and POST_BUILD runs `scripts/after_build_pyuipc.py` (copies the package, copies dependency libraries, generates `.pyi` via pybind11_stubgen).
+- Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
 ## Python package layout (`python/src/uipc/`)
 
 - `__init__.py`: on import, first calls `pyuipc.init(config)` (injecting `module_dir` pointing to `_native`), then `from ._native.pyuipc import *`.
 - `core.py / geometry.py / constitution.py / backend.py / builtin.py / diff_sim.py / unit.py`: each is a single line `from uipc._native.pyuipc.xxx import *` (pure forwarding of the native module).
+- Python `Engine` exposes the full C++ metadata/status surface:
+  `to_json()`, `frame_stats()`, `status()`, and `features()`;
+  `EngineStatusCollection.clear()` is also bound. CUDA frame statistics are a
+  small schema-versioned per-frame object, while unsupported backends return an
+  empty dictionary.
 - Pure-Python enhancement layer:
   - `gui.py` (polyscope visualization)
   - `profile/` (phase-correct benchmark timing, deterministic performance

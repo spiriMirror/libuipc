@@ -75,6 +75,47 @@ different GPUs, builds, CUDA toolkits, or platforms are not a valid CI gate.
 The equivalent Python API is
 `uipc.profile.create_baseline(...)` / `uipc.profile.check_baseline(...)`.
 
+### Structured solver statistics
+
+The CUDA backend exposes the latest frame without requiring log parsing:
+
+```python
+world.advance()
+world.retrieve()
+
+frame = engine.frame_stats()
+print(frame['frame'], frame['newton_iterations'])
+if not frame['completed'] or not frame['converged']:
+    print(frame)
+```
+
+`frame_stats()` returns an empty dictionary for a backend that does not publish
+frame statistics (including the `none` backend). The CUDA schema is:
+
+| Key | Meaning |
+|---|---|
+| `schema_version` | Version of this small JSON contract; currently `1`. |
+| `frame`, `pipeline` | Latest frame number and `ipc` / `al-ipc` path. |
+| `completed` | The frame pipeline reached its end without throwing. |
+| `converged` | The nonlinear solver met that pipeline's termination rule. |
+| `newton_iterations` | Number of nonlinear iteration bodies executed. |
+| `line_search_trials` | Total candidate steps evaluated across the frame. |
+| `linear_solver_iterations` | Total iterative-linear-solver iterations across all Newton solves. |
+| `hit_newton_limit`, `hit_line_search_limit` | Whether any configured iteration ceiling was reached. |
+| `last_line_search_alpha`, `last_ccd_toi`, `last_cfl_alpha` | Last step-size diagnostics (`1` means no reduction). |
+
+`completed` and `converged` are deliberately separate: a non-strict scene may
+finish a frame after reaching an iteration limit. Conversely, if an exception
+interrupts the frame, `completed` remains false and `engine.status().to_json()`
+contains backend messages. `engine.to_json()` continues to provide the heavier
+backend topology/feature inventory.
+
+Profiling sessions collect this snapshot after every measured frame. In-memory
+results expose it as `result['frame_stats']`; persisted runs write
+`frame_stats.json`. Baseline reports use these structured counters for Newton,
+line-search, and linear-solver diagnostics while Timer data remains the source
+of duration gates.
+
 ## GPU Profiling (`uipc.profile.nsight`)
 
 `nsight.session` has the same `advance` / `profile` interface, but runs the simulation under [Nsight Compute](https://developer.nvidia.com/nsight-compute) (`ncu`) to collect kernel-level GPU metrics.

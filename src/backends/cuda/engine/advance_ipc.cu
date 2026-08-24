@@ -85,6 +85,7 @@ void SimEngine::advance()
         {
             Timer timer{"Compute CFL Condition"};
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
+            m_frame_last_cfl_alpha = cfl_alpha;
             if(cfl_alpha < alpha)
             {
                 logger::info("CFL Filter: {} < {}", cfl_alpha, alpha);
@@ -101,6 +102,7 @@ void SimEngine::advance()
         {
             Timer timer{"Filter CCD TOI"};
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
+            m_frame_last_ccd_toi = ccd_alpha;
             // ccd_alpha is a fraction of the swept step `alpha`; compose to
             // get the absolute step fraction
             Float absolute_alpha = alpha * ccd_alpha;
@@ -221,6 +223,7 @@ void SimEngine::advance()
     {
         if(line_search_iter_after_loop >= m_line_searcher->max_iter())
         {
+            m_frame_hit_line_search_limit = true;
             // alpha was halved once more after the last failed try,
             // so the last actually tried step length is 2*alpha
             Float alpha_last = 2.0 * alpha;
@@ -253,6 +256,7 @@ void SimEngine::advance()
         auto newton_max = m_newton_max_iter->view()[0];
         if(newton_iter_after_loop >= newton_max)
         {
+            m_frame_hit_newton_limit = true;
             logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          newton_max,
                          m_current_frame);
@@ -282,6 +286,7 @@ void SimEngine::advance()
         Timer timer{"Pipeline"};
 
         ++m_current_frame;
+        reset_frame_stats();
 
         logger::info(R"(>>> Begin Frame: {})", m_current_frame);
 
@@ -339,7 +344,8 @@ void SimEngine::advance()
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
-                m_newton_iter = newton_iter;
+                m_newton_iter             = newton_iter;
+                m_frame_newton_iterations = newton_iter + 1;
 
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
@@ -362,6 +368,8 @@ void SimEngine::advance()
                 {
                     Timer timer{"Solve Global Linear System"};
                     m_global_linear_system->solve();
+                    m_frame_linear_solver_iterations +=
+                        m_global_linear_system->last_solve_iterations();
                 }
 
 
@@ -413,6 +421,8 @@ void SimEngine::advance()
                     {
                         Timer timer{"Line Search Iteration"};
                         m_line_search_iter = line_search_iter;
+                        ++m_frame_line_search_trials;
+                        m_frame_last_line_search_alpha = alpha;
 
                         // Compute Test Energy:
                         //  * Step Forward => x = x_0 + alpha * dx
@@ -447,7 +457,10 @@ void SimEngine::advance()
                     // the semi-implicit Kmin lives in newton/semi_implicit/K_min
                     bool terminated = converged && (newton_iter >= newton_min_iter);
                     if(terminated)
+                    {
+                        m_frame_converged = true;
                         break;
+                    }
                 }
             }
 
@@ -461,6 +474,7 @@ void SimEngine::advance()
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
             check_newton_iter(newton_iter);
+            m_frame_completed = true;
         }
 
         logger::info("<<< End Frame: {}", m_current_frame);

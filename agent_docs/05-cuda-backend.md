@@ -57,6 +57,16 @@ Pipeline
 
 Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
+`Engine::frame_stats()` / Python `Engine.frame_stats()` is the stable
+machine-readable complement to the Timer tree. CUDA returns schema v1 with the
+pipeline, completion/convergence flags, Newton count, cumulative line-search
+trials, cumulative iterative-linear-solver iterations, limit-hit flags, and the
+last line-search/CCD/CFL step factors. `reset_frame_stats()` runs immediately
+after incrementing the frame; `completed` is set only after the end-of-frame
+iteration checks. `GlobalLinearSystem::last_solve_iterations()` transfers each
+solver's `SolvingInfo::iter_count` into the per-frame accumulator. Keep this
+contract host-only and cheap: profilers call it once per measured frame.
+
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 
 The diagram above describes the IPC path. `advance_al.cu` implements a separate

@@ -5,14 +5,20 @@ touching that area; several of these have bitten us more than once.
 
 ## Build & CI
 
-- **Backend `.cu` changes do not reach the Python package by themselves.**
-  The post-build step syncs `uipc_*.dll` into `build/python/src/uipc/_native/`
-  and site-packages only when pyuipc is *relinked*. If you only changed CUDA
-  backend sources, sync manually:
-  `cp build/Release/bin/uipc_*.dll build/python/src/uipc/_native/` and the
-  same into `D:/Python/312-6/Lib/site-packages/uipc/_native/`. A stale dll
-  once made a whole performance-alignment round compare against an old
+- **Build the `pyuipc` target after backend `.cu` changes.** Its link now
+  explicitly depends on every backend target file, so a backend rebuild relinks
+  pyuipc and the POST_BUILD step refreshes `build/python`, stubs, runtime
+  libraries, and site-packages. Building only `cuda` or `none` still cannot run
+  pyuipc's packaging hook. In that case, either build `pyuipc` next or invoke
+  `scripts/after_build_pyuipc.py` with the arguments emitted by CMake (target
+  pyd, project/binary dirs, config/build type, and `--build_wheel OFF`). A stale
+  dll once made a whole performance-alignment round compare against an old
   binary.
+- **Changing `IEngine` virtuals requires every backend's most-derived vtable to
+  be rebuilt.** Do not trust a core-only relink: explicitly rebuild `none` and
+  `cuda`, then run the Python post-build sync above. A mixed old/new vtable can
+  dispatch `status()` or `frame_stats()` into a neighboring virtual slot and
+  appear as recursion, an unrelated assertion, or an invalid world.
 - **CMake+ninja does not track compile-flag changes** (purely mtime-driven).
   After flipping a global flag (e.g. RDC), stale objects slip through the
   link and fake a "verified" result — clean the object dir before believing

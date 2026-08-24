@@ -23,6 +23,11 @@ _METRIC_SPECS = {
     'timer_median_ms': {'unit': 'ms/frame', 'enforce': True},
     'timer_p95_ms': {'unit': 'ms/frame', 'enforce': True},
     'newton_iterations_median': {'unit': 'iterations/frame', 'enforce': False},
+    'line_search_trials_median': {'unit': 'trials/frame', 'enforce': False},
+    'linear_solver_iterations_median': {
+        'unit': 'iterations/frame',
+        'enforce': False,
+    },
 }
 
 _ENVIRONMENT_KEYS = (
@@ -84,7 +89,7 @@ def result_metrics(result: dict[str, Any]) -> dict[str, float]:
 
     metrics = {'wall_time_ms_per_frame': wall_time * 1000.0 / frame_count}
     timer_durations: list[float] = []
-    newton_iterations: list[float] = []
+    timer_newton_iterations: list[float] = []
     timer_frames = result.get('timer_frames', [])
     if timer_frames and len(timer_frames) != frame_count:
         raise ValueError(
@@ -101,13 +106,60 @@ def result_metrics(result: dict[str, Any]) -> dict[str, float]:
         if not math.isfinite(duration) or duration < 0.0:
             raise ValueError('Timer root durations must be finite and non-negative')
         timer_durations.append(duration * 1000.0)
-        newton_iterations.append(_timer_metric(frame, 'Newton Iteration', 'count'))
+        timer_newton_iterations.append(
+            _timer_metric(frame, 'Newton Iteration', 'count')
+        )
 
     if timer_durations:
         metrics['timer_median_ms'] = _percentile(timer_durations, 0.5)
         metrics['timer_p95_ms'] = _percentile(timer_durations, 0.95)
-    if newton_iterations and any(value > 0.0 for value in newton_iterations):
-        metrics['newton_iterations_median'] = _percentile(newton_iterations, 0.5)
+    structured_frames = result.get('frame_stats', [])
+    if structured_frames and len(structured_frames) != frame_count:
+        raise ValueError(
+            'frame_stats length must match benchmark num_frames '
+            f'({len(structured_frames)} != {frame_count})'
+        )
+    structured_metrics = {
+        'newton_iterations_median': [],
+        'line_search_trials_median': [],
+        'linear_solver_iterations_median': [],
+    }
+    source_keys = {
+        'newton_iterations_median': 'newton_iterations',
+        'line_search_trials_median': 'line_search_trials',
+        'linear_solver_iterations_median': 'linear_solver_iterations',
+    }
+    for frame in structured_frames:
+        if not isinstance(frame, dict):
+            raise ValueError('Every structured frame statistic must be an object')
+        for metric_name, source_key in source_keys.items():
+            value = frame.get(source_key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                value = float(value)
+                if not math.isfinite(value) or value < 0.0:
+                    raise ValueError(
+                        f'Structured frame metric {source_key} must be '
+                        'finite and non-negative'
+                    )
+                structured_metrics[metric_name].append(value)
+
+    for metric_name, values in structured_metrics.items():
+        if values and len(values) != frame_count:
+            raise ValueError(
+                f'Structured frame metric {source_keys[metric_name]} '
+                'must be present in every frame'
+            )
+        if values:
+            metrics[metric_name] = _percentile(values, 0.5)
+
+    if (
+        'newton_iterations_median' not in metrics
+        and timer_newton_iterations
+        and any(value > 0.0 for value in timer_newton_iterations)
+    ):
+        metrics['newton_iterations_median'] = _percentile(
+            timer_newton_iterations, 0.5
+        )
 
     return metrics
 
@@ -123,6 +175,11 @@ def _load_results(result_dirs) -> dict[str, dict[str, Any]]:
         if frames_path.exists():
             result['timer_frames'] = json.loads(
                 frames_path.read_text(encoding='utf-8')
+            )
+        frame_stats_path = result_dir / 'frame_stats.json'
+        if frame_stats_path.exists():
+            result['frame_stats'] = json.loads(
+                frame_stats_path.read_text(encoding='utf-8')
             )
         name = str(result.get('name', '')).strip()
         if not name:

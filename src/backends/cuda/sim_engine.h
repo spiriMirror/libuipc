@@ -55,6 +55,7 @@ class SimEngine final : public backend::SimEngine
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
     virtual SizeT get_frame() const override;
+    virtual Json  do_frame_stats() const override;
 
 
     virtual bool do_dump(DumpInfo&) override;
@@ -68,6 +69,7 @@ class SimEngine final : public backend::SimEngine
     void advance();
     void advance_AL();
     void step_animation_and_external_forces();
+    void reset_frame_stats();
     void dump_global_surface();
     void dump_global_surface_pre_ccd(SizeT newton_iter);
 
@@ -113,6 +115,17 @@ class SimEngine final : public backend::SimEngine
     SizeT m_current_frame    = 0;
     SizeT m_newton_iter      = 0;
     SizeT m_line_search_iter = 0;
+
+    SizeT m_frame_newton_iterations        = 0;
+    SizeT m_frame_line_search_trials       = 0;
+    SizeT m_frame_linear_solver_iterations = 0;
+    bool  m_frame_completed                = false;
+    bool  m_frame_converged                = false;
+    bool  m_frame_hit_newton_limit         = false;
+    bool  m_frame_hit_line_search_limit    = false;
+    Float m_frame_last_line_search_alpha   = 1.0;
+    Float m_frame_last_ccd_toi             = 1.0;
+    Float m_frame_last_cfl_alpha           = 1.0;
 
     bool  m_semi_implicit_enabled  = true;
     Float m_semi_implicit_beta_tol = 1e-3;
