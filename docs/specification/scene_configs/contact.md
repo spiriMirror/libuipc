@@ -196,5 +196,6 @@ geometry for a failed check.
 | Solver becomes very stiff | Check resistance units, `d_hat`, initial gaps, and whether an explicit resistance was clamped. |
 | Scale-dependent behavior | Use the relative `d_hat`, velocity tolerance, and friction velocity controls consistently. |
 
-The tutorial section builds on these rules with a complete rigid-soft and
-material-table walkthrough.
+The
+[Rigid-Soft Coupling and Contact tutorial](../../tutorial/coupled_contact.md)
+builds on these rules with a complete C++/Python material-table walkthrough.

@@ -205,14 +205,14 @@ Now, run the simulation, you will see the cube rotating around its x-axis.
 
 Voila! The cube is walking on the ground!
 
-<div align="center">
-<video style="width:75%" muted="" controls="" alt="type:video">
-   <source src="../media/walking_cube.mp4" type="video/mp4"> 
-   <!-- must use the parent folder to find the video -->
-</video>
-</div>
-
-
+<figure style="text-align: center">
+  <video style="width: 75%" muted controls playsinline preload="metadata"
+         poster="./media/walking_cube.png"
+         aria-label="A cube driven by a rotating motor walking across the ground">
+    <source src="./media/walking_cube.mp4" type="video/mp4">
+  </video>
+  <figcaption>Successive poses produced by the rotating-motor animation callback.</figcaption>
+</figure>
 
 `Libuipc` also provide `LinearMotor` for you to control the translation of an affine body by specifying the translation axis and speed.
 
@@ -239,7 +239,7 @@ They are both `SoftTransformConstraint`. Because, `LinearMotor` and `RotatingMot
 
 === "C++"
 
-    source: [TODO]
+    source: [`25_abd_animated_rotation.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/25_abd_animated_rotation.cpp)
 
 === "Python"
 
@@ -367,16 +367,18 @@ Something new here is the `info.rest_geo_slots()`, which returns the slots of th
 
 Here we go!
 
-<div align="center">
-<video style="width:75%" muted="" controls="" alt="type:video">
-   <source src="../media/periodically_pressed_tetrahedron.mp4" type="video/mp4"> 
-    <!-- must use the parent folder to find the video -->
-</video>
-</div>
+<figure style="text-align: center">
+  <video style="width: 75%" muted controls playsinline preload="metadata"
+         poster="./media/periodically_pressed_tet.png"
+         aria-label="A tetrahedron periodically deformed by an animated vertex constraint">
+    <source src="./media/periodically_pressed_tetrahedron.mp4" type="video/mp4">
+  </video>
+  <figcaption>A vertex target moves periodically while the remaining FEM vertices stay dynamic.</figcaption>
+</figure>
 
 === "C++"
 
-    source: [TODO]
+    source: [`28_fem_periodically_pressed_tet.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/28_fem_periodically_pressed_tet.cpp)
 
 === "Python"
 
