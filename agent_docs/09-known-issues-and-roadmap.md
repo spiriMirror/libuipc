@@ -13,19 +13,23 @@ below:
   `baraff_witkin_shell.h` and its `.cpp` are zero bytes. The implemented cloth
   model is `StrainLimitingBaraffWitkinShell` in
   `strain_limiting_baraff_witkin.h`.
-- **Public C++ and Python surfaces differ.** `RotatingMotor` and `LinearMotor` are
-  implemented C++ classes sharing UID 16 with `SoftTransformConstraint`, but are
-  not bound to Python. Internal UID 27/28 registrations have no public classes.
+- **Public C++ and Python surfaces still need automated drift checks.**
+  `RotatingMotor` and `LinearMotor` are bound in
+  `src/pybind/pyuipc/constitution/soft_transform_constraint.cpp`; an older audit
+  incorrectly reported them as missing. Internal UID 27/28 registrations still
+  have no public classes. Generate/check API facts in CI instead of maintaining
+  this kind of inventory only by hand.
 - **Schema does not guarantee behavior.** `newton/use_adaptive_tol` is registered
   but has no consumer. Contact/Subscene JSON config arguments are accepted but
   ignored. Adding a default must be paired with a runtime reader and behavior test.
 - **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
   differs in external-force sequencing and timer behavior. Changes that claim
   support for both constitutions need two focused tests.
-- **Non-doc CI action runtimes still need a coordinated refresh.** The docs
-  workflow uses current Node 24-based `checkout`/`setup-python` actions, but the
-  CMake, XMake, clang-format, and wheel workflows retain older major pins. Upgrade
-  those only with their corresponding matrix/release validation.
+- **Third-party CI actions are not immutable.** The first-party checkout and
+  setup-python actions now use their Node 24-based v7 majors across workflows,
+  but `johnwason/vcpkg-action` still tracks `revision: master` and several
+  third-party actions use floating major tags. Pin reviewed commit SHAs to remove
+  supply-chain and upstream-drift ambiguity.
 
 ## Performance: remaining gap vs Stiff-GIPC
 

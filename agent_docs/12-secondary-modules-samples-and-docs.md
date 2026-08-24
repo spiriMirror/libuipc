@@ -218,14 +218,20 @@ warnings are generated-API routes that do not exist until MkDoxy runs.
 3.10–3.13 on CUDA 12.8. The normal flow is:
 
 ```text
-tag/build -> wheel artifacts -> TestPyPI publication
-GitHub Release published -> official PyPI publication
+tag/build -> installed-wheel smoke tests -> wheel artifacts -> TestPyPI
+TestPyPI matrix + exact-version install gate -> official PyPI publication
+official PyPI matrix + exact-version install verification
 ```
 
 The manual `hotfix_publish.yml` path downloads wheel artifacts from a chosen run
 and publishes them to PyPI, so it depends on those artifacts still being retained.
-A release smoke test must construct `Engine("cuda", workspace)`; `import uipc`
-alone does not load `uipc_backend_cuda` and cannot detect missing CUDA runtime DLLs.
+`scripts/smoke_test_wheel.py` is deliberately safe on hosted runners without a GPU:
+it validates the imported version, packaged native directory, and
+`Engine("none", workspace)`. This catches broken installation/layout and basic
+ABI-load failures, but not the lazy CUDA backend. `import uipc` and the current
+hosted smoke test cannot detect a missing CUDA runtime DLL; a CUDA-capable release
+runner must additionally construct `Engine("cuda", workspace)` (or run the
+equivalent doctor probe) before CUDA compatibility is considered verified.
 
 ## Current Build-Metadata Differences to Keep Visible
 

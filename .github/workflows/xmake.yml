@@ -1,6 +1,22 @@
 name: xmake
 
 on:
+  push:
+    branches:
+      - 'main'
+      - 'refactor-main'
+    paths-ignore:
+      - '.clang-format'
+      - '.clangd'
+      - '.cursor/**'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/workflows/cmake.yml'
+      - '**/CMakeLists.txt'
+      - '.github/workflows/docs.yml'
+      - CMakePresets.json
   pull_request:
     branches:
       - 'main'
@@ -16,6 +32,7 @@ on:
       - '**/CMakeLists.txt'
       - '.github/workflows/docs.yml'
       - CMakePresets.json
+  workflow_dispatch:
 
 jobs:
   build:
@@ -46,7 +63,7 @@ jobs:
           cuda: '12.8.1'
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: false
 
@@ -72,3 +89,9 @@ jobs:
           xmake build uipc_geometry
           xmake build --jobs=3 cuda
           xmake build --all
+
+      - name: Run CPU test suite
+        run: |
+          xmake run common
+          xmake run core
+          xmake run geometry

@@ -1,6 +1,22 @@
 name: cmake
 
 on:
+  push:
+    branches:
+      - "main"
+      - "refactor-main"
+    paths-ignore:
+      - ".clang-format"
+      - ".clangd"
+      - ".cursor/**"
+      - ".gitignore"
+      - "LICENSE"
+      - "README.md"
+      - "docs/**"
+      - "**/xmake.lua"
+      - ".github/workflows/xmake.yml"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/python-wheels.yml"
   pull_request:
     branches:
       - "main"
@@ -16,6 +32,7 @@ on:
       - ".github/workflows/xmake.yml"
       - ".github/workflows/docs.yml"
       - ".github/workflows/python-wheels.yml"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -59,7 +76,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -86,3 +103,11 @@ jobs:
         run: |
           cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build --preset ci-release -DUIPC_CUDA_ARCHITECTURES=89
           cmake --build ${{ github.workspace }}/build --preset ci-release --parallel 4
+
+      - name: Run CPU test suite
+        run: >-
+          ctest --test-dir "${{ github.workspace }}/build"
+          --build-config Release
+          --label-regex fast
+          --output-on-failure
+          --timeout 900

@@ -60,7 +60,16 @@ The `fem_mas_*` cases (53-61, 81 + the stitch regression) activate MAS via
 `mesh_partition()` calls (2026-08-24 switch redesign; 58_hybrid_mix still
 uses one manual `mesh_partition` to verify custom partitions are respected).
 
-Run: `./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`.
+Run a single executable with
+`./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`.
+CMake also registers every executable with CTest as `uipc.<name>`. The
+`common`, `core`, and `geometry` targets carry the `fast;cpu` labels; all other
+targets carry the `gpu` label. The local/CI CPU gate is therefore:
+
+```bash
+ctest --test-dir build --build-config Release --label-regex fast \
+  --output-on-failure --timeout 900
+```
 
 **Catch2 v3.8 filtering, empirically verified**: multiple specs as separate argv entries are combined with **AND** (intersection) — often causing "No tests ran"; **OR must be written inside a single argv separated by commas**: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`. List cases: `--list-tests --verbosity quiet` (one case name per line).
 
@@ -74,16 +83,24 @@ Run: `./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-test
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (PR builds on Win/Ubuntu + CUDA 12.8), `xmake.yml`, `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.13, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.13, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.
 
-`python-wheels.yml` publishes build/tag artifacts to TestPyPI first; official
-PyPI publication is gated by a published GitHub Release. `hotfix_publish.yml` is
-a manual artifact-reuse path and depends on the selected workflow artifacts still
-being retained. Wheel validation must instantiate the lazily loaded CUDA backend,
-not stop at `import uipc`.
+`python-wheels.yml` runs `scripts/smoke_test_wheel.py` against each wheel after
+cibuildwheel installs it, then publishes the complete eight-wheel matrix to
+TestPyPI. The release job waits for the index JSON to contain every expected
+CPython/platform variant, installs the exact TestPyPI version, and repeats the
+smoke test before official PyPI publication. A final job performs the same
+matrix/install check against PyPI. `scripts/verify_pypi_release.py` is also the
+local propagation diagnostic. The hosted no-GPU smoke test verifies import,
+native files, version, and `Engine("none")`; it does **not** prove CUDA runtime or
+GPU compatibility. That needs a GPU runner/doctor check before a release can be
+described as CUDA-validated.
+
+`hotfix_publish.yml` is a manual artifact-reuse path and depends on the selected
+workflow artifacts still being retained.
 
 Docs have three entry points: `python scripts/build_docs.py -o site` and
 `mkdocs serve -f mkdocs-with-api.yaml` include generated API pages, while

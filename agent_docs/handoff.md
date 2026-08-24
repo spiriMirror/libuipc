@@ -1,5 +1,15 @@
 # Handoff — Current State of the Repo
 
+> **Executable CI and release gates (2026-08-25, `refactor-main`)**: CMake now
+> registers all C++ tests with CTest and labels the `common`/`core`/`geometry`
+> CPU suite for fast CI execution; the CMake and XMake workflows execute those
+> binaries on pushes, pull requests, and manual runs instead of stopping after a
+> successful compile. Every built wheel is installed and smoke-tested, TestPyPI
+> must expose the complete interpreter/platform matrix and pass an exact-version
+> install before formal publication, and PyPI is verified the same way afterward.
+> The hosted smoke test uses the no-GPU backend; CUDA-runtime validation remains a
+> distinct compatibility gate rather than an inferred result of `import uipc`.
+
 > **Documentation navigation hygiene (2026-08-25, `refactor-main`)**: XMake and
 > deterministic-mode guides are now reachable from the site navigation, directory
 > links point at explicit index pages, and the RMR/SpreadSheetIO links use valid
