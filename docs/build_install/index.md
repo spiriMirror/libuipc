@@ -19,12 +19,36 @@ A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**ot
 Limitations:
 
 - Only supports Windows/Ubuntu22.04
-- The prebuilt wheels target CUDA 12.8; building from source works with newer toolkits too (13.x is used in daily development), and newer CUDA code is kept compatible back to CUDA 11.x where feasible (e.g. the CUDA-graph helper in `cuda_tool/graph.h` selects its instantiation API by `CUDART_VERSION`)
+- The prebuilt wheels target the **CUDA 12.8 runtime** and dynamically load
+  `cublas64_12.dll` on Windows (the corresponding CUDA 12 libraries on
+  Linux). A CUDA 13-only toolkit is not a substitute: driver compatibility
+  does not provide a differently versioned cuBLAS runtime. Install CUDA 12.8
+  side-by-side or build libuipc from source against CUDA 13.
+- Source builds work with newer toolkits too (CUDA 13.x is used in daily
+  development), and newer CUDA code is kept compatible with older toolkits
+  where feasible.
 - Only supports Python 3.10-3.13
 
 ```bash
 pip install pyuipc
 ```
+
+`import uipc` verifies only the Python extension and core libraries. Verify
+the actual simulation backend as well:
+
+```python
+from tempfile import TemporaryDirectory
+from uipc.core import Engine
+
+with TemporaryDirectory(prefix="uipc-wheel-check-") as workspace:
+    engine = Engine("cuda", workspace)
+
+print("CUDA backend loaded")
+```
+
+On Windows, `Could not load ... uipc_backend_cuda.dll` together with a missing
+`cublas64_12.dll` means the CUDA 12.8 runtime is not discoverable on `PATH`.
+Installing only CUDA 13 does not satisfy that DLL dependency.
 
 ## Development Build
 

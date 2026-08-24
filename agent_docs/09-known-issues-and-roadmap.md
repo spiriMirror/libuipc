@@ -1,6 +1,6 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-23 (post PR #468 merge). Completed work is recorded in
+Status as of 2026-08-24 (post PR #468 merge). Completed work is recorded in
 `handoff.md`; this file tracks what is **open** — analyze here first before
 planning new work.
 
@@ -102,6 +102,18 @@ assertions).
 
 ## Open issues
 
+- **PyPI 0.0.26 Windows wheel needs the CUDA 12 cuBLAS runtime**: package
+  installation and `import uipc` succeed, but `Engine("cuda", ...)` fails on
+  a CUDA 13.2-only machine because `uipc_backend_cuda.dll` directly imports
+  `cublas64_12.dll`; the machine provides only `cublas64_13.dll`. This is not
+  a missing bundled vcpkg DLL and not a driver-compatibility problem. Current
+  workaround: install CUDA 12.8 side-by-side and expose its `bin` directory,
+  or build from source against CUDA 13. The immutable 0.0.26 wheel cannot be
+  corrected in place. Before the next release, decide whether to keep the
+  explicit CUDA 12.8 runtime requirement, bundle/link CUDA runtime components
+  where licensing and wheel size permit, or publish a deliberate multi-CUDA
+  packaging strategy. In every case, CI/release verification must instantiate
+  the CUDA engine from the produced wheel; a plain Python import is insufficient.
 - **CUDA-graph capture crash in the C++ suite binary (worked around)**: with
   Timer objects created inside the captured call chain, the single-process
   suite deterministically fail-fasted (0xC0000409) at the second engine's

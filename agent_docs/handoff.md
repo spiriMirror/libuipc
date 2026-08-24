@@ -75,20 +75,38 @@
 >   to watch the repository's actual `mkdocs*.yaml` files (it previously
 >   watched only the unused `.yml` suffix, so config-only fixes did not
 >   deploy).
-> - **Documentation demo separation (2026-08-24)**: demo/video showcases now
->   live only on the project homepage. The docs home Demos section, Gallery
->   navigation entry, and `docs/gallery.md` were removed so the technical
->   documentation stays focused on tutorials and reference material. Both
->   MkDocs configurations expose `spiriMirror/libuipc` as the global project
->   repository link in the site header.
+> - **Documentation demo separation (2026-08-24)**: the standalone docs home
+>   Demos section, Gallery navigation entry, and `docs/gallery.md` were
+>   removed so the project-wide showcase lives on the homepage. Focused clips
+>   and well-framed poster screenshots remain allowed when they explain an API
+>   result. Both MkDocs configurations expose `spiriMirror/libuipc` as the
+>   global project repository link in the site header.
 > - **Configuration documentation audit (2026-08-24)**: the scene-config
->   reference now enumerates all 47 keys registered by
+>   reference now enumerates all 46 unique keys registered by
 >   `scene_default_config.cpp`, including defaults, SI units, selector values,
 >   operational domains, relative-value precedence, lifecycle rules, and
 >   current no-op/reserved behavior (`newton/use_adaptive_tol`). Dedicated
 >   Newton/linear-solver and contact/collision pages trace behavior through the
 >   CUDA consumers and explain MAS, graph modes, adaptive kappa, pairwise
 >   contact elements, and sanity checks. Navigation exposes all three pages.
+> - **Source-backed scenario tutorials (2026-08-24)**: the tutorial landing
+>   page now routes to scene assembly, pure ABD, pure volumetric FEM, cloth,
+>   and rigid-soft/contact guides. Each physical guide contains complete
+>   asset-free C++ and Python programs, parameter/state explanations, failure
+>   checks, and links to the matching `libuipc-samples`, C++ regression cases,
+>   public headers, and backend attribute consumers. The four Python programs
+>   run against the current source build; sample `91_pinned_cloth --headless
+>   1` also passes. MkDocs builds successfully and expands every code snippet;
+>   strict mode is still blocked only by the pre-existing generated-API nav
+>   entries when Doxygen output is absent.
+> - **PyPI 0.0.26 CUDA-major runtime finding (2026-08-24)**: installation and
+>   `import uipc` succeed, but the Windows wheel's CUDA backend directly
+>   imports `cublas64_12.dll`. A machine with only CUDA 13.2 therefore fails at
+>   `Engine("cuda", ...)` even though the driver is new enough. The source
+>   build on that machine imports `cublas64_13.dll` and works. User-facing
+>   install docs and package metadata now say the prebuilt wheel requires the
+>   CUDA 12.8 runtime; CUDA 13 users must install 12.8 side-by-side or build
+>   from source. A plain import is not an adequate release smoke test.
 >
 > Older header note (2026-08-20, pre-merge): the muda→cuda_tool migration
 > is complete AND fully verified: all apps/tests pass, including the

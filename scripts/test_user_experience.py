@@ -136,6 +136,7 @@ stub_files = [
 
 # Look for pyuipc stub directory
 potential_dirs = [
+    os.path.join(package_path, '_native', 'pyuipc'),
     os.path.join(package_path, '..', 'pyuipc'),
     os.path.join(os.path.dirname(package_path), 'pyuipc'),
 ]
@@ -177,28 +178,28 @@ else:
         return result.returncode == 0
     
     def test_sample_usage(self):
-        """Test basic functionality usage"""
-        print("\nTesting sample usage...")
+        """Load the configured backend, not only the Python extension."""
+        print("\nTesting CUDA backend load...")
         
         test_script = '''
 try:
     import uipc
+    import tempfile
+    from uipc.core import Engine
+
     print("[OK] Package imported successfully")
-    
-    # Test basic functionality (if available)
-    # Add specific tests based on LibUIPC API
-    
-    # For now, just check if basic attributes/modules are accessible
-    attrs_to_check = ['__file__', '__name__']
-    for attr in attrs_to_check:
-        if hasattr(uipc, attr):
-            print(f"[OK] Has attribute: {attr}")
-        
-    print("[OK] Basic functionality test completed")
+
+    # Backends are loaded lazily. A plain `import uipc` does not detect a
+    # missing CUDA-major runtime such as cublas64_12.dll.
+    with tempfile.TemporaryDirectory(prefix="uipc-wheel-check-") as workspace:
+        engine = Engine("cuda", workspace)
+        print("[OK] CUDA backend loaded successfully")
+        del engine
+
     exit(0)
     
 except Exception as e:
-    print(f"[ERROR] Sample usage test failed: {e}")
+    print(f"[ERROR] CUDA backend load failed: {e}")
     import traceback
     traceback.print_exc()
     exit(1)
@@ -275,7 +276,7 @@ except Exception as e:
             ("Package Installation", self.install_package),
             ("Basic Import", self.test_basic_import),
             ("Stub Files", self.test_stub_files),
-            ("Sample Usage", self.test_sample_usage),
+            ("CUDA Backend Load", self.test_sample_usage),
             ("Documentation Access", self.test_documentation_access),
         ]
         

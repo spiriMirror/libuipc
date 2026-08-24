@@ -95,7 +95,10 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 pip install pyuipc
 ```
 
-Prebuilt wheels: **Windows / Linux, Python 3.10–3.13, CUDA 12.8**.
+Prebuilt wheels: **Windows / Linux, Python 3.10–3.13, CUDA 12.8 runtime**.
+The Windows wheel dynamically loads `cublas64_12.dll`; a CUDA 13-only install
+does not provide that versioned runtime. Use CUDA 12.8 side-by-side, or build
+from source for CUDA 13.
 
 ### From Source
 
