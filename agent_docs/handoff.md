@@ -564,8 +564,10 @@ regression).
   sim case in its own process (`--filter/--start-from/--timeout`) —
   complements the single-process suite to separate cross-case global-state
   pollution from case-local failures.
-- (ccache integration was implemented and then reverted at user request;
-  nothing ccache-related remains in the tree.)
+- (The CMake-side ccache integration from this session was implemented and then
+  reverted at user request. A later full-tree audit found a separate stale
+  `set_policy("build.ccache", true)` in root `xmake.lua` when `dev=true`; docs
+  07/08/09/12 record that unresolved owner-rule violation.)
 
 ## Build-time optimization (after `88965feb`)
 
@@ -590,8 +592,9 @@ regression).
   perceived), CUDA TU CPU 8.3K→6.5K s, per-TU avg 38→35 s. Line-count
   attribution of a non-cub TU (~1.63M lines after -E): CUDA toolkit headers
   ~860K, WinSDK ~310K, MSVC STL ~150K, Eigen ~150K, project <20K — the
-  remaining cost is toolchain headers, not project includes. Next lever if
-  needed: ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`).
+  remaining cost is toolchain headers, not project includes. This session once
+  listed ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`) as a possible next lever; the
+  owner subsequently rejected compiler caches, so rule 8 supersedes that idea.
 - Verified after both changes: 6 fast binaries pass; full sim suite passes
   (14214 assertions / 95 cases).
 

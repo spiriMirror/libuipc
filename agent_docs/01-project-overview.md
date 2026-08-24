@@ -20,18 +20,19 @@ Recent important changes (README News):
 | `src/` | Core implementation: `core/` (engine, compiled as `libuipc_core`), `geometry/` (geometry algorithms), `constitution/` (constitutions), `backends/` (`common/`+`cuda/`+`none/`), `io/`, `pybind/`, `sanity_check/`, `usd/`, `vdb/` |
 | `include/uipc/` | Public headers, organized by module: `core/ geometry/ constitution/ io/ backend/ builtin/ common/ diff_sim/ usd/ vdb/`; umbrella headers `uipc.h / core.h / geometry.h / io.h` |
 | `apps/` | `tests/` (Catch2 tests), `examples/` (3 C++ examples), `benchmarks/`, `app/` (test utility library) |
-| `python/` | Python package source `src/uipc/`, `tests/`, examples; plus a standalone `pyproject.toml` (for development) |
+| `python/` | Python package source `python/src/uipc/`, tests, examples, and a standalone development `pyproject.toml` |
 | `docs/` | mkdocs documentation source: `tutorial/ specification/ development/ build_install/ media/`, etc. |
 | `external/` | Third-party in-tree sources: `GKlib/` + `METIS/` only (muda was fully removed; the CUDA backend now uses the in-house `src/backends/cuda/cuda_tool/`) |
 | `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
-| `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`), `symbol_calculation/` (~25 symbolic derivation notebooks), `SymEigen/` |
+| `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
+| `libuipc-samples/` | Tracked git submodule containing the Python sample library (52 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
 | `agent_docs/` | This directory; agent guide |
 | `CMakeLists.txt` / `CMakePresets.json` / `pyproject.toml` | Build entry points |
 
-> **Sibling checkouts in a typical working copy (untracked, do NOT commit into this repo)**: `libuipc-samples/` (separate repo `spiriMirror/libuipc-samples`, 88 numbered Python example cases), `Stiff-GIPC/` (the reference implementation used for performance alignment), `references/` (third-party demo code, e.g. the robot-hand example case 87 was ported from).
+> **Local reference checkouts in this working copy (untracked, do NOT commit into this repo)**: `Stiff-GIPC/` (performance-alignment reference) and `references/` (third-party reference code). `libuipc-samples/` is different: it is a tracked submodule, so update its gitlink deliberately rather than treating its files as part of the root repository.
 
 ## Three Core Concepts
 
@@ -72,7 +73,11 @@ world.retrieve();
 scene_io.write_surface("out.obj", scene);  // export the surface
 ```
 
-Python corresponds exactly (`from uipc import Engine, World, Scene`, etc.).
+Python follows the same overall lifecycle (`from uipc.core import Engine, World, Scene`;
+the native extension also promotes these names to `uipc`), but public C++ and Python
+coverage is not perfectly identical. Check `src/pybind/pyuipc/` before promising a
+class in both languages; for example, the C++ rotating/linear motor classes are not
+currently bound.
 
 ## Key Design Trade-offs
 
@@ -80,3 +85,6 @@ Python corresponds exactly (`from uipc import Engine, World, Scene`, etc.).
 - **Pluggable backends**: all algorithms live in the backend; core only handles data structures and lifecycle; supporting new hardware only requires implementing a new backend module.
 - **Unit literals**: `uipc::unit` provides literals such as `1.0_GPa`, `100.0_MPa`, `0.05_m/1.0_s`, so physical parameters carry their dimensions.
 - **Dual build systems**: CMake (primary, used by CI/wheels) + XMake (alternative); `xmake.lua` is maintained in parallel alongside source directories.
+- **Narrow umbrella headers**: `uipc/uipc.h` includes core, geometry, and basic IO,
+  not every constitution, URDF/AttributeIO, optional module, or advanced geometry
+  facility. See doc 10 before relying on transitive includes.

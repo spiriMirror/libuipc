@@ -1,12 +1,12 @@
 # 04 — Constitution Overview
 
-Headers: `include/uipc/constitution/` (42 files); implementations: `src/constitution/`; mathematical specifications: `docs/specification/constitutions/` (32 documents, including energy formulas and parameter ranges); symbolic derivation: `scripts/symbol_calculation/*.ipynb` (SymEigen generates energy/gradient/Hessian code).
+Headers: `include/uipc/constitution/` (42 files, including one empty placeholder); implementations: `src/constitution/`; mathematical specifications: `docs/specification/constitutions/`; symbolic derivation: `scripts/symbol_calculation/*.ipynb` (SymEigen generates energy/gradient/Hessian code for applicable models).
 
 ## Basic Mechanisms
 
 - Base classes `IConstitution` / `Constitution` (`constitution.h`); constraint base class `Constraint` (`constraint.h`).
 - Unified usage: `constitution.apply_to(geometry, params...)` — writes the UID into `meta().create<U64>(builtin::constitution_uid)` and writes parameters into vertex/instance attributes. The backend claims geometries by UID.
-- **UID convention**: official `[0, 2^32-1]`, user-defined `[2^32, 2^64-1]`. Constants are centralized in `include/uipc/builtin/constitution_uid.h`.
+- **UID convention**: official `[0, 2^32-1]`, user-defined `[2^32, 2^64-1]`. Registration lives in `include/uipc/builtin/constitution_uid_collection.h` plus `constitution_uid_auto_register.h`; there is no `constitution_uid.h`.
 - `ElasticModuli` (`elastic_moduli.h`): constructors such as `youngs_poisson(E, nu)` produce Lamé parameters.
 - Category base classes: `FiniteElementConstitution` (deformable bodies whose DOFs are vertex positions), `AffineBodyConstitution` (12-DOF affine bodies), `InterAffineBodyConstitution` / `InterPrimitiveConstitution` (inter-body / inter-primitive), `FiniteElementExtraConstitution` / `AffineBodyExtraConstitution` (additional energies).
 
@@ -37,7 +37,8 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `particle.h` | Mass point (no elasticity) |
 | `hookean_spring.h` | Linear spring $E=\frac{\kappa}{2}((L-L_0)/L_0)^2$ |
 | `neo_hookean_shell.h` | 2D Neo-Hookean shell |
-| `baraff_witkin_shell.h` / `strain_limiting_baraff_witkin.h` | Baraff-Witkin cloth shell and its strain-limited version (`apply_to(sc, stretch_moduli, shear_moduli, ..., strain_rate=100)` dual-moduli overload: stretch/shear use independent (E,ν); the single-modulus overload is retained. Writes triangle attributes `lambda/mu/strain_rate`; **membrane element weight = triangle area (not volume)**, stiffness attributes carry thickness: stretch=`E_s·t/(1-ν_s²)`=(λ_s+2μ_s)·t, shear=μ_sh=`E_sh/(2(1+ν_sh))` which is thickness-independent) |
+| `baraff_witkin_shell.h` | **Zero-byte placeholder** (and `src/constitution/baraff_witkin_shell.cpp` is also empty); no usable public model is implemented here |
+| `strain_limiting_baraff_witkin.h` | Implemented `StrainLimitingBaraffWitkinShell` (`apply_to(sc, stretch_moduli, shear_moduli, ..., strain_rate=100)` dual-moduli overload: stretch/shear use independent (E,ν); the single-modulus overload is retained. Writes triangle attributes `lambda/mu/strain_rate`; **membrane element weight = triangle area (not volume)**, stiffness attributes carry thickness: stretch=`E_s·t/(1-ν_s²)`=(λ_s+2μ_s)·t, shear=μ_sh=`E_sh/(2(1+ν_sh))` which is thickness-independent) |
 | `discrete_shell_bending.h` | Discrete shell bending energy (**bending measure = area**; raw `apply_to(sc, κ)` directly gives per-unit-area stiffness; formula overload `apply_to(sc, E, ν)` — **thickness is read from the mesh vertex `thickness` attribute** (averaged over edge endpoints, supports non-uniform shells); a membrane/stretch constitution must be applied first; static helper `bending_stiffness(E,ν,t)`=κ=`E·t³/(12(1-ν²))` literal value) |
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | Shell bending with strain/stress plasticity |
 | `kirchhoff_rod_bending.h` | Kirchhoff rod bending |
@@ -62,6 +63,11 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `soft_position_constraint.h` | Drives vertices' `aim_position` |
 | `external_articulation_constraint.h` | Minimal-coordinate joint system (contributed by Genesis AI, paired with AL-IPC) |
 
+`soft_transform_constraint.h` also declares the C++ `RotatingMotor` and
+`LinearMotor`. All three classes return UID 16 and drive `aim_transform` in
+material coordinates. Only `SoftTransformConstraint` is currently exposed by the
+Python constitution module; the two motor helpers have no pybind registration.
+
 ### Soft Stitching (stitch, Inter-primitive)
 | Header | Description |
 |---|---|
@@ -77,6 +83,23 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 
 ## Usage Notes
 
-- Parameter range specifications are documented in each `docs/specification/constitutions/*.md` (e.g. $\kappa$: 100 MPa–100 GPa).
+- Parameter formulas/ranges are documented where available under `docs/specification/constitutions/` (for example, ABD $\kappa$: 100 MPa–100 GPa). Verify constructor validation in source before treating a prose range as enforced.
 - A new material model requires: implementing the `IConstitution` family interface + assigning a UID + writing attributes in `apply_to` + implementing the corresponding SimSystem in the backend to claim the UID + validating/clamping parameters (negative stiffness/density forbidden).
 - Joint runtime state such as the angle can be read from edge attributes of the joint geometry (e.g. the `angle` attribute of a revolute joint; see `apps/tests/sim_case/37_abd_revolute_joint.cpp`).
+- `scripts/gen_uid_doc.py --check` currently misses registration blocks that assign
+  `UIDInfo` fields in statement form rather than using its expected designated
+  initializer pattern. At least UIDs 15, 17, 31, and 32 are absent from the
+  generated table even though the source registrations exist. Treat
+  `docs/specification/constitution_uid.md` as incomplete until the parser and a
+  regression test are fixed.
+
+  | Missing UID | Name | Registered type | Source |
+  |---|---|---|---|
+  | 15 | `KirchhoffRodBending` | FiniteElement | `src/constitution/kirchhoff_rod_bending.cpp` |
+  | 17 | `DiscreteShellBending` | FiniteElement | `src/constitution/discrete_shell_bending.cpp` |
+  | 31 | `StrainPlasticDiscreteShellBending` | FiniteElement | `src/constitution/strain_plastic_discrete_shell_bending.cpp` |
+  | 32 | `StressPlasticDiscreteShellBending` | FiniteElement | `src/constitution/stress_plastic_discrete_shell_bending.cpp` |
+
+- Internal auto-registration contains UID 27 (`AffineBodyDrivingSphericalJoint`)
+  and UID 28 (`AffineBodyD6Joint`) without matching public constitution classes or
+  headers. A registered backend UID is not automatically a supported user API.

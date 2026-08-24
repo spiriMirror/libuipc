@@ -22,8 +22,10 @@ touching that area; several of these have bitten us more than once.
 - **`file(GLOB ... CONFIGURE_DEPENDS)`** is now on all project CMake files:
   adding/removing sources does NOT need a manual re-configure (the older
   note in handoff's environment section predates this).
-- **ccache was integrated and then reverted at the user's explicit
-  request.** Nothing ccache-related remains; do not re-add without asking.
+- **ccache is forbidden by the owner, but one stale XMake setting remains.**
+  Root `xmake.lua` currently enables `build.ccache` when its default `dev=true`
+  option is active. Do not rely on it or describe the tree as ccache-free until
+  that drift is removed; do not add ccache anywhere else.
 - **GitHub regenerates release tarballs** → pinned source hashes go stale.
   Our fix pattern: overlay port in `ports/` + `overlay-ports` in the
   *generated* `vcpkg-configuration.json` (env vars don't reach
@@ -116,6 +118,9 @@ touching that area; several of these have bitten us more than once.
 
 ## Python / runtime API
 
+- **Named C++ backends need explicit process initialization.** Call
+  `uipc::init` with an existing `module_dir` before `Engine{"cuda", ...}`. The
+  Python package does this automatically by pointing at its `_native` directory.
 - **`World` holds only a weak reference to `Engine`.** If `Engine` goes out
   of scope (e.g. created inside a builder function that returns the world),
   the next `advance` dies with "Engine is expired". Keep the engine object
@@ -138,6 +143,12 @@ touching that area; several of these have bitten us more than once.
   `_native/` dir before running — otherwise python silently runs the OLD
   solver and trajectory/timing comparisons are garbage (this once cost a
   full debug round chasing a MAS "freeze" that was just a stale dll).
+- **Do not use incremental Scene commits as a general replication protocol.**
+  The current update path omits subscene changes, does not faithfully propagate
+  geometry removal, and assumes append-aligned geometry IDs. Use full SceneIO for
+  topology-changing transfers and read doc 11 before extending commit/update.
+- **The `none` backend is not a CPU simulator.** It advances the frame without
+  physics and does not settle post-init pending geometry mutations.
 
 ## Simulation semantics (contact/constraints/ABD)
 

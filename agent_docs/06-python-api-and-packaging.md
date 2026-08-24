@@ -4,7 +4,7 @@
 
 `PYBIND11_MODULE(pyuipc, m)` in the entry `module.cpp`:
 
-- Submodules: `unit`, `geometry`, `constitution`, `diff_sim`, `core`, `backend`, `builtin`, `usd` (USD only when `UIPC_WITH_USD_SUPPORT`).
+- Submodules: `unit`, `geometry`, `constitution`, `diff_sim`, `core`, `backend`, `builtin`, `usd`. The `usd` module object is created unconditionally, but USD classes are registered only when `UIPC_WITH_USD_SUPPORT` is enabled.
 - C++ namespaces `pyuipc::xxx` map one-to-one to Python submodules `pyuipc.xxx`; each subdirectory has its own `module.cpp` that binds classes one by one via the `PyXxx{m}` constructor.
 - **Early exposure**: the main `module.cpp` first binds the core data structures (`PyFeature`, `PyBufferView`, `PyAttributeSlot`, `PyGeometry`, `PySimplicialComplex`, the various Slots, `PyParameterCollection`), then calls each submodule's `PyModule` (geometry utilities/IO depend on core types).
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `uipc::Exception`, `__version__`.
@@ -22,6 +22,12 @@
   - `assets/` (downloads scenes from HuggingFace `MuGdxy/uipc-assets`; each asset has a `scene.py` with `build_scene(scene)`)
   - `stats.py`, `dev/`
 - Examples: `python/examples/` (4 demos: shell plastic crease ×2, prismatic/revolute joint limit GUI).
+
+Base-wheel dependency coverage is narrower than the pure-Python tree: root
+`pyproject.toml` installs `numpy`, `polyscope`, and `huggingface_hub`, while some
+stats/report paths use `matplotlib` and the torch/warp adapters require their own
+frameworks. The development metadata includes matplotlib; callers of optional
+helpers must install the relevant extras/dependencies explicitly.
 
 ## Packaging pipeline
 
@@ -44,7 +50,9 @@
 
 ## Python tests
 
-`python/tests/`, pytest. Prerequisite: pyuipc installed (CMake build or `uv pip install -e .`).
+`python/tests/`, pytest: 17 `test_*.py` files and 73 top-level test functions at
+the audited revision. Prerequisite: pyuipc installed (CMake build or
+`uv pip install -e .`).
 
 Release verification must go beyond `import uipc`: importing loads the pybind
 extension and core DLLs, while the backend is loaded lazily. At minimum create
@@ -57,6 +65,22 @@ escapes the smoke test.
 - When adding a new C++ public API, consider syncing the pybind side: add a `PyXxx` binding file in the corresponding submodule directory and register it in that directory's `module.cpp`; keep the namespace mapping consistent.
 - Do not break the import chain in `__init__.py` (`pyuipc` → `init()` → `config["module_dir"]`).
 - New binding surfaces need tests added in `python/tests/`.
+- Audit exports rather than assuming C++/Python parity. `RotatingMotor` and
+  `LinearMotor` are public C++ classes in `soft_transform_constraint.h` but are not
+  registered in the Python constitution module.
+
+## Current packaging/helper drift
+
+- Root `dev = ["pytest"]` is unpinned while `python/pyproject.toml` specifies
+  `pytest>=9.0.3`; keep security/version fixes synchronized between both metadata
+  files.
+- The development package description still says “CUDA 12.6+”; the wheel metadata
+  correctly states that prebuilt wheels require the CUDA 12.8 runtime.
+- The Warp adapter's empty-strides fallback references undefined
+  `BufferUtils.element_size`; do not rely on that path without fixing/testing it.
+- `assets.strip_constitutions` assumes dense object IDs by iterating
+  `range(objects().size())`; scenes with deleted/sparse IDs can be only partially
+  processed.
 
 ## Frontend-visible changes (2026-08-24)
 

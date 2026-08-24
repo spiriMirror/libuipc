@@ -1,8 +1,54 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-24 (post PR #468 merge). Completed work is recorded in
-`handoff.md`; this file tracks what is **open** — analyze here first before
-planning new work.
+Status as of 2026-08-24, source audit at `2b954973`. Completed performance work is
+recorded in `handoff.md`; this file tracks what is **open** — analyze here first
+before planning new work.
+
+## Cross-cutting source-audit findings
+
+These are verified code/documentation gaps, independent of the performance plan
+below:
+
+- **Incremental Scene updates are not lossless.** Subscene commits are not applied;
+  GeometryCollection update does not propagate slot removal; newly inserted
+  geometry relies on destination next-ID alignment; `evolving_only` is accepted
+  by GeometryAtlas creation but ignored; contact/subscene pair-map updates can
+  retain stale keys; and SceneSnapshotCommit accidentally builds its rest commit
+  map from current geometries. Use full SceneIO for topology-changing transfers
+  and see doc 11 before fixing this cluster.
+- **XMake violates current owner/build-parity rules.** Default `dev=true` enables
+  `build.ccache`; stale `gui`/`torch` options remain; `src/xmake.lua` checks an
+  undeclared `grpc` option and a missing `rpc` directory; optional USD/VDB have no
+  equivalent target; the pybind post-build path starts duplicate asynchronous
+  package-copy actions.
+- **The UID documentation generator is incomplete while still passing `--check`.**
+  Its parser misses statement-assigned `UIDInfo` registrations, currently omitting
+  UIDs 15, 17, 31, and 32. The generated constitution UID page must not be treated
+  as exhaustive until parser regression tests cover both registration styles.
+- **One constitution header is only a placeholder.**
+  `baraff_witkin_shell.h` and its `.cpp` are zero bytes. The implemented cloth
+  model is `StrainLimitingBaraffWitkinShell` in
+  `strain_limiting_baraff_witkin.h`.
+- **Public C++ and Python surfaces differ.** `RotatingMotor` and `LinearMotor` are
+  implemented C++ classes sharing UID 16 with `SoftTransformConstraint`, but are
+  not bound to Python. Internal UID 27/28 registrations have no public classes.
+- **Python metadata/helper drift remains.** Root package metadata omits matplotlib
+  used by reporting paths and leaves the dev pytest dependency unpinned; the
+  development description still says CUDA 12.6+; the Warp empty-strides path
+  references undefined `BufferUtils.element_size`; `strip_constitutions` assumes
+  dense object IDs.
+- **Schema does not guarantee behavior.** `newton/use_adaptive_tol` is registered
+  but has no consumer. Contact/Subscene JSON config arguments are accepted but
+  ignored. Adding a default must be paired with a runtime reader and behavior test.
+- **IPC and AL-IPC orchestration are not fully symmetric.** The AL path currently
+  differs in external-force sequencing and timer behavior. Changes that claim
+  support for both constitutions need two focused tests.
+- **User-doc navigation has small standing drift.** The prose-only MkDocs build
+  succeeds but reports `docs/build_install/xmake.md` and
+  `docs/development/deterministic_mode.md` as orphan pages, plus a missing
+  `#Reporter-Manager-Receiver-Model` anchor from `development/index.md`. The
+  geometry tutorial also has a generated-class link that can only be confirmed in
+  a successful Doxygen/MkDoxy build.
 
 ## Performance: remaining gap vs Stiff-GIPC
 
@@ -149,12 +195,19 @@ assertions).
 
 ## Security advisories
 
-- pytest `< 9.0.3` tmpdir CVE → fixed on main (PR #469, pytest pinned
-  `>=9.0.3`, lock at 9.1.1). Dev-only dependency.
+- pytest `< 9.0.3` tmpdir CVE → development metadata/lock are fixed
+  (`pytest>=9.0.3`, lock at 9.1.1), but root `pyproject.toml` still declares the
+  dev extra as unpinned `pytest`; synchronize it before calling the metadata fix
+  complete. Dev-only dependency.
 - usd-core `< 25.8` (critical) is marked fixed in the repo, but USD is a
   local/optional dep — upgrade any local install to `usd-core >= 25.8`.
 
-## Samples repo state (spiriMirror/libuipc-samples)
+## Samples submodule state (spiriMirror/libuipc-samples)
+
+The root repository tracks this repository as the `libuipc-samples/` submodule.
+It currently has 52 example directories; numbering is non-contiguous and two
+directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
+reference.
 
 - `87_robot_hand` — URDF robot hand (ABD links + soft transform
   constraints) + ABD cube on the ground, manual GUI posing (sliders +

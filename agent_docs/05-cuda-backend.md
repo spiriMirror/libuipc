@@ -10,7 +10,7 @@ Directory: `src/backends/cuda/` (compiled as the MODULE library `uipc_backend_cu
 | `pipeline/` | Pipeline action (SimAction) definitions |
 | `global_geometry/` | Global vertex management (GlobalVertexManager), bounding boxes |
 | `affine_body/` | ABD dynamics (97 files): Jacobians, mass/energy assembly, joints, state accessors |
-| `finite_element/` | FEM (123 files): gradient/Hessian assembly kernels for each constitution (Fem3D/Codim2D/Codim1D families) |
+| `finite_element/` | FEM (124 files at the audited revision): gradient/Hessian assembly kernels for each constitution (Fem3D/Codim2D/Codim1D families) |
 | `collision_detection/` | StacklessBVH, simplex distance, global trajectory filter, DCD/CCD candidate detection |
 | `contact_system/` | IPC / AL-IPC contact models (symplectic/implicit), normal/tangential forces, CFL condition |
 | `distance_system/` | Distance computation |
@@ -58,6 +58,12 @@ Pipeline
 Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
+
+The diagram above describes the IPC path. `advance_al.cu` implements a separate
+AL-IPC active-set pipeline. It currently does not mirror every IPC orchestration
+detail: for example, its per-frame animation block does not run the same external-
+force clear/step sequence, and it enables/reports timers unconditionally. Treat
+IPC/AL changes as two verification surfaces rather than assuming shared behavior.
 
 ## Kernels and Kernel Naming
 
@@ -184,4 +190,8 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 ## none Backend
 
-`src/backends/none/`: an empty implementation (each `none::SimEngine` `do_*` is basically a no-op), used as a template for new backends and as a self-check of core basic functionality. **Note: environments without a GPU have no usable compute backend**.
+`src/backends/none/`: an empty implementation: it increments the frame and logs,
+but performs no physics. It is useful as a backend template and for limited core
+interface/geometry checks. It does not enter/solve the Scene pending-geometry
+cycle, so post-init object additions remain pending. **Environments without a GPU
+have no usable compute backend**.
