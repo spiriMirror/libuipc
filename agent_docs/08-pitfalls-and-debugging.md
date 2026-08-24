@@ -31,6 +31,11 @@ touching that area; several of these have bitten us more than once.
   incidents".
 - **`.github/workflows/*.yml` are CRLF files** — edit them with a
   CRLF-aware tool (python binary read/write), not a naive LF editor.
+- **Do not load scripts from `polyfill.io` in the documentation.** The
+  service returns HTTP 401 and causes browsers to show an authentication
+  popup on every page load. MathJax 3 does not need that ES6 polyfill; both
+  MkDocs configurations intentionally load only the local MathJax setup and
+  the MathJax bundle from jsDelivr.
 - In-progress GitHub Actions jobs expose logs only for **completed steps**;
   grep on a running step returns nothing. Use `gh run view --job <id>` for
   step status instead.
