@@ -41,13 +41,13 @@ We are **actively** developing Libuipc. Feedback and contributions are welcome!
 libuipc is organized in three layers: a friendly scene API on top, a reusable simulation core in the middle, and a fully-parallel CUDA backend underneath.
 
 - **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
-- **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: BDF1 time integration, line search with continuous collision detection, friction with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
-- **CUDA Backend** — fused-PCG linear solver with CUDA-graph block replay, MAS (Multi-Level Additive Schwarz) FEM preconditioner with internal auto-partitioning, stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
+- **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: implicit time integration, line search with continuous collision detection, frictional contact with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
+- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
 
 ### Why libuipc
 
 - **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
-- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics (SNK1 constitution, analytic SPD projections) and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
+- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
 - **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
 - **Fully Differentiable**: differentiable simulation APIs for backward optimization (Diff-Sim, coming soon).
 
