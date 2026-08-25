@@ -21,14 +21,6 @@ namespace
 {
     namespace eigen = cuda_tool::eigen;
 
-    __global__ void fill_identity_indices_kernel(cuda_tool::BufferView<uint32_t> indices, int n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-        indices(i) = static_cast<uint32_t>(i);
-    }
-
     __global__ void assemble_diag_inv_for_unpartitioned_kernel(
         cuda_tool::CBCOOMatrixView<Float, 3> triplet,
         cuda_tool::BufferView<Matrix3x3>     diag,
@@ -75,18 +67,6 @@ namespace
 
 // Must match REGISTER_CONSTITUTION_UIDS EmptyUID in src/constitution/empty.cpp
 constexpr ::uipc::U64 kEmptyConstitutionUID = 0ull;
-// Free function: NVCC on Windows forbids __device__ lambdas in static / internal-linkage functions
-void fill_identity_indices(cuda_tool::DeviceBuffer<uint32_t>& buf, int count)
-{
-    buf.resize(count);
-    if(count > 0)
-    {
-        auto k = fill_identity_indices_kernel;
-        k<<<cuda_tool::best_grid_dim(count, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            buf.view(), count);
-    }
-}
-
 void assemble_diag_inv_for_unpartitioned(cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
                                          const cuda_tool::DeviceBuffer<int>& unpart_flags,
                                          cuda_tool::CBCOOMatrixView<Float, 3> A,
@@ -150,10 +130,9 @@ class FEMMASPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    MASPreconditionerEngine           engine;
-    bool                              m_has_partition     = false;
-    bool                              m_has_unpartitioned = false;
-    cuda_tool::DeviceBuffer<uint32_t> sorted_indices;
+    MASPreconditionerEngine engine;
+    bool                    m_has_partition     = false;
+    bool                    m_has_unpartitioned = false;
 
     // Diagonal fallback for unpartitioned vertices
     cuda_tool::DeviceBuffer<Matrix3x3> diag_inv;
@@ -432,12 +411,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto A          = info.A();
         int  dof_offset = static_cast<int>(info.dof_offset());
 
-        auto triplet_count = A.triplet_count();
-
         // MAS assembly for partitioned vertices
-        fill_identity_indices(sorted_indices, triplet_count);
-        engine.set_preconditioner(
-            A.values(), A.row_indices(), A.col_indices(), sorted_indices.view(), dof_offset / 3, 0);
+        engine.set_preconditioner(A.values(), A.row_indices(), A.col_indices(), dof_offset / 3);
 
         auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");
         if(dump_mas && dump_mas->view()[0] != 0)

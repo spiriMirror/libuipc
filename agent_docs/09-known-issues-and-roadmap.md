@@ -92,11 +92,20 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    symmetric-storage transpose scatter (~243k atomic vec3 per SpMV);
    a full-storage row-based SpMV would eliminate atomics entirely but
    doubles matrix traffic and needs a converter variant — deferred.
-5. Case-88 frame budget after these rounds (60 frames, mean ~263 ms):
+5. MAS assembly overhead (DONE 2026-08-25): the static mesh-partition
+   hierarchy is cached after `init_matrix()` instead of being rebuilt for
+   every Newton iteration; Hessian scatter now walks BCOO directly instead of
+   filling an identity-index buffer; and the 48x48 Gauss-Jordan kernel drops
+   the barrier between independent row updates. On RTX 5090, case 88 over the
+   same 60 frames / 333 Newton iterations reduced `Assemble Preconditioner`
+   1149.9 -> 834.4 ms (-27.4%, 3.45 -> 2.51 ms/Newton). The single-run wall
+   mean moved 213.3 -> 208.1 ms/frame; contact-stage variance is larger than
+   the remaining MAS contribution, so stage timing is the reliable metric.
+6. Case-88 frame budget after the earlier rounds (60 frames, mean ~263 ms):
    FusedPCG 92 ms + Build Linear System 54 ms + trajectory detect 38 ms +
    DCD 29 ms + DyTopo 27 ms + misc. No single 2x item remains; it's a
    grind of 10-30 ms items.
-Every such change must re-pass the full sim suite (95 cases / 14214
+Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
 ## Deliberately deferred

@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **MAS assembly hot-path optimization (2026-08-25, `refactor-main`)**:
+> the mesh partition and multi-level MAS hierarchy are now built once during
+> engine initialization instead of being restored and rebuilt on every Newton
+> iteration. Hessian scatter traverses the BCOO arrays directly, removing the
+> per-iteration identity-index allocation/fill/read, and the 48x48 Gauss-Jordan
+> kernel no longer executes a redundant block-wide barrier between independent
+> row updates. On RTX 5090, sample 88 over the same 60-frame phase and 333
+> Newton iterations reduced `Assemble Preconditioner` from 1149.9 ms to
+> 834.4 ms (-27.4%, 3.45 to 2.51 ms/Newton); wall mean moved from 213.3 to
+> 208.1 ms/frame, with the remaining wall variance dominated by contact stages.
+> The full simulation suite passes (95 cases / 14212 assertions); this includes
+> all ten MAS sim cases (275 assertions). The dedicated MAS soft-stitch
+> regression also passes (4 assertions), as do the runtime-check CUDA build and
+> clang-format-18 gate.
+
 > **Repository contracts and source hygiene (2026-08-25,
 > `refactor-main`)**: all external GitHub Actions now use reviewed full commit
 > SHAs, and the vcpkg action/container revision matches the project's registry

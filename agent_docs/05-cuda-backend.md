@@ -144,7 +144,12 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   graph instead of invalidating it. The engine's workspace buffers are
   sized once at init from the mesh partition (contact does not recluster —
   collision-aware clustering is deliberately not ported), so the captured
-  pointers stay valid as contact nnz fluctuates.
+  pointers stay valid as contact nnz fluctuates. The partition hierarchy is
+  likewise constructed once in `init_matrix()` and reused by every Newton
+  assembly; only the current BCOO Hessian scatter and cluster inversion are
+  repeated. Scatter reads BCOO entries directly (there is no identity-index
+  staging buffer). The 48x48 Gauss-Jordan inversion synchronizes after the
+  pivot row is ready, but not between independent row updates.
 - MAS activation (all-or-nothing, since 2026-08-23): scene config
   `linear_system/fem_preconditioner = "mas"` (default `"diag"`) selects the
   FEM local preconditioner. When on, `FEMMASPreconditioner::do_init`
