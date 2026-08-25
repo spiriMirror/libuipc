@@ -1,5 +1,28 @@
 # Handoff — Current State of the Repo
 
+> **CUB completion and active sparse-format clarification (2026-08-25,
+> `refactor-main`)**: the legacy `stackless_bvh` and
+> `info_stackless_bvh_v0` builders now use CUB radix sort and exclusive scan,
+> with named initialization kernels and separate persistent sort outputs. MAS
+> hierarchy prefix scans also moved from Thrust to `cuda_tool::DeviceScan`.
+> All of these calls reuse the existing persistent per-stream CUB scratch cache;
+> no Newton-iteration path allocates temporary CUB storage per call. Unused
+> Thrust compatibility iterators/includes were removed from the CUDA backend.
+> The active linear solve remains symmetric 3x3 **BCOO**, not BSR: triplets are
+> canonicalized/reduced into `bcoo_A`, and both PCG SpMV paths consume it. BSR
+> currently exists only as a container/converter option. Validation on RTX 5090:
+> CUDA backend build/link; legacy/default/V0 BVH tests (38 assertions); all ten MAS
+> simulation cases (275 assertions); full simulation suite (95 cases / 14212
+> assertions); and MAS soft-stitch regression (4 assertions). The monolithic
+> build reached the already-linked Python extension, then its local post-build
+> package-uninstall step was denied access to the user-level `uipc.exe`; this is
+> outside the compiled targets and is not a source/link failure.
+
+> **Wheel CI path filtering (2026-08-25, `refactor-main`)**: prose/docs-only
+> pull requests, including `agent_docs/`-only maintenance, no longer start the
+> native builds or ten-wheel Python matrix. Release, code-bearing push/PR, and
+> manual publication triggers remain unchanged.
+
 > **Single-receiver DyTopo assembly fast path (2026-08-25,
 > `refactor-main`)**: pure FEM or pure ABD scenes whose only diagonal
 > `DyTopoEffectReceiver` owns the dynamic vertex prefix now forward the raw

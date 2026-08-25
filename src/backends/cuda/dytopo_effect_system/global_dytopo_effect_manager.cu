@@ -186,43 +186,39 @@ void GlobalDyTopoEffectManager::Impl::init(WorldVisitor& world)
 void GlobalDyTopoEffectManager::Impl::compute_dytopo_effect(ComputeDyTopoEffectInfo& info)
 {
     _assemble(info);
-    if(_try_direct_distribute(info))
-        return;
+    auto receivers = dytopo_effect_receivers.view();
+    if(receivers.size() == 1)
+    {
+        DyTopoClassifyInfo classify_info;
+        auto*              receiver = receivers[0];
+        receiver->report(classify_info);
+
+        auto dynamic_range = classify_info.gradient_i_range();
+        auto vertex_count =
+            static_cast<IndexT>(global_vertex_manager->positions().size());
+
+        // A single diagonal receiver starting at zero owns the complete dynamic
+        // vertex prefix. Any trailing global vertices are non-DOF geometry (for
+        // example, half planes), whose contact kernels only differentiate the
+        // dynamic vertex. The final GlobalLinearSystem conversion already sorts
+        // and reduces these raw entries, so doing that here as well is redundant.
+        if(classify_info.is_diag() && dynamic_range.x() == 0 && dynamic_range.y() != 0
+           && dynamic_range.y() <= vertex_count && classify_info.hessian_i_range() == dynamic_range
+           && classify_info.hessian_j_range() == dynamic_range)
+        {
+            Timer timer{"Distribute Dytopo Effect"};
+
+            ClassifiedDyTopoEffectInfo classified_info;
+            classified_info.m_gradients = collected_dytopo_effect_gradient.cview();
+            if(!info.m_gradient_only)
+                classified_info.m_hessians = collected_dytopo_effect_hessian.cview();
+            receiver->receive(classified_info);
+            return;
+        }
+    }
+
     _convert_matrix();
     _distribute(info);
-}
-
-bool GlobalDyTopoEffectManager::Impl::_try_direct_distribute(ComputeDyTopoEffectInfo& info)
-{
-    auto receivers = dytopo_effect_receivers.view();
-    if(receivers.size() != 1)
-        return false;
-
-    DyTopoClassifyInfo classify_info;
-    auto*              receiver = receivers[0];
-    receiver->report(classify_info);
-
-    auto dynamic_range = classify_info.gradient_i_range();
-    auto vertex_count = static_cast<IndexT>(global_vertex_manager->positions().size());
-
-    // A single diagonal receiver starting at zero owns the complete dynamic
-    // vertex prefix. Any trailing global vertices are non-DOF geometry (for
-    // example, half planes), whose contact kernels only differentiate the
-    // dynamic vertex. The final GlobalLinearSystem conversion already sorts
-    // and reduces these raw entries, so doing that here as well is redundant.
-    if(!classify_info.is_diag() || dynamic_range.x() != 0 || dynamic_range.y() == 0
-       || dynamic_range.y() > vertex_count || classify_info.hessian_i_range() != dynamic_range
-       || classify_info.hessian_j_range() != dynamic_range)
-        return false;
-
-    Timer timer{"Distribute Dytopo Effect"};
-
-    ClassifiedDyTopoEffectInfo classified_info;
-    classified_info.m_gradients = collected_dytopo_effect_gradient.cview();
-    if(!info.m_gradient_only)
-        classified_info.m_hessians = collected_dytopo_effect_hessian.cview();
-    receiver->receive(classified_info);
-    return true;
 }
 
 void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)

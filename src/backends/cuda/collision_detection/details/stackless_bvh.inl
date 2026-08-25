@@ -1,4 +1,5 @@
 #include <cuda_device/builtin.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 
 namespace uipc::culbvh
@@ -178,6 +179,44 @@ namespace uipc::backend::cuda
 {
 namespace
 {
+    __global__ void StacklessBVH_initializeBuildState_kernel(
+        int                             num_objs,
+        cuda_tool::Dense<AABB>          scene_box,
+        cuda_tool::BufferView<uint32_t> flags,
+        cuda_tool::BufferView<uint32_t> ext_mark,
+        cuda_tool::BufferView<int>      ext_lca,
+        cuda_tool::BufferView<uint32_t> ext_par,
+        cuda_tool::BufferView<uint32_t> depths,
+        cuda_tool::BufferView<int32_t>  unsorted_ids)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx == 0)
+            *scene_box = AABB();
+        if(idx < num_objs - 1)
+            flags(idx) = 0;
+        if(idx < num_objs)
+        {
+            ext_mark(idx)     = 7;
+            ext_lca(idx)      = 0;
+            ext_par(idx)      = 0;
+            depths(idx)       = 0;
+            unsorted_ids(idx) = idx;
+        }
+        if(idx == num_objs)
+            ext_lca(idx) = -1;
+    }
+
+    __global__ void StacklessBVH_initializeQueryState_kernel(int num_objs,
+                                                             cuda_tool::Dense<AABB> scene_box,
+                                                             cuda_tool::BufferView<int> unsorted_ids)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx == 0)
+            *scene_box = AABB();
+        if(idx < num_objs)
+            unsorted_ids(idx) = idx;
+    }
+
     __global__ void StacklessBVH_calcMaxBVFromBox_kernel(size_t size,
                                                          cuda_tool::CBufferView<AABB> box,
                                                          cuda_tool::Dense<AABB> _bv)
@@ -189,11 +228,6 @@ namespace
         int warpNum;
         if(idx >= size)
             return;
-        if(idx == 0)
-        {
-            *_bv = AABB();
-        }
-
         __shared__ PlainAABB aabbData[K_WARPS];
 
         PlainAABB temp = toPlainAABB(box(idx));
@@ -868,10 +902,10 @@ UIPC_INLINE void StacklessBVH::Impl::buildPrimitivesFromBox(cuda_tool::CBufferVi
 UIPC_INLINE void StacklessBVH::Impl::calcExtNodeSplitMetrics()
 {
     auto k = StacklessBVH_calcExtNodeSplitMetrics_kernel;
-    int  n = static_cast<int>(mtcode.size());
+    int  n = static_cast<int>(sorted_mtcode.size());
     if(n > 0)
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            mtcode.size(), mtcode.view(), metric.view(), n);
+            sorted_mtcode.size(), sorted_mtcode.view(), metric.view(), n);
 }
 
 UIPC_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
@@ -958,6 +992,7 @@ inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
 
 
     mtcode.resize(numObjs);
+    sorted_mtcode.resize(numObjs);
     sorted_id.resize(numObjs);
     primMap.resize(numObjs);
     ext_aabb.resize(numObjs);
@@ -983,20 +1018,25 @@ inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
     nodes.resize(numNodes);
 
 
-    // Initialize flags to 0
-    thrust::fill(flags.begin(), flags.end(), 0);
-    thrust::fill(thrust::device, ext_mark.begin(), ext_mark.end(), 7);
-    thrust::fill(thrust::device, ext_lca.begin(), ext_lca.end(), 0);
-    thrust::fill(thrust::device, ext_par.begin(), ext_par.end(), 0);
+    auto init = StacklessBVH_initializeBuildState_kernel;
+    auto n    = static_cast<int>(numObjs);
+    init<<<cuda_tool::best_grid_dim(n + 1, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
+        n,
+        scene_box.viewer(),
+        flags.view(),
+        ext_mark.view(),
+        ext_lca.view(),
+        ext_par.view(),
+        count.view(),
+        primMap.view());
 
     calcMaxBVFromBox(aabbs, scene_box.view());
 
     calcMCsFromBox(aabbs, scene_box.view(), mtcode.view());
 
-    auto null_stream = thrust::cuda::par_nosync.on(nullptr);
-
-    thrust::sequence(null_stream, sorted_id.begin(), sorted_id.end());
-    thrust::sort_by_key(null_stream, mtcode.begin(), mtcode.end(), sorted_id.begin());
+    // CUB scratch is cached per stream by cuda_tool and grows only on demand.
+    cuda_tool::DeviceRadixSort().SortPairs(
+        mtcode.data(), sorted_mtcode.data(), primMap.data(), sorted_id.data(), n);
 
     calcInverseMapping();
 
@@ -1006,12 +1046,9 @@ inline void StacklessBVH::Impl::build(cuda_tool::CBufferView<AABB> aabbs)
 
     buildIntNodes(numObjs);
 
-    thrust::exclusive_scan(null_stream, count.begin(), count.end(), offsetTable.begin());
+    cuda_tool::DeviceScan().ExclusiveSum(count.data(), offsetTable.data(), n);
 
     calcIntNodeOrders(numObjs);
-
-    // fill the last ext_lca to -1
-    thrust::fill(null_stream, ext_lca.begin() + numObjs, ext_lca.begin() + numObjs + 1, -1);
 
     updateBvhExtNodeLinks(numObjs);
 
@@ -1117,20 +1154,22 @@ inline void StacklessBVH::QueryBuffer::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     auto size = aabbs.size();
     m_queryMtCode.resize(size);
+    m_querySortedMtCode.resize(size);
+    m_queryId.resize(size);
     m_querySortedId.resize(size);
 
-
+    auto init = StacklessBVH_initializeQueryState_kernel;
+    auto n    = static_cast<int>(size);
+    if(n > 0)
+        init<<<cuda_tool::best_grid_dim(n, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
+            n, m_querySceneBox.viewer(), m_queryId.view());
     Impl::calcMaxBVFromBox(aabbs, m_querySceneBox);
     Impl::calcMCsFromBox(aabbs, m_querySceneBox, m_queryMtCode);
-
-    auto d_querySceneBox = m_querySceneBox.data();
-    auto d_queryMtCode   = m_queryMtCode.data();
-    auto d_querySortedId = m_querySortedId.data();
-    auto numQuery        = size;
-
-    auto null_stream = thrust::cuda::par_nosync.on(nullptr);
-    thrust::sequence(null_stream, d_querySortedId, d_querySortedId + numQuery);
-    thrust::sort_by_key(null_stream, d_queryMtCode, d_queryMtCode + numQuery, d_querySortedId);
+    cuda_tool::DeviceRadixSort().SortPairs(m_queryMtCode.data(),
+                                           m_querySortedMtCode.data(),
+                                           m_queryId.data(),
+                                           m_querySortedId.data(),
+                                           n);
 }
 
 template <std::invocable<IndexT, IndexT> Pred>

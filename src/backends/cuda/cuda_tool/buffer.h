@@ -3,7 +3,6 @@
 #include <cuda_tool/view.h>
 #include <cuda_tool/view_nd.h>
 #include <cuda_tool/launch.h>
-#include <thrust/device_ptr.h>
 #include <vector>
 
 namespace uipc::backend::cuda_tool
@@ -162,21 +161,6 @@ class DeviceVector
     size_t   capacity() const { return m_capacity; }
     T*       data() { return m_data; }
     const T* data() const { return m_data; }
-
-    // thrust-compatible device iterators (muda DeviceVector parity)
-    thrust::device_ptr<T> begin() { return thrust::device_ptr<T>(m_data); }
-    thrust::device_ptr<T> end()
-    {
-        return thrust::device_ptr<T>(m_data + m_size);
-    }
-    thrust::device_ptr<const T> begin() const
-    {
-        return thrust::device_ptr<const T>(m_data);
-    }
-    thrust::device_ptr<const T> end() const
-    {
-        return thrust::device_ptr<const T>(m_data + m_size);
-    }
 
     void resize(size_t n, cudaStream_t s = default_stream())
     {
