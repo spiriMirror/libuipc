@@ -101,10 +101,20 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    1149.9 -> 834.4 ms (-27.4%, 3.45 -> 2.51 ms/Newton). The single-run wall
    mean moved 213.3 -> 208.1 ms/frame; contact-stage variance is larger than
    the remaining MAS contribution, so stage timing is the reliable metric.
-6. Case-88 frame budget after the earlier rounds (60 frames, mean ~263 ms):
-   FusedPCG 92 ms + Build Linear System 54 ms + trajectory detect 38 ms +
-   DCD 29 ms + DyTopo 27 ms + misc. No single 2x item remains; it's a
-   grind of 10-30 ms items.
+6. Default BVH rebuild overhead (DONE 2026-08-25):
+   `info_stackless_bvh` now uses CUB radix sort and scan with the existing
+   persistent per-stream workspace. Identity generation and required state
+   resets are fused into one kernel; redundant/dead fills are gone. Moving
+   scene-AABB, leaf-LCA, and depth initialization before the multi-block
+   consumers also removes cross-block reset races. Case 88, same 60-frame
+   phase on RTX 5090: trajectory detection 7.98 -> 4.98-5.00 ms/Newton and
+   aggregate DCD 7.35 -> 4.59-4.60 ms/detect (both about -37.5%); two wall
+   runs measured 175.6-177.1 ms/frame versus 208.1 ms before.
+7. Current case-88 frame budget (60 frames, 175.6 ms mean representative):
+   Build Linear System 43.7 ms + DyTopo 33.6 ms + trajectory detect 27.5 ms
+   + aggregate DCD 25.3 ms + FusedPCG 24.9 ms + misc. The next evidence-led
+   targets are DyTopo/contact assembly and subsystem assembly, not another
+   broad-phase rewrite.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

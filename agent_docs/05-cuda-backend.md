@@ -80,6 +80,28 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
+## Default broad-phase BVH build
+
+`collision_detection/method = "info_stackless_bvh"` selects the optimized
+default broad phase. Its rebuild path is deliberately CUB-only:
+
+- `DeviceRadixSort::SortPairs` sorts Morton codes and primitive IDs into
+  separate persistent output buffers; a named initialization kernel produces
+  the identity IDs, so there is no sequence primitive or staging allocation.
+- `DeviceScan::ExclusiveSum` builds the internal-node offset table.
+- The CUB wrappers use `details::cub_temp_storage`, a persistent per-stream
+  workspace that doubles capacity only when it must grow. Never replace this
+  with per-call `cudaMalloc`/`cudaFree`; those calls serialize the device.
+- The same initialization kernel resets the atomic flags, depth counts, leaf
+  LCAs, and scene AABB before any parallel builder/reduction can write them.
+  Keep those resets outside the consuming multi-block kernels: resetting an
+  output from `idx == 0` inside such a kernel is not a grid-wide barrier and
+  races blocks that have already published results.
+
+The `info_stackless_bvh_v0` selector is a legacy comparison path, while
+`stackless_bvh` and `linear_bvh` are alternate broad phases. Performance and
+correctness claims above apply to the default selector.
+
 ## Kernels and Kernel Naming
 
 All kernels are **named `__global__` functions** (defined in anonymous namespaces), launched via bare `<<<grid, block, 0, stream>>>`. Kernel names follow the `<owning class>_<original function>[_kN]_kernel` convention, so they are directly readable in ncu reports:

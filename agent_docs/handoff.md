@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **CUB BVH build hot-path optimization (2026-08-25, `refactor-main`)**:
+> the default `info_stackless_bvh` broad phase no longer uses Thrust. Morton
+> pair sorting uses `cuda_tool::DeviceRadixSort`, internal-node offsets use
+> `DeviceScan`, and identity generation plus all required build-state resets
+> are fused into one named initialization kernel. The CUB wrappers reuse their
+> persistent per-stream scratch workspace and grow it only when capacity is
+> insufficient. Scene-AABB, leaf-LCA, and depth initialization now precede
+> their parallel reductions/builds, removing the former cross-block reset
+> races. On RTX 5090, case 88 over the same 60-frame phase reduced trajectory
+> detection from 7.98 to 4.98-5.00 ms/Newton (-37.5%) and aggregate DCD from
+> 7.35 to 4.59-4.60 ms/detect (-37.5%); two runs measured 175.6-177.1
+> ms/frame versus 208.1 ms before (-14.9% to -15.6%). The full simulation
+> suite passes (95 cases / 14212 assertions), as does the dedicated MAS
+> soft-stitch regression (4 assertions).
+
 > **MAS assembly hot-path optimization (2026-08-25, `refactor-main`)**:
 > the mesh partition and multi-level MAS hierarchy are now built once during
 > engine initialization instead of being restored and rebuilt on every Newton

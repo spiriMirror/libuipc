@@ -72,6 +72,11 @@ record it here in the same commit.**
    replacement experiment — geigen under `src/math/` — was tried and
    deliberately reverted; do not resurrect it without an explicit request.)
 
+12. **Use CUB, not Thrust, for new or modified CUDA bulk algorithms.** CUB
+   temporary storage must be persistent and reused (normally through
+   `cuda_tool`'s per-stream workspace); never allocate/free CUB scratch on
+   every call. (Set 2026-08-25.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice
