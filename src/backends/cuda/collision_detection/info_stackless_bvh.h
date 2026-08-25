@@ -4,14 +4,6 @@
 #include <cuda_tool/cuda_tool.h>
 #include <uipc/common/log.h>
 #include <concepts>
-#include <thrust/device_vector.h>
-#include <thrust/swap.h>
-#include <thrust/sequence.h>
-#include <thrust/functional.h>
-#include <thrust/sort.h>
-#include <thrust/fill.h>
-#include <thrust/reduce.h>
-#include <thrust/execution_policy.h>
 
 namespace uipc::backend::cuda
 {
@@ -88,7 +80,9 @@ class InfoStacklessBVH
         SizeT                                 m_size = 0;
         cuda_tool::DeviceBuffer<Vector2i>     m_pairs;
         cuda_tool::DeviceBuffer<unsigned int> m_queryMtCode;
+        cuda_tool::DeviceBuffer<unsigned int> m_querySortedMtCode;
         cuda_tool::DeviceVar<AABB>            m_querySceneBox;
+        cuda_tool::DeviceBuffer<int>          m_queryId;
         cuda_tool::DeviceBuffer<int>          m_querySortedId;
         cuda_tool::DeviceVar<int>             m_cpNum;
 
@@ -179,6 +173,7 @@ class InfoStacklessBVH
         cuda_tool::DeviceVar<AABB>        scene_box;
         cuda_tool::DeviceVector<uint32_t> flags;
         cuda_tool::DeviceVector<uint32_t> mtcode;
+        cuda_tool::DeviceVector<uint32_t> sorted_mtcode;
         cuda_tool::DeviceVector<int32_t>  sorted_id;
         cuda_tool::DeviceVector<int32_t>  primMap;
         cuda_tool::DeviceVector<int>      metric;
@@ -188,7 +183,6 @@ class InfoStacklessBVH
         cuda_tool::DeviceVector<AABB>     ext_aabb;
         cuda_tool::DeviceVector<int>      ext_idx;
         cuda_tool::DeviceVector<int>      ext_lca;
-        cuda_tool::DeviceVector<uint32_t> ext_mark;
         cuda_tool::DeviceVector<uint32_t> ext_par;
         cuda_tool::DeviceVector<int>      int_lc;
         cuda_tool::DeviceVector<int>      int_rc;

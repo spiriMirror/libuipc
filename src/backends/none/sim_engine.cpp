@@ -26,12 +26,17 @@ void SimEngine::do_init(InitInfo& info)
     m_system = &require<NoneSimSystem>();
 
     dump_system_info();
+
+    // Match the frontend mutation lifecycle used by simulation backends:
+    // changes made after World::init() are deferred until the next advance.
+    world().scene().begin_pending();
 }
 
 void SimEngine::do_advance()
 {
     LogPatternGuard guard("None");
     m_frame++;
+    world().scene().solve_pending();
     logger::info("do_advance() called.");
 }
 
@@ -58,6 +63,12 @@ SizeT SimEngine::get_frame() const
 {
     return m_frame;
 }
+
+Json SimEngine::do_frame_stats() const
+{
+    return Json::object();
+}
+
 bool SimEngine::do_dump(DumpInfo&)
 {
     // Now just do nothing

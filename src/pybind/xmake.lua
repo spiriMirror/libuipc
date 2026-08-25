@@ -10,6 +10,10 @@ add_requireconfs("python", "**.python", {
 })
 
 target("pyuipc")
+    -- XMake targets default to executables.  Declare the extension module's
+    -- link kind before configuration so its target file is never an .exe.
+    set_kind("shared")
+    set_prefixname("")
     add_rules("uipc.python")
     add_files("**.cpp")
     add_includedirs(os.scriptdir())
@@ -26,6 +30,12 @@ target("pyuipc")
     on_load(function (target)
         import("core.base.semver")
 
+        -- Keep a valid importable fallback even when Python's ABI suffix
+        -- cannot be queried until the package environment is installed.
+        if target:is_plat("windows", "mingw") then
+            target:set("extension", ".pyd")
+        end
+
         if target:get("version") then
             local version = semver.new(target:get("version"))
             target:add("defines",
@@ -34,11 +44,33 @@ target("pyuipc")
                 "UIPC_VERSION_PATCH=" .. version:patch()
             )
         end
+        if has_config("backend_cuda") then
+            local architectures = "native"
+            if has_config("github_actions") then
+                architectures = "89"
+            end
+            target:add("defines",
+                "UIPC_PY_CUDA_BACKEND=1",
+                'UIPC_PY_CUDA_ARCHITECTURES="' .. architectures .. '"',
+                'UIPC_PY_CUDA_TOOLKIT_VERSION="unknown"'
+            )
+        else
+            target:add("defines",
+                "UIPC_PY_CUDA_BACKEND=0",
+                'UIPC_PY_CUDA_ARCHITECTURES="none"',
+                'UIPC_PY_CUDA_TOOLKIT_VERSION="none"'
+            )
+        end
+        target:add("defines", 'UIPC_PY_BUILD_TYPE="' .. target:mode() .. '"')
         -- depend on backend
         if has_config("backend_cuda") then
             target:add("deps", "cuda", {inherit = false})
         end
         target:add("deps", "none", {inherit = false})
+        if has_config("usd") then
+            target:add("defines", "UIPC_WITH_USD_SUPPORT=1")
+            target:add("deps", "uipc_usd")
+        end
     end)
 
     after_build(function (target)
@@ -46,50 +78,35 @@ target("pyuipc")
         local python_source_dir = path.join(project_dir, "python")
         local build_dir = path.join(project_dir, "build")
         local python_build_dir = path.join(build_dir, "python")
-        -- local modules_target_dir = path.join(python_build_dir, "src", "uipc", "modules")
         local modules_target_dir = path.join(python_build_dir, "src", "uipc", "_native")
-        
+
         -- Copy the entire python folder to build directory
         print("Copying python folder from " .. python_source_dir .. " to " .. python_build_dir)
-        -- os.cp copies directories recursively when given a directory path
         os.mkdir(modules_target_dir)
         os.cp(python_source_dir, python_build_dir, {
-            async = true,
-            detach = true,
             copy_if_different = true
         })
-        os.cp(python_source_dir, python_build_dir, {
-            async = true,
-            detach = true,
-            copy_if_different = true
-        })
-        
-        -- Ensure modules directory exists
-        
-        -- Copy the built modules from target directory to build_dir/python/src/uipc/modules/
+
+        -- Copy the extension itself and its colocated runtime libraries before
+        -- returning from after_build, so packaging never races detached copies.
         local target_dir = target:targetdir()
         print("Copying modules from " .. target_dir .. " to " .. modules_target_dir)
-        
-        -- Copy all files from target directory to modules directory
-        -- Use os.cp with pattern to copy all files
+        os.cp(target:targetfile(), modules_target_dir, {
+            copy_if_different = true
+        })
+
         if target:is_plat("windows") then
             os.cp(path.join(target_dir, "*.dll"), modules_target_dir, {
-                async = true,
-                detach = true,
                 copy_if_different = true
             })
         elseif target:is_plat("linux") then
-            os.cp(path.join(target_dir, "*.so"), modules_target_dir, {
-                async = true,
-                detach = true,
+            os.cp(path.join(target_dir, "*.so*"), modules_target_dir, {
                 copy_if_different = true
             })
-        else 
+        else
             os.cp(path.join(target_dir, "*.dylib"), modules_target_dir, {
-            async = true,
-            detach = true,
-            copy_if_different = true
-        })
+                copy_if_different = true
+            })
         end
     end)
 

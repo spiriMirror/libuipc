@@ -26,6 +26,7 @@ World::~World() {}
 
 void World::init(Scene& s)
 {
+    s.validate_config();
     m_internal->init(*s.m_internal);
 }
 

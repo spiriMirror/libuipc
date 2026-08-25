@@ -34,52 +34,113 @@ UID_RE = re.compile(r"\.uid\s*=\s*([^,}]+)")
 NAME_RE = re.compile(r"\.name\s*=\s*\"([^\"]+)\"")
 TYPE_RE = re.compile(r"\.type\s*=\s*([^,}]+)")
 BUILTIN_TYPE_RE = re.compile(r"builtin::(\w+)")
+# builtin::UIDInfo info; info.uid = ...; ...; uid_infos.push_back(info);
+UIDINFO_DECL_RE = re.compile(r"\b(?:builtin::)?UIDInfo\s+(\w+)\s*;")
+
+
+def _resolve_entry(
+    uid_expr: str,
+    name: str,
+    type_expr: str,
+    consts: dict[str, int],
+    type_vars: dict[str, str],
+    source: str,
+) -> dict | None:
+    uid_expr = uid_expr.strip()
+    uid = consts.get(uid_expr)
+    if uid is None:
+        num = re.fullmatch(r"(\d+)\s*(?:ull?)?", uid_expr)
+        if num:
+            uid = int(num.group(1))
+    if uid is None:
+        print(f"[warn] unresolved uid expression `{uid_expr}` in {source}")
+        return None
+
+    type_expr = type_expr.strip()
+    builtin_m = BUILTIN_TYPE_RE.search(type_expr)
+    # Tolerate truncation at the inner `}` of e.g. `string{Constraint}}`.
+    brace_m = re.search(r"\{\s*(\w+)", type_expr)
+    if builtin_m:
+        type_name = builtin_m.group(1)
+    elif type_expr in type_vars:
+        type_name = type_vars[type_expr]
+    elif brace_m:
+        type_name = brace_m.group(1)
+    else:
+        type_name = type_expr
+
+    return {
+        "uid": uid,
+        "name": name,
+        "type": type_name,
+        "source": source,
+    }
+
+
+def collect_uids_from_text(text: str, source: str) -> list[dict]:
+    """Collect designated- and statement-initialized UIDInfo entries."""
+    entries = []
+    consts = {m.group(1): int(m.group(2)) for m in CONST_RE.finditer(text)}
+    type_vars = {m.group(1): m.group(2) for m in TYPE_VAR_RE.finditer(text)}
+
+    for block in UIDINFO_RE.finditer(text):
+        body = block.group(1)
+        uid_m, name_m, type_m = (
+            UID_RE.search(body),
+            NAME_RE.search(body),
+            TYPE_RE.search(body),
+        )
+        if not (uid_m and name_m and type_m):
+            continue
+        entry = _resolve_entry(
+            uid_m.group(1),
+            name_m.group(1),
+            type_m.group(1),
+            consts,
+            type_vars,
+            source,
+        )
+        if entry:
+            entries.append(entry)
+
+    for declaration in UIDINFO_DECL_RE.finditer(text):
+        variable = declaration.group(1)
+        push_re = re.compile(rf"\b\w+\.push_back\(\s*{re.escape(variable)}\s*\)\s*;")
+        push = push_re.search(text, declaration.end())
+        if not push:
+            continue
+
+        body = text[declaration.end() : push.start()]
+        assignment_re = re.compile(
+            rf"\b{re.escape(variable)}\.(uid|name|type)\s*=\s*(.*?)\s*;",
+            re.S,
+        )
+        fields = {m.group(1): m.group(2).strip() for m in assignment_re.finditer(body)}
+        if not {"uid", "name", "type"}.issubset(fields):
+            continue
+        name_m = re.fullmatch(r'"([^\"]+)"', fields["name"])
+        if not name_m:
+            continue
+        entry = _resolve_entry(
+            fields["uid"],
+            name_m.group(1),
+            fields["type"],
+            consts,
+            type_vars,
+            source,
+        )
+        if entry:
+            entries.append(entry)
+
+    return entries
 
 
 def collect_uids(src_dir: Path) -> list[dict]:
     entries = []
     for cpp in sorted(src_dir.glob("*.cpp")):
         text = cpp.read_text(encoding="utf-8")
-        consts = {m.group(1): int(m.group(2)) for m in CONST_RE.finditer(text)}
-        type_vars = {m.group(1): m.group(2) for m in TYPE_VAR_RE.finditer(text)}
-        for block in UIDINFO_RE.finditer(text):
-            body = block.group(1)
-            uid_m, name_m, type_m = (
-                UID_RE.search(body),
-                NAME_RE.search(body),
-                TYPE_RE.search(body),
-            )
-            if not (uid_m and name_m and type_m):
-                continue
-            uid_expr = uid_m.group(1).strip()
-            uid = consts.get(uid_expr)
-            if uid is None:
-                num = re.fullmatch(r"(\d+)\s*(?:ull?)?", uid_expr)
-                if num:
-                    uid = int(num.group(1))
-            if uid is None:
-                print(f"[warn] unresolved uid expression `{uid_expr}` in {cpp.name}")
-                continue
-            type_expr = type_m.group(1).strip()
-            builtin_m = BUILTIN_TYPE_RE.search(type_expr)
-            # tolerate truncation at the inner `}` of e.g. `string{Constraint}}`
-            brace_m = re.search(r"\{\s*(\w+)", type_expr)
-            if builtin_m:
-                type_name = builtin_m.group(1)
-            elif type_expr in type_vars:
-                type_name = type_vars[type_expr]
-            elif brace_m:
-                type_name = brace_m.group(1)
-            else:
-                type_name = type_expr
-            entries.append(
-                {
-                    "uid": uid,
-                    "name": name_m.group(1),
-                    "type": type_name,
-                    "source": cpp.relative_to(PROJECT_DIR).as_posix(),
-                }
-            )
+        source = cpp.relative_to(PROJECT_DIR).as_posix()
+        entries.extend(collect_uids_from_text(text, source))
     entries.sort(key=lambda e: (e["uid"], e["name"]))
     return entries
 

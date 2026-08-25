@@ -51,7 +51,7 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     unordered_map<IndexT, S<Object>>&       objects();
     const unordered_map<IndexT, S<Object>>& objects() const;
 
-    void build_from(span<S<Object>> objects) noexcept;
+    void build_from(span<S<Object>> objects, IndexT next_id = -1) noexcept;
     void update_from(internal::Scene& scene, const ObjectCollectionSnapshot& snapshot) noexcept;
 };
 

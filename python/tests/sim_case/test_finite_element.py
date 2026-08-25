@@ -27,6 +27,7 @@ def process_surface(sc: SimplicialComplex):
 
 run = False
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
+@pytest.mark.cuda
 @pytest.mark.example 
 def test_finite_element():
     Logger.set_level(Logger.Level.Warn)

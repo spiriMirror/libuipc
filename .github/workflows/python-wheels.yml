@@ -23,6 +23,7 @@ on:
       - main
   release:
     types: [published]
+  workflow_dispatch:
 
 
 concurrency:
@@ -50,12 +51,13 @@ jobs:
           - "cp311"
           - "cp312"
           - "cp313"
+          - "cp314"
     timeout-minutes: 360
 
     steps:
       - name: Maximize build space
         if: matrix.os == 'ubuntu-22.04'
-        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        uses: AdityaGarg8/remove-unwanted-software@8831c82abf29b34eb2caac48d5f999ecfc0d8eef # v4.1
         with:
           remove-android: "true"
           remove-haskell: "true"
@@ -72,15 +74,20 @@ jobs:
           fi
 
       - name: Checkout code
-        uses: actions/checkout@v5
-    
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Check release compatibility policy
+        run: python scripts/check_release_policy.py
 
       - name: Install a specific version
-        uses: eifinger/setup-uv@v1
+        uses: astral-sh/setup-uv@162b8acf397cb069dec09a3f5a9847cf71cfa46a # v1
         with:
-          version: 'latest'
+          version: '0.12.5'
 
       - name: Generate vcpkg.json
         run: |
@@ -90,12 +97,12 @@ jobs:
       - name: Setup vcpkg (Windows)
         if: matrix.os == 'windows-2022'
         id: vcpkg
-        uses: johnwason/vcpkg-action@v6
+        uses: johnwason/vcpkg-action@7c4b562bb35ef5a01d9d728acc90100b107dee4d # v6
         with:
           manifest-dir: "${{ env.WORKSPACE }}/build"
           triplet: x64-windows-release
           cache-key: ${{ matrix.os }}
-          revision: master
+          revision: dd3097e305afa53f7b4312371f62058d2e665320 # 2025.07.25
           token: ${{ github.token }}
           github-binarycache: true
           fetch-depth: "0"
@@ -103,16 +110,21 @@ jobs:
       - name: Setup CUDA ${{ matrix.cuda}}
         # Only on windows, linux needs cuda in container
         if: matrix.os == 'windows-2022'
-        uses: Jimver/cuda-toolkit@v0.2.30
+        uses: Jimver/cuda-toolkit@b6fc3a9f3f15256d9d94ffe1254f9c5a2565cde6 # v0.2.30
         with:
           cuda: "${{ matrix.cuda }}"
           log-file-suffix: '${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}-${{ github.run_attempt }}.txt'
 
       - name: Windows Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@298ed2fb2c105540f5ed055e8a6ad78d82dd3a7e # v3.3.1
         if: matrix.os == 'windows-2022'
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-*"
+          CIBW_TEST_REQUIRES: "pytest>=9.0.3"
+          CIBW_TEST_COMMAND: >-
+            python {project}/scripts/smoke_test_wheel.py &&
+            python -m pytest -q -m "not cuda and not example"
+            {project}/python/tests
           # Relative path to vcpkg, to avoid linux container path issues
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
@@ -130,11 +142,16 @@ jobs:
           echo "CUDA_VERSION_MAJOR_MINOR=${CUDA_VERSION_MAJOR_MINOR}" >> $GITHUB_ENV
 
       - name: Linux Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
+        uses: pypa/cibuildwheel@298ed2fb2c105540f5ed055e8a6ad78d82dd3a7e # v3.3.1
         if: matrix.os == 'ubuntu-22.04'
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-manylinux*"
           CIBW_SKIP: "${{ matrix.python-version }}-musllinux*"
+          CIBW_TEST_REQUIRES: "pytest>=9.0.3"
+          CIBW_TEST_COMMAND: >-
+            python {project}/scripts/smoke_test_wheel.py &&
+            python -m pytest -q -m "not cuda and not example"
+            {project}/python/tests
           # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
           # Pinned to known-good digest (2026-05-10) to avoid upstream breakage.
           # See: https://github.com/ameli/manylinux-cuda/issues/17
@@ -147,6 +164,7 @@ jobs:
             if [ ! -d vcpkg ]; then
               git clone https://github.com/microsoft/vcpkg.git &&
               cd vcpkg &&
+              git checkout dd3097e305afa53f7b4312371f62058d2e665320 &&
               ./bootstrap-vcpkg.sh -disableMetrics;
             fi
           # Reduce parallelism to avoid OOM (exit code 137)
@@ -158,7 +176,7 @@ jobs:
           output-dir: "build/wheelhouse"
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pyuipc-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
           path: "${{ env.WORKSPACE }}/build/wheelhouse/*.whl"
@@ -178,14 +196,14 @@ jobs:
     
     steps:
       - name: Download all wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: pyuipc-*
           merge-multiple: true
           path: wheelhouse
 
       - name: Publish to Test PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: wheelhouse
@@ -196,7 +214,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: publish-test-pypi
+    needs: verify-test-pypi
     if: github.event_name == 'release'
     permissions:
       id-token: write  # Required for trusted publishing (OIDC)
@@ -206,7 +224,7 @@ jobs:
       url: https://pypi.org/p/pyuipc
     steps:
       - name: Download all wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: pyuipc-*
           merge-multiple: true
@@ -219,9 +237,80 @@ jobs:
           ls -la wheelhouse/ || true
 
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           packages-dir: wheelhouse
           print-hash: true
           skip-existing: true
-          attestations: true 
+          attestations: true
+
+  verify-test-pypi:
+    name: Verify Test PyPI release
+    runs-on: ubuntu-latest
+    needs: publish-test-pypi
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Test PyPI wheel matrix
+        run: >-
+          python scripts/verify_pypi_release.py
+          --repository-url https://test.pypi.org
+          --version "${{ steps.version.outputs.version }}"
+
+      - name: Install and smoke-test Test PyPI wheel
+        env:
+          UIPC_EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python -m pip install --no-cache-dir \
+            --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "pyuipc==${{ steps.version.outputs.version }}"
+          python scripts/smoke_test_wheel.py
+
+  verify-pypi:
+    name: Verify PyPI release
+    runs-on: ubuntu-latest
+    needs: publish-pypi
+    if: github.event_name == 'release'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify PyPI wheel matrix
+        run: >-
+          python scripts/verify_pypi_release.py
+          --version "${{ steps.version.outputs.version }}"
+
+      - name: Install and smoke-test PyPI wheel
+        env:
+          UIPC_EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python -m pip install --no-cache-dir \
+            "pyuipc==${{ steps.version.outputs.version }}"
+          python scripts/smoke_test_wheel.py

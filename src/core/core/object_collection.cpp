@@ -85,7 +85,7 @@ const unordered_map<IndexT, S<Object>>& ObjectCollection::objects() const
     return m_objects;
 }
 
-void ObjectCollection::build_from(span<S<Object>> objects) noexcept
+void ObjectCollection::build_from(span<S<Object>> objects, IndexT next_id) noexcept
 {
     m_objects.clear();
     m_next_id = 0;
@@ -95,6 +95,19 @@ void ObjectCollection::build_from(span<S<Object>> objects) noexcept
         if(id >= m_next_id)
             m_next_id = id + 1;
         m_objects.emplace(id, object);
+    }
+
+    if(next_id >= m_next_id)
+    {
+        m_next_id = next_id;
+    }
+    else if(next_id >= 0)
+    {
+        UIPC_WARN_WITH_LOCATION(
+            "ObjectCollection next id {} is smaller than the inferred next id {}; "
+            "using the inferred value.",
+            next_id,
+            m_next_id);
     }
 }
 

@@ -69,6 +69,7 @@ void GlobalLinearSystem::_dump_x()
 
 void GlobalLinearSystem::solve()
 {
+    m_impl.last_solve_iterations = 0;
     m_impl.build_linear_system();
 
     if(m_impl.empty_system) [[unlikely]]
@@ -442,6 +443,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
         info.m_b = b.cview();
         info.m_x = x.view();
         iterative_solver->solve(info);
+        last_solve_iterations = info.m_iter_count;
         logger::info("Iterative linear solver iteration count: {}", info.m_iter_count);
     }
 }
@@ -636,6 +638,11 @@ SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
 {
     auto diag_dof_counts = m_impl->diag_dof_offsets_counts.counts();
     return diag_dof_counts[m_index];
+}
+
+SizeT GlobalLinearSystem::last_solve_iterations() const noexcept
+{
+    return m_impl.last_solve_iterations;
 }
 }  // namespace uipc::backend::cuda
 

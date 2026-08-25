@@ -12,26 +12,29 @@ PyGeometryAtlas::PyGeometryAtlas(py::module& m)
     class_GeometryAtlas.def(py::init<>(), R"(Create an empty geometry atlas.)");
     class_GeometryAtlas.def(
         "create",
-        [](GeometryAtlas& self, Geometry& geo) { return self.create(geo); },
+        [](GeometryAtlas& self, Geometry& geo, bool evolving_only)
+        { return self.create(geo, evolving_only); },
         py::arg("geo"),
+        py::arg("evolving_only") = false,
         R"(Create a geometry in the atlas.
 Args:
     geo: Geometry to add.
+    evolving_only: Keep only evolving attributes for baseline-dependent streaming.
 Returns:
-    GeometrySlot: Slot containing the created geometry.)");
+    int: Atlas geometry ID.)");
 
     class_GeometryAtlas.def(
         "create",
-        [](GeometryAtlas& self, std::string_view name, AttributeCollection& ac)
-        { return self.create(name, ac); },
+        [](GeometryAtlas& self, std::string_view name, AttributeCollection& ac, bool evolving_only)
+        { return self.create(name, ac, evolving_only); },
         py::arg("name"),
         py::arg("ac"),
-        R"(Create a geometry from an attribute collection.
+        py::arg("evolving_only") = false,
+        R"(Create a named attribute collection.
 Args:
-    name: Name for the geometry.
-    ac: AttributeCollection to create geometry from.
-Returns:
-    GeometrySlot: Slot containing the created geometry.)");
+    name: Name for the attribute collection.
+    ac: AttributeCollection to copy.
+    evolving_only: Keep only evolving attributes while preserving row count.)");
 
     class_GeometryAtlas.def("geometry_count",
                             &GeometryAtlas::geometry_count,

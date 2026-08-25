@@ -467,7 +467,6 @@ namespace
         cuda_tool::CBufferView<Int2>            level_size,
         cuda_tool::BufferView<ClusterMatrixSym> cluster_hess,
         cuda_tool::CBufferView<int>             real_to_part,
-        cuda_tool::CBufferView<uint32_t>        indices,
         cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
         cuda_tool::CBufferView<int>             row_ids,
         cuda_tool::CBufferView<int>             col_ids,
@@ -480,10 +479,9 @@ namespace
         if(I >= n)
             return;
 
-        int  index    = indices(I);
-        int  row_real = row_ids(index) - offset;
-        int  col_real = col_ids(index) - offset;
-        auto H        = triplet_values(index);
+        int  row_real = row_ids(I) - offset;
+        int  col_real = col_ids(I) - offset;
+        auto H        = triplet_values(I);
 
         if(row_real < 0 || row_real >= total_nodes || col_real < 0 || col_real >= total_nodes)
             return;
@@ -776,7 +774,6 @@ namespace
                 if(row != pivot)
                 {
                     double factor = -s_col(row);
-                    __syncthreads();
                     s_mat(row, col) += factor * s_mat(pivot, col);
                 }
             }
@@ -1106,7 +1103,7 @@ void MASPreconditionerEngine::init_matrix()
     neighbor_lists.view().copy_from(neighbor_lists_init.view());
     neighbor_nums.view().copy_from(neighbor_nums_init.view());
 
-    int total_cluster = static_cast<int>(reorder_realtime(0) * 1.05);
+    int total_cluster = static_cast<int>(reorder_realtime() * 1.05);
     int num_blocks    = total_cluster / BANKSIZE;
 
     cluster_hessians.resize(num_blocks);
@@ -1121,7 +1118,7 @@ void MASPreconditionerEngine::init_matrix()
 // Hierarchy building
 // ============================================================================
 
-int MASPreconditionerEngine::reorder_realtime(int cp_num)
+int MASPreconditionerEngine::reorder_realtime()
 {
     level_sizes.fill(Int2{0, 0});
     coarse_space_tables.fill(-1);
@@ -1358,21 +1355,17 @@ void MASPreconditionerEngine::aggregation_kernel()
 void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
                                                  cuda_tool::CBufferView<int> row_ids,
                                                  cuda_tool::CBufferView<int> col_ids,
-                                                 cuda_tool::CBufferView<uint32_t> indices,
-                                                 int dof_offset,
-                                                 int cp_num)
+                                                 int dof_offset)
 {
     if(m_total_nodes < 1)
         return;
 
-    // 1. Restore neighbor data for this iteration
-    neighbor_lists.view().copy_from(neighbor_lists_init.view());
-    neighbor_nums.view().copy_from(neighbor_nums_init.view());
+    // The partition adjacency and its multi-level hierarchy are invariant for the
+    // lifetime of this engine. init_matrix() builds them once; rebuilding here
+    // would repeat scans, kernel launches, and host synchronizations every Newton
+    // iteration without changing the result.
 
-    // 2. Rebuild multi-level hierarchy
-    reorder_realtime(cp_num);
-
-    // 3. Resize cluster matrices if needed
+    // Resize cluster matrices if needed
     int num_cluster_blocks = m_total_num_clusters / BANKSIZE;
     if(num_cluster_blocks < 1)
         return;
@@ -1392,10 +1385,10 @@ void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::M
 
     cluster_hessians.view(0, num_cluster_blocks).fill(ClusterMatrixSym{});
 
-    // 5. Scatter BCOO Hessian blocks into cluster matrices
-    scatter_hessian_to_clusters(triplet_values, row_ids, col_ids, indices, dof_offset);
+    // Scatter BCOO Hessian blocks into cluster matrices
+    scatter_hessian_to_clusters(triplet_values, row_ids, col_ids, dof_offset);
 
-    // 6. Invert each cluster matrix (Gauss-Jordan)
+    // Invert each cluster matrix (Gauss-Jordan)
     invert_cluster_matrices();
 }
 
@@ -1406,12 +1399,11 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
     cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
     cuda_tool::CBufferView<int>             row_ids,
     cuda_tool::CBufferView<int>             col_ids,
-    cuda_tool::CBufferView<uint32_t>        indices,
     int                                     dof_offset)
 {
     using namespace cuda_tool;
 
-    int triplet_num = static_cast<int>(indices.size());
+    int triplet_num = static_cast<int>(triplet_values.size());
 
     // --- Pass 1: Place each 3x3 block at the finest level where both
     //             row and col belong to the same cluster. ---
@@ -1426,7 +1418,6 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
             level_sizes.cview(),
             cluster_hessians.view(),
             real_to_part.cview(),
-            indices,
             triplet_values,
             row_ids,
             col_ids,

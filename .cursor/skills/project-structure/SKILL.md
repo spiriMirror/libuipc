@@ -13,10 +13,11 @@ Overview of the main directories and important files in the repository.
 - `assets/` - Scene assets and simulation data.
 - `cmake/` - Shared CMake utilities and macros.
 - `docs/` - Documentation, specs, and site assets.
-- `external/` - Third-party dependencies bundled in-tree (GKlib, METIS). muda is vendored under `src/backends/cuda/cuda_tool/muda/`.
+- `external/` - Third-party dependencies bundled in-tree (GKlib and METIS). muda has been removed; `src/backends/cuda/cuda_tool/` is an in-house raw-CUDA utility layer, not vendored muda.
 - `include/` - Public C++ headers.
 - `output/` - Generated outputs from simulations. (the contents is ignored by git)
 - `python/` - Python package, tests, and metadata.
+- `libuipc-samples/` - Tracked git submodule containing Python examples, benchmarks, and sample assets.
 - `scripts/` - Utility scripts and notebooks.
 - `src/` - Core C++ implementation.
 - `xmake/` - XMake rules and build helpers.
@@ -49,12 +50,11 @@ Overview of the main directories and important files in the repository.
 
 ### `external/`
 
-- `muda/` - Third-party CUDA/math dependency (source + docs + tests).
+- `GKlib/`, `METIS/` - In-tree graph-partitioning dependencies.
 
 ### `include/`
 
-- `uipc/` - Public headers grouped by module (backend, core, geometry, io, etc.).
-- `uipc_gui/` - Public GUI-related headers. (now not supported)
+- `uipc/` - Public headers grouped by module (backend, core, geometry, io, etc.). The removed C++ GUI has no public header tree.
 
 ### `python/`
 
@@ -76,9 +76,13 @@ Overview of the main directories and important files in the repository.
 - `constitution/` - Physical constitution implementations.
 - `core/` - Core engine systems and modules.
 - `geometry/` - Geometry algorithms and data types.
-- `gui/` - GUI runtime components. (now not supported)
 - `io/` - Serialization and I/O.
 - `pybind/` - C++/Python bindings.
 - `sanity_check/` - Internal scene sanity checks to ensure the correctness of scene before the simulation.
 - `usd/` - USD integration.
 - `vdb/` - VDB integration.
+
+The supported visualization frontend is the pure-Python polyscope layer at
+`python/src/uipc/gui.py`. CMake is the primary build; XMake currently has known
+option/module drift documented in `agent_docs/07-build-test-workflow.md` and
+`agent_docs/12-secondary-modules-samples-and-docs.md`.

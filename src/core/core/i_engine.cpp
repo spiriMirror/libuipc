@@ -28,6 +28,11 @@ Json IEngine::to_json() const
     return do_to_json();
 }
 
+Json IEngine::frame_stats() const
+{
+    return do_frame_stats();
+}
+
 bool IEngine::dump()
 {
     return do_dump();
@@ -54,10 +59,14 @@ const FeatureCollection& IEngine::features() const
 }
 
 
-
 Json IEngine::do_to_json() const
 {
     return Json{};
+}
+
+Json IEngine::do_frame_stats() const
+{
+    return Json::object();
 }
 
 bool IEngine::do_dump()

@@ -13,6 +13,10 @@ Examples::
     # Compare two benchmark runs
     python -m uipc.cli.benchmark compare bench_before/ bench_after/
 
+    # Create and enforce a same-runner performance baseline
+    python -m uipc.cli.benchmark baseline bench_results/cube_ground -o baseline.json
+    python -m uipc.cli.benchmark check bench_results/cube_ground --baseline baseline.json
+
     # List available scenes from uipc-assets
     python -m uipc.cli.benchmark list
 '''
@@ -39,6 +43,10 @@ def main():
     p_run.add_argument(
         '--frames', '-n', type=int, default=10,
         help='Number of simulation frames (default: 10)',
+    )
+    p_run.add_argument(
+        '--warmup', '-w', type=int, default=0,
+        help='Warmup frames excluded from measurements (default: 0)',
     )
     p_run.add_argument(
         '--output', '-o', default='bench_results',
@@ -111,6 +119,48 @@ def main():
         help='Output directory for the comparison report',
     )
 
+    # --- baseline ---
+    p_baseline = sub.add_parser(
+        'baseline', help='Create a versioned performance baseline'
+    )
+    p_baseline.add_argument(
+        'result_dirs', nargs='+',
+        help='Benchmark result directories to include',
+    )
+    p_baseline.add_argument(
+        '--output', '-o', required=True,
+        help='Baseline JSON output path',
+    )
+    p_baseline.add_argument(
+        '--max-regression-percent', type=float, default=10.0,
+        help='Allowed regression for enforced metrics (default: 10)',
+    )
+
+    # --- check ---
+    p_check = sub.add_parser(
+        'check', help='Check benchmark results against a baseline'
+    )
+    p_check.add_argument(
+        'result_dirs', nargs='+',
+        help='Benchmark result directories to check',
+    )
+    p_check.add_argument(
+        '--baseline', required=True,
+        help='Baseline JSON path',
+    )
+    p_check.add_argument(
+        '--max-regression-percent', type=float, default=None,
+        help='Override every baseline regression allowance',
+    )
+    p_check.add_argument(
+        '--allow-environment-mismatch', action='store_true',
+        help='Report but do not fail on runner/build compatibility differences',
+    )
+    p_check.add_argument(
+        '--json-output', default=None,
+        help='Optional path for the structured check report',
+    )
+
     # --- list ---
     sub.add_parser(
         'list', help='List available scenes from uipc-assets'
@@ -130,6 +180,10 @@ def main():
         _cmd_analyze(args)
     elif args.command == 'compare':
         _cmd_compare(args)
+    elif args.command == 'baseline':
+        _cmd_baseline(args)
+    elif args.command == 'check':
+        _cmd_check(args)
     elif args.command == 'list':
         _cmd_list()
     else:
@@ -140,9 +194,17 @@ def main():
 def _cmd_run(args):
     from uipc import Scene
     from uipc.assets import load as load_asset
-    from uipc.profile import run
+    from uipc.profile import session
 
-    print(f'Running benchmark: scenes={args.scene}, frames={args.frames}')
+    if args.frames <= 0:
+        raise ValueError('--frames must be greater than zero')
+    if args.warmup < 0:
+        raise ValueError('--warmup must be non-negative')
+
+    print(
+        f'Running benchmark: scenes={args.scene}, frames={args.frames}, '
+        f'warmup={args.warmup}'
+    )
     print(f'Output: {args.output}')
     print()
 
@@ -150,8 +212,11 @@ def _cmd_run(args):
     for name in args.scene:
         scene = Scene(Scene.default_config())
         load_asset(name, scene)
-        r = run(scene, num_frames=args.frames,
-                name=name, output_dir=args.output)
+        with session(scene, name=name, output_dir=args.output) as benchmark:
+            if args.warmup:
+                benchmark.advance(args.warmup)
+            benchmark.profile(args.frames)
+        r = benchmark.result
         results.append(r)
 
     print()
@@ -224,6 +289,42 @@ def _cmd_compare(args):
 
     md = compare(args.before, args.after, output_dir=args.output)
     print(md)
+
+
+def _cmd_baseline(args):
+    from uipc.profile import create_baseline
+
+    payload = create_baseline(
+        args.result_dirs,
+        args.output,
+        max_regression_percent=args.max_regression_percent,
+    )
+    print(
+        f"Wrote {args.output} with "
+        f"{len(payload['benchmarks'])} benchmark(s)."
+    )
+
+
+def _cmd_check(args):
+    import json
+    import pathlib
+
+    from uipc.profile import check_baseline
+    from uipc.profile.baseline import format_check_report
+
+    report = check_baseline(
+        args.result_dirs,
+        args.baseline,
+        max_regression_percent=args.max_regression_percent,
+        require_environment_match=not args.allow_environment_mismatch,
+    )
+    print(format_check_report(report))
+    if args.json_output:
+        path = pathlib.Path(args.json_output)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    if not report['passed']:
+        raise SystemExit(1)
 
 
 def _cmd_list():

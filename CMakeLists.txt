@@ -83,6 +83,10 @@ uipc_config_vcpkg_install()
 
 project(uipc VERSION ${UIPC_VERSION})
 
+if(UIPC_BUILD_TESTS)
+    enable_testing()
+endif()
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Generate compile_commands.json
 

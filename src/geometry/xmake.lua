@@ -14,5 +14,8 @@ target("uipc_geometry")
     )
     add_defines()
     add_deps("uipc_core", "metis")
+    if has_config("vdb") then
+        add_deps("uipc_vdb")
+    end
     add_packages("octree", "tbb")
     add_packages("libigl", {public = true})

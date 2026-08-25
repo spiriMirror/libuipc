@@ -80,11 +80,9 @@ class MASPreconditionerEngine
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
     void set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                            cuda_tool::CBufferView<int>      row_ids,
-                            cuda_tool::CBufferView<int>      col_ids,
-                            cuda_tool::CBufferView<uint32_t> indices,
-                            int                              dof_offset,
-                            int                              cp_num);
+                            cuda_tool::CBufferView<int> row_ids,
+                            cuda_tool::CBufferView<int> col_ids,
+                            int                         dof_offset);
 
     // ---- Phase 3: Apply preconditioning z = M^{-1} r (per PCG iteration) ----
 
@@ -134,7 +132,7 @@ class MASPreconditionerEngine
 
     // Hierarchy building steps
     void compute_num_levels(int vert_num);
-    int  reorder_realtime(int cp_num);
+    int  reorder_realtime();
     void build_connect_mask_L0();
     void prepare_prefix_sum_L0();
     void build_level1();
@@ -146,10 +144,9 @@ class MASPreconditionerEngine
 
     // Hessian assembly + inversion
     void scatter_hessian_to_clusters(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
-                                     cuda_tool::CBufferView<int>      row_ids,
-                                     cuda_tool::CBufferView<int>      col_ids,
-                                     cuda_tool::CBufferView<uint32_t> indices,
-                                     int dof_offset);
+                                     cuda_tool::CBufferView<int> row_ids,
+                                     cuda_tool::CBufferView<int> col_ids,
+                                     int                         dof_offset);
     void invert_cluster_matrices();
 
     // Preconditioning steps

@@ -41,13 +41,13 @@ We are **actively** developing Libuipc. Feedback and contributions are welcome!
 libuipc is organized in three layers: a friendly scene API on top, a reusable simulation core in the middle, and a fully-parallel CUDA backend underneath.
 
 - **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
-- **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: BDF1 time integration, line search with continuous collision detection, friction with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
-- **CUDA Backend** — fused-PCG linear solver with CUDA-graph block replay, MAS (Multi-Level Additive Schwarz) FEM preconditioner with internal auto-partitioning, stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
+- **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: implicit time integration, line search with continuous collision detection, frictional contact with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
+- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
 
 ### Why libuipc
 
 - **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
-- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics (SNK1 constitution, analytic SPD projections) and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
+- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
 - **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
 - **Fully Differentiable**: differentiable simulation APIs for backward optimization (Diff-Sim, coming soon).
 
@@ -95,10 +95,21 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 pip install pyuipc
 ```
 
-Prebuilt wheels: **Windows / Linux, Python 3.10–3.13, CUDA 12.8 runtime**.
+The release pipeline builds **Windows / Linux, Python 3.10–3.14, CUDA 12.8
+runtime** wheels. The immutable 0.0.26 release predates Python 3.14 support, so
+Python 3.14 users need the next release or a source build.
 The Windows wheel dynamically loads `cublas64_12.dll`; a CUDA 13-only install
 does not provide that versioned runtime. Use CUDA 12.8 side-by-side, or build
 from source for CUDA 13.
+
+New wheels contain native code for compute capabilities 7.5, 8.0, 8.6, and 8.9,
+plus compute-8.9 PTX for forward JIT on newer GPUs. Diagnose an installation
+before running a scene:
+
+```bash
+python -m uipc doctor
+python -m uipc doctor --probe-cuda
+```
 
 ### From Source
 
@@ -157,6 +168,11 @@ for _ in range(100):
 ```
 
 Optional: enable the MAS preconditioner for stiff FEM scenes with one config line — `config["linear_system"]["fem_preconditioner"] = "mas"`.
+
+Inspect the validated configuration contract (defaults, units, ranges,
+selectors, lifecycle, and backend consumers) with `python -m uipc
+config-schema`, or read the [Scene Configuration
+Reference](https://spirimirror.github.io/libuipc-doc/specification/scene_config/).
 
 ## Contributing & Support
 

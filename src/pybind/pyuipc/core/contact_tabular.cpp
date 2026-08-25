@@ -56,9 +56,10 @@ Args:
     {
         auto class_ContactModel = py::class_<ContactModel>(
             m, "ContactModel", R"(ContactModel class representing contact parameters between two elements.)");
-        class_ContactModel.def("topo",
-                               [](const ContactModel& self) { return as_numpy(self.topo()); },
-                               R"(Get the topology IDs.
+        class_ContactModel.def(
+            "topo",
+            [](const ContactModel& self) { return as_numpy(self.topo()); },
+            R"(Get the topology IDs.
 Returns:
     numpy.ndarray: Array of two integers representing the topology IDs.)");
         class_ContactModel.def("friction_rate",
@@ -168,7 +169,7 @@ Args:
     friction_rate: Friction rate value.
     resistance: Resistance value.
     enable: Whether the contact is enabled (default: True).
-    config: Additional configuration dictionary (default: empty).)");
+    config: Reserved for future model extensions; must currently be empty.)");
 
         class_ContactTabular.def(
             "default_model",
@@ -183,7 +184,7 @@ Args:
     friction_rate: Default friction rate.
     resistance: Default resistance value.
     enable: Whether contacts are enabled by default (default: True).
-    config: Default configuration dictionary (default: empty).)");
+    config: Reserved for future model extensions; must currently be empty.)");
 
         class_ContactTabular.def(
             "default_model",

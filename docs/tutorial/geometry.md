@@ -497,7 +497,7 @@ All the attributes of the geometry can be described as serveral tables, which ar
     // dump to json
     sio.write_json("spreadsheet", mesh);
     ```
-    See also the [SimplicialComplexIO](../../Libuipc/classuipc_1_1geometry_1_1_spread_sheet_i_o/).
+    See also the generated [SpreadSheetIO API](../Libuipc/classuipc_1_1geometry_1_1_spread_sheet_i_o.md).
 
 === "Python"
 

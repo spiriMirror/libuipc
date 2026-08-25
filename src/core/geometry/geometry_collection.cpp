@@ -1,6 +1,7 @@
 #include <uipc/geometry/geometry_collection.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/geometry/geometry_factory.h>
+#include <algorithm>
 
 namespace uipc::geometry
 {
@@ -69,12 +70,12 @@ void GeometryCollection::solve_pending()
     for(auto& [id, geo] : m_pending_create)
     {
         UIPC_ASSERT_THROW(m_geometries.find(id) == m_geometries.end(),
-                    "GeometrySlot ({}) already exists. Why can this happen?",
-                    id);
+                          "GeometrySlot ({}) already exists. Why can this happen?",
+                          id);
 
         UIPC_ASSERT_THROW(geo->state() == GeometrySlotState::PendingCreate,
-                    "GeometrySlot ({}) is not in PendingCreate state. Why can this happen?",
-                    id);
+                          "GeometrySlot ({}) is not in PendingCreate state. Why can this happen?",
+                          id);
 
         geo->state(GeometrySlotState::Normal);
         m_geometries.emplace(id, geo);
@@ -85,12 +86,12 @@ void GeometryCollection::solve_pending()
     {
         auto it = m_geometries.find(id);
         UIPC_ASSERT_THROW(it != m_geometries.end(),
-                    "GeometrySlot ({}) does not exist. Why can this happen?",
-                    id);
+                          "GeometrySlot ({}) does not exist. Why can this happen?",
+                          id);
 
         UIPC_ASSERT_THROW(it->second->state() == GeometrySlotState::PendingDestroy,
-                    "GeometrySlot ({}) is not in PendingDestroy state. Why can this happen?",
-                    id);
+                          "GeometrySlot ({}) is not in PendingDestroy state. Why can this happen?",
+                          id);
         m_geometries.erase(it);
     }
     m_pending_destroy.clear();
@@ -166,7 +167,7 @@ void GeometryCollection::flush() const
     }
 }
 
-void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexcept
+void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots, IndexT next_id) noexcept
 {
     m_dirty   = true;
     m_next_id = 0;
@@ -194,24 +195,90 @@ void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexc
     {
         slots->state(GeometrySlotState::Normal);
     }
+
+    if(next_id >= m_next_id)
+    {
+        m_next_id = next_id;
+    }
+    else if(next_id >= 0)
+    {
+        UIPC_WARN_WITH_LOCATION(
+            "GeometryCollection next id {} is smaller than the inferred next id {}; "
+            "using the inferred value.",
+            next_id,
+            m_next_id);
+    }
 }
 
-void GeometryCollection::update_from(const unordered_map<IndexT, S<GeometryCommit>>& commits) noexcept
+void GeometryCollection::update_from(const unordered_map<IndexT, S<GeometryCommit>>& commits,
+                                     span<const IndexT> removed_ids,
+                                     IndexT             next_id)
 {
     m_dirty = true;
 
+    UIPC_ASSERT_THROW(m_pending_create.empty() && m_pending_destroy.empty(),
+                      "Can not apply a GeometryCollection update while pending "
+                      "geometry mutations exist.");
+
+    for(auto id : removed_ids)
+    {
+        m_geometries.erase(id);
+    }
+
+    GeometryFactory gf;
+
     for(auto&& [id, commit] : commits)
     {
+        UIPC_ASSERT_THROW(commit && commit->is_valid(),
+                          "Geometry commit for id {} is null or invalid.",
+                          id);
+
         auto it = m_geometries.find(id);
         if(it != m_geometries.end())
         {
-            auto& slot = it->second;
-            slot->geometry().update_from(*commit);
+            if(commit->is_new())
+            {
+                auto slot = gf.create_slot(id, *commit->m_new_geometry);
+                slot->state(GeometrySlotState::Normal);
+                it->second = std::move(slot);
+            }
+            else
+            {
+                it->second->geometry().update_from(*commit);
+            }
         }
         else
         {
-            emplace(*(commit->m_new_geometry));
+            UIPC_ASSERT_THROW(commit->is_new(),
+                              "Geometry modification for id {} can not be applied because "
+                              "the destination geometry is missing. Apply a full Scene "
+                              "snapshot before this commit.",
+                              id);
+
+            auto slot = gf.create_slot(id, *commit->m_new_geometry);
+            slot->state(GeometrySlotState::Normal);
+            m_geometries.emplace(id, std::move(slot));
         }
+    }
+
+    IndexT inferred_next_id = 0;
+    for(auto&& [id, _] : m_geometries)
+    {
+        inferred_next_id = std::max(inferred_next_id, id + 1);
+    }
+
+    if(next_id >= 0)
+    {
+        UIPC_ASSERT_THROW(next_id >= inferred_next_id,
+                          "GeometryCollection next id {} is smaller than the inferred "
+                          "next id {}.",
+                          next_id,
+                          inferred_next_id);
+        m_next_id = next_id;
+    }
+    else
+    {
+        m_next_id = std::max(m_next_id, inferred_next_id);
     }
 }
 

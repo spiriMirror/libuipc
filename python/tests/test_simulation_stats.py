@@ -25,30 +25,36 @@ _STATS_PATH = pathlib.Path(__file__).parent.parent / 'src' / 'uipc' / 'stats.py'
 
 
 def _load_stats_module():
-    """Load uipc/stats.py with a minimal stub for the uipc package."""
-    # Build a minimal uipc stub (needs __path__ to be treated as a package)
-    if 'uipc' not in sys.modules:
-        stub = types.ModuleType('uipc')
-        stub.__path__ = []
+    """Load uipc/stats.py with a temporary minimal package stub."""
+    stub = types.ModuleType('uipc')
+    stub.__path__ = []
 
-        class _Logger:
-            @staticmethod
-            def warn(msg):
-                pass
+    class _Logger:
+        @staticmethod
+        def warn(msg):
+            pass
 
-            @staticmethod
-            def info(msg):
-                pass
+        @staticmethod
+        def info(msg):
+            pass
 
-        stub.Logger = _Logger
-        sys.modules['uipc'] = stub
+    stub.Logger = _Logger
+    previous_uipc = sys.modules.get('uipc')
+    sys.modules['uipc'] = stub
 
     # Load the stats module directly from the source tree
-    spec = importlib.util.spec_from_file_location('uipc.stats', str(_STATS_PATH))
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules['uipc.stats'] = mod
-    spec.loader.exec_module(mod)
-    return mod
+    try:
+        spec = importlib.util.spec_from_file_location(
+            '_uipc_stats_under_test', str(_STATS_PATH)
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    finally:
+        if previous_uipc is None:
+            sys.modules.pop('uipc', None)
+        else:
+            sys.modules['uipc'] = previous_uipc
 
 
 _stats = _load_stats_module()

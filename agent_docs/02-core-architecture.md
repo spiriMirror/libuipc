@@ -24,9 +24,10 @@ core::Engine / World / Scene          ← public handle layer (holds only S<inte
 Custom engines can also be injected: the `Engine(S<IEngine> overrider)` constructor (used by pyuipc and similar scenarios) does not load any module.
 
 Other details:
-- The workspace is converted to an absolute path at construction time and created if it does not exist.
-- `advance()` clears the sync flag; `retrieve()` automatically calls `sync()` first if not yet synced.
-- `Engine::default_config()` can be overridden by the environment variable `UIPC_ENGINE_DEFAULT_CONFIG` (pointing to a JSON file); defaults are `gpu/device=0` and gui enable.
+- A C++ process must call `uipc::init` with an existing `module_dir` before constructing a named backend Engine. The default process config leaves this path empty. The Python package performs this step automatically and points it at `uipc/_native`.
+- The normal named-backend constructor converts the workspace to an absolute path and calls `create_directory` when it is absent (only the final directory level, not recursive parent creation). The explicit `IEngine` overrider constructor does not normalize or create the workspace.
+- `advance()` clears the sync flag; `retrieve()` automatically calls `sync()` first if not yet synced. The implicit call currently does not mark the wrapper synchronized, so repeated `retrieve()` calls can repeat a backend sync.
+- `Engine::default_config()` can be overridden by the environment variable `UIPC_ENGINE_DEFAULT_CONFIG` (pointing to a JSON file); the active default is `gpu/device=0`. It also still carries the stale key `extras/gui/enable=true` even though the C++ GUI has been removed; no current backend consumes it.
 - Every backend call is wrapped in `LogPatternGuard{backend_name}` to switch the log prefix.
 
 ## IEngine Template Method
@@ -49,9 +50,10 @@ Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular ref
 ## internal::Scene (`src/core/core/internal/scene.cpp`)
 
 - `init(world)`: records the world raw pointer; `m_constitution_tabular.init(*this)` scans all geometry metas to collect UIDs; when `diff_sim/enable`, calls `m_diff_sim.init(*this)`; sets `m_started=true`.
-- **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`) and are settled together by `solve_pending()`. `Scene::Objects::destroy` chooses between direct destroy and pending_destroy based on `is_started()/is_pending()`.
+- **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`). The CUDA backend calls `begin_pending()` during initialization and `solve_pending()` in each rebuild phase. The `none` backend does neither, so post-init additions remain pending there. `Scene::Objects::destroy` chooses between direct destroy and pending destroy based on `is_started()/is_pending()`.
 - `dt()` is read from the config attribute `"dt"`.
-- `update_from(const SceneSnapshotCommit&)`: applies an incremental commit to update config/objects/contact_tabular/geometries/rest_geometries.
+- Calling non-const `Scene::diff_sim()` sets `diff_sim/enable=1`; merely requesting the mutable handle changes Scene configuration.
+- `update_from(const SceneSnapshotCommit&)` applies config/objects/contact/current/rest geometry data, but currently omits subscene updates and has append/update-oriented geometry semantics. See doc 11 for the verified limitations.
 
 ## Scene Default Configuration (`src/core/core/scene_default_config.cpp`)
 
@@ -64,7 +66,15 @@ Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
 - `contact/enable`, `contact/d_hat`, `contact/constitution="ipc"` (or `"al-ipc"` and its tuning parameters); `contact/d_hat_relative` (when >0, d_hat = relative value × scene diagonal, the Stiff-GIPC convention), `newton/velocity_tol_relative` (when >0, exit threshold = relative value × diagonal × dt), `contact/eps_velocity_relative` (when >0, friction C1 smoothing threshold = relative value × diagonal × dt) — scene-adaptive parameters, default 0 (disabled); `contact/adaptive/{min_kappa,max_kappa,init_kappa}` bound the effective contact stiffness
 - `collision_detection/*` (`method`: `info_stackless_bvh` default, `info_stackless_bvh_v0`), `sanity_check/*`, `diff_sim/enable`
 
-**Config strictness**: `from_config_json` recursively validates the user json against the registered defaults and **throws a guided error on unregistered keys** (they were silently dropped before). Two consequences: (1) adding a new config key REQUIRES registering its default in `scene_default_config.cpp`; (2) old scenes with typo/dead keys now fail loudly — fix the key, don't bypass the check.
+**Config contract**: `Scene::config_schema()` returns all 46 entries with their
+defaults, JSON/storage types, units, hard bounds/enums, lifecycle, status,
+descriptions, and source consumers. `from_config_json` rejects unknown keys and
+validates constraints during construction; `World::init(Scene&)` validates the
+mutable attribute collection again. Adding, destroying, or changing a config
+attribute through `Scene::config()` therefore cannot silently bypass the
+contract. `newton/use_adaptive_tol` remains visible for compatibility but is
+reserved at exactly `0` until a real consumer exists. Contact/Subscene per-model
+`config` arguments accept only `{}` while no extension keys are implemented.
 
 **Default kappa policy**: the scene-adaptive corridor (Stiff-GIPC `suggestKappa`/`upperBoundKappa` ported with the $/dt^2$ conversion, computed at `GlobalContactManager::init` from scene diagonal, mean mass and `d_hat`) rules all clamping; `contact/adaptive/{min,max}_kappa` are only the fallback when the corridor is not computable. If `default_model(...)` is never called, the effective default stiffness is the corridor lower bound; a user-set value is clamped into the corridor with a range-printing warning; negative kappa (adaptive-kappa opt-in marker) is never clamped. The evaluation scale is configurable via `contact/adaptive/kappa_eval_scale` (default `1e-16`, Stiff's value; the $/dt^2$ conversion makes it dt-independent).
 
@@ -101,7 +111,7 @@ Key points:
 
 - **SanityCheck** (`src/sanity_check/`): scene validation before init (built-in checkers such as surface distance/intersection, half-plane distance); tests in `apps/tests/sanity_check/`.
 - **DiffSim** (`include/uipc/diff_sim/`): parameter set `ParameterCollection`; `broadcast()` is triggered after recover; GPU side in `src/backends/cuda/diff_sim/`.
-- **SceneSnapshot/Commit**: incremental scene serialization (`SceneIO`'s `commit/update`), used for GUI/network synchronization.
+- **SceneSnapshot/Commit**: incremental Scene change representation used by `SceneIO::commit/update`. It is not currently a lossless general GUI/network replication protocol: subscene changes, geometry removal, and sparse geometry IDs have known limitations (doc 11).
 
 ## Logging, Errors, and Infrastructure (`include/uipc/common/`)
 

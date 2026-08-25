@@ -5,6 +5,7 @@ namespace uipc::geometry
 {
 AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& current,
                                                      const AttributeCollection& reference)
+    : m_target_size{static_cast<IndexT>(current.size())}
 {
     for(auto&& [name, attr_slot] : current.m_attributes)
     {
@@ -48,6 +49,7 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
 
 AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& dst)
     : m_attribute_collection{dst}
+    , m_target_size{static_cast<IndexT>(dst.size())}
 {
 }
 

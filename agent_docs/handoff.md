@@ -1,5 +1,206 @@
 # Handoff — Current State of the Repo
 
+> **Single-receiver DyTopo assembly fast path (2026-08-25,
+> `refactor-main`)**: pure FEM or pure ABD scenes whose only diagonal
+> `DyTopoEffectReceiver` owns the dynamic vertex prefix now forward the raw
+> contact/inter-primitive doublets and triplets directly to that receiver.
+> The final `GlobalLinearSystem` matrix conversion already canonicalizes and
+> reduces those entries, so the former intermediate sort/reduce plus
+> classify/copy pass was redundant. Trailing non-DOF global vertices such as
+> half planes are allowed; multi-receiver and ABD/FEM coupling scenes retain
+> the original conversion/distribution path. On RTX 5090, the clean case-88
+> 60-frame run reduced `Compute DyTopo Effect` from 2014.6 ms / 330 Newton
+> iterations (6.11 ms/iteration) to 1576.6 ms / 331 (4.76 ms/iteration,
+> -22.0%). `Convert To BCOO` stayed effectively flat at 1.85 versus 1.86
+> ms/iteration, while wall mean/median moved 175.6/196.4 to 165.5/184.2
+> ms/frame. Maximum trajectory displacement versus the CUB baseline was
+> 0.55 mm, below the 1.35-1.84 mm unchanged-run variability already measured.
+> Pure ABD, pure FEM, and mixed ABD/FEM focused tests pass (736 assertions),
+> as do the full simulation suite (95 cases / 14212 assertions) and the MAS
+> soft-stitch regression (4 assertions).
+
+> **CUB BVH build hot-path optimization (2026-08-25, `refactor-main`)**:
+> the default `info_stackless_bvh` broad phase no longer uses Thrust. Morton
+> pair sorting uses `cuda_tool::DeviceRadixSort`, internal-node offsets use
+> `DeviceScan`, and identity generation plus all required build-state resets
+> are fused into one named initialization kernel. The CUB wrappers reuse their
+> persistent per-stream scratch workspace and grow it only when capacity is
+> insufficient. Scene-AABB, leaf-LCA, and depth initialization now precede
+> their parallel reductions/builds, removing the former cross-block reset
+> races. On RTX 5090, case 88 over the same 60-frame phase reduced trajectory
+> detection from 7.98 to 4.98-5.00 ms/Newton (-37.5%) and aggregate DCD from
+> 7.35 to 4.59-4.60 ms/detect (-37.5%); two runs measured 175.6-177.1
+> ms/frame versus 208.1 ms before (-14.9% to -15.6%). The full simulation
+> suite passes (95 cases / 14212 assertions), as does the dedicated MAS
+> soft-stitch regression (4 assertions).
+
+> **MAS assembly hot-path optimization (2026-08-25, `refactor-main`)**:
+> the mesh partition and multi-level MAS hierarchy are now built once during
+> engine initialization instead of being restored and rebuilt on every Newton
+> iteration. Hessian scatter traverses the BCOO arrays directly, removing the
+> per-iteration identity-index allocation/fill/read, and the 48x48 Gauss-Jordan
+> kernel no longer executes a redundant block-wide barrier between independent
+> row updates. On RTX 5090, sample 88 over the same 60-frame phase and 333
+> Newton iterations reduced `Assemble Preconditioner` from 1149.9 ms to
+> 834.4 ms (-27.4%, 3.45 to 2.51 ms/Newton); wall mean moved from 213.3 to
+> 208.1 ms/frame, with the remaining wall variance dominated by contact stages.
+> The full simulation suite passes (95 cases / 14212 assertions); this includes
+> all ten MAS sim cases (275 assertions). The dedicated MAS soft-stitch
+> regression also passes (4 assertions), as do the runtime-check CUDA build and
+> clang-format-18 gate.
+
+> **Repository contracts and source hygiene (2026-08-25,
+> `refactor-main`)**: all external GitHub Actions now use reviewed full commit
+> SHAs, and the vcpkg action/container revision matches the project's registry
+> baseline. A dedicated repository-contracts workflow rejects mutable action
+> refs, zero-byte source files, and drift between exported constitution classes,
+> pybind classes, and binding initializer registration. Thirteen empty CUDA/C++
+> scaffold translation units were removed; the two public zero-byte headers are
+> now documented compatibility includes. The full docs helper finds a standard
+> Windows Doxygen install even when it is absent from `PATH`, and the local
+> preview guide distinguishes deployable API builds from prose-only previews.
+> Local validation: full C++/CUDA pybind build; 36 core cases / 988 assertions;
+> 79 portable Python tests; 48 non-interactive CUDA tests; 5 repository-contract
+> tests; clang-format-18; release-policy/parity/pin/zero-byte checks; and a full
+> Doxygen + MkDoxy site containing the `Engine::frame_stats()` API page.
+
+> **Structured solver observability (2026-08-25, `refactor-main`)**:
+> the backend-neutral `Engine::frame_stats()` API (also Python) returns `{}` by
+> default; CUDA schema v1 reports latest-frame pipeline, completion/convergence,
+> Newton and cumulative line-search/linear-solver counts, iteration-limit hits,
+> and final line-search/CCD/CFL factors. Python also now exposes the existing
+> C++ `Engine::to_json()`, `Engine::status()`, and status `clear()`. Profile runs
+> persist one `frame_stats.json` entry per measured frame, and performance
+> baselines consume the structured counters as diagnostics instead of scraping
+> log messages. Focused none/IPC/AL tests cover optional-backend behavior,
+> status access, schema values, and profile persistence.
+
+> **Reproducible performance gates (2026-08-25, `refactor-main`)**:
+> `uipc.profile` now excludes warmup/recovery from reported wall time and drains
+> warmup Timer data before the first measured frame. Saved artifacts use a
+> versioned schema and include the exact phase plan plus runner/build
+> compatibility facts. `python -m uipc benchmark baseline/check` (also Python
+> APIs) creates deterministic JSON baselines and returns a structured,
+> CI-friendly nonzero regression result for wall average and Timer median/p95;
+> Newton counts are diagnostic. Checks reject missing scenes, frame/phase drift,
+> and environment mismatch unless explicitly relaxed. Focused validation covers
+> pass/fail thresholds, overrides, deterministic output, schema rejection,
+> environment matching, CLI output, and CUDA/none session integration.
+
+> **IPC/AL frame-lifecycle parity (2026-08-25, `refactor-main`)**: both CUDA
+> advance paths now share the ordered external-force lifecycle (clear old
+> device buffers, run animation, consume current forces) before DOF prediction.
+> AL-IPC no longer enables the process-global Timer or prints a merged report on
+> every frame, and its adaptive-mu/CFL stages plus Newton/line-search indices are
+> timed/tracked consistently. A parameterized FEM regression exercises the same
+> two-frame apply/clear sequence under `ipc` and `al-ipc` and rejects implicit
+> Timer output. Local validation: 2 focused cases, 48 non-interactive CUDA
+> tests, and 64 portable Python tests pass.
+
+> **Portable local docs builder (2026-08-25, `refactor-main`)**:
+> `scripts/build_docs.py` now runs MkDocs through the active Python interpreter
+> (`sys.executable -m mkdocs`) instead of assuming a `mkdocs` launcher is on
+> `PATH`. This fixes full local builds from ordinary Windows virtual
+> environments while preserving the production `mkdocs-with-api.yaml` path.
+
+> **Validated scene-configuration contract (2026-08-25,
+> `refactor-main`)**: `Scene::config_schema()` / `Scene.config_schema()` exposes
+> all 46 registered keys with defaults, types, units, hard constraints,
+> lifecycle/status, descriptions, and source consumers; `python -m uipc
+> config-schema [key]` makes it available to tools and agents. Construction and
+> `World::init(scene)` validate the contract, including mutable edits and
+> cross-field kappa/Newton ordering. The unimplemented
+> `newton/use_adaptive_tol` is constrained to `0`, `sanity_check/mode=quiet` is
+> now an explicit choice, and non-empty Contact/Subscene extension configs are
+> rejected instead of silently ignored. `SceneGUI` consumes the same schema and
+> renders reserved entries read-only.
+
+> **Python/CUDA compatibility policy and doctor (2026-08-25,
+> `refactor-main`)**: the next wheel matrix covers CPython 3.10–3.14; the
+> immutable 0.0.26 release still stops at 3.13. Published builds now target
+> 75/80/86/89 SASS plus compute-89 PTX rather than only architecture 89, and
+> embed ABI/toolkit/architecture metadata in `build_info()`. The packaged
+> `compatibility.json` is checked against both pyprojects and CI. `python -m
+> uipc doctor` diagnoses Python ABI, CUDA 12 cuBLAS discovery, backend dynamic
+> loading, NVIDIA driver/GPU architecture, and optionally a real CUDA engine
+> construction via `--probe-cuda`.
+> Pytest now defaults to the portable `not example and not cuda` suite; GPU and
+> interactive cases have explicit markers, module-stubbing tests restore global
+> import state, and every cibuildwheel job executes the portable suite against
+> the installed artifact. Local validation covered 59 portable tests and 47
+> non-interactive CUDA tests on CPython 3.14.
+
+> **Executable CI and release gates (2026-08-25, `refactor-main`)**: CMake now
+> registers all C++ tests with CTest and labels the `common`/`core`/`geometry`
+> CPU suite for fast CI execution; the CMake and XMake workflows execute those
+> binaries on pushes, pull requests, and manual runs instead of stopping after a
+> successful compile. Every built wheel is installed and smoke-tested, TestPyPI
+> must expose the complete interpreter/platform matrix and pass an exact-version
+> install before formal publication, and PyPI is verified the same way afterward.
+> The hosted smoke test uses the no-GPU backend; CUDA-runtime validation remains a
+> distinct compatibility gate rather than an inferred result of `import uipc`.
+
+> **Documentation navigation hygiene (2026-08-25, `refactor-main`)**: XMake and
+> deterministic-mode guides are now reachable from the site navigation, directory
+> links point at explicit index pages, and the RMR/SpreadSheetIO links use valid
+> MkDocs source paths. Prose-only builds now leave only expected generated-API
+> warnings when Doxygen output is absent. Workflow-dispatch run `32758550867`
+> completed the UID, Doxygen, MkDoxy, and MkDocs stages successfully without
+> deploying; the docs workflow then moved checkout/setup-python to their current
+> Node 24-based v7 majors.
+
+> **XMake parity and deterministic packaging (2026-08-25, `refactor-main`)**:
+> stale GUI/torch/RPC configuration was removed, ccache is explicitly disabled,
+> and optional OpenUSD/OpenVDB targets now mirror CMake. The pybind target enables
+> USD consistently and performs one synchronous source copy plus explicit
+> extension/runtime-library copies, eliminating duplicate detached copy races.
+> The XMake user guide and build-agent notes describe the current switches.
+
+> **Python packaging and helper parity (2026-08-25, `refactor-main`)**: release
+> and development metadata now both include matplotlib, require pytest 9.0.3+ for
+> development, and state the prebuilt-wheel CUDA 12.8 runtime requirement. The
+> Warp empty-strides fallback calls the real element-size helper. Python now
+> exposes the C++ `Scene.Objects.created_count()` ID upper bound, and
+> `assets.strip_constitutions` uses it to process sparse-ID scenes. Focused Python
+> tests cover the Warp fallback and sparse create/delete lifecycle.
+
+> **Complete UID documentation generation (2026-08-25, `refactor-main`)**:
+> `scripts/gen_uid_doc.py` now parses designated initializers and statement-based
+> `UIDInfo` assignments, restoring constitution UIDs 15, 17, 31, and 32 to the
+> generated specification. A dependency-free unit test covers both forms and the
+> formerly missing real registrations. Documentation CI now runs the test plus
+> the generator's `--check`, and UID source changes trigger that workflow. The
+> docs build wrapper also reports the requested output path and propagates
+> MkDocs/Doxygen failures instead of returning success after a failed build.
+
+> **Runtime lifecycle parity (2026-08-25, `refactor-main`)**: an implicit
+> synchronization performed by `World::retrieve()` now marks the engine
+> synchronized, so repeated retrieves do not issue redundant backend syncs until
+> another `advance()`. The `none` backend now enters the Scene pending phase at
+> initialization and settles pending geometry creation/destruction on each
+> advance, matching the frontend lifecycle contract without pretending to run a
+> physical simulation. Core tests cover both behaviors.
+
+> **Evolving-only atlas projection (2026-08-25, `refactor-main`)**:
+> `GeometryAtlas::create(..., true)` now filters named collections and every
+> collection inside a geometry to slots marked `is_evolving`, preserving
+> collection topology and row counts for baseline-dependent streaming. Evolving
+> markers now survive attribute clones and atlas JSON round trips (legacy JSON
+> defaults to `false`), and Python exposes the same optional argument. Core tests
+> cover strict filtering, clone behavior, dimension preservation, and serialized
+> round trips; the modified pybind translation unit also compiles independently.
+
+> **Scene lifecycle hardening (2026-08-25, `refactor-main`)**: snapshot commits
+> now replicate current/rest geometry independently, explicit slot removals,
+> sparse IDs and next-ID state, contact/subscene topology, and the contact default
+> model's user-set state. Attribute commits and full attribute serialization also
+> preserve row counts when a collection has no columns. Decoders validate
+> duplicate IDs, current/rest topology, commit/removal overlap, and invalid atlas
+> entries while retaining legacy-field fallbacks. Focused core tests cover
+> full-snapshot and commit-JSON round trips, different current/rest mutations,
+> deletion plus exact-ID insertion, allocation gaps, table state, and empty
+> nonzero attribute collections.
+
 > **Post-merge update (2026-08-23)**: everything below (the whole
 > refactor-main line: muda→cuda_tool, raw kernels, Stiff-GIPC alignment,
 > cloth stiffness model, kappa policy, hygiene batch) was merged to `main`
@@ -85,7 +286,8 @@
 >   reference now enumerates all 46 unique keys registered by
 >   `scene_default_config.cpp`, including defaults, SI units, selector values,
 >   operational domains, relative-value precedence, lifecycle rules, and
->   current no-op/reserved behavior (`newton/use_adaptive_tol`). Dedicated
+>   the reserved `newton/use_adaptive_tol` key, whose nonzero values are now
+>   rejected instead of silently ignored. Dedicated
 >   Newton/linear-solver and contact/collision pages trace behavior through the
 >   CUDA consumers and explain MAS, graph modes, adaptive kappa, pairwise
 >   contact elements, and sanity checks. Navigation exposes all three pages.
@@ -564,8 +766,9 @@ regression).
   sim case in its own process (`--filter/--start-from/--timeout`) —
   complements the single-process suite to separate cross-case global-state
   pollution from case-local failures.
-- (ccache integration was implemented and then reverted at user request;
-  nothing ccache-related remains in the tree.)
+- The CMake-side ccache integration from this session was implemented and then
+  reverted at user request. The later XMake audit also removed its stale
+  `dev=true` ccache policy; both build paths now keep compiler caches disabled.
 
 ## Build-time optimization (after `88965feb`)
 
@@ -590,8 +793,9 @@ regression).
   perceived), CUDA TU CPU 8.3K→6.5K s, per-TU avg 38→35 s. Line-count
   attribution of a non-cub TU (~1.63M lines after -E): CUDA toolkit headers
   ~860K, WinSDK ~310K, MSVC STL ~150K, Eigen ~150K, project <20K — the
-  remaining cost is toolchain headers, not project includes. Next lever if
-  needed: ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`).
+  remaining cost is toolchain headers, not project includes. This session once
+  listed ccache (`CMAKE_CUDA_COMPILER_LAUNCHER`) as a possible next lever; the
+  owner subsequently rejected compiler caches, so rule 8 supersedes that idea.
 - Verified after both changes: 6 fast binaries pass; full sim suite passes
   (14214 assertions / 95 cases).
 

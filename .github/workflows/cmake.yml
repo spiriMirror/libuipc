@@ -1,6 +1,22 @@
 name: cmake
 
 on:
+  push:
+    branches:
+      - "main"
+      - "refactor-main"
+    paths-ignore:
+      - ".clang-format"
+      - ".clangd"
+      - ".cursor/**"
+      - ".gitignore"
+      - "LICENSE"
+      - "README.md"
+      - "docs/**"
+      - "**/xmake.lua"
+      - ".github/workflows/xmake.yml"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/python-wheels.yml"
   pull_request:
     branches:
       - "main"
@@ -16,6 +32,7 @@ on:
       - ".github/workflows/xmake.yml"
       - ".github/workflows/docs.yml"
       - ".github/workflows/python-wheels.yml"
+  workflow_dispatch:
 
 jobs:
   build:
@@ -32,14 +49,14 @@ jobs:
     steps:
       - name: Maximize build space
         if: matrix.os == 'ubuntu-22.04'
-        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        uses: AdityaGarg8/remove-unwanted-software@8831c82abf29b34eb2caac48d5f999ecfc0d8eef # v4.1
         with:
           remove-android: "true"
           remove-haskell: "true"
           remove-codeql: "true"
 
       - name: Setup cuda
-        uses: Jimver/cuda-toolkit@v0.2.30
+        uses: Jimver/cuda-toolkit@b6fc3a9f3f15256d9d94ffe1254f9c5a2565cde6 # v0.2.30
         id: cuda-toolkit
         with:
           cuda: "12.8.1"
@@ -52,14 +69,14 @@ jobs:
 
       - name: Setup ninja
         if: matrix.os == 'windows-2022'
-        uses: seanmiddleditch/gha-setup-ninja@master
+        uses: seanmiddleditch/gha-setup-ninja@7e868db0f3406270dd46e1dac26c65f621456723 # master, reviewed 2026-08-25
 
       - name: Setup msvc sysroot for cmake
         if: matrix.os == 'windows-2022'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           submodules: true
 
@@ -70,12 +87,12 @@ jobs:
 
       - name: Setup vcpkg
         id: vcpkg
-        uses: johnwason/vcpkg-action@v6
+        uses: johnwason/vcpkg-action@7c4b562bb35ef5a01d9d728acc90100b107dee4d # v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
           triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
           cache-key: ${{ matrix.os }}
-          revision: master
+          revision: dd3097e305afa53f7b4312371f62058d2e665320 # 2025.07.25
           token: ${{ github.token }}
           github-binarycache: true
           fetch-depth: "0"
@@ -86,3 +103,11 @@ jobs:
         run: |
           cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build --preset ci-release -DUIPC_CUDA_ARCHITECTURES=89
           cmake --build ${{ github.workspace }}/build --preset ci-release --parallel 4
+
+      - name: Run CPU test suite
+        run: >-
+          ctest --test-dir "${{ github.workspace }}/build"
+          --build-config Release
+          --label-regex fast
+          --output-on-failure
+          --timeout 900

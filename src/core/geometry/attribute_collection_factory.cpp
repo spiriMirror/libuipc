@@ -49,6 +49,7 @@ class AttributeCollectionFactory::Impl
         auto& meta = j[builtin::__meta__];
         {
             meta["type"] = UIPC_TO_STRING(AttributeCollection);
+            meta["size"] = ac.size();
         }
 
         auto& data = j[builtin::__data__];
@@ -65,6 +66,7 @@ class AttributeCollectionFactory::Impl
                         attr_slot_json["index"] = index;
                         attr_slot_json["name"]  = name;
                         attr_slot_json["allow_destroy"] = attr_slot->allow_destroy();
+                        attr_slot_json["is_evolving"] = attr_slot->is_evolving();
                     }
                 }
                 else
@@ -81,7 +83,8 @@ class AttributeCollectionFactory::Impl
     S<AttributeCollection> attribute_collection_from_json(const Json& j,
                                                           DeserialSharedAttributeContext& ctx)
     {
-        using AF = AttributeFriend<AttributeCollectionFactory>;
+        using AF           = AttributeFriend<AttributeCollectionFactory>;
+        IndexT target_size = -1;
 
         // check meta
         {
@@ -106,6 +109,8 @@ class AttributeCollectionFactory::Impl
                 UIPC_WARN_WITH_LOCATION("`__meta__.type` is not `AttributeCollection`, skip.");
                 return {};
             }
+
+            target_size = meta.value("size", IndexT{-1});
         }
 
         // build from data
@@ -118,6 +123,9 @@ class AttributeCollectionFactory::Impl
 
         auto& data = *data_it;
         auto  ac   = uipc::make_shared<AttributeCollection>();
+        if(target_size >= 0)
+            ac->resize(static_cast<SizeT>(target_size));
+
         for(auto&& [name, object] : data.items())
         {
             auto index_it = object.find("index");
@@ -144,10 +152,14 @@ class AttributeCollectionFactory::Impl
                 continue;
             }
             auto allow_destroy = allow_destroy_it->get<bool>();
+            auto is_evolving   = object.value("is_evolving", false);
 
             S<IAttributeSlot> attr = ctx.attribute_slot_of(index);
-            ac->resize(attr->size());
-            ac->share(name, *attr, allow_destroy);
+            UIPC_ASSERT_THROW(attr, "Attribute with serialized index {} was not found.", index);
+            if(target_size < 0 && ac->attribute_count() == 0)
+                ac->resize(attr->size());
+            auto slot = ac->share(name, *attr, allow_destroy);
+            slot->is_evolving(is_evolving);
         }
 
         return ac;
@@ -223,6 +235,7 @@ class AttributeCollectionFactory::Impl
             data["attribute_collection"] =
                 attribute_collection_to_json(acs.m_attribute_collection, ctx);
             data["removed_names"] = acs.m_removed_names;
+            data["target_size"]   = acs.m_target_size;
         }
 
         return j;
@@ -294,6 +307,15 @@ class AttributeCollectionFactory::Impl
 
             auto& removed_names  = *removed_names_it;
             acc->m_removed_names = removed_names.get<vector<std::string>>();
+            if(auto target_size_it = data.find("target_size"); target_size_it != data.end())
+            {
+                acc->m_target_size = target_size_it->get<IndexT>();
+            }
+            else if(acc->m_attribute_collection.attribute_count() > 0)
+            {
+                acc->m_target_size =
+                    static_cast<IndexT>(acc->m_attribute_collection.size());
+            }
         } while(0);  // for safe break;
 
         return acc;
@@ -337,6 +359,7 @@ AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollec
 {
     AttributeCollectionCommit commit;
     m_impl->diff(current, reference, commit.m_attribute_collection, commit.m_removed_names);
+    commit.m_target_size = static_cast<IndexT>(current.size());
     return commit;
 }
 }  // namespace uipc::geometry

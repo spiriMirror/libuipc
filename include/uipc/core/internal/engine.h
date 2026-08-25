@@ -30,9 +30,10 @@ class UIPC_CORE_API Engine final : public std::enable_shared_from_this<Engine>
     std::string_view         workspace() const noexcept;
     EngineStatusCollection&  status();
     const FeatureCollection& features();
-    void                     insert_sanity_checkers(ISanityCheckerCollection& collection);
+    void insert_sanity_checkers(ISanityCheckerCollection& collection);
 
     Json to_json() const;
+    Json frame_stats() const;
 
     static Json default_config();
 

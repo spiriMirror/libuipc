@@ -13,18 +13,22 @@ Bug (pre-fix):
   scatter-add kernel re-applied stale forces on every advance() — forever.
 
 Test:
-  Single FEM tet (no gravity, no contact).
-  Frame 1: apply +x force on vertex 0, advance → vertex_0.vx > 0.
-  Frame 2: clear all external forces (is_constrained[:]=0), advance.
+  Single FEM tet (no gravity, no contact), run once through IPC and once through
+  AL-IPC. The animator applies +x force on vertex 0 in frame 1 and clears it in
+  frame 2. This verifies the shared clear -> animate -> consume lifecycle.
   Pass criterion: vertex_0.vx must DECREASE between frame 1 and frame 2.
   With the bug, the device buffer still holds (force=+x, vertex_id=0), so
   the +x force is re-applied → vx grows.
+
+  The test also keeps timers disabled and rejects an unsolicited merged timing
+  report. AL-IPC previously enabled the process-global timer and printed a
+  report on every frame, leaking profiling state into later IPC worlds.
 """
 
 import numpy as np
 import pytest
 
-from uipc import Engine, World, Scene, view, builtin
+from uipc import Engine, Scene, Timer, World, builtin, view
 from uipc.constitution import ElasticModuli, FiniteElementExternalForce, StableNeoHookean
 from uipc.core import FiniteElementStateAccessorFeature
 from uipc.geometry import label_surface, label_triangle_orient, tetmesh
@@ -32,14 +36,24 @@ from uipc.geometry import label_surface, label_triangle_orient, tetmesh
 from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
-def test_finite_element_external_force_clear():
-    engine = Engine("cuda")
+@pytest.mark.parametrize("contact_constitution", ["ipc", "al-ipc"])
+def test_finite_element_external_force_clear(
+    contact_constitution, tmp_path, capfd, request
+):
+    Timer.disable_all()
+    Timer.report_as_json()
+    request.addfinalizer(Timer.disable_all)
+
+    workspace = tmp_path / f"external_force_{contact_constitution}"
+    engine = Engine("cuda", str(workspace))
     world = World(engine)
 
     config = Scene.default_config()
     config["gravity"] = [[0.0], [0.0], [0.0]]
     config["contact"]["enable"] = False
+    config["contact"]["constitution"] = contact_constitution
     config["dt"] = 0.01
 
     scene = Scene(config)
@@ -61,7 +75,24 @@ def test_finite_element_external_force_clear():
     ext.apply_to(mesh, np.array([0.0, 0.0, 0.0], dtype=np.float64))
 
     obj = scene.objects().create("body")
-    geom_slot, _ = obj.geometries().create(mesh)
+    obj.geometries().create(mesh)
+
+    def animate_force(info):
+        geom = info.geo_slots()[0].geometry()
+        force_attr = geom.vertices().find("external_force")
+        is_constrained_attr = geom.vertices().find(builtin.is_constrained)
+        assert force_attr is not None
+        assert is_constrained_attr is not None
+
+        force_view = view(force_attr)
+        constrained_view = view(is_constrained_attr)
+        force_view[:] = 0.0
+        constrained_view[:] = 0
+        if info.frame() == 1:
+            constrained_view[0] = 1
+            force_view[0] = np.array([[100.0], [0.0], [0.0]], dtype=np.float64)
+
+    scene.animator().insert(obj, animate_force)
 
     world.init(scene)
 
@@ -76,26 +107,12 @@ def test_finite_element_external_force_clear():
         v = np.array(view(sg.vertices().find(builtin.velocity)))
         return float(v[0, 0, 0])  # vertex 0, x component
 
-    geom = geom_slot.geometry()
-    force_attr = geom.vertices().find("external_force")
-    is_constrained_attr = geom.vertices().find(builtin.is_constrained)
-    assert force_attr is not None
-    assert is_constrained_attr is not None
-    fv = view(force_attr)
-    cv = view(is_constrained_attr)
-
-    # Frame 1: apply +x force on vertex 0
-    cv[:] = 0
-    cv[0] = 1
-    fv[:] = 0.0
-    fv[0] = np.array([[100.0], [0.0], [0.0]], dtype=np.float64)
+    # Frame 1: the animator applies +x force on vertex 0.
     world.advance()
     world.retrieve()
     vx_frame1 = read_vx_of_vertex0()
 
-    # Frame 2: CLEAR force, advance
-    cv[:] = 0
-    fv[:] = 0.0
+    # Frame 2: the animator clears all external forces.
     world.advance()
     world.retrieve()
     vx_frame2 = read_vx_of_vertex0()
@@ -110,7 +127,17 @@ def test_finite_element_external_force_clear():
         f"If vx_frame2 > vx_frame1, the device-side force buffer was not drained."
     )
 
+    captured = capfd.readouterr()
+    assert "TIMING BREAKDOWN: MERGED TIMERS" not in captured.out
+
+    frame_stats = engine.frame_stats()
+    assert frame_stats["schema_version"] == 1
+    assert frame_stats["pipeline"] == contact_constitution
+    assert frame_stats["frame"] == 2
+    assert frame_stats["completed"]
+    assert frame_stats["newton_iterations"] >= 1
+    assert frame_stats["line_search_trials"] >= 1
+
 
 if __name__ == "__main__":
-    test_finite_element_external_force_clear()
-    print("OK")
+    raise SystemExit(pytest.main([__file__, "-v"]))

@@ -6,6 +6,8 @@ namespace uipc::core
 {
 // Scene Default Config
 geometry::AttributeCollection default_scene_config() noexcept;
+Json                          scene_config_schema();
+void validate_scene_config(const geometry::AttributeCollection& config);
 
 // Util Functions:
 

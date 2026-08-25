@@ -56,9 +56,10 @@ Args:
     {
         auto class_SubsceneModel = py::class_<SubsceneModel>(
             m, "SubsceneModel", R"(SubsceneModel class representing subscene parameters between two elements.)");
-        class_SubsceneModel.def("topo",
-                                [](const SubsceneModel& self) { return as_numpy(self.topo()); },
-                                R"(Get the topology IDs.
+        class_SubsceneModel.def(
+            "topo",
+            [](const SubsceneModel& self) { return as_numpy(self.topo()); },
+            R"(Get the topology IDs.
 Returns:
     numpy.ndarray: Array of two integers representing the topology IDs.)");
         class_SubsceneModel.def("is_enabled",
@@ -153,7 +154,7 @@ Args:
     L: Left element ID.
     R: Right element ID.
     enable: Whether the subscene is enabled (default: False).
-    config: Additional configuration dictionary (default: empty).)");
+    config: Reserved for future model extensions; must currently be empty.)");
 
         class_SubsceneTabular.def(
             "at",

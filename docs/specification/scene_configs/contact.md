@@ -8,6 +8,12 @@ Contact setup has two separate layers:
 2. `ContactTabular` assigns pairwise material behavior (friction coefficient,
    contact resistance, and whether that pair may contact).
 
+The optional `config` argument on `ContactTabular.insert/default_model` is a
+reserved extension point. No per-model keys are currently defined, so it must
+be `{}`; a non-empty object now raises an error instead of being ignored. The
+same rule applies to the reserved `SubsceneTabular.insert(..., config=...)`
+argument.
+
 Keeping these layers separate is essential: setting `contact/enable = 1` does
 not choose material coefficients, and creating a contact element does not
 label a mesh surface.

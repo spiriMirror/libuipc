@@ -67,7 +67,7 @@ def strip_constitutions(scene: Scene) -> None:
         scene: A :class:`uipc.Scene` whose geometries have already been
                populated by ``build_scene`` or ``load``.
     """
-    for obj_id in range(scene.objects().size()):
+    for obj_id in range(scene.objects().created_count()):
         obj = scene.objects().find(obj_id)
         if obj is None:
             continue

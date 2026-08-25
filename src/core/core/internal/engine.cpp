@@ -142,7 +142,10 @@ class Engine::Impl
     {
         LogPatternGuard guard{backend_name()};
         if(!m_sync_flag)
+        {
             m_engine->sync();
+            m_sync_flag = true;
+        }
         m_engine->retrieve();
     }
 
@@ -169,6 +172,14 @@ class Engine::Impl
         Json j;
         // force copy
         j = m_engine->to_json();
+        return j;
+    }
+
+    Json frame_stats() const
+    {
+        LogPatternGuard guard{backend_name()};
+        Json            j;
+        j = m_engine->frame_stats();
         return j;
     }
 
@@ -297,6 +308,10 @@ void Engine::retrieve()
 Json Engine::to_json() const
 {
     return m_impl->to_json();
+}
+Json Engine::frame_stats() const
+{
+    return m_impl->frame_stats();
 }
 bool Engine::dump()
 {

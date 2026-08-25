@@ -48,10 +48,17 @@ void Scene::update_from(const SceneSnapshotCommit& commit)
     m_config.update_from(*commit.m_config);
 
     m_objects.update_from(*this, commit.m_object_collection);
-    m_contact_tabular.update_from(*commit.m_contact_models, commit.m_contact_elements);
+    m_contact_tabular.update_from(*commit.m_contact_models,
+                                  commit.m_contact_elements,
+                                  commit.m_contact_default_model_user_set);
+    m_subscene_tabular.update_from(*commit.m_subscene_models, commit.m_subscene_elements);
 
-    m_geometries.update_from(commit.m_geometries);
-    m_rest_geometries.update_from(commit.m_rest_geometries);
+    m_geometries.update_from(commit.m_geometries,
+                             commit.m_removed_geometry_ids,
+                             commit.m_geometry_next_id);
+    m_rest_geometries.update_from(commit.m_rest_geometries,
+                                  commit.m_removed_rest_geometry_ids,
+                                  commit.m_rest_geometry_next_id);
 }
 
 Float Scene::dt() const

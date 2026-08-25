@@ -10,6 +10,10 @@ def pytest_configure(config):
         "markers",
         "example: mark test as an example / demo (may open GUI)",
     )
+    config.addinivalue_line(
+        "markers",
+        "cuda: mark test as requiring an NVIDIA GPU and CUDA backend",
+    )
 
 
 # Skip tests that use uipc.Engine("cuda", ...) on macOS (CUDA is not available).

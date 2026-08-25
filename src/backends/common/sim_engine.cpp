@@ -22,6 +22,11 @@ Json SimEngine::do_to_json() const
     return j;
 }
 
+Json SimEngine::do_frame_stats() const
+{
+    return Json::object();
+}
+
 WorldVisitor& SimEngine::world() noexcept
 {
     UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");

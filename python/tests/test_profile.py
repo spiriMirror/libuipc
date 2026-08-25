@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
-from uipc import Engine, World, Scene, SceneIO
+from uipc import Engine, World, Scene, SceneIO, core
 from uipc.backend import WorldVisitor
 from uipc.geometry import (
     tetmesh, ground, pointcloud,
@@ -87,6 +87,23 @@ def test_make_world(tmp_path):
     assert world.frame() == 0
 
 
+@pytest.mark.basic
+def test_engine_metadata_status_and_optional_frame_stats(tmp_path):
+    scene = _make_scene()
+    engine, world = _make_world(scene, tmp_path / 'ws_engine_metadata')
+
+    metadata = engine.to_json()
+    assert 'sim_systems' in metadata
+    assert 'features' in metadata
+    assert engine.frame_stats() == {}
+
+    status = engine.status()
+    status.push_back(core.EngineStatus.warning('test warning'))
+    assert status.to_json()['warnings']
+    status.clear()
+    assert status.to_json()['warnings'] == []
+
+
 # ---------------------------------------------------------------------------
 # Session with Scene (shortcut)
 # ---------------------------------------------------------------------------
@@ -116,6 +133,23 @@ def test_session_scene_advance_profile():
     assert s.result is not None
     assert s.result['num_frames'] == 3  # only profiled frames count
     assert s.result['steps'] == [('advance', 2), ('profile', 3)]
+
+
+@pytest.mark.basic
+def test_session_wall_time_excludes_warmup(monkeypatch):
+    """Only profile blocks contribute to the reported wall time."""
+    import uipc.profile as profile_module
+
+    ticks = iter([20.0, 22.5])
+    monkeypatch.setattr(profile_module, '_clock', lambda: next(ticks))
+
+    scene = _make_scene()
+    with session(scene, name='test', backend='none') as s:
+        s.advance(2)
+        s.profile(3)
+
+    assert s.result['wall_time'] == pytest.approx(2.5)
+    assert s.result['environment']['backend'] == 'none'
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +239,24 @@ def test_session_only_advance_raises():
             s.advance(5)
 
 
+@pytest.mark.basic
+@pytest.mark.parametrize(
+    ('operation', 'value', 'error'),
+    [
+        ('advance', -1, ValueError),
+        ('advance', 1.5, TypeError),
+        ('profile', 0, ValueError),
+        ('profile', -1, ValueError),
+        ('profile', True, TypeError),
+    ],
+)
+def test_session_rejects_invalid_frame_counts(operation, value, error):
+    scene = _make_scene()
+    benchmark = session(scene, name='test', backend='none')
+    with pytest.raises(error):
+        getattr(benchmark, operation)(value)
+
+
 # ---------------------------------------------------------------------------
 # CUDA integration tests
 # ---------------------------------------------------------------------------
@@ -236,6 +288,7 @@ def _make_particle_scene():
     return scene
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_session_world(tmp_path):
     """CUDA: session(world) benchmarks from the world's current frame."""
@@ -259,8 +312,18 @@ def test_cuda_session_world(tmp_path):
     assert s.result['wall_time'] > 0
     assert world.frame() == 5
     assert len(s.result['timer_frames']) == 2
+    assert len(s.result['frame_stats']) == 2
+    latest = s.result['frame_stats'][-1]
+    assert latest['schema_version'] == 1
+    assert latest['frame'] == 5
+    assert latest['pipeline'] == 'ipc'
+    assert latest['completed']
+    assert latest['newton_iterations'] >= 1
+    assert latest['line_search_trials'] >= latest['newton_iterations']
+    assert latest['linear_solver_iterations'] >= 0
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_session_advance_profile(tmp_path):
     """CUDA: session(world) advance + profile with real simulation."""
@@ -281,6 +344,7 @@ def test_cuda_session_advance_profile(tmp_path):
         assert 'children' in frame_data or 'name' in frame_data
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_run_world(tmp_path):
     """CUDA: run(world) returns a result with timer stats."""
@@ -296,6 +360,7 @@ def test_cuda_run_world(tmp_path):
     assert len(result['timer_frames']) == 3
 
 
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 def test_cuda_world_visitor_engine(tmp_path):
     """CUDA: WorldVisitor.engine() returns correct workspace/backend."""

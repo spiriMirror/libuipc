@@ -10,7 +10,7 @@ Directory: `src/backends/cuda/` (compiled as the MODULE library `uipc_backend_cu
 | `pipeline/` | Pipeline action (SimAction) definitions |
 | `global_geometry/` | Global vertex management (GlobalVertexManager), bounding boxes |
 | `affine_body/` | ABD dynamics (97 files): Jacobians, mass/energy assembly, joints, state accessors |
-| `finite_element/` | FEM (123 files): gradient/Hessian assembly kernels for each constitution (Fem3D/Codim2D/Codim1D families) |
+| `finite_element/` | FEM (124 files at the audited revision): gradient/Hessian assembly kernels for each constitution (Fem3D/Codim2D/Codim1D families) |
 | `collision_detection/` | StacklessBVH, simplex distance, global trajectory filter, DCD/CCD candidate detection |
 | `contact_system/` | IPC / AL-IPC contact models (symplectic/implicit), normal/tangential forces, CFL condition |
 | `distance_system/` | Distance computation |
@@ -57,7 +57,71 @@ Pipeline
 
 Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
+`Engine::frame_stats()` / Python `Engine.frame_stats()` is the stable
+machine-readable complement to the Timer tree. CUDA returns schema v1 with the
+pipeline, completion/convergence flags, Newton count, cumulative line-search
+trials, cumulative iterative-linear-solver iterations, limit-hit flags, and the
+last line-search/CCD/CFL step factors. `reset_frame_stats()` runs immediately
+after incrementing the frame; `completed` is set only after the end-of-frame
+iteration checks. `GlobalLinearSystem::last_solve_iterations()` transfers each
+solver's `SolvingInfo::iter_count` into the per-frame accumulator. Keep this
+contract host-only and cheap: profilers call it once per measured frame.
+
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
+
+### DyTopo single-receiver fast path
+
+`GlobalDyTopoEffectManager` normally assembles raw doublets/triplets, converts
+them to sorted unique BCOO storage, and then classifies/copies a subrange for
+each `DyTopoEffectReceiver`. There is a strict shortcut when all of these hold:
+
+- exactly one receiver is registered;
+- it reports a diagonal gradient/Hessian range beginning at global vertex 0;
+- its gradient, Hessian-row, and Hessian-column ranges are identical and lie
+  within the global vertex array.
+
+That range is the complete dynamic vertex prefix. Global vertices after it can
+be non-DOF implicit geometry (for example, half planes); their contact kernels
+differentiate only the dynamic vertex. The manager therefore passes the raw
+assembled views directly to the receiver. FEM and ABD subsystem assembly is
+linear, and the final `GlobalLinearSystem` `ge2sym` + `convert` pass already
+sorts and reduces the global triplets, so the intermediate conversion is
+mathematically redundant. Do not broaden this path to multiple receivers or
+non-diagonal ranges: mixed ABD/FEM coupling relies on the existing classifier
+to route diagonal and off-diagonal blocks to different subsystems.
+
+The diagram above describes the IPC path. `advance_al.cu` implements a separate
+AL-IPC active-set pipeline, but both paths call
+`SimEngine::step_animation_and_external_forces()` immediately before
+`predict_dof()`. The shared frame hook deliberately orders the operations as
+**clear prior device force buffers -> run user animation -> consume the freshly
+animated forces**. Keep orchestration that is common to both contact
+constitutions in this hook and retain focused IPC/AL tests; the Newton, contact,
+CCD, and termination algorithms remain intentionally distinct. Timer enablement
+and reporting are caller-controlled--neither advance path changes the
+process-global Timer state or prints a report implicitly.
+
+## Default broad-phase BVH build
+
+`collision_detection/method = "info_stackless_bvh"` selects the optimized
+default broad phase. Its rebuild path is deliberately CUB-only:
+
+- `DeviceRadixSort::SortPairs` sorts Morton codes and primitive IDs into
+  separate persistent output buffers; a named initialization kernel produces
+  the identity IDs, so there is no sequence primitive or staging allocation.
+- `DeviceScan::ExclusiveSum` builds the internal-node offset table.
+- The CUB wrappers use `details::cub_temp_storage`, a persistent per-stream
+  workspace that doubles capacity only when it must grow. Never replace this
+  with per-call `cudaMalloc`/`cudaFree`; those calls serialize the device.
+- The same initialization kernel resets the atomic flags, depth counts, leaf
+  LCAs, and scene AABB before any parallel builder/reduction can write them.
+  Keep those resets outside the consuming multi-block kernels: resetting an
+  output from `idx == 0` inside such a kernel is not a grid-wide barrier and
+  races blocks that have already published results.
+
+The `info_stackless_bvh_v0` selector is a legacy comparison path, while
+`stackless_bvh` and `linear_bvh` are alternate broad phases. Performance and
+correctness claims above apply to the default selector.
 
 ## Kernels and Kernel Naming
 
@@ -123,7 +187,12 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   graph instead of invalidating it. The engine's workspace buffers are
   sized once at init from the mesh partition (contact does not recluster —
   collision-aware clustering is deliberately not ported), so the captured
-  pointers stay valid as contact nnz fluctuates.
+  pointers stay valid as contact nnz fluctuates. The partition hierarchy is
+  likewise constructed once in `init_matrix()` and reused by every Newton
+  assembly; only the current BCOO Hessian scatter and cluster inversion are
+  repeated. Scatter reads BCOO entries directly (there is no identity-index
+  staging buffer). The 48x48 Gauss-Jordan inversion synchronizes after the
+  pivot row is ready, but not between independent row updates.
 - MAS activation (all-or-nothing, since 2026-08-23): scene config
   `linear_system/fem_preconditioner = "mas"` (default `"diag"`) selects the
   FEM local preconditioner. When on, `FEMMASPreconditioner::do_init`
@@ -153,7 +222,11 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 ## Performance Analysis Toolchain
 
-- `python -m uipc.cli.benchmark run/profile/analyze/compare` (CLI) and `uipc.profile` / `uipc.profile.nsight` (Python API).
+- `python -m uipc.cli.benchmark run/profile/analyze/compare/baseline/check`
+  (CLI) and `uipc.profile` / `uipc.profile.nsight` (Python API). `run --warmup`
+  excludes warmup/recovery from both wall time and the first Timer frame;
+  versioned baselines gate wall average plus Timer median/p95 and reject runner,
+  build, frame-count, or phase-plan drift by default.
 - Workflow: first `run` to get per-stage wall-clock (`report/report.md` + `timer_frames.json`), then `profile` to get per-kernel metrics (ncu), and cross-reference to locate "hot stages + inefficient kernels"; stages taking <5% of frame time are not optimized.
 - See `.cursor/skills/gpu-optimization/SKILL.md` for details.
 
@@ -184,4 +257,8 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 ## none Backend
 
-`src/backends/none/`: an empty implementation (each `none::SimEngine` `do_*` is basically a no-op), used as a template for new backends and as a self-check of core basic functionality. **Note: environments without a GPU have no usable compute backend**.
+`src/backends/none/`: an empty implementation: it increments the frame and logs,
+but performs no physics. It is useful as a backend template and for limited core
+interface/geometry checks. It does not enter/solve the Scene pending-geometry
+cycle, so post-init object additions remain pending. **Environments without a GPU
+have no usable compute backend**.

@@ -327,6 +327,7 @@ _PP_CASES = [
 
 
 @pytest.mark.basic
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.parametrize("p0,p1,label", _PP_CASES, ids=[c[2] for c in _PP_CASES])
 def test_pp_fd(ddf_session, p0, p1, label):
@@ -385,6 +386,7 @@ _PE_CASES = [
 
 
 @pytest.mark.basic
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.parametrize("p,label,test_hess", _PE_CASES,
                          ids=[c[1] for c in _PE_CASES])
@@ -470,6 +472,7 @@ _PT_CASES = [
 
 
 @pytest.mark.basic
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.parametrize("p,label,test_hess", _PT_CASES,
                          ids=[c[1] for c in _PT_CASES])
@@ -573,6 +576,7 @@ _EE_CASES = [
 
 
 @pytest.mark.basic
+@pytest.mark.cuda
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.parametrize(
     "eb0,eb1,label,test_hess,test_mollifier", _EE_CASES,

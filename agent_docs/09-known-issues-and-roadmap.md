@@ -1,8 +1,25 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-24 (post PR #468 merge). Completed work is recorded in
-`handoff.md`; this file tracks what is **open** — analyze here first before
-planning new work.
+Status as of 2026-08-25, source audit at `947bb921`. Completed performance work is
+recorded in `handoff.md`; this file tracks what is **open** — analyze here first
+before planning new work.
+
+## Cross-cutting source-audit findings
+
+These previously verified gaps are closed on `refactor-main` as of 2026-08-25:
+
+- The historical `baraff_witkin_shell.h` is now a compatibility include for the
+  implemented `StrainLimitingBaraffWitkinShell`; its empty `.cpp` and other
+  unreferenced zero-byte scaffolds were removed. A repository gate rejects new
+  zero-byte files under `include/` and `src/`.
+- `scripts/check_constitution_api.py` compares every exported constitution class
+  with its pybind class name and verifies every binding initializer is registered.
+  `RotatingMotor` and `LinearMotor` are both covered. Internal UID 27/28 remain
+  intentionally internal and therefore outside the public-header contract.
+- Every external GitHub Action is pinned to a reviewed full commit SHA. Both
+  `johnwason/vcpkg-action` inputs and the Linux wheel container use the same
+  immutable vcpkg commit as the generated registry baseline. The repository
+  contracts workflow rejects floating action and revision refs.
 
 ## Performance: remaining gap vs Stiff-GIPC
 
@@ -75,11 +92,38 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    symmetric-storage transpose scatter (~243k atomic vec3 per SpMV);
    a full-storage row-based SpMV would eliminate atomics entirely but
    doubles matrix traffic and needs a converter variant — deferred.
-5. Case-88 frame budget after these rounds (60 frames, mean ~263 ms):
-   FusedPCG 92 ms + Build Linear System 54 ms + trajectory detect 38 ms +
-   DCD 29 ms + DyTopo 27 ms + misc. No single 2x item remains; it's a
-   grind of 10-30 ms items.
-Every such change must re-pass the full sim suite (95 cases / 14214
+5. MAS assembly overhead (DONE 2026-08-25): the static mesh-partition
+   hierarchy is cached after `init_matrix()` instead of being rebuilt for
+   every Newton iteration; Hessian scatter now walks BCOO directly instead of
+   filling an identity-index buffer; and the 48x48 Gauss-Jordan kernel drops
+   the barrier between independent row updates. On RTX 5090, case 88 over the
+   same 60 frames / 333 Newton iterations reduced `Assemble Preconditioner`
+   1149.9 -> 834.4 ms (-27.4%, 3.45 -> 2.51 ms/Newton). The single-run wall
+   mean moved 213.3 -> 208.1 ms/frame; contact-stage variance is larger than
+   the remaining MAS contribution, so stage timing is the reliable metric.
+6. Default BVH rebuild overhead (DONE 2026-08-25):
+   `info_stackless_bvh` now uses CUB radix sort and scan with the existing
+   persistent per-stream workspace. Identity generation and required state
+   resets are fused into one kernel; redundant/dead fills are gone. Moving
+   scene-AABB, leaf-LCA, and depth initialization before the multi-block
+   consumers also removes cross-block reset races. Case 88, same 60-frame
+   phase on RTX 5090: trajectory detection 7.98 -> 4.98-5.00 ms/Newton and
+   aggregate DCD 7.35 -> 4.59-4.60 ms/detect (both about -37.5%); two wall
+   runs measured 175.6-177.1 ms/frame versus 208.1 ms before.
+7. DyTopo intermediate conversion (DONE 2026-08-25): a scene with one diagonal
+   receiver owning the dynamic vertex prefix now forwards its raw assembled
+   doublets/triplets directly to that receiver. The final global matrix
+   converter performs the required sort/reduce already. Multiple receivers,
+   off-diagonal ranges, and ABD/FEM coupling retain the classified path. On
+   case 88, `Compute DyTopo Effect` fell from 6.11 to 4.76 ms/Newton (-22.0%);
+   final `Convert To BCOO` stayed flat (1.85 -> 1.86 ms/Newton), and the clean
+   wall mean/median improved 175.6/196.4 -> 165.5/184.2 ms/frame.
+8. Current case-88 frame budget (60 frames, 165.5 ms mean representative):
+   Build Linear System 43.4 ms + DyTopo 26.3 ms + trajectory detect 26.9 ms
+   + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
+   targets are raw contact/FEM subsystem assembly and the remaining
+   line-search launch traffic, not another broad-phase or DyTopo sort rewrite.
+Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
 ## Deliberately deferred
@@ -98,7 +142,6 @@ assertions).
 | `ports/tinygltf` overlay (SHA512 of regenerated v2.9.6 tarball) | `ports/`, `scripts/gen_vcpkg_json.py` | microsoft/vcpkg fixes the tinygltf port hash |
 | `octree v2.5` | `src/geometry/xmake.lua` | xmake-repo layout stabilizes |
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
-| `johnwason/vcpkg-action revision: master` | `.github/workflows/*.yml` | pin to a known-good commit proactively (drift risk, same class as the three above) |
 
 ## Open issues
 
@@ -109,11 +152,12 @@ assertions).
   a missing bundled vcpkg DLL and not a driver-compatibility problem. Current
   workaround: install CUDA 12.8 side-by-side and expose its `bin` directory,
   or build from source against CUDA 13. The immutable 0.0.26 wheel cannot be
-  corrected in place. Before the next release, decide whether to keep the
-  explicit CUDA 12.8 runtime requirement, bundle/link CUDA runtime components
-  where licensing and wheel size permit, or publish a deliberate multi-CUDA
-  packaging strategy. In every case, CI/release verification must instantiate
-  the CUDA engine from the produced wheel; a plain Python import is insufficient.
+  corrected in place. The next-release policy keeps the explicit system CUDA
+  12.8 runtime, adds CPython 3.14, replaces the Ada-only code image with native
+  7.5/8.0/8.6/8.9 images plus 8.9 PTX, embeds build metadata, and ships
+  `python -m uipc doctor`. Remaining before calling this closed: release those
+  wheels and add a GPU-capable CI job that constructs the CUDA engine; a hosted
+  no-GPU import/none-backend smoke test is insufficient.
 - **CUDA-graph capture crash in the C++ suite binary (worked around)**: with
   Timer objects created inside the captured call chain, the single-process
   suite deterministically fail-fasted (0xC0000409) at the second engine's
@@ -149,12 +193,17 @@ assertions).
 
 ## Security advisories
 
-- pytest `< 9.0.3` tmpdir CVE → fixed on main (PR #469, pytest pinned
-  `>=9.0.3`, lock at 9.1.1). Dev-only dependency.
+- pytest `< 9.0.3` tmpdir CVE → both metadata files require
+  `pytest>=9.0.3`; `python/uv.lock` resolves 9.1.1. Dev-only dependency.
 - usd-core `< 25.8` (critical) is marked fixed in the repo, but USD is a
   local/optional dep — upgrade any local install to `usd-core >= 25.8`.
 
-## Samples repo state (spiriMirror/libuipc-samples)
+## Samples submodule state (spiriMirror/libuipc-samples)
+
+The root repository tracks this repository as the `libuipc-samples/` submodule.
+It currently has 52 example directories; numbering is non-contiguous and two
+directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
+reference.
 
 - `87_robot_hand` — URDF robot hand (ABD links + soft transform
   constraints) + ABD cube on the ground, manual GUI posing (sliders +

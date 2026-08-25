@@ -5,10 +5,11 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "pyuipc"
 dynamic = ["version"]
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10, <3.15"
 
 dependencies = [
-    "numpy", 
+    "numpy",
+    "matplotlib",
     "polyscope>=2.5.0, <3.0.0",
     "huggingface_hub",
 ]
@@ -38,6 +39,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: C++",
     "Topic :: Scientific/Engineering :: Physics",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -49,14 +51,18 @@ classifiers = [
 Homepage = "https://spirimirror.github.io/libuipc-doc/"
 Issues = "https://github.com/spiriMirror/libuipc/issues"
 
+[project.scripts]
+uipc = "uipc.__main__:main"
+
 [project.optional-dependencies]
 gui = ["polyscope"]
-dev = ["pytest"]
+dev = ["pytest>=9.0.3"]
 
 [tool.pytest.ini_options]
-addopts = ["-s"]
+addopts = ["-s", "-m", "not example and not cuda"]
 markers = [
     "basic: mark a test as basic",
+    "cuda: mark a test as requiring an NVIDIA GPU and CUDA backend",
     "gui: mark a test as requiring GUI",
     "typing: mark a test as requiring type checking",
     "example: mark a test as an example",
@@ -102,7 +108,7 @@ build-type = "Release"
 source-dir = "."
 
 [tool.scikit-build.cmake.define]
-UIPC_CUDA_ARCHITECTURES = "89"
+UIPC_CUDA_ARCHITECTURES = "75-real;80-real;86-real;89-real;89-virtual"
 UIPC_BUILD_PYBIND = "ON"
 UIPC_BUILD_EXAMPLES = "OFF"
 UIPC_BUILD_TESTS = "OFF"

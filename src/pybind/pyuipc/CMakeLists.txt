@@ -5,8 +5,38 @@ target_link_libraries(pyuipc PUBLIC pybind11::module)
 target_link_libraries(pyuipc PUBLIC uipc::uipc)
 # ensure all backends are built before pyuipc
 add_dependencies(pyuipc uipc::backends)
+# A backend-only rebuild must also relink pyuipc so its POST_BUILD packaging
+# step refreshes runtime libraries and stubs. A target dependency alone only
+# guarantees build order and otherwise leaves site-packages stale.
+get_property(_uipc_backend_targets GLOBAL PROPERTY UIPC_BACKEND_TARGETS)
+foreach(_uipc_backend_target IN LISTS _uipc_backend_targets)
+    set_property(TARGET pyuipc APPEND PROPERTY LINK_DEPENDS
+        "$<TARGET_FILE:${_uipc_backend_target}>")
+endforeach()
+unset(_uipc_backend_target)
+unset(_uipc_backend_targets)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
+
+set(_uipc_py_cuda_backend 0)
+set(_uipc_py_cuda_architectures "none")
+set(_uipc_py_cuda_toolkit_version "none")
+if(UIPC_WITH_CUDA_BACKEND)
+    set(_uipc_py_cuda_backend 1)
+    set(_uipc_py_cuda_architectures "${UIPC_CUDA_ARCHITECTURES}")
+    string(REPLACE ";" "," _uipc_py_cuda_architectures
+           "${_uipc_py_cuda_architectures}")
+    if(UIPC_CUDA_TOOLKIT_VERSION)
+        set(_uipc_py_cuda_toolkit_version "${UIPC_CUDA_TOOLKIT_VERSION}")
+    else()
+        set(_uipc_py_cuda_toolkit_version "unknown")
+    endif()
+endif()
+target_compile_definitions(pyuipc PRIVATE
+    UIPC_PY_CUDA_BACKEND=${_uipc_py_cuda_backend}
+    UIPC_PY_CUDA_ARCHITECTURES="${_uipc_py_cuda_architectures}"
+    UIPC_PY_CUDA_TOOLKIT_VERSION="${_uipc_py_cuda_toolkit_version}"
+    UIPC_PY_BUILD_TYPE="$<CONFIG>")
 uipc_target_set_output_directory(pyuipc)
 uipc_target_set_rpath(pyuipc)
 

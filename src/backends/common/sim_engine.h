@@ -23,6 +23,7 @@ class SimEngine : public core::IEngine
 
   protected:
     virtual Json do_to_json() const override;
+    virtual Json do_frame_stats() const override;
 
     /**
      * @brief Build the SimSystems in the engine.

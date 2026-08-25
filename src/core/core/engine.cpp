@@ -13,7 +13,7 @@ Engine::Engine(std::string_view backend_name,
                std::string_view workspace,
                const Json&      config)
     : m_internal{uipc::make_shared<internal::Engine>(
-        backend_name, std::move(overrider), workspace, config)}
+          backend_name, std::move(overrider), workspace, config)}
 {
 }
 
@@ -47,6 +47,11 @@ const FeatureCollection& Engine::features()
 Json Engine::to_json() const
 {
     return m_internal->to_json();
+}
+
+Json Engine::frame_stats() const
+{
+    return m_internal->frame_stats();
 }
 
 Json Engine::default_config()

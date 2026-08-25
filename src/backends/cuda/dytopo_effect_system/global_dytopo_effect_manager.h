@@ -120,6 +120,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
         void init(WorldVisitor& world);
         void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
         void _assemble(ComputeDyTopoEffectInfo& info);
+        bool _try_direct_distribute(ComputeDyTopoEffectInfo& info);
         void _convert_matrix();
         void _distribute(ComputeDyTopoEffectInfo& info);
 

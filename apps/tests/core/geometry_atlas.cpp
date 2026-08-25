@@ -22,8 +22,12 @@ TEST_CASE("geometry_atlas", "[serialization]")
     auto                my_data = ac.create<IndexT>("I", 0);
     ac.resize(10);
 
+    AttributeCollection empty_ac;
+    empty_ac.resize(7);
+
     GeometryAtlas atlas;
     atlas.create("my_data", ac);
+    atlas.create("empty_data", empty_ac);
     atlas.create(mesh);
     atlas.create(mesh_copy);
 
@@ -46,6 +50,11 @@ TEST_CASE("geometry_atlas", "[serialization]")
     auto ac2 = atlas.find("my_data");
     REQUIRE(ac2 != nullptr);
     REQUIRE(ac.to_json() == ac2->to_json());
+
+    auto empty_ac2 = atlas.find("empty_data");
+    REQUIRE(empty_ac2 != nullptr);
+    REQUIRE(empty_ac2->attribute_count() == 0);
+    REQUIRE(empty_ac2->size() == 7);
 }
 
 TEST_CASE("geometry_atlas_commit", "[serialization]")
@@ -117,3 +126,56 @@ TEST_CASE("geometry_atlas_commit", "[serialization]")
     }
 }
 
+TEST_CASE("geometry_atlas_evolving_only", "[serialization]")
+{
+    AttributeCollection attributes;
+    attributes.resize(3);
+    auto evolving = attributes.create<Float>("evolving", 1.0);
+    attributes.create<Float>("static", 2.0);
+    evolving->is_evolving(true);
+
+    vector<Vector3> positions{{0.0, 0.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
+    auto mesh = pointcloud(positions);
+    mesh.positions().is_evolving(true);
+    auto dynamic_vertex = mesh.vertices().create<Float>("dynamic_vertex", 3.0);
+    mesh.vertices().create<Float>("static_vertex", 4.0);
+    dynamic_vertex->is_evolving(true);
+
+    GeometryAtlas atlas;
+    atlas.create("filtered", attributes, true);
+    atlas.create(mesh, true);
+
+    auto filtered = atlas.find("filtered");
+    REQUIRE(filtered);
+    REQUIRE(filtered->size() == 3);
+    REQUIRE(filtered->attribute_count() == 1);
+    REQUIRE(filtered->find("evolving"));
+    REQUIRE(filtered->find("evolving")->is_evolving());
+    REQUIRE_FALSE(filtered->find("static"));
+
+    auto filtered_slot = atlas.find(0);
+    REQUIRE(filtered_slot);
+    auto filtered_mesh = filtered_slot->geometry().as<SimplicialComplex>();
+    REQUIRE(filtered_mesh);
+    REQUIRE(filtered_mesh->vertices().size() == positions.size());
+    REQUIRE(filtered_mesh->vertices().find<Vector3>(builtin::position));
+    REQUIRE(filtered_mesh->vertices().find<Vector3>(builtin::position)->is_evolving());
+    REQUIRE(filtered_mesh->vertices().find<Float>("dynamic_vertex"));
+    REQUIRE_FALSE(filtered_mesh->vertices().find<Float>("static_vertex"));
+    REQUIRE(filtered_mesh->instances().size() == 1);
+    REQUIRE_FALSE(filtered_mesh->instances().find<Matrix4x4>(builtin::transform));
+
+    GeometryAtlas decoded;
+    decoded.from_json(atlas.to_json());
+
+    auto decoded_attributes = decoded.find("filtered");
+    REQUIRE(decoded_attributes);
+    REQUIRE(decoded_attributes->size() == 3);
+    REQUIRE(decoded_attributes->attribute_count() == 1);
+    REQUIRE(decoded_attributes->find("evolving")->is_evolving());
+
+    auto decoded_mesh = decoded.find(0)->geometry().as<SimplicialComplex>();
+    REQUIRE(decoded_mesh->vertices().size() == positions.size());
+    REQUIRE(decoded_mesh->vertices().find<Vector3>(builtin::position)->is_evolving());
+    REQUIRE_FALSE(decoded_mesh->vertices().find<Float>("static_vertex"));
+}

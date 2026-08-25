@@ -31,12 +31,15 @@ class UIPC_CORE_API SceneSnapshot
 
     unordered_map<IndexT, S<geometry::Geometry>> m_geometries;
     unordered_map<IndexT, S<geometry::Geometry>> m_rest_geometries;
+    IndexT                                       m_geometry_next_id      = -1;
+    IndexT                                       m_rest_geometry_next_id = -1;
 
     vector<ContactElement>  m_contact_elements;
     vector<SubsceneElement> m_subscene_elements;
 
     S<geometry::AttributeCollection> m_contact_models;
     S<geometry::AttributeCollection> m_subscene_models;
+    bool                             m_contact_default_model_user_set = false;
 };
 
 /**
@@ -70,6 +73,11 @@ class UIPC_CORE_API SceneSnapshotCommit
         return m_contact_elements;
     }
 
+    const vector<SubsceneElement>& subscene_elements() const noexcept
+    {
+        return m_subscene_elements;
+    }
+
     const unordered_map<IndexT, S<geometry::GeometryCommit>>& geometries() const noexcept
     {
         return m_geometries;
@@ -80,9 +88,35 @@ class UIPC_CORE_API SceneSnapshotCommit
         return m_rest_geometries;
     }
 
+    span<const IndexT> removed_geometry_ids() const noexcept
+    {
+        return m_removed_geometry_ids;
+    }
+
+    span<const IndexT> removed_rest_geometry_ids() const noexcept
+    {
+        return m_removed_rest_geometry_ids;
+    }
+
+    IndexT geometry_next_id() const noexcept { return m_geometry_next_id; }
+    IndexT rest_geometry_next_id() const noexcept
+    {
+        return m_rest_geometry_next_id;
+    }
+
     const geometry::AttributeCollectionCommit& contact_models() const noexcept
     {
         return *m_contact_models;
+    }
+
+    const geometry::AttributeCollectionCommit& subscene_models() const noexcept
+    {
+        return *m_subscene_models;
+    }
+
+    bool contact_default_model_is_user_set() const noexcept
+    {
+        return m_contact_default_model_user_set;
     }
 
   private:
@@ -97,10 +131,15 @@ class UIPC_CORE_API SceneSnapshotCommit
     // Full Copy Geometries/ Diff Copy AttributeCollection
     unordered_map<IndexT, S<geometry::GeometryCommit>> m_geometries;
     unordered_map<IndexT, S<geometry::GeometryCommit>> m_rest_geometries;
+    vector<IndexT>                                     m_removed_geometry_ids;
+    vector<IndexT> m_removed_rest_geometry_ids;
+    IndexT         m_geometry_next_id      = -1;
+    IndexT         m_rest_geometry_next_id = -1;
 
     // Diff Copy AttributeCollection
     S<geometry::AttributeCollectionCommit> m_contact_models;
     S<geometry::AttributeCollectionCommit> m_subscene_models;
+    bool m_contact_default_model_user_set = false;
 };
 
 SceneSnapshotCommit UIPC_CORE_API operator-(const SceneSnapshot& dst,

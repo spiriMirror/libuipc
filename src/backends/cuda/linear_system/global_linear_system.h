@@ -317,8 +317,9 @@ class GlobalLinearSystem : public SimSystem
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
 
-        bool initialized  = false;
-        bool empty_system = true;
+        bool  initialized           = false;
+        bool  empty_system          = true;
+        SizeT last_solve_iterations = 0;
 
         void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                   cuda_tool::CDenseVectorView<Float> r,
@@ -355,6 +356,7 @@ class GlobalLinearSystem : public SimSystem
     };
 
     SizeT dof_count() const;
+    SizeT last_solve_iterations() const noexcept;
     void  compute_gradient(ComputeGradientInfo& info);
 
     cuda_tool::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }

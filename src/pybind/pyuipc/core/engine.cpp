@@ -14,20 +14,21 @@ PyEngine::PyEngine(py::module& m)
 
     // define enum first
     auto enum_Type = py::enum_<EngineStatus::Type>(class_EngineStatus, "Type", R"(Engine status type enumeration.)")
-        .value("None", EngineStatus::Type::None)
-        .value("Info", EngineStatus::Type::Info)
-        .value("Warning", EngineStatus::Type::Warning)
-        .value("Error", EngineStatus::Type::Error)
-        .export_values();
+                         .value("None", EngineStatus::Type::None)
+                         .value("Info", EngineStatus::Type::Info)
+                         .value("Warning", EngineStatus::Type::Warning)
+                         .value("Error", EngineStatus::Type::Error)
+                         .export_values();
 
     class_EngineStatus
-        .def("type",
-             [](const EngineStatus& self)
-             {
-                 auto type_val = self.type();
-                 return type_val;
-             },
-             R"(Get the status type.
+        .def(
+            "type",
+            [](const EngineStatus& self)
+            {
+                auto type_val = self.type();
+                return type_val;
+            },
+            R"(Get the status type.
 Returns:
     Status type enumeration (None, Info, Warning, or Error).)")
         .def("what",
@@ -78,6 +79,9 @@ Args:
                                      R"(Check if the collection contains any errors.
 Returns:
     bool: True if any error status exists, False otherwise.)");
+    class_EngineStatusCollection.def("clear",
+                                     &EngineStatusCollection::clear,
+                                     R"(Remove all recorded status messages.)");
     class_EngineStatusCollection.def("to_json",
                                      &EngineStatusCollection::to_json,
                                      R"(Convert status collection to JSON.
@@ -131,6 +135,24 @@ Returns:
                      R"(Get the feature collection.
 Returns:
     FeatureCollection: Reference to feature collection.)");
+    class_Engine.def("status",
+                     &Engine::status,
+                     py::return_value_policy::reference_internal,
+                     R"(Get the backend status collection.
+Returns:
+    EngineStatusCollection: Status messages accumulated by the backend.)");
+    class_Engine.def("to_json",
+                     &Engine::to_json,
+                     py::call_guard<py::gil_scoped_release>(),
+                     R"(Get backend topology and feature metadata.
+Returns:
+    dict: Backend metadata.)");
+    class_Engine.def("frame_stats",
+                     &Engine::frame_stats,
+                     py::call_guard<py::gil_scoped_release>(),
+                     R"(Get structured statistics for the latest frame.
+Returns:
+    dict: Backend-specific frame statistics, or an empty dict when unsupported.)");
     class_Engine.def_static("default_config",
                             &Engine::default_config,
                             py::call_guard<py::gil_scoped_release>(),
@@ -181,14 +203,15 @@ Returns:
              R"(Get engine features.
 Returns:
     FeatureCollection: Reference to feature collection.)")
-        .def("world",
-             [](const PyIEngine& self)
-             {
-                 auto world_val = self.world();
-                 return world_val;
-             },
-             py::return_value_policy::reference_internal,
-             R"(Get the world.
+        .def(
+            "world",
+            [](const PyIEngine& self)
+            {
+                auto world_val = self.world();
+                return world_val;
+            },
+            py::return_value_policy::reference_internal,
+            R"(Get the world.
 Returns:
     Reference to the world object.)");
 }

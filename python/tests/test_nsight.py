@@ -15,8 +15,6 @@ import pytest
 # ---------------------------------------------------------------------------
 
 import importlib.util
-import sys
-import types
 
 _NSIGHT_PATH = (
     pathlib.Path(__file__).parent.parent / 'src' / 'uipc' / 'profile' / 'nsight.py'
@@ -24,23 +22,11 @@ _NSIGHT_PATH = (
 
 
 def _load_nsight():
-    """Load uipc/profile/nsight.py with minimal stubs."""
-    # Ensure uipc stub exists
-    if 'uipc' not in sys.modules:
-        stub = types.ModuleType('uipc')
-        stub.__path__ = []
-        sys.modules['uipc'] = stub
-
-    if 'uipc.profile' not in sys.modules:
-        profile_stub = types.ModuleType('uipc.profile')
-        profile_stub.__path__ = []
-        sys.modules['uipc.profile'] = profile_stub
-
+    """Load uipc/profile/nsight.py without mutating package imports."""
     spec = importlib.util.spec_from_file_location(
-        'uipc.profile.nsight', str(_NSIGHT_PATH)
+        '_uipc_nsight_under_test', str(_NSIGHT_PATH)
     )
     mod = importlib.util.module_from_spec(spec)
-    sys.modules['uipc.profile.nsight'] = mod
     spec.loader.exec_module(mod)
     return mod
 

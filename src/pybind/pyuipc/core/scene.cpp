@@ -147,6 +147,18 @@ Returns:
 Returns:
     dict: Default configuration dictionary.)");
 
+    class_Scene.def_static("config_schema",
+                           &Scene::config_schema,
+                           R"(Get machine-readable metadata for every scene configuration key.
+Returns:
+    dict: Defaults, types, constraints, lifecycle, status, and consumers.)");
+
+    class_Scene.def("validate_config",
+                    &Scene::validate_config,
+                    R"(Validate the current mutable scene configuration.
+
+World.init(scene) calls this automatically before backend initialization.)");
+
     class_Scene.def(
         "objects",  //
         [](Scene& self) { return self.objects(); },
@@ -250,6 +262,16 @@ Args:
         R"(Get the number of objects in the collection.
 Returns:
     int: Number of objects.)");
+
+    class_Objects.def(
+        "created_count",
+        [](Scene::Objects& self) { return std::move(self).created_count(); },
+        R"(Get the number of object IDs allocated since Scene creation.
+
+This is also the exclusive upper bound for object IDs. Unlike size(), it does
+not decrease when objects are destroyed.
+Returns:
+    int: Exclusive upper bound for object IDs.)");
 
     class_Geometries.def(
         "find",

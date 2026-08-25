@@ -26,7 +26,6 @@
 // diff parm reporters
 #include <finite_element/finite_element_diff_parm_reporter.h>
 #include <finite_element/finite_element_constitution_diff_parm_reporter.h>
-#include <finite_element/finite_element_extra_constitution_diff_parm_reporter.h>
 // features
 #include <finite_element/finite_element_state_accessor_feature.h>
 

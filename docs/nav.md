@@ -3,6 +3,7 @@
     - [Windows](build_install/windows.md)
     - [Linux](build_install/linux.md)
     - [Linux-Docker](build_install/docker.md)
+    - [XMake](build_install/xmake.md)
     - [Build Docs](build_install/build_docs.md)
     - [Dev in UV](build_install/dev_in_uv.md)
 - [Tutorial](tutorial/index.md)
@@ -21,9 +22,11 @@
         - [Newton & Linear Solvers](specification/scene_configs/newton.md)
         - [Contact & Collision](specification/scene_configs/contact.md)
     - [Constitution UID](specification/constitution_uid.md)
-    - [Constitutions](specification/constitutions/)
+    - [Constitutions](specification/constitutions/index.md)
+        - specification/constitutions/*.md
     - [Implicit Geometry UID](specification/implicit_geometry_uid.md)
-    - [Implicit Geometries](specification/implicit_geometries/)
+    - [Implicit Geometries](specification/implicit_geometries/index.md)
+        - specification/implicit_geometries/*.md
 - API Documentation
     - [Links](Libuipc/links.md)
     - Classes
@@ -48,4 +51,5 @@
 - [Development](development/index.md)
     - [Backend](development/backend.md)
     - [Backend Cuda](development/backend_cuda/index.md)
-- [Misc](misc/)
+    - [Deterministic Mode](development/deterministic_mode.md)
+- [Third-Party Libraries](misc/3rd_libs.md)

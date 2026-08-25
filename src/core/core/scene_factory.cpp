@@ -6,7 +6,8 @@
 #include <uipc/geometry/geometry_commit.h>
 #include <uipc/geometry/geometry_factory.h>
 #include <uipc/core/internal/scene.h>
-#include <uipc/common/zip.h>
+#include <algorithm>
+#include <string_view>
 
 namespace uipc::core
 {
@@ -101,6 +102,7 @@ class SceneFactory::Impl
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = snapshot.m_contact_elements;
+            contact_tabular["default_model_user_set"] = snapshot.m_contact_default_model_user_set;
 
             // subscene_tabular
             auto& subscene_tabular = data["subscene_tabular"];
@@ -119,6 +121,8 @@ class SceneFactory::Impl
             // - contact models
             // - subscene models
             // - geometry atlas
+            data["geometry_next_id"]      = snapshot.m_geometry_next_id;
+            data["rest_geometry_next_id"] = snapshot.m_rest_geometry_next_id;
             build_geometry_atlas_from_scene_snapshot(snapshot, data, ga);
         }
         return j;
@@ -170,7 +174,9 @@ class SceneFactory::Impl
 
         // 3) Retrieve contact tabular
         {
-            auto&                  contact_tabular = data["contact_tabular"];
+            auto& contact_tabular = data["contact_tabular"];
+            snapshot.m_contact_default_model_user_set =
+                contact_tabular.value("default_model_user_set", false);
             vector<ContactElement> ce;
             auto element_it = contact_tabular.find("contact_elements");
             if(element_it != contact_tabular.end())
@@ -240,6 +246,10 @@ class SceneFactory::Impl
 
         // 6) Recover geometry slots & rest geometry slots
         {
+            snapshot.m_geometry_next_id = data.value("geometry_next_id", IndexT{-1});
+            snapshot.m_rest_geometry_next_id =
+                data.value("rest_geometry_next_id", IndexT{-1});
+
             auto& geometry_slots_json      = data["geometry_slots"];
             auto& rest_geometry_slots_json = data["rest_geometry_slots"];
 
@@ -249,16 +259,20 @@ class SceneFactory::Impl
             {
                 for(auto& slot_json : slots_json)
                 {
-                    auto id            = slot_json["id"].get<IndexT>();
-                    auto index         = slot_json["index"].get<IndexT>();
+                    auto id    = slot_json["id"].get<IndexT>();
+                    auto index = slot_json["index"].get<IndexT>();
+                    UIPC_ASSERT_THROW(id >= 0, "Geometry slot id {} must be non-negative.", id);
                     auto geometry_slot = ga.find(index);
                     UIPC_ASSERT_THROW(geometry_slot,
-                                "Geometry slot with id {} not found in geometry atlas",
-                                index);
+                                      "Geometry slot with id {} not found in geometry atlas",
+                                      index);
                     auto this_geo_slot = geometry_slot->clone();
                     this_geo_slot->id(id);
-                    geos[id] = std::static_pointer_cast<geometry::Geometry>(
-                        this_geo_slot->geometry().clone());
+                    auto [_, inserted] =
+                        geos.emplace(id,
+                                     std::static_pointer_cast<geometry::Geometry>(
+                                         this_geo_slot->geometry().clone()));
+                    UIPC_ASSERT_THROW(inserted, "Duplicate geometry slot id {}.", id);
                 }
             };
 
@@ -267,6 +281,37 @@ class SceneFactory::Impl
 
             build_from_geo_slots(geometry_slots_json, geometry_collection);
             build_from_geo_slots(rest_geometry_slots_json, rest_geometry_collection);
+
+            UIPC_ASSERT_THROW(geometry_collection.size()
+                                  == rest_geometry_collection.size(),
+                              "Geometry and rest geometry counts do not match ({} != {}).",
+                              geometry_collection.size(),
+                              rest_geometry_collection.size());
+            for(auto&& [id, _] : geometry_collection)
+            {
+                UIPC_ASSERT_THROW(rest_geometry_collection.contains(id),
+                                  "Rest geometry with id {} is missing.",
+                                  id);
+            }
+
+            auto validate_next_id = [](const auto& geos, IndexT next_id, std::string_view label)
+            {
+                IndexT inferred_next_id = 0;
+                for(auto&& [id, _] : geos)
+                    inferred_next_id = std::max(inferred_next_id, id + 1);
+
+                UIPC_ASSERT_THROW(next_id < 0 || next_id >= inferred_next_id,
+                                  "{} next id {} is smaller than the inferred next id {}.",
+                                  label,
+                                  next_id,
+                                  inferred_next_id);
+            };
+            validate_next_id(geometry_collection, snapshot.m_geometry_next_id, "Geometry");
+            validate_next_id(rest_geometry_collection, snapshot.m_rest_geometry_next_id, "Rest geometry");
+            UIPC_ASSERT_THROW(snapshot.m_geometry_next_id == snapshot.m_rest_geometry_next_id,
+                              "Geometry and rest geometry next ids do not match ({} != {}).",
+                              snapshot.m_geometry_next_id,
+                              snapshot.m_rest_geometry_next_id);
         }
 
         return snapshot;
@@ -282,7 +327,8 @@ class SceneFactory::Impl
 
         // 2) Contact tabular
         scene.contact_tabular().build_from(*snapshot.m_contact_models,
-                                           snapshot.m_contact_elements);
+                                           snapshot.m_contact_elements,
+                                           snapshot.m_contact_default_model_user_set);
         // 3) Subscene tabular
         scene.subscene_tabular().build_from(*snapshot.m_subscene_models,
                                             snapshot.m_subscene_elements);
@@ -290,8 +336,9 @@ class SceneFactory::Impl
         // 4) Geometry and rest geometry
         {
             auto build_geometries =
-                [&gf, &scene](const unordered_map<IndexT, S<geometry::Geometry>>& geometries,
-                              geometry::GeometryCollection& geometry_collection)
+                [&gf](const unordered_map<IndexT, S<geometry::Geometry>>& geometries,
+                      geometry::GeometryCollection& geometry_collection,
+                      IndexT                        next_id)
             {
                 vector<S<geometry::GeometrySlot>> geometry_slots;
                 geometry_slots.reserve(geometries.size());
@@ -299,13 +346,16 @@ class SceneFactory::Impl
                 {
                     geometry_slots.push_back(gf.create_slot(id, *geo));
                 }
-                geometry_collection.build_from(geometry_slots);
+                geometry_collection.build_from(geometry_slots, next_id);
             };
 
-            build_geometries(snapshot.m_geometries, scene.m_internal->geometries());
+            build_geometries(snapshot.m_geometries,
+                             scene.m_internal->geometries(),
+                             snapshot.m_geometry_next_id);
 
             build_geometries(snapshot.m_rest_geometries,
-                             scene.m_internal->rest_geometries());
+                             scene.m_internal->rest_geometries(),
+                             snapshot.m_rest_geometry_next_id);
         }
 
         // 5) Objects
@@ -319,13 +369,16 @@ class SceneFactory::Impl
             object->build_from(obj.m_geometries);
             object_slots.push_back(std::move(object));
         }
-        scene.m_internal->objects().build_from(object_slots);
+        scene.m_internal->objects().build_from(object_slots,
+                                               snapshot.m_object_collection.m_next_id);
 
         return scene;
     }
 
     Json commit_to_json(const SceneSnapshotCommit& commit)
     {
+        UIPC_ASSERT_THROW(commit.m_is_valid, "Can not serialize an invalid SceneSnapshotCommit.");
+
         Json                j = Json::object();
         GeometryAtlasCommit gac;
 
@@ -341,6 +394,7 @@ class SceneFactory::Impl
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = commit.m_contact_elements;
+            contact_tabular["default_model_user_set"] = commit.m_contact_default_model_user_set;
             gac.create("contact_models", *commit.m_contact_models);
 
             // subscene_tabular
@@ -357,13 +411,17 @@ class SceneFactory::Impl
             uipc::core::to_json(objects_json, commit.m_object_collection);
 
             // geometry slots
-            auto& geo_slots_json      = data["geometry_slots"];
-            auto& rest_geo_slots_json = data["rest_geometry_slots"];
+            auto& geo_slots_json = data["geometry_slots"] = Json::array();
+            auto& rest_geo_slots_json = data["rest_geometry_slots"] = Json::array();
+
+            data["removed_geometry_ids"] = commit.m_removed_geometry_ids;
+            data["removed_rest_geometry_ids"] = commit.m_removed_rest_geometry_ids;
+            data["geometry_next_id"]      = commit.m_geometry_next_id;
+            data["rest_geometry_next_id"] = commit.m_rest_geometry_next_id;
 
             auto setup = [&](Json& slots_json,
                              const unordered_map<IndexT, S<geometry::GeometryCommit>>& geos)
             {
-                auto& geo_commit = commit.m_geometries;
                 for(auto& [id, geo] : geos)
                 {
                     Json slot_json     = Json::object();
@@ -480,6 +538,8 @@ class SceneFactory::Impl
                     auto& contact_element = *contact_element_it;
                     commit.m_contact_elements =
                         contact_element.get<vector<ContactElement>>();
+                    commit.m_contact_default_model_user_set =
+                        contact_tabular.value("default_model_user_set", false);
                     auto contact_models = gac.find("contact_models");
                     if(!contact_models)
                     {
@@ -524,9 +584,32 @@ class SceneFactory::Impl
                         uipc::make_shared<geometry::AttributeCollectionCommit>(*subscene_models);
                 }
 
-                // 5) Recover geometry slots & rest geometry slots
-                auto& geometry_slots_json      = data["geometry_slots"];
-                auto& rest_geometry_slots_json = data["rest_geometry_slots"];
+                // 6) Recover geometry slots & rest geometry slots
+                auto geometry_slots_it      = data.find("geometry_slots");
+                auto rest_geometry_slots_it = data.find("rest_geometry_slots");
+                if(geometry_slots_it == data.end() || rest_geometry_slots_it == data.end()
+                   || !geometry_slots_it->is_array() || !rest_geometry_slots_it->is_array())
+                {
+                    UIPC_WARN_WITH_LOCATION("Geometry slots and rest geometry slots must be arrays.");
+                    commit.m_is_valid = false;
+                    break;
+                }
+
+                commit.m_removed_geometry_ids =
+                    data.value("removed_geometry_ids", vector<IndexT>{});
+                commit.m_removed_rest_geometry_ids =
+                    data.value("removed_rest_geometry_ids", vector<IndexT>{});
+                commit.m_geometry_next_id = data.value("geometry_next_id", IndexT{-1});
+                commit.m_rest_geometry_next_id =
+                    data.value("rest_geometry_next_id", IndexT{-1});
+
+                auto normalize_ids = [](vector<IndexT>& ids)
+                {
+                    std::ranges::sort(ids);
+                    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+                };
+                normalize_ids(commit.m_removed_geometry_ids);
+                normalize_ids(commit.m_removed_rest_geometry_ids);
 
                 auto build_geo_commits =
                     [&gac](const Json& commits_json,
@@ -537,37 +620,51 @@ class SceneFactory::Impl
                         IndexT id    = slot_json["id"].get<IndexT>();
                         IndexT index = slot_json["index"].get<IndexT>();
                         auto   geometry_commit = gac.find(index);
-                        if(geometry_commit == nullptr)
+                        if(geometry_commit == nullptr || !geometry_commit->is_valid())
                         {
-                            UIPC_WARN_WITH_LOCATION("Geometry commit with id {} not found in geometry atlas",
+                            UIPC_WARN_WITH_LOCATION("Geometry commit with atlas id {} is missing or invalid.",
                                                     index);
-                            continue;
+                            return false;
                         }
 
-                        geo_commits[id] =
-                            uipc::make_shared<geometry::GeometryCommit>(*geometry_commit);
+                        auto [_, inserted] = geo_commits.emplace(
+                            id, uipc::make_shared<geometry::GeometryCommit>(*geometry_commit));
+                        if(!inserted)
+                        {
+                            UIPC_WARN_WITH_LOCATION("Duplicate geometry commit id {}.", id);
+                            return false;
+                        }
                     }
+                    return true;
                 };
 
-                build_geo_commits(geometry_slots_json, commit.m_geometries);
-                build_geo_commits(rest_geometry_slots_json, commit.m_rest_geometries);
-
-                if(commit.m_geometries.size() != commit.m_rest_geometries.size())
+                if(!build_geo_commits(*geometry_slots_it, commit.m_geometries)
+                   || !build_geo_commits(*rest_geometry_slots_it, commit.m_rest_geometries))
                 {
-                    UIPC_WARN_WITH_LOCATION("Geometry commit size does not match rest geometry commit size");
                     commit.m_is_valid = false;
                     break;
                 }
 
-                for(auto&& [geo, rest_geo] : zip(commit.m_geometries, commit.m_rest_geometries))
+                if(commit.m_geometries.size() != commit.m_rest_geometries.size()
+                   || commit.m_removed_geometry_ids != commit.m_removed_rest_geometry_ids
+                   || commit.m_geometry_next_id != commit.m_rest_geometry_next_id)
                 {
-                    if(geo.first != rest_geo.first)
+                    UIPC_WARN_WITH_LOCATION(
+                        "Geometry and rest geometry commits do not describe the "
+                        "same topology.");
+                    commit.m_is_valid = false;
+                    break;
+                }
+
+                for(auto&& [id, _] : commit.m_geometries)
+                {
+                    if(!commit.m_rest_geometries.contains(id)
+                       || std::ranges::binary_search(commit.m_removed_geometry_ids, id))
                     {
                         UIPC_WARN_WITH_LOCATION(
-                            "Geometry commit id does not match rest geometry commit id, "
-                            "geo_id = {}, rest_geo_id = {}",
-                            geo.first,
-                            rest_geo.first);
+                            "Geometry commit id {} is missing from the rest geometry "
+                            "commit or is also marked as removed.",
+                            id);
                         commit.m_is_valid = false;
                         break;
                     }

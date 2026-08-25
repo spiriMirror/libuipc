@@ -22,6 +22,17 @@ function(uipc_add_test name)
     add_executable(${name} ${UIPC_TEST_MAIN} ${ARGN})
     uipc_target_set_relative_source_file(${name})
     uipc_executable_as_test(${name})
+
+    add_test(NAME uipc.${name} COMMAND $<TARGET_FILE:${name}>)
+    set_tests_properties(uipc.${name} PROPERTIES
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        TIMEOUT 900)
+
+    if(name STREQUAL "common" OR name STREQUAL "core" OR name STREQUAL "geometry")
+        set_tests_properties(uipc.${name} PROPERTIES LABELS "fast;cpu")
+    else()
+        set_tests_properties(uipc.${name} PROPERTIES LABELS "gpu")
+    endif()
 endfunction()
 
 add_subdirectory(geometry)
