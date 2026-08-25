@@ -1,4 +1,5 @@
 #include <cuda_device/builtin.h>
+#include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 
 namespace uipc::info_stackless_v0_detail
@@ -116,15 +117,55 @@ using namespace info_stackless_v0_detail;
 
 namespace
 {
+    __global__ void InfoStacklessBVHV0_initializeBuildState_kernel(
+        int                             num_objs,
+        cuda_tool::Dense<AABB>          scene_box,
+        cuda_tool::BufferView<uint32_t> flags,
+        cuda_tool::BufferView<uint32_t> ext_mark,
+        cuda_tool::BufferView<int>      ext_lca,
+        cuda_tool::BufferView<uint32_t> ext_par,
+        cuda_tool::BufferView<uint32_t> depths,
+        cuda_tool::BufferView<int32_t>  unsorted_ids,
+        cuda_tool::BufferView<IndexT>   int_bid,
+        cuda_tool::BufferView<IndexT>   int_cid)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx == 0)
+            *scene_box = AABB();
+        if(idx < num_objs - 1)
+        {
+            flags(idx)   = 0;
+            int_bid(idx) = -1;
+            int_cid(idx) = -1;
+        }
+        if(idx < num_objs)
+        {
+            ext_mark(idx)     = 7;
+            ext_lca(idx)      = 0;
+            ext_par(idx)      = 0;
+            depths(idx)       = 0;
+            unsorted_ids(idx) = idx;
+        }
+        if(idx == num_objs)
+            ext_lca(idx) = -1;
+    }
+
+    __global__ void InfoStacklessBVHV0_initializeQueryState_kernel(
+        int num_objs, cuda_tool::Dense<AABB> scene_box, cuda_tool::BufferView<int> unsorted_ids)
+    {
+        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(idx == 0)
+            *scene_box = AABB();
+        if(idx < num_objs)
+            unsorted_ids(idx) = idx;
+    }
+
     __global__ void InfoStacklessBVHV0_calcMaxBVFromBox_kernel(
         size_t size, cuda_tool::CBufferView<AABB> box, cuda_tool::Dense<AABB> out)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= size)
             return;
-        if(idx == 0)
-            *out = AABB();
-
         __shared__ PlainAABB warp_boxes[K_WARPS];
         auto                 temp     = to_plain(box(idx));
         int                  warp_tid = threadIdx.x & 31;
@@ -712,10 +753,10 @@ inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(cuda_tool::CBufferV
 inline void InfoStacklessBVHV0::Impl::calcExtNodeSplitMetrics()
 {
     auto k = InfoStacklessBVHV0_calcExtNodeSplitMetrics_kernel;
-    int  n = static_cast<int>(mtcode.size());
+    int  n = static_cast<int>(sorted_mtcode.size());
     if(n > 0)
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            mtcode.view(), metric.view(), n);
+            sorted_mtcode.view(), metric.view(), n);
 }
 
 inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
@@ -820,6 +861,7 @@ inline void InfoStacklessBVHV0::Impl::build(cuda_tool::CBufferView<AABB> aabbs,
     auto num_internal = num_objs - 1;
     auto num_nodes    = num_objs * 2 - 1;
     mtcode.resize(num_objs);
+    sorted_mtcode.resize(num_objs);
     sorted_id.resize(num_objs);
     primMap.resize(num_objs);
     ext_aabb.resize(num_objs);
@@ -845,25 +887,31 @@ inline void InfoStacklessBVHV0::Impl::build(cuda_tool::CBufferView<AABB> aabbs,
     int_cid.resize(num_internal);
     nodes.resize(num_nodes);
 
-    thrust::fill(flags.begin(), flags.end(), 0);
-    thrust::fill(thrust::device, ext_mark.begin(), ext_mark.end(), 7);
-    thrust::fill(thrust::device, ext_lca.begin(), ext_lca.end(), 0);
-    thrust::fill(thrust::device, ext_par.begin(), ext_par.end(), 0);
-    thrust::fill(thrust::device, int_bid.begin(), int_bid.end(), static_cast<IndexT>(-1));
-    thrust::fill(thrust::device, int_cid.begin(), int_cid.end(), static_cast<IndexT>(-1));
+    auto init = InfoStacklessBVHV0_initializeBuildState_kernel;
+    auto n    = static_cast<int>(num_objs);
+    init<<<cuda_tool::best_grid_dim(n + 1, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
+        n,
+        scene_box.viewer(),
+        flags.view(),
+        ext_mark.view(),
+        ext_lca.view(),
+        ext_par.view(),
+        count.view(),
+        primMap.view(),
+        int_bid.view(),
+        int_cid.view());
 
     calcMaxBVFromBox(aabbs, scene_box.view());
     calcMCsFromBox(aabbs, scene_box.view(), mtcode.view());
-    auto null_stream = thrust::cuda::par_nosync.on(nullptr);
-    thrust::sequence(null_stream, sorted_id.begin(), sorted_id.end());
-    thrust::sort_by_key(null_stream, mtcode.begin(), mtcode.end(), sorted_id.begin());
+    // CUB scratch is cached per stream by cuda_tool and grows only on demand.
+    cuda_tool::DeviceRadixSort().SortPairs(
+        mtcode.data(), sorted_mtcode.data(), primMap.data(), sorted_id.data(), n);
     calcInverseMapping();
     buildPrimitivesFromBox(aabbs);
     calcExtNodeSplitMetrics();
     buildIntNodes(num_objs);
-    thrust::exclusive_scan(null_stream, count.begin(), count.end(), offsetTable.begin());
+    cuda_tool::DeviceScan().ExclusiveSum(count.data(), offsetTable.data(), n);
     calcIntNodeOrders(num_objs);
-    thrust::fill(null_stream, ext_lca.begin() + num_objs, ext_lca.begin() + num_objs + 1, -1);
     updateBvhExtNodeLinks(num_objs);
     reorderNode(num_internal);
 }
@@ -931,15 +979,21 @@ inline InfoStacklessBVHV0::InfoStacklessBVHV0(cuda_tool::Stream& stream) noexcep
 inline void InfoStacklessBVHV0::QueryBuffer::build(cuda_tool::CBufferView<AABB> aabbs)
 {
     m_queryMtCode.resize(aabbs.size());
+    m_querySortedMtCode.resize(aabbs.size());
+    m_queryId.resize(aabbs.size());
     m_querySortedId.resize(aabbs.size());
+    auto init = InfoStacklessBVHV0_initializeQueryState_kernel;
+    auto n    = static_cast<int>(aabbs.size());
+    if(n > 0)
+        init<<<cuda_tool::best_grid_dim(n, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
+            n, m_querySceneBox.viewer(), m_queryId.view());
     Impl::calcMaxBVFromBox(aabbs, m_querySceneBox);
     Impl::calcMCsFromBox(aabbs, m_querySceneBox, m_queryMtCode.view());
-    auto null_stream = thrust::cuda::par_nosync.on(nullptr);
-    auto n           = static_cast<int>(aabbs.size());
-    auto d_codes     = m_queryMtCode.data();
-    auto d_ids       = m_querySortedId.data();
-    thrust::sequence(null_stream, d_ids, d_ids + n);
-    thrust::sort_by_key(null_stream, d_codes, d_codes + n, d_ids);
+    cuda_tool::DeviceRadixSort().SortPairs(m_queryMtCode.data(),
+                                           m_querySortedMtCode.data(),
+                                           m_queryId.data(),
+                                           m_querySortedId.data(),
+                                           n);
 }
 
 inline void InfoStacklessBVHV0::build(cuda_tool::CBufferView<AABB>   aabbs,

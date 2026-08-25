@@ -101,7 +101,23 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
-## Default broad-phase BVH build
+## Sparse linear-system storage: BCOO is the active solve path
+
+The production CUDA solve path does **not** currently solve a BSR matrix.
+`GlobalLinearSystem` assembles 3x3 block triplets, canonicalizes them to the
+symmetric upper triangle with `MatrixConverter::ge2sym`, and reduces duplicate
+entries into `DeviceBCOOMatrix<Scalar, 3> bcoo_A`. Both the standalone SpMV and
+the fused PCG SpMV/dot path call `rbk_sym_spmv*` with `bcoo_A.cview()`.
+
+`DeviceBSRMatrix` and BCOO-to-BSR conversion remain available in `cuda_tool`
+for converter coverage and future experiments, but no registered linear solver
+consumes a BSR instance today. Do not describe the default solver as BSR. A
+future BSR switch must be justified with end-to-end measurements that include
+conversion, SpMV, preconditioner assembly/application, memory footprint, and
+representative FEM/ABD/contact scenes; an isolated sparse-kernel benchmark is
+not sufficient.
+
+## Broad-phase BVH builds
 
 `collision_detection/method = "info_stackless_bvh"` selects the optimized
 default broad phase. Its rebuild path is deliberately CUB-only:
@@ -120,8 +136,21 @@ default broad phase. Its rebuild path is deliberately CUB-only:
   races blocks that have already published results.
 
 The `info_stackless_bvh_v0` selector is a legacy comparison path, while
-`stackless_bvh` and `linear_bvh` are alternate broad phases. Performance and
-correctness claims above apply to the default selector.
+`stackless_bvh` and `linear_bvh` are alternate broad phases. The V0 and
+`stackless_bvh` builders now use the same separate-input/output CUB radix-sort
+pattern, named initialization kernels, and persistent scan workspace as the
+default implementation. This removes the final production Thrust dependency
+from the CUDA backend. The performance numbers above still apply only to the
+default selector. `stackless_bvh` and V0 both have direct brute-force
+build/detect/query parity coverage; the V0 test rebuilds at two sizes to cover
+persistent CUB workspace reuse and growth. The alternate selectors still need
+representative benchmarks before making speed claims.
+
+The MAS preconditioner also performs its hierarchy prefix scans through
+`cuda_tool::DeviceScan`. These wrappers share `details::cub_temp_storage`, so
+their temporary device memory is retained per CUDA stream and only grows when
+required. New CUB calls must use these wrappers (or an equally persistent owned
+workspace), never allocate/free temporary storage inside a Newton iteration.
 
 ## Kernels and Kernel Naming
 

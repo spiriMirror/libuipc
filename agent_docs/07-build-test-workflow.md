@@ -104,6 +104,12 @@ native files, version, and `Engine("none")`; it does **not** prove CUDA runtime 
 GPU compatibility. That needs a GPU runner/doctor check before a release can be
 described as CUDA-validated.
 
+Pull requests that only change `docs/`, `agent_docs/`, README/license prose,
+editor metadata, xmake files, or the independent CMake/docs/xmake workflows are
+excluded from `python-wheels.yml`. The native CMake and xmake workflows also
+ignore `agent_docs/`-only changes. Push, release, and manual publication behavior
+is unchanged: release events still build and validate the full wheel matrix.
+
 `hotfix_publish.yml` is a manual artifact-reuse path and depends on the selected
 workflow artifacts still being retained.
 

@@ -18,15 +18,6 @@
 #include <collision_detection/aabb.h>
 #include <cuda_tool/cuda_tool.h>
 
-#include <thrust/device_vector.h>
-#include <thrust/swap.h>
-#include <thrust/sequence.h>
-#include <thrust/functional.h>
-#include <thrust/sort.h>
-#include <thrust/fill.h>
-#include <thrust/reduce.h>
-#include <thrust/execution_policy.h>
-
 namespace uipc::backend::cuda
 {
 /**
@@ -73,7 +64,9 @@ class StacklessBVH
         cuda_tool::DeviceBuffer<Vector2i> m_pairs;
 
         cuda_tool::DeviceBuffer<unsigned int> m_queryMtCode;
+        cuda_tool::DeviceBuffer<unsigned int> m_querySortedMtCode;
         cuda_tool::DeviceVar<AABB>            m_querySceneBox;
+        cuda_tool::DeviceBuffer<int>          m_queryId;
         cuda_tool::DeviceBuffer<int>          m_querySortedId;
         cuda_tool::DeviceVar<int>             m_cpNum;
 
@@ -160,6 +153,7 @@ class StacklessBVH
         cuda_tool::DeviceVar<AABB>        scene_box;  // external bounding boxes
         cuda_tool::DeviceVector<uint32_t> flags;
         cuda_tool::DeviceVector<uint32_t> mtcode;  // external morton codes
+        cuda_tool::DeviceVector<uint32_t> sorted_mtcode;
         cuda_tool::DeviceVector<int32_t>  sorted_id;
         cuda_tool::DeviceVector<int32_t>  primMap;
         cuda_tool::DeviceVector<int>      metric;

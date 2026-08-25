@@ -1,6 +1,4 @@
 //ref: https://github.com/ipc-sim/Codim-IPC/tree/main/Library/Math/Distance
-#include <thrust/extrema.h>
-#include <thrust/swap.h>
 namespace uipc::backend::cuda::distance
 {
 template <typename T>

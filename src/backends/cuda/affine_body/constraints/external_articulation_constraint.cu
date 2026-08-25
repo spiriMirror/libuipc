@@ -5,7 +5,6 @@
 #include <affine_body/constraints/external_articulation_constraint_function.h>
 #include <affine_body/utils.h>
 #include <algorithm/fast_segmental_reduce.h>
-#include <thrust/functional.h>
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
 #include <utils/make_spd.h>

@@ -1,8 +1,6 @@
 #include <finite_element/mas_preconditioner_engine.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
-#include <thrust/device_ptr.h>
-#include <thrust/scan.h>
 #include <uipc/common/log.h>
 #include <cuda_runtime.h>
 #include <cub/warp/warp_reduce.cuh>
@@ -1200,9 +1198,8 @@ void MASPreconditionerEngine::build_level1()
     int num_blocks = (N + block_size - 1) / block_size;
     int warp_num   = (N + BANKSIZE - 1) / BANKSIZE;
 
-    thrust::exclusive_scan(thrust::device_ptr<int>(prefix_original.data()),
-                           thrust::device_ptr<int>(prefix_original.data()) + warp_num,
-                           thrust::device_ptr<int>(prefix_sum_original.data()));
+    cuda_tool::DeviceScan().ExclusiveSum(
+        prefix_original.data(), prefix_sum_original.data(), warp_num);
 
     // Cluster matrices are indexed by  node_index / BANKSIZE.
     // Level-0 uses partition indices [0, N),  so its cluster IDs occupy
@@ -1298,9 +1295,7 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
     int num_blocks        = (N + block_size - 1) / block_size;
     int warp_num          = (N + BANKSIZE - 1) / BANKSIZE;
 
-    thrust::exclusive_scan(thrust::device_ptr<unsigned int>(next_prefixes.data()),
-                           thrust::device_ptr<unsigned int>(next_prefixes.data()) + warp_num,
-                           thrust::device_ptr<unsigned int>(next_prefix_sums.data()));
+    cuda_tool::DeviceScan().ExclusiveSum(next_prefixes.data(), next_prefix_sums.data(), warp_num);
 
     MASPreconditionerEngine_prefix_sum_Lx_kernel<<<num_blocks, block_size, 0, nullptr>>>(
         level_sizes.view(),
