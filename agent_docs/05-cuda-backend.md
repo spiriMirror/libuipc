@@ -69,6 +69,27 @@ contract host-only and cheap: profilers call it once per measured frame.
 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 
+### DyTopo single-receiver fast path
+
+`GlobalDyTopoEffectManager` normally assembles raw doublets/triplets, converts
+them to sorted unique BCOO storage, and then classifies/copies a subrange for
+each `DyTopoEffectReceiver`. There is a strict shortcut when all of these hold:
+
+- exactly one receiver is registered;
+- it reports a diagonal gradient/Hessian range beginning at global vertex 0;
+- its gradient, Hessian-row, and Hessian-column ranges are identical and lie
+  within the global vertex array.
+
+That range is the complete dynamic vertex prefix. Global vertices after it can
+be non-DOF implicit geometry (for example, half planes); their contact kernels
+differentiate only the dynamic vertex. The manager therefore passes the raw
+assembled views directly to the receiver. FEM and ABD subsystem assembly is
+linear, and the final `GlobalLinearSystem` `ge2sym` + `convert` pass already
+sorts and reduces the global triplets, so the intermediate conversion is
+mathematically redundant. Do not broaden this path to multiple receivers or
+non-diagonal ranges: mixed ABD/FEM coupling relies on the existing classifier
+to route diagonal and off-diagonal blocks to different subsystems.
+
 The diagram above describes the IPC path. `advance_al.cu` implements a separate
 AL-IPC active-set pipeline, but both paths call
 `SimEngine::step_animation_and_external_forces()` immediately before

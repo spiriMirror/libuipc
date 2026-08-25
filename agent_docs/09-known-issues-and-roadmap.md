@@ -110,11 +110,19 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    phase on RTX 5090: trajectory detection 7.98 -> 4.98-5.00 ms/Newton and
    aggregate DCD 7.35 -> 4.59-4.60 ms/detect (both about -37.5%); two wall
    runs measured 175.6-177.1 ms/frame versus 208.1 ms before.
-7. Current case-88 frame budget (60 frames, 175.6 ms mean representative):
-   Build Linear System 43.7 ms + DyTopo 33.6 ms + trajectory detect 27.5 ms
-   + aggregate DCD 25.3 ms + FusedPCG 24.9 ms + misc. The next evidence-led
-   targets are DyTopo/contact assembly and subsystem assembly, not another
-   broad-phase rewrite.
+7. DyTopo intermediate conversion (DONE 2026-08-25): a scene with one diagonal
+   receiver owning the dynamic vertex prefix now forwards its raw assembled
+   doublets/triplets directly to that receiver. The final global matrix
+   converter performs the required sort/reduce already. Multiple receivers,
+   off-diagonal ranges, and ABD/FEM coupling retain the classified path. On
+   case 88, `Compute DyTopo Effect` fell from 6.11 to 4.76 ms/Newton (-22.0%);
+   final `Convert To BCOO` stayed flat (1.85 -> 1.86 ms/Newton), and the clean
+   wall mean/median improved 175.6/196.4 -> 165.5/184.2 ms/frame.
+8. Current case-88 frame budget (60 frames, 165.5 ms mean representative):
+   Build Linear System 43.4 ms + DyTopo 26.3 ms + trajectory detect 26.9 ms
+   + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
+   targets are raw contact/FEM subsystem assembly and the remaining
+   line-search launch traffic, not another broad-phase or DyTopo sort rewrite.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

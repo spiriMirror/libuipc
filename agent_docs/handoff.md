@@ -1,5 +1,24 @@
 # Handoff — Current State of the Repo
 
+> **Single-receiver DyTopo assembly fast path (2026-08-25,
+> `refactor-main`)**: pure FEM or pure ABD scenes whose only diagonal
+> `DyTopoEffectReceiver` owns the dynamic vertex prefix now forward the raw
+> contact/inter-primitive doublets and triplets directly to that receiver.
+> The final `GlobalLinearSystem` matrix conversion already canonicalizes and
+> reduces those entries, so the former intermediate sort/reduce plus
+> classify/copy pass was redundant. Trailing non-DOF global vertices such as
+> half planes are allowed; multi-receiver and ABD/FEM coupling scenes retain
+> the original conversion/distribution path. On RTX 5090, the clean case-88
+> 60-frame run reduced `Compute DyTopo Effect` from 2014.6 ms / 330 Newton
+> iterations (6.11 ms/iteration) to 1576.6 ms / 331 (4.76 ms/iteration,
+> -22.0%). `Convert To BCOO` stayed effectively flat at 1.85 versus 1.86
+> ms/iteration, while wall mean/median moved 175.6/196.4 to 165.5/184.2
+> ms/frame. Maximum trajectory displacement versus the CUB baseline was
+> 0.55 mm, below the 1.35-1.84 mm unchanged-run variability already measured.
+> Pure ABD, pure FEM, and mixed ABD/FEM focused tests pass (736 assertions),
+> as do the full simulation suite (95 cases / 14212 assertions) and the MAS
+> soft-stitch regression (4 assertions).
+
 > **CUB BVH build hot-path optimization (2026-08-25, `refactor-main`)**:
 > the default `info_stackless_bvh` broad phase no longer uses Thrust. Morton
 > pair sorting uses `cuda_tool::DeviceRadixSort`, internal-node offsets use
