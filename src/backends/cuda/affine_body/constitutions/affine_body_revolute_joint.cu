@@ -117,15 +117,13 @@ namespace
         Es(I) = E;
     }
 
-    __global__ void affine_body_revolute_joint_compute_gradient_hessian_kernel(
+    __global__ void affine_body_revolute_joint_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>            body_ids,
         cuda_tool::CBufferView<Vector12>            rest_positions,
         cuda_tool::CBufferView<Float>               strength_ratio,
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::DoubletVectorView<Float, 12>     G12s,
-        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
-        bool                                        gradient_only,
         int                                         n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -161,10 +159,39 @@ namespace
         // Fill Body Gradient
         DoubletVectorAssembler DVA{G12s};
         DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
-        if(gradient_only)
-        {
+    }
+
+    __global__ void affine_body_revolute_joint_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector12>            rest_positions,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
             return;
-        }
+        Vector2i        bids  = body_ids(I);
+        const Vector12& X_bar = rest_positions(I);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        // Extract rest positions
+        Vector3 qi0_bar = X_bar.segment<3>(0);
+        Vector3 qi1_bar = X_bar.segment<3>(3);
+        Vector3 qj0_bar = X_bar.segment<3>(6);
+        Vector3 qj1_bar = X_bar.segment<3>(9);
+
+        Float K = strength_ratio(I)
+                  * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        // Compute constraint violation in F-space
+        Vector6 F;
+        RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
+
         // Fill Body Hessian
         Matrix6x6 ddEddF;
         RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
@@ -233,7 +260,7 @@ namespace
         Es(I) = E;
     }
 
-    __global__ void affine_body_driving_revolute_joint_compute_gradient_hessian_kernel(
+    __global__ void affine_body_driving_revolute_joint_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>            body_ids,
         cuda_tool::CBufferView<Vector6>             l_basis,
         cuda_tool::CBufferView<Vector6>             r_basis,
@@ -246,8 +273,6 @@ namespace
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
         cuda_tool::DoubletVectorView<Float, 12>     G12s,
-        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
-        bool                                        gradient_only,
         int                                         n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -257,12 +282,8 @@ namespace
         auto     constrained = is_constrained(I);
         if(constrained == 0)
         {
-            // no gradient and Hessian
             DoubletVectorAssembler DVA{G12s};
             DVA.segment<StencilSize>(I * StencilSize).write(bids, Vector24::Zero());
-
-            TripletMatrixAssembler TMA{H12x12s};
-            TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
             return;
         }
 
@@ -303,11 +324,59 @@ namespace
 
         DoubletVectorAssembler DVA{G12s};
         DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
+    }
 
-        if(gradient_only)
+    __global__ void affine_body_driving_revolute_joint_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             l_basis,
+        cuda_tool::CBufferView<Vector6>             r_basis,
+        cuda_tool::CBufferView<IndexT>              is_constrained,
+        cuda_tool::CBufferView<Float>               strength_ratios,
+        cuda_tool::CBufferView<IndexT>              is_passive,
+        cuda_tool::CBufferView<Float>               init_angles,
+        cuda_tool::CBufferView<Float>               aim_angles,
+        cuda_tool::CBufferView<Float>               current_angles,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids        = body_ids(I);
+        auto     constrained = is_constrained(I);
+        if(constrained == 0)
         {
+            TripletMatrixAssembler TMA{H12x12s};
+            TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
             return;
         }
+
+        auto passive = is_passive(I);
+        auto kappa   = strength_ratios(I)
+                     * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+        auto aim_angle = aim_angles(I);
+        if(passive == 1)
+        {
+            // resist external forces passively
+            aim_angle = current_angles(I);
+        }
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        Vector6 lb = l_basis(I);
+        Vector6 rb = r_basis(I);
+
+        Vector12 F01_q;
+        DRJ::F01_q<Float>(
+            F01_q, lb.segment<3>(0), lb.segment<3>(3), q_i, rb.segment<3>(0), rb.segment<3>(3), q_j);
+
+        // Same unwrap as do_compute_energy (must be bit-identical).
+        Float theta_tilde =
+            driving_theta_tilde(F01_q, aim_angle, init_angles(I), current_angles(I));
+
         // H12x12s
         Matrix12x12 H01;
         DRJ::ddEddF01<Float>(H01, kappa, F01_q, theta_tilde);
@@ -412,7 +481,7 @@ namespace
         Es(I) = E;
     }
 
-    __global__ void affine_body_revolute_joint_limit_compute_gradient_hessian_kernel(
+    __global__ void affine_body_revolute_joint_limit_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>        body_ids,
         cuda_tool::CBufferView<Vector6>         l_basis,
         cuda_tool::CBufferView<Vector6>         r_basis,
@@ -424,8 +493,6 @@ namespace
         cuda_tool::CBufferView<Vector12>        qs,
         cuda_tool::CBufferView<Vector12>        q_prevs,
         cuda_tool::DoubletVectorView<Float, 12> G12s,
-        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
-        bool                                    gradient_only,
         int                                     n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -464,9 +531,54 @@ namespace
         Vector24               G = dE_dx * dx_dq;
         DoubletVectorAssembler DVA{G12s};
         DVA.segment<2>(2 * I).write(bid, G);
+    }
 
-        if(gradient_only)
+    __global__ void affine_body_revolute_joint_limit_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>        body_ids,
+        cuda_tool::CBufferView<Vector6>         l_basis,
+        cuda_tool::CBufferView<Vector6>         r_basis,
+        cuda_tool::CBufferView<Float>           init_angles,
+        cuda_tool::CBufferView<Float>           current_angles,
+        cuda_tool::CBufferView<Float>           lowers,
+        cuda_tool::CBufferView<Float>           uppers,
+        cuda_tool::CBufferView<Float>           strengths,
+        cuda_tool::CBufferView<Vector12>        qs,
+        cuda_tool::CBufferView<Vector12>        q_prevs,
+        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
             return;
+        Vector2i bid = body_ids(I);
+
+        Vector6 lb = l_basis(I);
+        Vector6 rb = r_basis(I);
+
+        Vector12 qk      = qs(bid[0]);
+        Vector12 ql      = qs(bid[1]);
+        Vector12 q_prevk = q_prevs(bid[0]);
+        Vector12 q_prevl = q_prevs(bid[1]);
+
+        Float init_a = init_angles(I);
+
+        // Same unwrapped frame-start angle as do_compute_energy.
+        Float theta_prev = current_angles(I) - init_a;
+
+        Float delta = 0.0f;
+        ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
+
+        Float x        = theta_prev + delta;
+        Float lower    = lowers(I) - init_a;
+        Float upper    = uppers(I) - init_a;
+        Float strength = strengths(I);
+
+        Float dE_dx   = 0.0f;
+        Float d2E_dx2 = 0.0f;
+        joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
+
+        Vector24 dx_dq;
+        ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
 
         Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
 
@@ -780,17 +892,10 @@ Edge             = ({}, {}))",
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        using Vector24    = Vector<Float, 24>;
-        using Matrix24x24 = Matrix<Float, 24, 24>;
-        using Matrix6x6   = Matrix<Float, 6, 6>;
-
-        namespace RJ       = sym::affine_body_revolute_joint;
-        auto gradient_only = info.gradient_only();
-
-        auto k = affine_body_revolute_joint_compute_gradient_hessian_kernel;
-        int  n = (int)body_ids.size();
+        int n = (int)body_ids.size();
         if(n > 0)
+        {
+            auto k = affine_body_revolute_joint_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 body_ids.cview(),
                 rest_positions.cview(),
@@ -798,9 +903,24 @@ Edge             = ({}, {}))",
                 info.body_masses(),
                 info.qs(),
                 info.gradients(),
-                info.hessians(),
-                gradient_only,
                 n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_revolute_joint_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_positions.cview(),
+                strength_ratio.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.hessians(),
+                n);
+        }
     }
 
     void write_scene()
@@ -1194,15 +1314,10 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
 
     void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) override
     {
-        using Vector24    = Vector<Float, 24>;
-        using Matrix24x24 = Matrix<Float, 24, 24>;
-
-        using namespace cuda_tool;
-        namespace DRJ = sym::affine_body_driving_revolute_joint;
-
-        auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_kernel;
         int n = (int)is_constrained.size();
         if(n > 0)
+        {
+            auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
@@ -1216,9 +1331,30 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                 info.qs(),
                 info.body_masses(),
                 info.gradients(),
-                info.hessians(),
-                info.gradient_only(),
                 n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                is_constrained.cview(),
+                strength_ratios.cview(),
+                is_passive.cview(),
+                revolute_joint->init_angles.cview(),
+                aim_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                info.qs(),
+                info.body_masses(),
+                info.hessians(),
+                n);
+        }
     };
 
     U64 get_uid() const noexcept override { return ConstraintUID; }
@@ -1522,13 +1658,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace ERJ      = sym::affine_body_revolute_joint_limit;
-        auto gradient_only = info.gradient_only();
-
-        auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_kernel;
         int n = (int)lowers.size();
         if(n > 0)
+        {
+            auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
@@ -1541,9 +1674,29 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                 info.qs(),
                 info.q_prevs(),
                 info.gradients(),
-                info.hessians(),
-                gradient_only,
                 n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                revolute_joint->body_ids.cview(),
+                revolute_joint->l_basis.cview(),
+                revolute_joint->r_basis.cview(),
+                revolute_joint->init_angles.cview(),
+                revolute_joint->current_angles.cview(),
+                lowers.cview(),
+                uppers.cview(),
+                strengths.cview(),
+                info.qs(),
+                info.q_prevs(),
+                info.hessians(),
+                n);
+        }
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

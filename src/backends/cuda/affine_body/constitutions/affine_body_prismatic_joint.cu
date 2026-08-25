@@ -116,7 +116,7 @@ namespace
         Es(I) = E01 + E23;
     }
 
-    __global__ void affine_body_prismatic_joint_compute_gradient_hessian_kernel(
+    __global__ void affine_body_prismatic_joint_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>            body_ids,
         cuda_tool::CBufferView<Vector6>             rest_cs,
         cuda_tool::CBufferView<Vector6>             rest_ts,
@@ -126,8 +126,6 @@ namespace
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::DoubletVectorView<Float, 12>     G12s,
-        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
-        bool                                        gradient_only,
         int                                         n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -186,9 +184,46 @@ namespace
         DoubletVectorAssembler DVA{G12s};
         Vector2i               indices = {bids(0), bids(1)};
         DVA.segment<2>(2 * I).write(indices, G);
+    }
 
-        if(gradient_only)
+    __global__ void affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<Vector6>             rest_cs,
+        cuda_tool::CBufferView<Vector6>             rest_ts,
+        cuda_tool::CBufferView<Vector6>             rest_ns,
+        cuda_tool::CBufferView<Vector6>             rest_bs,
+        cuda_tool::CBufferView<Float>               strength_ratio,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
             return;
+        Vector2i bids = body_ids(I);
+
+        Float kappa = strength_ratio(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        Vector12 qi = qs(bids(0));
+        Vector12 qj = qs(bids(1));
+
+        auto& rest_c = rest_cs(I);
+        auto& rest_t = rest_ts(I);
+        auto& rest_n = rest_ns(I);
+        auto& rest_b = rest_bs(I);
+
+        // Create Frame F01
+        Vector9 F01;
+        PJ::F01<Float>(F01,
+                       rest_c.segment<3>(0),  // ci_bar
+                       rest_t.segment<3>(0),  // ti_bar
+                       qi,                    // qi
+                       rest_c.segment<3>(3),  // cj_bar
+                       rest_t.segment<3>(3),  // tj_bar
+                       qj                     // qj
+        );
 
         // Get Hessian based on Frame F01
         Matrix9x9 H01;
@@ -219,6 +254,7 @@ namespace
         Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
 
         TripletMatrixAssembler TMA{H12x12s};
+        Vector2i               indices = {bids(0), bids(1)};
         TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
     }
 
@@ -280,7 +316,7 @@ namespace
         Es(I) = E01;
     }
 
-    __global__ void affine_body_driving_prismatic_joint_compute_gradient_hessian_kernel(
+    __global__ void affine_body_driving_prismatic_joint_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>            body_ids,
         cuda_tool::CBufferView<IndexT>              is_constrained,
         cuda_tool::CBufferView<IndexT>              is_passive,
@@ -293,7 +329,6 @@ namespace
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
         cuda_tool::DoubletVectorView<Float, 12>     G12s,
-        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
         int                                         n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -306,9 +341,6 @@ namespace
         {
             DoubletVectorAssembler DVA{G12s};
             DVA.segment<StencilSize>(I * StencilSize).write(bids, Vector24::Zero());
-
-            TripletMatrixAssembler TMA{H12x12s};
-            TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
             return;
         }
 
@@ -352,6 +384,63 @@ namespace
                              t_bar.segment<3>(3));
         DoubletVectorAssembler DVA{G12s};
         DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
+    }
+
+    __global__ void affine_body_driving_prismatic_joint_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>            body_ids,
+        cuda_tool::CBufferView<IndexT>              is_constrained,
+        cuda_tool::CBufferView<IndexT>              is_passive,
+        cuda_tool::CBufferView<Float>               strength_ratios,
+        cuda_tool::CBufferView<Vector6>             rest_positions,
+        cuda_tool::CBufferView<Vector6>             rest_tangents,
+        cuda_tool::CBufferView<Float>               init_distances,
+        cuda_tool::CBufferView<Float>               curr_distances,
+        cuda_tool::CBufferView<Float>               aim_distances,
+        cuda_tool::CBufferView<Vector12>            qs,
+        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        int                                         n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
+            return;
+        Vector2i bids = body_ids(I);
+
+        auto constrained = is_constrained(I);
+        if(constrained == 0)
+        {
+            TripletMatrixAssembler TMA{H12x12s};
+            TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, Matrix24x24::Zero());
+            return;
+        }
+
+        Float kappa = strength_ratios(I)
+                      * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
+
+        auto passive      = is_passive(I);
+        auto aim_distance = aim_distances(I);
+        if(passive == 1)
+        {
+            // resist external forces passively
+            aim_distance = curr_distances(I);
+        }
+
+        Float d_tidle = aim_distance - init_distances(I);
+
+        Vector12 q_i = qs(bids(0));
+        Vector12 q_j = qs(bids(1));
+
+        const Vector6& C_bar = rest_positions(I);
+        const Vector6& t_bar = rest_tangents(I);
+
+        Vector9 F01_q;
+        DPJ::F01_q<Float>(F01_q,
+                          C_bar.segment<3>(0),
+                          t_bar.segment<3>(0),
+                          q_i,
+                          C_bar.segment<3>(3),
+                          t_bar.segment<3>(3),
+                          q_j);
 
         // Hessian
         Matrix9x9 H01;
@@ -445,7 +534,7 @@ namespace
         Es(I) = E;
     }
 
-    __global__ void affine_body_prismatic_joint_limit_compute_gradient_hessian_kernel(
+    __global__ void affine_body_prismatic_joint_limit_compute_gradient_hessian_k1_kernel(
         cuda_tool::CBufferView<Vector2i>        body_ids,
         cuda_tool::CBufferView<Vector6>         rest_cs,
         cuda_tool::CBufferView<Vector6>         rest_ts,
@@ -455,8 +544,6 @@ namespace
         cuda_tool::CBufferView<Float>           strengths,
         cuda_tool::CBufferView<Vector12>        qs,
         cuda_tool::DoubletVectorView<Float, 12> G12s,
-        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
-        bool                                    gradient_only,
         int                                     n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -487,9 +574,44 @@ namespace
         Vector24               G = dE_dx * dx_dq;
         DoubletVectorAssembler DVA{G12s};
         DVA.segment<2>(2 * I).write(bid, G);
+    }
 
-        if(gradient_only)
+    __global__ void affine_body_prismatic_joint_limit_compute_gradient_hessian_k2_kernel(
+        cuda_tool::CBufferView<Vector2i>        body_ids,
+        cuda_tool::CBufferView<Vector6>         rest_cs,
+        cuda_tool::CBufferView<Vector6>         rest_ts,
+        cuda_tool::CBufferView<Float>           init_distances,
+        cuda_tool::CBufferView<Float>           lowers,
+        cuda_tool::CBufferView<Float>           uppers,
+        cuda_tool::CBufferView<Float>           strengths,
+        cuda_tool::CBufferView<Vector12>        qs,
+        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
+        int                                     n)
+    {
+        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        if(I >= n)
             return;
+        Vector2i bid = body_ids(I);
+
+        const Vector6& C_bar = rest_cs(I);
+        const Vector6& t_bar = rest_ts(I);
+
+        Vector12 qk = qs(bid[0]);
+        Vector12 ql = qs(bid[1]);
+        Float    x;
+        compute_absolute_distance(x, C_bar, t_bar, qk, ql);
+
+        Float init_d   = init_distances(I);
+        Float lower    = lowers(I) - init_d;
+        Float upper    = uppers(I) - init_d;
+        Float strength = strengths(I);
+
+        Float dE_dx   = 0.0f;
+        Float d2E_dx2 = 0.0f;
+        joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
+
+        Vector24 dx_dq;
+        compute_absolute_distance_derivative(dx_dq, C_bar, t_bar, qk, ql);
 
         Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
 
@@ -817,13 +939,10 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace PJ       = sym::affine_body_prismatic_joint;
-        auto gradient_only = info.gradient_only();
-
-        auto k = affine_body_prismatic_joint_compute_gradient_hessian_kernel;
-        int  n = (int)body_ids.size();
+        int n = (int)body_ids.size();
         if(n > 0)
+        {
+            auto k = affine_body_prismatic_joint_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
@@ -834,9 +953,27 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                 info.body_masses(),
                 info.qs(),
                 info.gradients(),
-                info.hessians(),
-                gradient_only,
                 n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                body_ids.cview(),
+                rest_cs.cview(),
+                rest_ts.cview(),
+                rest_ns.cview(),
+                rest_bs.cview(),
+                strength_ratios.cview(),
+                info.body_masses(),
+                info.qs(),
+                info.hessians(),
+                n);
+        }
     };
 
     bool do_dump(DumpInfo& info) override
@@ -1141,15 +1278,10 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
 
     void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        namespace DPJ = sym::affine_body_driving_prismatic_joint;
-
-        using Vector24    = Vector<Float, 24>;
-        using Matrix24x24 = Matrix<Float, 24, 24>;
-
-        auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_kernel;
         int n = (int)is_constrained.size();
         if(n > 0)
+        {
+            auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 prismatic_joint->body_ids.cview(),
                 is_constrained.cview(),
@@ -1163,8 +1295,30 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
                 info.qs(),
                 info.body_masses(),
                 info.gradients(),
+                n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                prismatic_joint->body_ids.cview(),
+                is_constrained.cview(),
+                is_passive.cview(),
+                strength_ratios.cview(),
+                prismatic_joint->rest_cs.cview(),
+                prismatic_joint->rest_ts.cview(),
+                prismatic_joint->init_distances.cview(),
+                prismatic_joint->current_distances.cview(),
+                aim_distances.cview(),
+                info.qs(),
+                info.body_masses(),
                 info.hessians(),
                 n);
+        }
     }
 
     U64 get_uid() const noexcept override { return ConstraintUID; }
@@ -1510,12 +1664,10 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        using namespace cuda_tool;
-        auto gradient_only = info.gradient_only();
-
-        auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_kernel;
         int n = (int)ref_qs.size();
         if(n > 0)
+        {
+            auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_k1_kernel;
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 prismatic_joint->body_ids.cview(),
                 prismatic_joint->rest_cs.cview(),
@@ -1526,9 +1678,27 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                 strengths.cview(),
                 info.qs(),
                 info.gradients(),
-                info.hessians(),
-                gradient_only,
                 n);
+        }
+
+        if(info.gradient_only())
+            return;
+
+        if(n > 0)
+        {
+            auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_k2_kernel;
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                prismatic_joint->body_ids.cview(),
+                prismatic_joint->rest_cs.cview(),
+                prismatic_joint->rest_ts.cview(),
+                prismatic_joint->init_distances.cview(),
+                lowers.cview(),
+                uppers.cview(),
+                strengths.cview(),
+                info.qs(),
+                info.hessians(),
+                n);
+        }
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }
