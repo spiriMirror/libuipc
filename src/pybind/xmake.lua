@@ -61,7 +61,8 @@ target("pyuipc")
                 'UIPC_PY_CUDA_TOOLKIT_VERSION="none"'
             )
         end
-        target:add("defines", 'UIPC_PY_BUILD_TYPE="' .. target:mode() .. '"')
+        local build_type = get_config("mode") or "release"
+        target:add("defines", 'UIPC_PY_BUILD_TYPE="' .. build_type .. '"')
         -- depend on backend
         if has_config("backend_cuda") then
             target:add("deps", "cuda", {inherit = false})
