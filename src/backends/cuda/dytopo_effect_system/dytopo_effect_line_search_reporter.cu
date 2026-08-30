@@ -31,7 +31,7 @@ void DyTopoEffectLineSearchReporter::Impl::compute_energy(bool is_init)
     }
 
     manager.reporter_energy_offsets_counts.scan();
-    energies.resize(manager.reporter_energy_offsets_counts.total_count());
+    loose_resize(energies, manager.reporter_energy_offsets_counts.total_count());
 
     for(auto&& [i, reporter] : enumerate(reporters))
     {

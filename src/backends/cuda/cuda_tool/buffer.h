@@ -3,6 +3,9 @@
 #include <cuda_tool/view.h>
 #include <cuda_tool/view_nd.h>
 #include <cuda_tool/launch.h>
+#include <algorithm>
+#include <limits>
+#include <stdexcept>
 #include <vector>
 
 namespace uipc::backend::cuda_tool
@@ -186,23 +189,59 @@ class DeviceVector
     void resize(size_t n, const T& init, cudaStream_t s = default_stream())
     {
         size_t old = m_size;
-        resize(n, s);
+        reserve(n, s);
+        m_size = n;
         if(n > old)
             fill(subview(old, n - old), init, s);
     }
+
+    // Resize regenerated output without preserving or initializing contents.
+    // When growth is required, capacity is based on the latest requirement
+    // rather than the previous allocation.
+    void resize_discard(size_t n, cudaStream_t s = default_stream())
+    {
+        if(n > m_capacity)
+            reallocate(amortized_capacity(n), false, s);
+        m_size = n;
+    }
+
+    // Preserve the old logical range, but leave the newly exposed range
+    // uninitialized. Use resize() when value-initialization is required.
+    void resize_preserve(size_t n, cudaStream_t s = default_stream())
+    {
+        if(n > m_capacity)
+            reallocate(amortized_capacity(n), true, s);
+        m_size = n;
+    }
+
     void reserve(size_t cap, cudaStream_t s = default_stream())
     {
         if(cap <= m_capacity)
             return;
-        T* p = nullptr;
-        CUDA_TOOL_CHECK(cudaMalloc(&p, cap * sizeof(T)));
-        if(m_data && m_size)
-            CUDA_TOOL_CHECK(cudaMemcpyAsync(
-                p, m_data, m_size * sizeof(T), cudaMemcpyDeviceToDevice, s));
-        if(m_data)
-            cudaFree(m_data);
-        m_data     = p;
-        m_capacity = cap;
+        reallocate(cap, true, s);
+    }
+
+    // Reserve exact capacity for regenerated output without copying the old
+    // logical range. The logical size is unchanged.
+    void reserve_discard(size_t cap, cudaStream_t s = default_stream())
+    {
+        if(cap <= m_capacity)
+            return;
+        reallocate(cap, false, s);
+    }
+
+    void reserve_amortized(size_t required, cudaStream_t s = default_stream())
+    {
+        if(required <= m_capacity)
+            return;
+        reallocate(amortized_capacity(required), true, s);
+    }
+
+    void reserve_discard_amortized(size_t required, cudaStream_t s = default_stream())
+    {
+        if(required <= m_capacity)
+            return;
+        reallocate(amortized_capacity(required), false, s);
     }
     void clear() { m_size = 0; }
     void release()
@@ -303,6 +342,34 @@ class DeviceVector
     }
 
   private:
+    static size_t amortized_capacity(size_t required)
+    {
+        if(required == 0)
+            return 0;
+
+        const size_t growth = std::max(required / 2, size_t{1});
+        if(required > std::numeric_limits<size_t>::max() - growth)
+            throw std::length_error{"DeviceVector capacity overflow"};
+        return required + growth;
+    }
+
+    void reallocate(size_t capacity, bool preserve, cudaStream_t s)
+    {
+        if(capacity > std::numeric_limits<size_t>::max() / sizeof(T))
+            throw std::length_error{"DeviceVector allocation size overflow"};
+
+        T* p = nullptr;
+        if(capacity > 0)
+            CUDA_TOOL_CHECK(cudaMalloc(&p, capacity * sizeof(T)));
+        if(preserve && m_data && m_size)
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                p, m_data, m_size * sizeof(T), cudaMemcpyDeviceToDevice, s));
+        if(m_data)
+            CUDA_TOOL_CHECK(cudaFree(m_data));
+        m_data     = p;
+        m_capacity = capacity;
+    }
+
     void move_from(DeviceVector&& o)
     {
         m_data       = o.m_data;
@@ -448,6 +515,18 @@ class BufferLaunch
         return *this;
     }
     template <typename T>
+    BufferLaunch& resize_discard(DeviceVector<T>& buf, size_t n)
+    {
+        buf.resize_discard(n, m_stream);
+        return *this;
+    }
+    template <typename T>
+    BufferLaunch& resize_preserve(DeviceVector<T>& buf, size_t n)
+    {
+        buf.resize_preserve(n, m_stream);
+        return *this;
+    }
+    template <typename T>
     BufferLaunch& resize(DeviceBuffer2D<T>& buf, Extent2D e)
     {
         buf.resize(e, m_stream);
@@ -457,6 +536,24 @@ class BufferLaunch
     BufferLaunch& reserve(DeviceVector<T>& buf, size_t cap)
     {
         buf.reserve(cap, m_stream);
+        return *this;
+    }
+    template <typename T>
+    BufferLaunch& reserve_discard(DeviceVector<T>& buf, size_t cap)
+    {
+        buf.reserve_discard(cap, m_stream);
+        return *this;
+    }
+    template <typename T>
+    BufferLaunch& reserve_amortized(DeviceVector<T>& buf, size_t required)
+    {
+        buf.reserve_amortized(required, m_stream);
+        return *this;
+    }
+    template <typename T>
+    BufferLaunch& reserve_discard_amortized(DeviceVector<T>& buf, size_t required)
+    {
+        buf.reserve_discard_amortized(required, m_stream);
         return *this;
     }
     template <typename T>

@@ -77,6 +77,14 @@ record it here in the same commit.**
    `cuda_tool`'s per-stream workspace); never allocate/free CUB scratch on
    every call. (Set 2026-08-25.)
 
+13. **Make CUDA buffer growth semantics explicit.** Keep `resize()` for
+   value-initialized state. Use `resize_discard()` only for output that the
+   following kernel/copy/CUB call completely regenerates, and use
+   `resize_preserve()` only when the old logical range must survive but the new
+   range may remain uninitialized. Growth capacity must be based on the latest
+   requirement with deliberate headroom; do not copy or initialize dead output
+   ranges merely to emulate `std::vector`. (Set 2026-08-30.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice

@@ -1,6 +1,6 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-25, source audit at `947bb921`. Completed performance work is
+Status as of 2026-08-30. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
@@ -123,6 +123,17 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
    targets are raw contact/FEM subsystem assembly and the remaining
    line-search launch traffic, not another broad-phase or DyTopo sort rewrite.
+9. Dynamic output initialization/growth (DONE 2026-08-30):
+   `DeviceVector` now has explicit discard/preserve and amortized reserve
+   policies. Fully regenerated collision, line-search, matrix-conversion,
+   active-set, and triplet outputs no longer copy or value-initialize dead
+   ranges when their logical size fluctuates. Existing `resize()` semantics
+   are unchanged for state and sentinel buffers. On case 88, `Scan and
+   Allocate` fell from 80.8 ms total over 60 frames to 38.0-65.5 ms, while
+   the initial/trial `Compute Energy` scopes together fell from 667.1 ms to
+   390.2-415.8 ms. End-to-end wall variance remains larger than this isolated
+   gain. The next step is batching collision counter readbacks, not broadening
+   discard semantics to buffers whose initialization contract is uncertain.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

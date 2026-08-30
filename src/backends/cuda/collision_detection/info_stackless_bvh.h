@@ -68,10 +68,18 @@ class InfoStacklessBVH
     class QueryBuffer
     {
       public:
-        QueryBuffer() { m_pairs.resize(50 * 1024); }
+        QueryBuffer()
+        {
+            m_pairs.reserve_discard(50 * 1024);
+            m_pairs.resize_discard(50 * 1024);
+        }
 
-        auto  view() const noexcept { return m_pairs.view(0, m_size); }
-        void  reserve(size_t size) { m_pairs.resize(size); }
+        auto view() const noexcept { return m_pairs.view(0, m_size); }
+        void reserve(size_t size)
+        {
+            m_pairs.reserve_discard(size);
+            m_pairs.resize_discard(size);
+        }
         SizeT size() const noexcept { return m_size; }
         auto  viewer() const noexcept { return view().viewer(); }
 

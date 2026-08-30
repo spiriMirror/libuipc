@@ -77,7 +77,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
     // Compute Kinetic (special)
     {
         auto vertex_count = fem().xs.size();
-        kinetic_energies.resize(vertex_count);
+        kinetic_energies.resize_discard(vertex_count);
         auto kinetic_info = ComputeEnergyInfo{kinetic_energies.view(), info.dt()};
         finite_element_kinetic->compute_energy(kinetic_info);
 
@@ -98,7 +98,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         }
 
         reporter_energy_offsets_counts.scan();
-        reporter_energies.resize(reporter_energy_offsets_counts.total_count());
+        reporter_energies.resize_discard(reporter_energy_offsets_counts.total_count());
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {
@@ -122,7 +122,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
 void FEMLineSearchReporter::Impl::init(LineSearchReporter::InitInfo& info)
 {
-    kinetic_energies.resize(fem().xs.size());
+    kinetic_energies.resize_discard(fem().xs.size());
 
     auto reporter_view = reporters.view();
     for(auto&& [i, R] : enumerate(reporter_view))

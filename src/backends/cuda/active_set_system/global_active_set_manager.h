@@ -119,8 +119,8 @@ class GlobalActiveSetManager final : public SimSystem
         void loose_resize(cuda_tool::DeviceBuffer<U>& buf, size_t new_size)
         {
             if(buf.capacity() < new_size)
-                buf.reserve(new_size * m_reserve_ratio);
-            buf.resize(new_size);
+                buf.reserve_discard(new_size * m_reserve_ratio);
+            buf.resize_discard(new_size);
         }
 
         void init_mu();

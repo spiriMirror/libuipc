@@ -214,7 +214,9 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
     if(h_num_collisions > PHs.size())
     {
-        PHs.resize(h_num_collisions * reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_num_collisions * reserve_ratio);
+        PHs.reserve_discard(new_size);
+        PHs.resize_discard(new_size);
         query();
     }
 
@@ -236,7 +238,7 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     using namespace cuda_tool;
 
     info.toi().fill(1.1f);
-    tois.resize(info.surf_vertices().size());
+    tois.resize_discard(info.surf_vertices().size());
 
     int n = static_cast<int>(info.surf_vertices().size());
     if(n > 0)

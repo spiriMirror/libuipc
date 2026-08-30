@@ -435,9 +435,9 @@ void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
 {
     if(size > m.triplet_capacity())
     {
-        m.reserve_triplets(size * reserve_ratio);
+        m.reserve_triplets_discard(size * reserve_ratio);
     }
-    m.resize_triplets(size);
+    m.resize_triplets_discard(size);
 }
 
 void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
@@ -445,9 +445,9 @@ void GlobalDyTopoEffectManager::Impl::loose_resize_entries(
 {
     if(size > v.doublet_capacity())
     {
-        v.reserve_doublets(size * reserve_ratio);
+        v.reserve_doublets_discard(size * reserve_ratio);
     }
-    v.resize_doublets(size);
+    v.resize_doublets_discard(size);
 }
 }  // namespace uipc::backend::cuda
 

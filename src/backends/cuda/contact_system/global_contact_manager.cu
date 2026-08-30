@@ -513,7 +513,7 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
                 // Stiff-GIPC design: max |dx| over all *surface* vertices
                 auto surf_verts = global_surface_manager->surf_vertices();
                 int  n          = static_cast<int>(surf_verts.size());
-                vert_disp_norms.resize(n);
+                vert_disp_norms.resize_discard(n);
                 if(n > 0)
                     compute_cfl_condition_kernel<<<cuda_tool::best_grid_dim(n, compute_cfl_condition_kernel), cuda_tool::best_block_dim(compute_cfl_condition_kernel), 0, nullptr>>>(
                         displacements.cviewer(), vert_disp_norms.viewer(), surf_verts, n);
@@ -522,7 +522,7 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
             {
                 // fallback: max |dx| over all vertices
                 int n = static_cast<int>(displacements.size());
-                vert_disp_norms.resize(n);
+                vert_disp_norms.resize_discard(n);
                 compute_cfl_condition_all_kernel<<<cuda_tool::best_grid_dim(n, compute_cfl_condition_all_kernel), cuda_tool::best_block_dim(compute_cfl_condition_all_kernel), 0, nullptr>>>(
                     displacements.cviewer(), vert_disp_norms.viewer(), n);
             }
@@ -567,7 +567,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     if(total == 0)
         return 1.0;
 
-    feasible_tois.resize(total);
+    feasible_tois.resize_discard(total);
     SizeT off = 0;
     // PT
     if(n_pt > 0)

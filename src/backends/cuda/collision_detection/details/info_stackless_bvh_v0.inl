@@ -1068,7 +1068,9 @@ inline void InfoStacklessBVHV0::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
     int h_cp_num = qbuffer.m_cpNum;
     if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_impl.config.reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
     UIPC_ASSERT(h_cp_num >= 0, "fatal error");
@@ -1120,7 +1122,9 @@ inline void InfoStacklessBVHV0::query(cuda_tool::CBufferView<AABB> query_aabbs,
     int h_cp_num = qbuffer.m_cpNum;
     if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_impl.config.reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
     UIPC_ASSERT(h_cp_num >= 0, "fatal error");

@@ -463,10 +463,12 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         auto N = abd().body_count();
 
         reporter_gradients.reshape(N);
-        reporter_gradients.resize_doublets(reporter_gradient_offsets_counts.total_count());
+        reporter_gradients.resize_doublets_discard(
+            reporter_gradient_offsets_counts.total_count());
 
         reporter_hessians.reshape(N, N);
-        reporter_hessians.resize_triplets(reporter_hessian_offsets_counts.total_count());
+        reporter_hessians.resize_triplets_discard(
+            reporter_hessian_offsets_counts.total_count());
     }
 
     bool has_complement =

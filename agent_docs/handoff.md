@@ -1,5 +1,25 @@
 # Handoff — Current State of the Repo
 
+> **Required-based CUDA output growth (2026-08-30, `refactor-main`)**:
+> `cuda_tool::DeviceVector` now distinguishes value-initialized `resize()`
+> from `resize_discard()` / `resize_preserve()` and exact or amortized reserve
+> operations. Discard growth allocates 150% of the latest requirement, does
+> not copy stale contents, and does not initialize ranges that a following
+> kernel or CUB primitive completely regenerates. Existing subsystem-specific
+> 1.1x/1.5x policies remain in force through exact `reserve_discard()` calls.
+> The migration covers matrix-converter scratch, global/DyTopo triplets,
+> line-search energy arrays, active-set scratch, and collision candidate/TOI
+> buffers; state vectors and buffers with an initialization contract retain
+> normal `resize()`. Case 88, 60 frames on RTX 5090, reduced `Scan and
+> Allocate` from 80.8 ms total to 38.0-65.5 ms and the two `Compute Energy`
+> scopes from 667.1 ms to 390.2-415.8 ms across clean runs. Wall time remains
+> contact-sensitive (163.7-171.0 ms mean versus a 169.8 ms baseline), so the
+> scoped timers are the reliable result. Unchanged runs diverge at atomic
+> roundoff scale and reach about 0.59 mm by frame 60, matching the observed
+> baseline-to-change envelope. Validation: CUDA backend build, 11 CUDA test
+> cases / 213 assertions, full simulation suite (95 cases / 14212 assertions),
+> and compute-sanitizer memcheck (0 errors, 0 leaked bytes).
+
 > **CUB completion and active sparse-format clarification (2026-08-25,
 > `refactor-main`)**: the legacy `stackless_bvh` and
 > `info_stackless_bvh_v0` builders now use CUB radix sort and exclusive scan,

@@ -125,9 +125,9 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     using namespace cuda_tool;
 
     info.toi().fill(1.1f);
-    tois.resize(info.surf_vertices().size() * info.plane_positions().size());
+    tois.resize_discard(info.surf_vertices().size() * info.plane_positions().size());
     tois.fill(1.1f);
-    PHs.resize(info.surf_vertices().size() * info.plane_positions().size());
+    PHs.resize_discard(info.surf_vertices().size() * info.plane_positions().size());
 
     int n = static_cast<int>(info.surf_vertices().size());
     if(n > 0)

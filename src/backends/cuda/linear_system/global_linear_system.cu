@@ -320,10 +320,10 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     if(triplet_A.triplet_capacity() < total_triplet)
     {
         auto reserve_count = total_triplet * reserve_ratio;
-        triplet_A.reserve_triplets(reserve_count);
-        bcoo_A.reserve_triplets(reserve_count);
+        triplet_A.reserve_triplets_discard(reserve_count);
+        bcoo_A.reserve_triplets_discard(reserve_count);
     }
-    triplet_A.resize_triplets(total_triplet);
+    triplet_A.resize_triplets_discard(total_triplet);
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {

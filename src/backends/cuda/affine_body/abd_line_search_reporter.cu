@@ -92,7 +92,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
     // Compute kinetic energy
     {
-        body_id_to_kinetic_energy.resize(body_count);
+        body_id_to_kinetic_energy.resize_discard(body_count);
 
         ABDLineSearchReporter::ComputeEnergyInfo this_info;
         this_info.m_energies = body_id_to_kinetic_energy.view();
@@ -120,7 +120,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
     // Compute shape energy
     {
-        body_id_to_shape_energy.resize(body_count);
+        body_id_to_shape_energy.resize_discard(body_count);
 
         // Distribute the computation of shape energy to each constitution
         for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
@@ -151,7 +151,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         }
 
         reporter_energy_offsets_counts.scan();
-        reporter_energies.resize(reporter_energy_offsets_counts.total_count());
+        reporter_energies.resize_discard(reporter_energy_offsets_counts.total_count());
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {

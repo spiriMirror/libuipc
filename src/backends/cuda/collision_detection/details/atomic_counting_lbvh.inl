@@ -95,7 +95,9 @@ void AtomicCountingLBVH::detect(Pred p, QueryBuffer& qbuffer)
     // if failed, resize and retry
     if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
 
@@ -139,9 +141,11 @@ void AtomicCountingLBVH::query(cuda_tool::CBufferView<LinearBVHAABB> query_aabbs
     // get total number of pairs
     int h_cp_num = m_cp_num;
     // if failed, resize and retry
-    if(h_cp_num > qbuffer.size())
+    if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
 

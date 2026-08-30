@@ -29,9 +29,9 @@ class DyTopoEffectLineSearchReporter final : public LineSearchReporter
         {
             if(size > buffer.capacity())
             {
-                buffer.reserve(size * reserve_ratio);
+                buffer.reserve_discard(size * reserve_ratio);
             }
-            buffer.resize(size);
+            buffer.resize_discard(size);
         }
     };
 

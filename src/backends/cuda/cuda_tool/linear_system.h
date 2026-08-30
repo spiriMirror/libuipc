@@ -50,16 +50,33 @@ class DeviceTripletMatrix
         m_row_indices.resize(n);
         m_col_indices.resize(n);
     }
+    void resize_triplets_discard(size_t n)
+    {
+        m_values.resize_discard(n);
+        m_row_indices.resize_discard(n);
+        m_col_indices.resize_discard(n);
+    }
     void reserve_triplets(size_t n)
     {
         m_values.reserve(n);
         m_row_indices.reserve(n);
         m_col_indices.reserve(n);
     }
+    void reserve_triplets_discard(size_t n)
+    {
+        m_values.reserve_discard(n);
+        m_row_indices.reserve_discard(n);
+        m_col_indices.reserve_discard(n);
+    }
     void resize(int rows, int cols, size_t n)
     {
         reshape(rows, cols);
         resize_triplets(n);
+    }
+    void resize_discard(int rows, int cols, size_t n)
+    {
+        reshape(rows, cols);
+        resize_triplets_discard(n);
     }
     void clear()
     {
@@ -147,7 +164,9 @@ class DeviceDenseVector
     DeviceDenseVector(const DeviceDenseVector& o) { copy_from(o); }
 
     void   resize(size_t n) { m_values.resize(n); }
+    void   resize_discard(size_t n) { m_values.resize_discard(n); }
     void   reserve(size_t n) { m_values.reserve(n); }
+    void   reserve_discard(size_t n) { m_values.reserve_discard(n); }
     size_t size() const { return m_values.size(); }
     size_t capacity() const { return m_values.capacity(); }
     void   fill(const T& value) { m_values.fill(value); }
@@ -219,15 +238,30 @@ class DeviceDoubletVector
         m_values.resize(nnz);
         m_indices.resize(nnz);
     }
+    void resize_doublets_discard(size_t nnz)
+    {
+        m_values.resize_discard(nnz);
+        m_indices.resize_discard(nnz);
+    }
     void reserve_doublets(size_t nnz)
     {
         m_values.reserve(nnz);
         m_indices.reserve(nnz);
     }
+    void reserve_doublets_discard(size_t nnz)
+    {
+        m_values.reserve_discard(nnz);
+        m_indices.reserve_discard(nnz);
+    }
     void resize(int num_segment, size_t nnz)
     {
         reshape(num_segment);
         resize_doublets(nnz);
+    }
+    void resize_discard(int num_segment, size_t nnz)
+    {
+        reshape(num_segment);
+        resize_doublets_discard(nnz);
     }
     void clear()
     {
