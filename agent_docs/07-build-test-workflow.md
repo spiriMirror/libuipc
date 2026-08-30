@@ -41,22 +41,21 @@ disables `build.ccache`. The pybind post-build step copies the package,
 extension, and colocated runtime libraries synchronously before packaging
 begins.
 
-The CUDA backend has one runtime library, seven primary domain OBJECT targets,
-and the optional `cuda_collision_legacy_objects` target. CMake owns the
-inventory in `src/backends/cuda/components.cmake`; XMake mirrors it in
-`components.lua`. Assign every compiled CUDA backend source to exactly one
-component in both manifests, including sources disabled by a feature option.
-Configuration rejects missing or duplicate ownership; headers remain on the
-final target for IDE navigation. XMake OBJECT components must include the
-project `src/` root because CUDA headers use `<backends/common/...>` paths; the
-narrower `src/backends` include alone works for some local paths but fails on
-Linux. They must also carry the backend directory/name definitions used by
-common path tooling; linking `uipc_core` does not synthesize
-`UIPC_BACKEND_DIR` for an OBJECT target. On Linux, every component must also
-compile its host C++ with `-fPIC` and pass `-fPIC` through NVCC to the host
-compiler. OBJECT targets do not inherit the final shared backend's PIC flags;
-without this parity with CMake's `POSITION_INDEPENDENT_CODE ON`, the final link
-can fail on `thread_local` symbols with an `R_X86_64_TPOFF32` relocation.
+The CUDA backend has one runtime library and eight logical source components
+(seven primary domains plus optional legacy collision). CMake owns the
+inventory in `src/backends/cuda/components.cmake` and realizes it as OBJECT
+targets; XMake mirrors the ownership in `components.lua` but adds every enabled
+source directly to the final shared target. Assign every compiled CUDA backend
+source to exactly one component in both manifests, including sources disabled
+by a feature option. Configuration rejects missing or duplicate ownership.
+
+The XMake shape is intentionally different. Its built-in device-link only
+collects CUDA source batches owned by the final target; CUDA OBJECT dependencies
+reach the host linker but not device-link. On Windows that produces unresolved
+`__cudaRegisterLinkedBinary_*` symbols, while a Linux shared linker may accept
+the unresolved references and defer the failure to load time. Keep the direct
+source attachment, `-rdc=true`, project `src/` include, and final-target backend
+definitions together. The repository contract guards this boundary.
 
 ## Test System
 

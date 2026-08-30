@@ -1,50 +1,3 @@
-rule("cuda.component")
-    on_load(function (target)
-        import("core.base.semver")
-
-        local version = semver.new(target:version())
-        local define_path = [[%s=R"(%s)"]]
-        target:set("kind", "object")
-        target:set("default", false)
-        target:set("group", "uipc-backends/cuda-components")
-        target:add("includedirs",
-            path.join(os.projectdir(), "src"),
-            path.directory(os.scriptdir()),
-            os.scriptdir(),
-            path.join(os.scriptdir(), "cuda_tool"))
-        target:add("defines",
-            "UIPC_BACKEND_EXPORT_DLL",
-            format(define_path, "UIPC_BACKEND_DIR", path.directory(os.scriptdir())),
-            [[UIPC_BACKEND_NAME=R"(cuda)"]],
-            "UIPC_VERSION_MAJOR=" .. version:major(),
-            "UIPC_VERSION_MINOR=" .. version:minor(),
-            "UIPC_VERSION_PATCH=" .. version:patch())
-        target:add("deps", "uipc_core", "uipc_geometry", "uipc_io")
-        target:add("cuflags", "--expt-relaxed-constexpr", "--extended-lambda", "-rdc=true")
-        if target:is_plat("linux") then
-            -- These OBJECT targets are linked into the shared CUDA backend.
-            -- Match CMake's POSITION_INDEPENDENT_CODE property for both host
-            -- C++ sources and the host side of CUDA translation units.
-            target:add("cxflags", "-fPIC")
-            target:add("cuflags", "-Xcompiler=-fPIC")
-        end
-        if has_config("github_actions") then
-            target:add("cugencodes", "sm_89")
-        else
-            target:add("cugencodes", "native")
-        end
-        if target:is_plat("windows") then
-            target:add("defines", "__NV_NO_HOST_COMPILER_CHECK")
-            target:add("cuflags",
-                "-allow-unsupported-compiler",
-                "-Xcompiler=/wd4819",
-                "-Xcompiler=/Zc:preprocessor")
-            target:set("toolchains", "msvc")
-        end
-        target:set("toolchains", "cuda")
-    end)
-rule_end()
-
 local components = {
     runtime = {
         "*.cpp",
@@ -86,38 +39,51 @@ local components = {
     coupling = {"coupling_system/**.cu"}
 }
 
-local component_targets = {}
-local assigned_sources = {}
-for name, patterns in pairs(components) do
-    local target_name = "cuda_" .. name .. "_objects"
-    local enabled = name ~= "collision_legacy" or has_config("cuda_legacy_collision")
-    if enabled then
-        table.insert(component_targets, target_name)
-        target(target_name)
-            add_rules("cuda.component", "cuda_warning", "cuda_no_host_compiler_check")
-            add_files(table.unpack(patterns))
-        target_end()
-    end
+local component_order = {
+    "runtime",
+    "affine_body",
+    "collision",
+    "collision_legacy",
+    "contact",
+    "fem",
+    "linear_system",
+    "coupling"
+}
+local backend_dir = os.scriptdir()
 
-    for _, pattern in ipairs(patterns) do
-        for _, file in ipairs(os.files(path.join(os.scriptdir(), pattern))) do
+-- XMake's built-in CUDA device-link only scans CUDA source batches owned by
+-- the final binary/shared target. Keep the ownership partition as a manifest,
+-- but attach its sources directly to the one shared backend at project-parse
+-- time so every RDC object participates in the single device-link on both
+-- Windows and Linux.
+function uipc_add_cuda_component_sources()
+    for _, name in ipairs(component_order) do
+        if name ~= "collision_legacy" or has_config("cuda_legacy_collision") then
+            for _, pattern in ipairs(components[name]) do
+                add_files(path.join(backend_dir, pattern))
+            end
+        end
+    end
+end
+
+local assigned_sources = {}
+for _, name in ipairs(component_order) do
+    for _, pattern in ipairs(components[name]) do
+        for _, file in ipairs(os.files(path.join(backend_dir, pattern))) do
             local absolute = path.absolute(file)
             if assigned_sources[absolute] then
                 raise("CUDA source belongs to multiple components: " .. absolute)
             end
-            assigned_sources[absolute] = target_name
+            assigned_sources[absolute] = name
         end
     end
 end
 
 for _, extension in ipairs({"**.cpp", "**.cu"}) do
-    for _, file in ipairs(os.files(path.join(os.scriptdir(), extension))) do
+    for _, file in ipairs(os.files(path.join(backend_dir, extension))) do
         local absolute = path.absolute(file)
         if not assigned_sources[absolute] then
             raise("CUDA source has no internal component: " .. absolute)
         end
     end
 end
-
-table.sort(component_targets)
-return component_targets

@@ -5,25 +5,28 @@ Directory: `src/backends/cuda/` (compiled as the runtime-loadable shared library
 ## Internal Build Components
 
 The backend remains one DLL and performs one final CUDA device-link. Its 198
-compiled `.cu/.cpp` files are owned by seven primary OBJECT components plus one
-optional legacy-collision component:
+compiled `.cu/.cpp` files are owned by seven primary logical components plus
+one optional legacy-collision component:
 
-| Component | Owned domains |
-|---|---|
-| `cuda_runtime_objects` | Root/engine, global geometry, animation, time integration, pipeline, diagnostics, and orchestration |
-| `cuda_affine_body_objects` | ABD state, constitutions, constraints, joints, and subsystem assembly |
-| `cuda_collision_objects` | Default broad phase and current trajectory filters |
-| `cuda_collision_legacy_objects` | Optional V0, stackless, and linear-BVH simplex trajectory filters |
-| `cuda_contact_objects` | Active set, contact, DyTopo, distance, and inter-primitive effects |
-| `cuda_fem_objects` | FEM data, constitutions, constraints, MAS, and subsystem assembly |
-| `cuda_linear_system_objects` | Global sparse assembly, PCG, SpMV, and preconditioners |
-| `cuda_coupling_objects` | ABD/FEM coupling receivers and subsystems |
+| Logical component | CMake OBJECT target | Owned domains |
+|---|---|---|
+| `runtime` | `cuda_runtime_objects` | Root/engine, global geometry, animation, time integration, pipeline, diagnostics, and orchestration |
+| `affine_body` | `cuda_affine_body_objects` | ABD state, constitutions, constraints, joints, and subsystem assembly |
+| `collision` | `cuda_collision_objects` | Default broad phase and current trajectory filters |
+| `collision_legacy` | `cuda_collision_legacy_objects` | Optional V0, stackless, and linear-BVH simplex trajectory filters |
+| `contact` | `cuda_contact_objects` | Active set, contact, DyTopo, distance, and inter-primitive effects |
+| `fem` | `cuda_fem_objects` | FEM data, constitutions, constraints, MAS, and subsystem assembly |
+| `linear_system` | `cuda_linear_system_objects` | Global sparse assembly, PCG, SpMV, and preconditioners |
+| `coupling` | `cuda_coupling_objects` | ABD/FEM coupling receivers and subsystems |
 
-`components.cmake` and `components.lua` are the ownership manifests. Both
-reject a compiled source that is unowned or assigned twice. OBJECT targets use
-RDC, while `uipc_backend_cuda` alone resolves device symbols and exports the
-module ABI. This preserves static `REGISTER_SIM_SYSTEM` objects without
-turning domains into runtime DLL boundaries.
+`components.cmake` and `components.lua` are matching ownership manifests. Both
+reject a compiled source that is unowned or assigned twice. CMake realizes the
+partition as internal OBJECT targets. XMake attaches the same logical groups
+directly to `uipc_backend_cuda`: its built-in CUDA device-link scans source
+batches owned by the final target and does not include CUDA OBJECT dependencies.
+Both paths use RDC and resolve all device symbols once in the final module. This
+preserves static `REGISTER_SIM_SYSTEM` objects without turning domains into
+runtime DLL boundaries.
 
 `UIPC_WITH_CUDA_LEGACY_COLLISION` (CMake) /
 `cuda_legacy_collision` (XMake) defaults to ON for compatibility. Turning it
@@ -187,7 +190,8 @@ default broad phase. Its rebuild path is deliberately CUB-only:
 
 The `info_stackless_bvh_v0` selector is a legacy comparison path, while
 `stackless_bvh` and `linear_bvh` are alternate broad phases. All three
-registered simplex filters live in `cuda_collision_legacy_objects` and are
+registered simplex filters live in the `collision_legacy` component (the CMake
+target is `cuda_collision_legacy_objects`) and are
 available only when the legacy-collision build option is enabled. The V0 and
 `stackless_bvh` builders now use the same separate-input/output CUB radix-sort
 pattern, named initialization kernels, and persistent scan workspace as the

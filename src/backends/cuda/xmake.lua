@@ -1,24 +1,13 @@
 includes("components.lua")
-local component_targets = {
-    "cuda_affine_body_objects",
-    "cuda_collision_objects",
-    "cuda_contact_objects",
-    "cuda_coupling_objects",
-    "cuda_fem_objects",
-    "cuda_linear_system_objects",
-    "cuda_runtime_objects"
-}
-if has_config("cuda_legacy_collision") then
-    table.insert(component_targets, "cuda_collision_legacy_objects")
-end
 
 target("cuda")
     add_rules("backend")
+    uipc_add_cuda_component_sources()
     if has_config("dev") then
         add_rules("clangd")
     end
     add_headerfiles("**.h", "**.inl")
-    add_deps(table.unpack(component_targets))
+    add_includedirs(path.join(os.projectdir(), "src"))
     add_includedirs(os.scriptdir(), {public = true})
     -- cuda_tool (self-written device utilities) on the include path for <cuda_tool/...>
     add_includedirs(path.join(os.scriptdir(), "cuda_tool"), {public = true})

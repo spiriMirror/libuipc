@@ -167,12 +167,13 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     `uipc_query_module` handshake validates ABI version, libuipc major/minor,
     and backend identity before PMR synchronization or engine construction.
     This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
-14. CUDA build ownership (DONE 2026-08-30): 198 compiled backend sources now
-    belong to seven primary internal domain OBJECT targets and one optional
-    legacy-collision target, followed by one final RDC device-link into the
+14. CUDA build ownership (DONE 2026-08-30, corrected 2026-08-31): 198 compiled
+    backend sources belong to seven primary domains and one optional
+    legacy-collision component, followed by one final RDC device-link into the
     existing backend DLL. Matching CMake/XMake manifests reject unowned and
-    multiply-owned sources. This creates explicit domain build and rollback
-    boundaries without changing runtime module granularity.
+    multiply-owned sources. CMake uses internal OBJECT targets; XMake keeps the
+    same logical partition but attaches sources to the final target because its
+    device-link omits CUDA OBJECT dependencies.
 15. Scene configuration ownership (DONE 2026-08-30): typed runtime defaults and
     machine-readable schema metadata now come from one declaration. The public
     normalized schema remains exactly equivalent, while future key additions can
@@ -195,12 +196,13 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     has numbered ADRs, performance work has an evidence policy/template and a
     case2 roll-up, and `handoff.md` is explicitly the chronological trail rather
     than the sole permanent home for rationale and measurements.
-20. CI portability follow-up (DONE 2026-08-31): XMake CUDA components carry the
-    source-root include and backend-directory definition needed by common
-    backend headers on Linux. Their C++ and CUDA host code is also explicitly
-    position-independent because OBJECT targets are linked into the shared
-    backend and do not inherit its PIC flags. The repository contract guards
-    this requirement without waiting for a full CUDA link. In addition,
+20. CI portability follow-up (DONE 2026-08-31): XMake CUDA sources now stay on
+    the final shared target, which supplies the source-root include,
+    backend-directory definitions, shared-library PIC behavior, and the one
+    complete RDC device-link on both platforms. This replaces an intermediate
+    OBJECT-target implementation that failed successively on missing includes,
+    definitions, Linux PIC, and finally Windows device-link. The repository
+    contract guards the final-target ownership requirement. In addition,
     repository-contract tests no longer confuse an intentionally unmaterialized
     samples submodule with an invalid benchmark declaration.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212

@@ -96,14 +96,19 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertTrue(any("reviewed tag comment" in error for error in errors))
             self.assertTrue(any("revision must be" in error for error in errors))
 
-    def test_cuda_xmake_objects_are_position_independent_on_linux(self) -> None:
+    def test_cuda_xmake_sources_stay_on_shared_target_for_device_link(self) -> None:
         components = (
             ROOT / "src/backends/cuda/components.lua"
         ).read_text(encoding="utf-8")
+        backend = (ROOT / "src/backends/cuda/xmake.lua").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn('target:is_plat("linux")', components)
-        self.assertIn('target:add("cxflags", "-fPIC")', components)
-        self.assertIn('target:add("cuflags", "-Xcompiler=-fPIC")', components)
+        self.assertIn("function uipc_add_cuda_component_sources()", components)
+        self.assertIn("add_files(path.join(backend_dir, pattern))", components)
+        self.assertNotIn('target:set("kind", "object")', components)
+        self.assertIn("uipc_add_cuda_component_sources()", backend)
+        self.assertIn('add_cuflags("-rdc=true")', backend)
 
 
 if __name__ == "__main__":

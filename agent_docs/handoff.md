@@ -6,22 +6,27 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
-> **GitHub check portability fixes (2026-08-31, `refactor-main`)**: repeated
-> red runs had two independent causes. XMake CUDA OBJECT targets lacked the
-> project `src/` include root on Linux, so `<backends/common/sim_action.h>`
-> failed from CUDA translation units; after that was exposed, MAS compilation
-> also showed the OBJECT targets lacked CMake's `UIPC_BACKEND_DIR` definition.
-> A subsequent full Linux link exposed the third OBJECT-target boundary:
-> position-independent host code. `components.lua` now mirrors CMake's
-> source-root include, backend definitions, and `POSITION_INDEPENDENT_CODE ON`
-> behavior (`-fPIC` for C++ and through NVCC). A repository-contract regression
-> test covers PIC locally instead of relying on the long CUDA build. Repository
-> Contracts deliberately checks out no submodules, so its benchmark-manifest test now
+> **GitHub check portability fixes (2026-08-31, `refactor-main`)**: successive
+> full XMake runs exposed that CUDA OBJECT dependencies first lacked the project
+> `src/` include, then backend definitions, then Linux PIC, and finally did not
+> enter XMake's CUDA device-link at all. The last issue produced 198 unresolved
+> `__cudaRegisterLinkedBinary_*` symbols on Windows; Linux had allowed the same
+> unresolved references in a shared object. The final design keeps CMake OBJECT
+> targets, but XMake attaches its matching logical component manifest directly
+> to the one shared target. That gives both platforms one complete RDC
+> device-link and inherits the final target's includes, definitions, and PIC.
+> A repository-contract test prevents reintroducing XMake CUDA OBJECT
+> dependencies. Repository Contracts deliberately checks out no submodules, so
+> its benchmark-manifest test now
 > validates the declaration without requiring
 > samples assets; runtime asset validation has an isolated partial-checkout unit
 > test. Rapid-push cancellations were concurrency behavior, not additional
-> source failures. Local repository contracts passed 28/28 and XMake target
-> inspection confirms the source root precedes the narrower backend includes.
+> source failures. Local repository contracts passed 29/29. A clean Windows
+> `xmake build --jobs=8 cuda` emitted the expected
+> `devlinking.release uipc_backend_cuda_gpucode.cu.obj`, linked the DLL, and
+> completed in 574.109 seconds; a legacy-off configuration omitted exactly the
+> three legacy filter sources. The local XMake configuration was then restored
+> to legacy-on and native architecture selection.
 
 > **Aggregate architecture validation (2026-08-30, through `67ff50c3`)**:
 > the default Release build completed for Core, none/CUDA backends, and all
@@ -58,7 +63,8 @@
 
 > **Optional legacy collision component (2026-08-30, `refactor-main`)**:
 > the V0, stackless, and linear-BVH simplex trajectory filters now belong to
-> `cuda_collision_legacy_objects`, separate from the default collision path.
+> the logical `collision_legacy` component (CMake target
+> `cuda_collision_legacy_objects`), separate from the default collision path.
 > Compatibility builds retain all 198 CUDA sources; setting
 > `UIPC_WITH_CUDA_LEGACY_COLLISION=OFF` or
 > `cuda_legacy_collision=false` omits those three registrations and links 195
@@ -96,12 +102,13 @@
 
 > **CUDA internal component build (2026-08-30, `refactor-main`)**: the CUDA
 > backend's 198 compiled sources are partitioned into seven primary domain
-> targets and an optional legacy-collision OBJECT target.
-> They still feed one `uipc_backend_cuda` DLL and one final RDC device-link, so
-> runtime registration and ABI behavior are unchanged. CMake and XMake carry
-> matching ownership manifests; configuration rejects missing or duplicate
-> source ownership. Validation: clean Release build, CUDA backend 12 cases /
-> 238 assertions, and full simulation suite 95 cases / 14212 assertions.
+> components plus optional legacy collision. CMake uses internal OBJECT targets;
+> XMake's matching manifest attaches sources directly to `uipc_backend_cuda` so
+> its built-in device-link sees every RDC object. Runtime registration and ABI
+> behavior remain one DLL. Configuration rejects missing or duplicate source
+> ownership. Validation: clean Release build, CUDA backend 12 cases / 238
+> assertions, and full simulation suite 95 cases / 14212 assertions. The XMake
+> implementation detail was corrected after the later CI audit above.
 
 > **Backend ABI handshake and artifact parity (2026-08-30,
 > `refactor-main`)**: every backend now exports `uipc_query_module` in

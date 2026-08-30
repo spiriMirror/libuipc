@@ -16,16 +16,19 @@ ABI, while requiring multiple CUDA device links.
 
 ## Decision
 
-Keep one `uipc_backend_cuda` shared library and one final RDC device link. Build
-its sources through explicit internal OBJECT components: runtime, affine body,
-collision, contact/effects, FEM, linear system, coupling, plus the optional
+Keep one `uipc_backend_cuda` shared library and one final RDC device link.
+Partition its source ownership into runtime, affine body, collision,
+contact/effects, FEM, linear system, coupling, plus the optional
 legacy-collision component. `components.cmake` and `components.lua` are matching
 ownership manifests; configuration rejects an unowned or multiply-owned
-compiled source.
+compiled source. CMake realizes the partition with internal OBJECT targets.
+XMake attaches the matching groups directly to the shared target because its
+built-in CUDA device-link does not collect object files from OBJECT dependencies.
 
-The V0, stackless, and linear-BVH simplex trajectory filters belong to
-`cuda_collision_legacy_objects`. They remain enabled by default for
-compatibility but can be omitted with the corresponding CMake/XMake option.
+The V0, stackless, and linear-BVH simplex trajectory filters belong to the
+logical `collision_legacy` component (`cuda_collision_legacy_objects` in
+CMake). They remain enabled by default for compatibility but can be omitted
+with the corresponding CMake/XMake option.
 
 ## Consequences
 
@@ -34,7 +37,9 @@ compatibility but can be omitted with the corresponding CMake/XMake option.
 - All static registrars still land in one module and device symbols resolve once.
 - CMake and XMake manifests must change together whenever a source is added,
   removed, or reassigned.
-- OBJECT targets are internal implementation details; users still load one DLL.
+- CMake OBJECT targets are internal implementation details; XMake intentionally
+  keeps CUDA sources on the final target so device-link sees every RDC object.
+  Users still load one DLL.
 - A compatibility build owns 198 sources; a lean legacy-off build compiles 195.
 
 ## Alternatives considered
@@ -51,4 +56,6 @@ Both manifests accept the same inventory and reject missing/duplicate ownership.
 Default and legacy-off CMake/XMake configurations built; all four advertised
 collision selectors were instantiated in the default build, while the lean
 schema/DLL exposed only the default. The full simulation suite passed 95 cases /
-14212 assertions.
+14212 assertions. A later CI audit confirmed that XMake OBJECT dependencies did
+not enter device-link; the accepted decision was corrected to retain logical
+ownership while attaching XMake CUDA sources directly to the shared target.
