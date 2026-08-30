@@ -5,7 +5,8 @@ simulation scene. `Scene::config_schema()` / `Scene.config_schema()` is the
 machine-readable contract for every registered key: defaults, storage and JSON
 types, units, hard constraints, lifecycle, implementation status, descriptions,
 and source-level consumers. The tables below present the same contract for
-humans. Defaults and metadata come from
+humans. A single typed declaration creates both the runtime defaults and schema
+metadata, preventing the two views from drifting as keys evolve. It lives in
 [`scene_default_config.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene_default_config.cpp),
 while effective-value rules and selector values were checked against the CUDA
 backend that consumes them.

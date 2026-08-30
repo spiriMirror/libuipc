@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **Single-source scene configuration contract (2026-08-30,
+> `refactor-main`)**: `scene_default_config.cpp` now declares each key once,
+> including its typed default and schema metadata. `Scene::default_config()`
+> and `Scene::config_schema()` are derived from that same contract, eliminating
+> the previous parallel default/metadata lists. The normalized public schema is
+> byte-for-byte equivalent to the pre-refactor schema. Validation: focused C++
+> schema case 668 assertions, Core 36 cases / 988 assertions, and Python schema
+> tests 5 passed.
+
 > **CUDA internal component build (2026-08-30, `refactor-main`)**: the CUDA
 > backend's 198 compiled sources are partitioned into runtime, affine-body,
 > collision, contact/effects, FEM, linear-system, and coupling OBJECT targets.

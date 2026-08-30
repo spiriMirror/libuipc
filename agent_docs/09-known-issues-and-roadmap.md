@@ -172,6 +172,10 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     device-link into the existing backend DLL. Matching CMake/XMake manifests
     reject unowned and multiply-owned sources. This creates explicit domain
     build and rollback boundaries without changing runtime module granularity.
+15. Scene configuration ownership (DONE 2026-08-30): typed runtime defaults and
+    machine-readable schema metadata now come from one declaration. The public
+    normalized schema remains exactly equivalent, while future key additions can
+    no longer silently update only one of the two former parallel lists.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
