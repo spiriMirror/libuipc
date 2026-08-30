@@ -2,6 +2,27 @@
 
 Directory: `src/backends/cuda/` (compiled as the runtime-loadable shared library `uipc_backend_cuda`). Entry point `entrance.cpp` → `cuda::SimEngine` (`sim_engine.h` + `engine/*.cu`). The GPU id comes from the engine config `gpu/device`.
 
+## Internal Build Components
+
+The backend remains one DLL and performs one final CUDA device-link, but its
+198 compiled `.cu/.cpp` files are owned by seven internal OBJECT components:
+
+| Component | Owned domains |
+|---|---|
+| `cuda_runtime_objects` | Root/engine, global geometry, animation, time integration, pipeline, diagnostics, and orchestration |
+| `cuda_affine_body_objects` | ABD state, constitutions, constraints, joints, and subsystem assembly |
+| `cuda_collision_objects` | Broad phase and trajectory filters |
+| `cuda_contact_objects` | Active set, contact, DyTopo, distance, and inter-primitive effects |
+| `cuda_fem_objects` | FEM data, constitutions, constraints, MAS, and subsystem assembly |
+| `cuda_linear_system_objects` | Global sparse assembly, PCG, SpMV, and preconditioners |
+| `cuda_coupling_objects` | ABD/FEM coupling receivers and subsystems |
+
+`components.cmake` and `components.lua` are the ownership manifests. Both
+reject a compiled source that is unowned or assigned twice. OBJECT targets use
+RDC, while `uipc_backend_cuda` alone resolves device symbols and exports the
+module ABI. This preserves static `REGISTER_SIM_SYSTEM` objects without
+turning domains into runtime DLL boundaries.
+
 ## Subsystem Directories
 
 | Directory | Responsibility |

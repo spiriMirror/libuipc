@@ -61,10 +61,12 @@ target_compile_options(cuda PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>: --extended-lambda>
 )
 
-# all files in this directory
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "*.cu" "*.h" "*.hpp" "*.cpp" "*.inl")
+# Compile sources are owned by internal domain OBJECT targets and receive one
+# final CUDA device-link in the public backend library.
+include(${CMAKE_CURRENT_LIST_DIR}/components.cmake)
 
-target_sources(cuda PRIVATE ${SOURCES})
+file(GLOB_RECURSE CUDA_HEADERS CONFIGURE_DEPENDS "*.h" "*.hpp" "*.inl")
+target_sources(cuda PRIVATE ${CUDA_HEADERS})
 uipc_target_set_relative_source_file(cuda)
 
 # ------------------------------------------------------------------------------

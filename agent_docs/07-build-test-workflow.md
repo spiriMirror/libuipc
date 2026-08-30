@@ -40,6 +40,13 @@ policy explicitly disables `build.ccache`. The pybind post-build step copies the
 package, extension, and colocated runtime libraries synchronously before
 packaging begins.
 
+The CUDA backend has one runtime library but seven internal domain OBJECT
+targets. CMake owns the inventory in `src/backends/cuda/components.cmake`;
+XMake mirrors it in `components.lua`. Assign every new compiled CUDA backend
+source to exactly one component in both manifests. Configuration rejects
+missing or duplicate ownership; headers remain on the final target for IDE
+navigation.
+
 ## Test System
 
 **C++ (Catch2, `apps/tests/`)**: `uipc_add_test(<name>)` produces `uipc_test_<name>`, linked against the `app` utility library (`AssetDir`, etc.):

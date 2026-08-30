@@ -167,6 +167,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     `uipc_query_module` handshake validates ABI version, libuipc major/minor,
     and backend identity before PMR synchronization or engine construction.
     This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
+14. CUDA build ownership (DONE 2026-08-30): 198 compiled backend sources now
+    belong to seven internal domain OBJECT targets, followed by one final RDC
+    device-link into the existing backend DLL. Matching CMake/XMake manifests
+    reject unowned and multiply-owned sources. This creates explicit domain
+    build and rollback boundaries without changing runtime module granularity.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

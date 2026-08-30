@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **CUDA internal component build (2026-08-30, `refactor-main`)**: the CUDA
+> backend's 198 compiled sources are partitioned into runtime, affine-body,
+> collision, contact/effects, FEM, linear-system, and coupling OBJECT targets.
+> They still feed one `uipc_backend_cuda` DLL and one final RDC device-link, so
+> runtime registration and ABI behavior are unchanged. CMake and XMake carry
+> matching ownership manifests; configuration rejects missing or duplicate
+> source ownership. Validation: clean Release build, CUDA backend 12 cases /
+> 238 assertions, and full simulation suite 95 cases / 14212 assertions.
+
 > **Backend ABI handshake and artifact parity (2026-08-30,
 > `refactor-main`)**: every backend now exports `uipc_query_module` in
 > addition to init/create/destroy. Before initialization, Core validates the
