@@ -53,7 +53,17 @@ local components = {
         "utils/**.cpp"
     },
     affine_body = {"affine_body/**.cu"},
-    collision = {"collision_detection/**.cu"},
+    collision = {
+        "collision_detection/*.cu",
+        "collision_detection/filters/al_vertex_half_plane_trajectory_filter.cu",
+        "collision_detection/filters/easy_vertex_half_plane_trajectory_filter.cu",
+        "collision_detection/filters/info_stackless_bvh_simplex_trajectory_filter.cu"
+    },
+    collision_legacy = {
+        "collision_detection/filters/info_stackless_bvh_v0_simplex_trajectory_filter.cu",
+        "collision_detection/filters/lbvh_simplex_trajectory_filter.cu",
+        "collision_detection/filters/stackless_bvh_simplex_trajectory_filter.cu"
+    },
     contact = {
         "active_set_system/**.cu",
         "contact_system/**.cu",
@@ -70,11 +80,14 @@ local component_targets = {}
 local assigned_sources = {}
 for name, patterns in pairs(components) do
     local target_name = "cuda_" .. name .. "_objects"
-    table.insert(component_targets, target_name)
-    target(target_name)
-        add_rules("cuda.component", "cuda_warning", "cuda_no_host_compiler_check")
-        add_files(table.unpack(patterns))
-    target_end()
+    local enabled = name ~= "collision_legacy" or has_config("cuda_legacy_collision")
+    if enabled then
+        table.insert(component_targets, target_name)
+        target(target_name)
+            add_rules("cuda.component", "cuda_warning", "cuda_no_host_compiler_check")
+            add_files(table.unpack(patterns))
+        target_end()
+    end
 
     for _, pattern in ipairs(patterns) do
         for _, file in ipairs(os.files(path.join(os.scriptdir(), pattern))) do

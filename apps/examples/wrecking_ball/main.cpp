@@ -29,8 +29,6 @@ int main()
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
     config["line_search"]["max_iter"]       = 8;
-    config["collision_detection"]["method"] = "stackless_bvh";
-
     test::Scene::dump_config(config, this_output_path);
 
 

@@ -180,10 +180,14 @@ the alternative.
 
 ## Broad phase and sanity checks
 
-The supported broad phases are `info_stackless_bvh` (default),
-`stackless_bvh`, and `linear_bvh`; `info_stackless_bvh_v0` remains as a legacy
-comparison path. This selector changes candidate generation, not contact
-material behavior.
+The always-available broad phase is `info_stackless_bvh` (default).
+`stackless_bvh`, `linear_bvh`, and the `info_stackless_bvh_v0` comparison path
+belong to the optional legacy-collision build component. They are present by
+default, but a lean build can disable them with
+`UIPC_WITH_CUDA_LEGACY_COLLISION=OFF` (CMake) or
+`cuda_legacy_collision=false` (XMake); the scene schema then rejects those
+names. This selector changes candidate generation, not contact material
+behavior.
 
 Leave `sanity_check/enable = 1` while authoring scenes. Before engine
 initialization it detects initial intersections and dangerously close

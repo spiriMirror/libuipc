@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <uipc/uipc.h>
+#include <algorithm>
 
 TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
 {
@@ -18,6 +19,19 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
     REQUIRE(entries.at("newton/use_adaptive_tol").at("status") == "reserved");
     REQUIRE(entries.at("newton/use_adaptive_tol").at("const") == 0);
     REQUIRE(entries.at("sanity_check/mode").at("enum") == Json::array({"normal", "quiet"}));
+
+    const auto& collision          = entries.at("collision_detection/method");
+    const auto& methods            = collision.at("enum");
+    const auto& conditional_values = collision.at("conditionalValues");
+    const bool legacy_collision_built = conditional_values.at("enabled").get<bool>();
+    REQUIRE(methods.front() == "info_stackless_bvh");
+    REQUIRE(conditional_values.at("backend") == "cuda");
+    REQUIRE(conditional_values.at("buildOption") == "UIPC_WITH_CUDA_LEGACY_COLLISION");
+    for(const auto& legacy_method : conditional_values.at("values"))
+    {
+        const bool listed = std::ranges::find(methods, legacy_method) != methods.end();
+        REQUIRE(listed == legacy_collision_built);
+    }
 
     for(auto&& [name, entry] : entries.items())
     {
@@ -44,6 +58,13 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
         config                               = Scene::default_config();
         config["newton"]["use_adaptive_tol"] = 1;
         REQUIRE_THROWS(Scene{config});
+
+        config                                  = Scene::default_config();
+        config["collision_detection"]["method"] = "linear_bvh";
+        if(legacy_collision_built)
+            REQUIRE_NOTHROW(Scene{config});
+        else
+            REQUIRE_THROWS(Scene{config});
 
         config                                      = Scene::default_config();
         config["contact"]["adaptive"]["min_kappa"]  = 2.0e9;

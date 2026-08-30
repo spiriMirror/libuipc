@@ -26,6 +26,13 @@ target_compile_definitions(uipc_core PUBLIC "-DUIPC_PROJECT_DIR=R\"(${PROJECT_SO
 target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_MAJOR=${UIPC_VERSION_MAJOR}")
 target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_MINOR=${UIPC_VERSION_MINOR}")
 target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_PATCH=${UIPC_VERSION_PATCH}")
+if(UIPC_WITH_CUDA_BACKEND AND UIPC_WITH_CUDA_LEGACY_COLLISION)
+    set(UIPC_CUDA_LEGACY_COLLISION_BUILT 1)
+else()
+    set(UIPC_CUDA_LEGACY_COLLISION_BUILT 0)
+endif()
+target_compile_definitions(uipc_core PRIVATE
+    "UIPC_WITH_CUDA_LEGACY_COLLISION=${UIPC_CUDA_LEGACY_COLLISION_BUILT}")
 
 # ------------------------------------------------------------------------------
 # set the target source files

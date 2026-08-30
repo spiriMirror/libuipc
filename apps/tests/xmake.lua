@@ -9,10 +9,12 @@ rule("uipc_test")
         target:add("headerfiles", path.join(include_dir, "**.h"), path.join(include_dir, "**.inl"))
     end)
 
-includes("backends")
 includes("common")
 includes("core")
 includes("geometry")
 includes("sanity_check")
-includes("sim_case")
-includes("regression")
+if has_config("backend_cuda") then
+    includes("backends")
+    includes("sim_case")
+    includes("regression")
+end

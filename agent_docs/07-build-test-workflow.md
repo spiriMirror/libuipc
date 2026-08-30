@@ -33,19 +33,21 @@ xmake run sim_case         # Run a test target
 ```
 Test target names are rewritten by the `uipc_test` rule into binary names `uipc_test_<target>`; `xmake run --help` lists all runnable targets.
 
-XMake mirrors the active CMake feature set: `backend_cuda`, `pybind`, `examples`,
-`tests`, and `benchmarks`, plus optional `usd` and `vdb` targets. The removed C++
-GUI, torch extension, and nonexistent RPC module have no stale options. Project
-policy explicitly disables `build.ccache`. The pybind post-build step copies the
-package, extension, and colocated runtime libraries synchronously before
-packaging begins.
+XMake mirrors the active CMake feature set: `backend_cuda`,
+`cuda_legacy_collision`, `pybind`, `examples`, `tests`, and `benchmarks`, plus
+optional `usd` and `vdb` targets. The removed C++ GUI, torch extension, and
+nonexistent RPC module have no stale options. Project policy explicitly
+disables `build.ccache`. The pybind post-build step copies the package,
+extension, and colocated runtime libraries synchronously before packaging
+begins.
 
-The CUDA backend has one runtime library but seven internal domain OBJECT
-targets. CMake owns the inventory in `src/backends/cuda/components.cmake`;
-XMake mirrors it in `components.lua`. Assign every new compiled CUDA backend
-source to exactly one component in both manifests. Configuration rejects
-missing or duplicate ownership; headers remain on the final target for IDE
-navigation.
+The CUDA backend has one runtime library, seven primary domain OBJECT targets,
+and the optional `cuda_collision_legacy_objects` target. CMake owns the
+inventory in `src/backends/cuda/components.cmake`; XMake mirrors it in
+`components.lua`. Assign every compiled CUDA backend source to exactly one
+component in both manifests, including sources disabled by a feature option.
+Configuration rejects missing or duplicate ownership; headers remain on the
+final target for IDE navigation.
 
 ## Test System
 
@@ -61,6 +63,14 @@ navigation.
 | `regression/` | Regression tests |
 | `sim_case/` | **95 simulation source files**: `abd_*` (affine body/joints), `fem_*`, `fem_mas_*` (linear systems), `*_stitch`, `discrete_shell_bending*`, joint series (revolute/prismatic/spherical/fixed + limit/driving/external force). Numeric IDs are not contiguous/unique: 45 and 84 each occur twice, and 62 is absent. |
 | `usd/` | Conditionally compiled when USD support is enabled; there is no C++ GUI test directory anymore |
+
+The CUDA-backend, simulation, and GPU regression targets are added only when
+the CUDA backend itself is enabled. This keeps CMake and XMake
+CPU/interface-only configurations free of dangling `cuda` target dependencies;
+the mixed sanity-check target remains available, but compiles its CUDA sections
+only when that backend exists, preserving its none-backend coverage in lean
+builds. In that configuration CTest relabels it `fast;cpu`; CUDA builds retain
+its `gpu` label because the same executable exercises both backends.
 
 The `fem_mas_*` cases (53-61, 81 + the stitch regression) activate MAS via
 `config["linear_system"]["fem_preconditioner"] = "mas"` — not via

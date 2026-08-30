@@ -23,6 +23,11 @@ target("uipc_core")
     )
 
     add_defines("UIPC_RUNTIME_CHECK=1", {public = true})
+    if has_config("backend_cuda") and has_config("cuda_legacy_collision") then
+        add_defines("UIPC_WITH_CUDA_LEGACY_COLLISION=1")
+    else
+        add_defines("UIPC_WITH_CUDA_LEGACY_COLLISION=0")
+    end
 
     on_load(function (target)
         import("core.base.semver")

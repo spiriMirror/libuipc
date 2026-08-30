@@ -22,6 +22,14 @@ def test_scene_config_schema_matches_public_defaults() -> None:
     assert entries["newton/use_adaptive_tol"]["status"] == "reserved"
     assert entries["sanity_check/mode"]["enum"] == ["normal", "quiet"]
 
+    collision = entries["collision_detection/method"]
+    conditional = collision["conditionalValues"]
+    assert conditional["backend"] == "cuda"
+    assert conditional["buildOption"] == "UIPC_WITH_CUDA_LEGACY_COLLISION"
+    assert collision["enum"][0] == "info_stackless_bvh"
+    for legacy_method in conditional["values"]:
+        assert (legacy_method in collision["enum"]) is conditional["enabled"]
+
     for entry in entries.values():
         assert {
             "default",

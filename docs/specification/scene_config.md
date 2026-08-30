@@ -209,7 +209,7 @@ over the configured fallback bounds.
 
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
-| `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`, `"stackless_bvh"`, `"linear_bvh"`; `"info_stackless_bvh_v0"` is a legacy comparison path | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
+| `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`; optionally `"info_stackless_bvh_v0"`, `"stackless_bvh"`, `"linear_bvh"` | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
 | `sanity_check/enable` | flag | `1` | `0`, `1` | Runs pre-initialization intersection and distance checks. A failed check makes the world invalid. |
 | `sanity_check/mode` | string | `"normal"` | `"normal"`, `"quiet"` | `normal` also writes diagnostic geometry when a check fails; `quiet` reports the failure without exporting that geometry. |
 | `diff_sim/enable` | flag | `0` | `0`, `1` | Initializes differentiable-simulation state. Calling non-const `scene.diff_sim()` sets this flag automatically; do so before world initialization. |
@@ -218,6 +218,13 @@ over the configured fallback bounds.
 | `extras/debug/dump_linear_pcg` | flag | `0` | `0`, `1` | Dumps PCG vectors for `linear_pcg`. `fused_pcg` warns and ignores this option. |
 | `extras/debug/dump_mas_matrices` | flag | `0` | `0`, `1` | Dumps MAS matrices when the MAS FEM preconditioner is active. |
 | `extras/strict_mode/enable` | flag | `0` | `0`, `1` | Converts nonlinear/line-search limit warnings into engine errors. Recommended for automated validation, not exploratory tuning. |
+
+The three alternate collision selectors are compiled only when
+`UIPC_WITH_CUDA_LEGACY_COLLISION=ON` (CMake, the default) or
+`cuda_legacy_collision=true` (XMake). Builds with the option disabled omit the
+filter implementations and remove their names from the schema enum, so scene
+construction rejects a serialized or manually edited unavailable selector.
+The machine-readable entry exposes this state in `conditionalValues`.
 
 ## Effective-value precedence
 

@@ -16,9 +16,8 @@ void test_half_plane_vertex_distance_check(std::string_view backend,
     using namespace uipc::constitution;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto this_output_path =
-        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)
-        + fmt::format("/{}", name);
+    auto        this_output_path =
+        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + fmt::format("/{}", name);
 
     Engine engine{backend, this_output_path};
     World  world{engine};
@@ -103,6 +102,14 @@ TEST_CASE("half_plane_vertex_distance", "[init_surface]")
         }
     };
 
-    SECTION("none") { run_all("none"); }
-    SECTION("cuda") { run_all("cuda"); }
+    SECTION("none")
+    {
+        run_all("none");
+    }
+#if UIPC_TEST_WITH_CUDA_BACKEND
+    SECTION("cuda")
+    {
+        run_all("cuda");
+    }
+#endif
 }

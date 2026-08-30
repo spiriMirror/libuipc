@@ -28,7 +28,8 @@ function(uipc_add_test name)
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         TIMEOUT 900)
 
-    if(name STREQUAL "common" OR name STREQUAL "core" OR name STREQUAL "geometry")
+    if(name STREQUAL "common" OR name STREQUAL "core" OR name STREQUAL "geometry"
+       OR (name STREQUAL "sanity_check" AND NOT UIPC_WITH_CUDA_BACKEND))
         set_tests_properties(uipc.${name} PROPERTIES LABELS "fast;cpu")
     else()
         set_tests_properties(uipc.${name} PROPERTIES LABELS "gpu")
@@ -38,10 +39,13 @@ endfunction()
 add_subdirectory(geometry)
 add_subdirectory(core)
 add_subdirectory(common)
-add_subdirectory(backends)
-add_subdirectory(sim_case)
-add_subdirectory(regression)
 add_subdirectory(sanity_check)
+
+if(UIPC_WITH_CUDA_BACKEND)
+    add_subdirectory(backends)
+    add_subdirectory(sim_case)
+    add_subdirectory(regression)
+endif()
 
 if(UIPC_WITH_USD_SUPPORT)
     add_subdirectory(usd)

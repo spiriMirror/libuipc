@@ -168,10 +168,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     and backend identity before PMR synchronization or engine construction.
     This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
 14. CUDA build ownership (DONE 2026-08-30): 198 compiled backend sources now
-    belong to seven internal domain OBJECT targets, followed by one final RDC
-    device-link into the existing backend DLL. Matching CMake/XMake manifests
-    reject unowned and multiply-owned sources. This creates explicit domain
-    build and rollback boundaries without changing runtime module granularity.
+    belong to seven primary internal domain OBJECT targets and one optional
+    legacy-collision target, followed by one final RDC device-link into the
+    existing backend DLL. Matching CMake/XMake manifests reject unowned and
+    multiply-owned sources. This creates explicit domain build and rollback
+    boundaries without changing runtime module granularity.
 15. Scene configuration ownership (DONE 2026-08-30): typed runtime defaults and
     machine-readable schema metadata now come from one declaration. The public
     normalized schema remains exactly equivalent, while future key additions can
@@ -180,6 +181,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     collection traversal now use one deterministic complete-type-name order;
     exact lookup uses `std::type_index`, compatible lookup skips invalid
     variants, and active strong-dependency cycles fail with an explicit path.
+17. Legacy collision isolation (DONE 2026-08-30): the three alternate simplex
+    trajectory filters have a dedicated optional component. Lean builds omit
+    the sources and registrations, while the build-specific scene schema drops
+    the unavailable selectors instead of accepting a configuration that can
+    only fail later during backend system construction.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

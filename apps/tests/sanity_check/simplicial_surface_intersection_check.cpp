@@ -16,9 +16,8 @@ void test_init_surf_intersection_check(std::string_view            backend,
     using namespace uipc::constitution;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path =
-        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)
-        + fmt::format("/{}-{}", name, trans.size());
+    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)
+                            + fmt::format("/{}-{}", name, trans.size());
 
     Engine engine{backend, this_output_path};
     World  world{engine};
@@ -127,6 +126,14 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
         }
     };
 
-    SECTION("none") { run_all("none"); }
-    SECTION("cuda") { run_all("cuda"); }
+    SECTION("none")
+    {
+        run_all("none");
+    }
+#if UIPC_TEST_WITH_CUDA_BACKEND
+    SECTION("cuda")
+    {
+        run_all("cuda");
+    }
+#endif
 }

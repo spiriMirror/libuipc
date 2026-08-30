@@ -289,12 +289,26 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/contact_system/global_contact_manager.cu"},
         Json{{"exclusiveMinimum", 0.0}});
 
+    Json collision_methods = Json::array({"info_stackless_bvh"});
+#if !defined(UIPC_WITH_CUDA_LEGACY_COLLISION) || UIPC_WITH_CUDA_LEGACY_COLLISION
+    constexpr bool legacy_collision_built = true;
+    collision_methods.push_back("info_stackless_bvh_v0");
+    collision_methods.push_back("stackless_bvh");
+    collision_methods.push_back("linear_bvh");
+#else
+    constexpr bool legacy_collision_built = false;
+#endif
     add("collision_detection/method",
         std::string{"info_stackless_bvh"},
         "string",
-        "Select the broad-phase trajectory filter.",
+        "Select a broad-phase trajectory filter compiled into the CUDA backend.",
         {"src/backends/cuda/collision_detection/filters"},
-        Json{{"enum", Json::array({"info_stackless_bvh", "info_stackless_bvh_v0", "stackless_bvh", "linear_bvh"})}});
+        Json{{"enum", std::move(collision_methods)}});
+    entries["collision_detection/method"]["conditionalValues"] =
+        Json{{"backend", "cuda"},
+             {"buildOption", "UIPC_WITH_CUDA_LEGACY_COLLISION"},
+             {"enabled", legacy_collision_built},
+             {"values", Json::array({"info_stackless_bvh_v0", "stackless_bvh", "linear_bvh"})}};
     add("sanity_check/enable",
         IndexT{1},
         "integer",

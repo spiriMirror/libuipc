@@ -8,6 +8,9 @@ local component_targets = {
     "cuda_linear_system_objects",
     "cuda_runtime_objects"
 }
+if has_config("cuda_legacy_collision") then
+    table.insert(component_targets, "cuda_collision_legacy_objects")
+end
 
 target("cuda")
     add_rules("backend")

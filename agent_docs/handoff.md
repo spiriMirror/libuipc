@@ -1,5 +1,23 @@
 # Handoff — Current State of the Repo
 
+> **Optional legacy collision component (2026-08-30, `refactor-main`)**:
+> the V0, stackless, and linear-BVH simplex trajectory filters now belong to
+> `cuda_collision_legacy_objects`, separate from the default collision path.
+> Compatibility builds retain all 198 CUDA sources; setting
+> `UIPC_WITH_CUDA_LEGACY_COLLISION=OFF` or
+> `cuda_legacy_collision=false` omits those three registrations and links 195
+> sources. The scene schema carries the same build capability and exposes only
+> selectors present in the DLL. A CUDA integration test constructs an engine
+> for every advertised selector. Validation covered CMake/XMake ON and OFF,
+> Python schema tests 5 passed in both configurations, default IPC simulation
+> in both configurations, Core 36 cases / 1001 assertions, CUDA backend 13 cases
+> / 250 assertions, and the full simulation suite 95 cases / 14212 assertions
+> after restoring the default compatibility build. CUDA-only test targets are
+> now conditionally included as well, so no-CUDA CMake/XMake configuration no
+> longer retains dangling simulation/regression/example dependencies; an
+> isolated no-CUDA build passed the none-only sanity suite (3 cases / 50
+> assertions).
+
 > **Deterministic SimSystem topology (2026-08-30, `refactor-main`)**:
 > backend creators are sorted by complete demangled type name before system
 > construction; exact lookup uses `std::type_index` rather than a potentially
@@ -21,8 +39,8 @@
 > tests 5 passed.
 
 > **CUDA internal component build (2026-08-30, `refactor-main`)**: the CUDA
-> backend's 198 compiled sources are partitioned into runtime, affine-body,
-> collision, contact/effects, FEM, linear-system, and coupling OBJECT targets.
+> backend's 198 compiled sources are partitioned into seven primary domain
+> targets and an optional legacy-collision OBJECT target.
 > They still feed one `uipc_backend_cuda` DLL and one final RDC device-link, so
 > runtime registration and ABI behavior are unchanged. CMake and XMake carry
 > matching ownership manifests; configuration rejects missing or duplicate

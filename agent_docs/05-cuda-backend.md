@@ -4,14 +4,16 @@ Directory: `src/backends/cuda/` (compiled as the runtime-loadable shared library
 
 ## Internal Build Components
 
-The backend remains one DLL and performs one final CUDA device-link, but its
-198 compiled `.cu/.cpp` files are owned by seven internal OBJECT components:
+The backend remains one DLL and performs one final CUDA device-link. Its 198
+compiled `.cu/.cpp` files are owned by seven primary OBJECT components plus one
+optional legacy-collision component:
 
 | Component | Owned domains |
 |---|---|
 | `cuda_runtime_objects` | Root/engine, global geometry, animation, time integration, pipeline, diagnostics, and orchestration |
 | `cuda_affine_body_objects` | ABD state, constitutions, constraints, joints, and subsystem assembly |
-| `cuda_collision_objects` | Broad phase and trajectory filters |
+| `cuda_collision_objects` | Default broad phase and current trajectory filters |
+| `cuda_collision_legacy_objects` | Optional V0, stackless, and linear-BVH simplex trajectory filters |
 | `cuda_contact_objects` | Active set, contact, DyTopo, distance, and inter-primitive effects |
 | `cuda_fem_objects` | FEM data, constitutions, constraints, MAS, and subsystem assembly |
 | `cuda_linear_system_objects` | Global sparse assembly, PCG, SpMV, and preconditioners |
@@ -22,6 +24,16 @@ reject a compiled source that is unowned or assigned twice. OBJECT targets use
 RDC, while `uipc_backend_cuda` alone resolves device symbols and exports the
 module ABI. This preserves static `REGISTER_SIM_SYSTEM` objects without
 turning domains into runtime DLL boundaries.
+
+`UIPC_WITH_CUDA_LEGACY_COLLISION` (CMake) /
+`cuda_legacy_collision` (XMake) defaults to ON for compatibility. Turning it
+off omits the three legacy filter translation units and their static
+registrations, leaving 195 compiled backend sources. Core receives the same
+build capability and removes those selectors from `Scene::config_schema()`, so
+configuration cannot advertise a filter missing from the backend DLL. The
+`wrecking_ball` example now follows the default filter and is included only in
+CUDA-enabled builds; examples no longer create a hidden dependency on the
+legacy component.
 
 ## Subsystem Directories
 
@@ -174,7 +186,9 @@ default broad phase. Its rebuild path is deliberately CUB-only:
   races blocks that have already published results.
 
 The `info_stackless_bvh_v0` selector is a legacy comparison path, while
-`stackless_bvh` and `linear_bvh` are alternate broad phases. The V0 and
+`stackless_bvh` and `linear_bvh` are alternate broad phases. All three
+registered simplex filters live in `cuda_collision_legacy_objects` and are
+available only when the legacy-collision build option is enabled. The V0 and
 `stackless_bvh` builders now use the same separate-input/output CUB radix-sort
 pattern, named initialization kernels, and persistent scan workspace as the
 default implementation. This removes the final production Thrust dependency

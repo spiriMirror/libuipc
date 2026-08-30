@@ -33,6 +33,8 @@ set(UIPC_USD_INSTALL_DIR "" CACHE PATH
 # Backend Options
 # =========================================================================
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
+option(UIPC_WITH_CUDA_LEGACY_COLLISION
+       "Build legacy CUDA broad-phase trajectory filters" ON)
 # if MAC OS, disable CUDA backend
 if(APPLE)
     # Force OFF
