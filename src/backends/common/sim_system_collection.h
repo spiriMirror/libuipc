@@ -6,6 +6,7 @@
 #include <uipc/common/vector.h>
 #include <uipc/common/span.h>
 #include <backends/common/i_sim_system.h>
+#include <typeindex>
 
 namespace uipc::backend
 {
@@ -35,10 +36,11 @@ class SimSystemCollection
     T* find(const QueryOptions& options = {.exact = true});
 
   private:
-    mutable bool                           built = false;
-    unordered_map<uint64_t, U<ISimSystem>> m_sim_system_map;
-    vector<ISimSystem*>                    m_valid_systems;
-    list<U<ISimSystem>>                    m_invalid_systems;
+    mutable bool                                  built = false;
+    unordered_map<std::type_index, U<ISimSystem>> m_sim_system_map;
+    vector<ISimSystem*>                           m_registration_order;
+    vector<ISimSystem*>                           m_valid_systems;
+    list<U<ISimSystem>>                           m_invalid_systems;
 
     void cleanup_invalid_systems();
 };

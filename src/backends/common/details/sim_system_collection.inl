@@ -5,8 +5,8 @@ namespace uipc::backend
 template <std::derived_from<ISimSystem> T>
 T* SimSystemCollection::find(const QueryOptions& options)
 {
-    auto tid = typeid(T).hash_code();
-    auto it  = m_sim_system_map.find(tid);
+    const std::type_index tid{typeid(T)};
+    auto                  it = m_sim_system_map.find(tid);
 
     // look for exact match
     if(it != m_sim_system_map.end())
@@ -15,9 +15,12 @@ T* SimSystemCollection::find(const QueryOptions& options)
     if(!options.exact)  // if allow compatible match
     {
         // if not found, look for compatible match
-        for(auto& [key, value] : m_sim_system_map)
+        for(auto* value : m_registration_order)
         {
-            if(auto* ptr = dynamic_cast<T*>(value.get()); ptr != nullptr)
+            if(!value->is_valid())
+                continue;
+
+            if(auto* ptr = dynamic_cast<T*>(value); ptr != nullptr)
             {
                 return ptr;
             }

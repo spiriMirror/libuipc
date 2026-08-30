@@ -176,6 +176,10 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     machine-readable schema metadata now come from one declaration. The public
     normalized schema remains exactly equivalent, while future key additions can
     no longer silently update only one of the two former parallel lists.
+16. SimSystem topology (DONE 2026-08-30): creator instantiation and every
+    collection traversal now use one deterministic complete-type-name order;
+    exact lookup uses `std::type_index`, compatible lookup skips invalid
+    variants, and active strong-dependency cycles fail with an explicit path.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

@@ -3,9 +3,9 @@
 
 namespace uipc::backend
 {
-SimSystemAutoRegister::SimSystemAutoRegister(Creator&& reg)
+SimSystemAutoRegister::SimSystemAutoRegister(std::string type_name, Creator&& creator)
 {
-    creators().entries.push_back(std::move(reg));
+    creators().entries.push_back(Entry{std::move(type_name), std::move(creator)});
 }
 
 auto SimSystemAutoRegister::creators() -> Creators&

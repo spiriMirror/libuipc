@@ -3,6 +3,7 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/list.h>
 #include <uipc/common/type_traits.h>
+#include <uipc/common/demangle.h>
 #include <backends/common/i_sim_system.h>
 #include <backends/common/sim_engine.h>
 
@@ -64,12 +65,19 @@ class SimSystemAutoRegister
   public:
     using Creator = std::function<U<ISimSystem>(SimEngine&)>;
 
-    SimSystemAutoRegister(Creator&& reg);
+    class Entry
+    {
+      public:
+        std::string type_name;
+        Creator     creator;
+    };
+
+    SimSystemAutoRegister(std::string type_name, Creator&& creator);
 
     class Creators
     {
       public:
-        list<Creator> entries;
+        list<Entry> entries;
     };
 
   private:

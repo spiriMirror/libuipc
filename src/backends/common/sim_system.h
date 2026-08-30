@@ -72,6 +72,7 @@ class SimSystem : public ISimSystem
     namespace auto_register                                                                     \
     {                                                                                           \
         static ::uipc::backend::SimSystemAutoRegister UIPC_NAME_WITH_ID(SimSystemAutoRegister)( \
+            ::uipc::demangle<SimSystem>(),                                                      \
             ::uipc::backend::detail::register_system_creator<SimSystem>());                     \
     }
 

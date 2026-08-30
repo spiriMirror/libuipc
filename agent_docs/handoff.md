@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Deterministic SimSystem topology (2026-08-30, `refactor-main`)**:
+> backend creators are sorted by complete demangled type name before system
+> construction; exact lookup uses `std::type_index` rather than a potentially
+> colliding raw hash; compatible derived lookup follows the same order and
+> skips invalid variants. Build, invalidation, formatting, and `systems.json`
+> now share that order. Active strong-dependency cycles abort initialization
+> with the complete cycle path. Validation: new dependency-graph unit tests
+> (including disabled nodes and self-cycles), Core/Common CTest, CUDA backend
+> 12 cases / 238 assertions, ordinal-sorted IPC and AL-IPC system manifests,
+> and full simulation suite 95 cases / 14212 assertions.
+
 > **Single-source scene configuration contract (2026-08-30,
 > `refactor-main`)**: `scene_default_config.cpp` now declares each key once,
 > including its typed default and schema metadata. `Scene::default_config()`

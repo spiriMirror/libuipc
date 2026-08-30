@@ -195,6 +195,12 @@ namespace uipc::my_backend
 
 Call `REGISTER_SIM_SYSTEM(MySimSystem)` in the source file to register your system to the backend engine automatically. Note that the constructor signature determines which engine the system belongs to: a system taking `cuda::SimEngine&` is only instantiated by the CUDA engine, a system taking `backend::SimEngine&` is instantiated by any engine.
 
+Registered systems are instantiated and built in ascending complete type-name
+order. This makes `systems.json`, compatible implementation lookup, and action
+registration reproducible across link layouts. Do not encode priority through
+source-file or static-initialization order; express required relationships with
+`require<T>()` and use an explicit dispatcher for ordered runtime actions.
+
 ### Dependency
 
 To build up the dependency between systems, call `require<T>` and `find<T>` in the `do_build` function of the system.
@@ -220,9 +226,9 @@ void MySimSystem::do_build()
 
 `require<T>` will throw an exception if the system is not found, and `find<T>` will return a nullptr if the system is not found. If any dependency is not satisfied, the dependent system should throw to invalidate itself. You can also manually throw a `SimSystemException` to invalidate the system.
 
-The backend common utilities will clean up the invalid systems — including any system that **strongly depends** on an invalid one (weak dependencies are tolerated) — and keep the valid systems in the backend engine. If such an exception propagates to the level of the backend engine, the engine will close itself and throw the exception to the frontend.
+The backend common utilities will clean up the invalid systems — including any system that **strongly depends** on an invalid one (weak dependencies are tolerated) — and keep the valid systems in the backend engine. The remaining strong-dependency graph must be acyclic. A cycle aborts backend initialization with the full path, such as `SystemA -> SystemB -> SystemA`, so mutually recursive ownership should be redesigned around one manager or a weak dependency. If such an exception propagates to the level of the backend engine, the engine will close itself and throw the exception to the frontend.
 
-It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. By default `find<T>` matches the exact type only (`{.exact = true}`); pass `find<T>({.exact = false})` to also accept a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one.
+It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. By default `find<T>` matches the exact type only (`{.exact = true}`); pass `find<T>({.exact = false})` to also accept a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one. Compatible lookup follows the same deterministic type-name order and skips implementations that have already invalidated themselves, for example an inactive pipeline variant.
 
 To keep references to other systems, you **should** use `SimSystemSlot` and `SimSystemSlotCollection`. They manage the lifetime of the referenced systems properly: a system may be valid when you require it but invalid later (e.g. after a cascading cleanup), and the slots guard against such use-after-invalidation.
 
