@@ -27,7 +27,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 - **libuipc** = a C++20 cross-platform GPU physics simulation library implementing Unified IPC (Incremental Potential Contact), unifying simulation of rigid bodies/soft bodies/cloth/rods with penetration-free frictional contact. Corresponding papers: GIPC 2024, StiffGIPC 2025 (Siggraph).
 - The user API has three conceptual layers: **Engine** (algorithm + backend) → **World** (`init/advance/retrieve`) → **Scene** (snapshot: Objects/Geometries/Constitutions/Contacts/Animator).
-- Backends are **runtime dynamically loaded MODULE libraries** (`uipc_backend_cuda`, `uipc_backend_none`), communicating through three exported symbols: `uipc_init_module/uipc_create_engine/uipc_destroy_engine`.
+- Backends are runtime-loaded shared libraries (`uipc_backend_cuda`, `uipc_backend_none`). Before init/create/destroy, `uipc_query_module` validates the backend ABI, libuipc major/minor version, and backend identity; test and packaged builds use the same library form.
 - Inside a backend, an ECS-style architecture of **DOP + RMR (Reporter-Manager-Receiver)** is used; all simulation functionality is implemented as `SimSystem` derived classes, auto-registered via the `REGISTER_SIM_SYSTEM` macro.
 - All GPU kernels are named `__global__` functions launched via raw `<<<>>>` (device utilities uniformly come from the in-house `src/backends/cuda/cuda_tool/`; no muda dependency; Eigen is retained).
 - The constitution layer spans FEM/ABD materials, shells/rods, constraints,

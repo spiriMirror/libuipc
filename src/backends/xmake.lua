@@ -9,6 +9,7 @@ target("none")
 
 rule("backend")
     on_load(function (target)
+        import("core.base.semver")
         print("Adding backend:", target:name())
 
         target:set("basename", "uipc_backend_" .. target:name())
@@ -22,10 +23,14 @@ rule("backend")
         )
 
         local format_string = [[%s=R"(%s)"]]
+        local version = semver.new(target:version())
         target:add("defines",
             "UIPC_BACKEND_EXPORT_DLL",
             format(format_string, "UIPC_BACKEND_DIR", os.scriptdir()),
-            format(format_string, "UIPC_BACKEND_NAME", target:name())
+            format(format_string, "UIPC_BACKEND_NAME", target:name()),
+            "UIPC_VERSION_MAJOR=" .. version:major(),
+            "UIPC_VERSION_MINOR=" .. version:minor(),
+            "UIPC_VERSION_PATCH=" .. version:patch()
         )
 
         target:add("deps", "uipc_core")

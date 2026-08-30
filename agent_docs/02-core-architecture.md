@@ -17,9 +17,10 @@ core::Engine / World / Scene          ← public handle layer (holds only S<inte
 `Engine::Impl::load_module(backend_name)` in `src/core/core/internal/engine.cpp`:
 
 1. Uses `dylib` to load the `uipc_backend_<name>` dynamic library from `uipc::config()["module_dir"]` (static cache `m_cache` + mutex; a module with the same name is loaded only once).
-2. Calls the exported symbol **`uipc_init_module(UIPCModuleInitInfo*)`** (defined in `include/uipc/backend/module_init_info.h`): passes the host's `std::pmr::get_default_resource()` to the backend and calls `set_default_resource`, ensuring consistent pmr container allocators across DLLs.
-3. Calls **`uipc_create_engine(EngineCreateInfo*)`** to create the `IEngine*`; **`uipc_destroy_engine`** serves as the deleter. `EngineCreateInfo{ workspace, Json config }` (`include/uipc/backend/engine_create_info.h`).
-4. The three exported symbols are declared in `src/backends/common/module.h`; each backend implements them in `entrance.cpp` (cuda: `new cuda::SimEngine(info)`; none: `new none::SimEngine(info)`).
+2. Calls **`uipc_query_module(UIPCBackendModuleInfo*)`** before any backend code. The loader requires the current backend ABI, the same libuipc major/minor version, and an identity matching the requested backend name. Missing query support is reported as an old/non-libuipc module instead of failing later at an arbitrary virtual call.
+3. Calls **`uipc_init_module(UIPCModuleInitInfo*)`** (defined in `include/uipc/backend/module_init_info.h`): passes the host's `std::pmr::get_default_resource()` to the backend and calls `set_default_resource`, ensuring consistent pmr container allocators across DLLs.
+4. Calls **`uipc_create_engine(EngineCreateInfo*)`** to create the `IEngine*`; **`uipc_destroy_engine`** serves as the deleter. `EngineCreateInfo{ workspace, Json config }` (`include/uipc/backend/engine_create_info.h`).
+5. The four exported symbols are declared in `src/backends/common/module.h`. The common module source implements query/init; each backend's `entrance.cpp` implements create/destroy (cuda: `new cuda::SimEngine(info)`; none: `new none::SimEngine(info)`). CMake and XMake both build the same runtime-loadable shared-library form in test and packaged configurations.
 
 Custom engines can also be injected: the `Engine(S<IEngine> overrider)` constructor (used by pyuipc and similar scenarios) does not load any module.
 

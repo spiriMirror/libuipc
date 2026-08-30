@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Backend ABI handshake and artifact parity (2026-08-30,
+> `refactor-main`)**: every backend now exports `uipc_query_module` in
+> addition to init/create/destroy. Before initialization, Core validates the
+> size-versioned ABI record, exact backend identity, and libuipc major/minor
+> version, turning stale/mixed DLLs into an immediate diagnostic. CMake no
+> longer changes a backend from MODULE to SHARED when tests are enabled;
+> CMake and XMake both always produce the same runtime-loadable shared-library
+> form. Both none/CUDA DLL export tables contain all four symbols. Validation:
+> Core 36 cases / 988 assertions through the new loader path, plus CUDA backend
+> 12 cases / 238 assertions.
+
 > **Profile-guided contact/FEM assembly (2026-08-30, `refactor-main`)**:
 > Nsight Systems identified the two fused simplex-contact assembly kernels,
 > StableNeoHookean3D gradient/Hessian, and shell bending as the dominant raw

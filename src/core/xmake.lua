@@ -24,6 +24,17 @@ target("uipc_core")
 
     add_defines("UIPC_RUNTIME_CHECK=1", {public = true})
 
+    on_load(function (target)
+        import("core.base.semver")
+        local version = semver.new(target:version())
+        target:add("defines",
+            "UIPC_VERSION_MAJOR=" .. version:major(),
+            "UIPC_VERSION_MINOR=" .. version:minor(),
+            "UIPC_VERSION_PATCH=" .. version:patch(),
+            {public = true}
+        )
+    end)
+
     if is_plat("linux") then
         add_syslinks("dl")
     end

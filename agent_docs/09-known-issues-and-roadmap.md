@@ -162,6 +162,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     ms/Newton despite smaller static stack frames. Final DyTopo assembly is
     4.47 ms/Newton, and two clean wall runs measured 156.0-157.0 ms mean /
     173.1-173.9 ms median.
+13. Backend module boundary (DONE 2026-08-30): test and packaged builds now
+    use the same shared-library artifact semantics. A required
+    `uipc_query_module` handshake validates ABI version, libuipc major/minor,
+    and backend identity before PMR synchronization or engine construction.
+    This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
