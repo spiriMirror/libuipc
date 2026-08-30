@@ -196,7 +196,8 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     case2 roll-up, and `handoff.md` is explicitly the chronological trail rather
     than the sole permanent home for rationale and measurements.
 20. CI portability follow-up (DONE 2026-08-31): XMake CUDA components carry the
-    source-root include needed by `<backends/common/...>` on Linux, and
+    source-root include and backend-directory definition needed by common
+    backend headers on Linux, and
     repository-contract tests no longer confuse an intentionally unmaterialized
     samples submodule with an invalid benchmark declaration.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212

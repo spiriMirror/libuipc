@@ -9,9 +9,11 @@
 > **GitHub check portability fixes (2026-08-31, `refactor-main`)**: repeated
 > red runs had two independent causes. XMake CUDA OBJECT targets lacked the
 > project `src/` include root on Linux, so `<backends/common/sim_action.h>`
-> failed from CUDA translation units; `components.lua` now mirrors CMake's
-> include boundary. Repository Contracts deliberately checks out no submodules,
-> so its benchmark-manifest test now validates the declaration without requiring
+> failed from CUDA translation units; after that was exposed, MAS compilation
+> also showed the OBJECT targets lacked CMake's `UIPC_BACKEND_DIR` definition.
+> `components.lua` now mirrors both boundaries. Repository Contracts
+> deliberately checks out no submodules, so its benchmark-manifest test now
+> validates the declaration without requiring
 > samples assets; runtime asset validation has an isolated partial-checkout unit
 > test. Rapid-push cancellations were concurrency behavior, not additional
 > source failures. Local repository contracts passed 28/28 and XMake target

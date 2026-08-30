@@ -3,6 +3,7 @@ rule("cuda.component")
         import("core.base.semver")
 
         local version = semver.new(target:version())
+        local define_path = [[%s=R"(%s)"]]
         target:set("kind", "object")
         target:set("default", false)
         target:set("group", "uipc-backends/cuda-components")
@@ -13,6 +14,7 @@ rule("cuda.component")
             path.join(os.scriptdir(), "cuda_tool"))
         target:add("defines",
             "UIPC_BACKEND_EXPORT_DLL",
+            format(define_path, "UIPC_BACKEND_DIR", path.directory(os.scriptdir())),
             [[UIPC_BACKEND_NAME=R"(cuda)"]],
             "UIPC_VERSION_MAJOR=" .. version:major(),
             "UIPC_VERSION_MINOR=" .. version:minor(),

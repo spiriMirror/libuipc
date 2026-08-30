@@ -50,7 +50,9 @@ Configuration rejects missing or duplicate ownership; headers remain on the
 final target for IDE navigation. XMake OBJECT components must include the
 project `src/` root because CUDA headers use `<backends/common/...>` paths; the
 narrower `src/backends` include alone works for some local paths but fails on
-Linux.
+Linux. They must also carry the backend directory/name definitions used by
+common path tooling; linking `uipc_core` does not synthesize
+`UIPC_BACKEND_DIR` for an OBJECT target.
 
 ## Test System
 
