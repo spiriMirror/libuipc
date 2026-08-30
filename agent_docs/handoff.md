@@ -1,5 +1,31 @@
 # Handoff — Current State of the Repo
 
+> **Profile-guided contact/FEM assembly (2026-08-30, `refactor-main`)**:
+> Nsight Systems identified the two fused simplex-contact assembly kernels,
+> StableNeoHookean3D gradient/Hessian, and shell bending as the dominant raw
+> assembly kernels. SNH no longer materializes dense `9x12 dF/dx` and `12x12`
+> Hessian matrices: reusable FEM helpers project the energy gradient/Hessian
+> directly through tetrahedron shape gradients into the four gradient vectors
+> and ten upper-triangular `3x3` blocks. The SNH kernel's per-thread stack fell
+> from 6440 to 1320 bytes and its profiled average from 1.795 to 1.047 ms
+> (-41.7%). Case-88 `Assemble Subsystems` fell from 3.60 to 2.97 ms/Newton
+> (-17.6%) and `Build Linear System` from 7.93 to 7.32 ms/Newton (-7.8%). Two
+> clean 60-frame runs measured 156.0-157.0 ms mean and 173.1-173.9 ms median,
+> versus 158.1/178.4 ms before this stage; iteration-count variation limits
+> the wall-time gain, so the scoped/kernel measurements are primary.
+>
+> The simplex contact kernels retain one PT/EE/PE/PP launch but compile
+> separate gradient-only and Hessian variants. Gradient-only resources are
+> normal 106 registers/272-byte stack and friction 112/144, while full
+> Hessian performance stays flat (combined profiler average about 4.12 to
+> 4.08 ms). A tested per-contact-type split reduced static stack usage but
+> serialized rare, individually expensive PT/EE Hessian threads; it regressed
+> `Assemble Dytopo Effect` from 4.52 to 7.67 ms/Newton and was rejected.
+> Validation: Release CUDA build; CUDA backend 12 cases / 238 assertions;
+> focused contact/FEM/MAS/bending 10 cases / 1426 assertions; full simulation
+> suite 95 cases / 14212 assertions; targeted compute-sanitizer memcheck 0
+> errors and 0 leaked bytes (2 cases / 504 assertions).
+
 > **Device-side line-search energy aggregation (2026-08-30,
 > `refactor-main`)**: top-level ABD, FEM, and DyTopo energy reporters now write
 > their totals into contiguous device slots. `LineSearcher` performs one final

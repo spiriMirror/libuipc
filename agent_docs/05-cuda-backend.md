@@ -192,6 +192,29 @@ FEMLineSearchReporter_step_forward_kernel
 - Memory operations such as `buffer::kernel_fill<int>` uniformly go through `cuda_tool::BufferLaunch` (internally named template kernels).
 - `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
 
+### Resource-aware contact and FEM assembly
+
+`StableNeoHookean3D_do_compute_gradient_hessian_kernel` projects derivatives
+to vertex space without constructing dense `dF/dx` or a full `12x12` element
+Hessian. `fem_utils.h` provides the tetrahedron shape gradients plus direct
+`B^T g` and `B_l^T H B_r` helpers. The kernel writes four gradient doublets and
+the ten upper-triangular `3x3` Hessian triplets directly, preserving the global
+index ordering used by `TripletMatrixAssembler::half_block`. The dense and
+block formulas have backend regression coverage. On RTX 5090 this reduced the
+kernel stack from 6440 to 1320 bytes/thread and Nsight Systems time from 1.795
+to 1.047 ms/call.
+
+The IPC simplex normal/friction assembly kernels deliberately keep PT, EE, PE,
+and PP in one launch. Although splitting by stencil lowers each specialized
+kernel's static stack frame, PT/EE Hessian evaluation is expensive even for a
+few contacts. The fused launch overlaps those threads with the much larger PE
+population; four sequential launches regressed case-88 DyTopo assembly by
+about 70%. The uniform `gradient_only` decision is compile-time specialized
+instead, giving lightweight gradient variants without changing the full
+Hessian launch topology. Resource counts alone are therefore insufficient:
+validate launch restructuring with both kernel profiles and the enclosing
+stage timer.
+
 ## FusedPCG CUDA graph modes (linear_system/use_cuda_graph, default 1)
 
 The per-iteration kernel chain of `LinearFusedPCG` (spmv_dot → update_xr →

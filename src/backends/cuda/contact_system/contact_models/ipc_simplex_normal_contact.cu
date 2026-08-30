@@ -252,8 +252,8 @@ namespace
         Es(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
     }
 
-    __global__ void do_assemble_kernel(bool gradient_only,
-                                       cuda_tool::CDense2D<ContactCoeff> table,
+    template <bool GradientOnly>
+    __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
                                        cuda_tool::CBufferView<IndexT> contact_ids,
                                        cuda_tool::CBufferView<Vector3> Ps,
                                        cuda_tool::CBufferView<Vector3> rest_Ps,
@@ -307,7 +307,7 @@ namespace
             Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
 
             Vector12 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PT_barrier_gradient(G, flag, kt2, d_hat, thickness, P, T0, T1, T2);
                 DoubletVectorAssembler DVA{PT_Gs};
@@ -352,7 +352,7 @@ namespace
             Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
 
             Vector12 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 mollified_EE_barrier_gradient(
                     G, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
@@ -388,7 +388,7 @@ namespace
             Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
 
             Vector9 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PE_barrier_gradient(G, flag, kt2, d_hat, thickness, P, E0, E1);
                 DoubletVectorAssembler DVA{PE_Gs};
@@ -405,7 +405,7 @@ namespace
                 TMA.half_block<3>(i * SimplexNormalContact::PEHalfHessianSize).write(PE, H);
             }
         }
-        else  // PP
+        else
         {
             int         i    = idx - pp_offset;
             const auto& PP   = PPs(i);
@@ -420,7 +420,7 @@ namespace
             Vector2i flag  = distance::point_point_distance_flag(P0, P1);
 
             Vector6 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PP_barrier_gradient(G, flag, kt2, d_hat, thickness, P0, P1);
                 DoubletVectorAssembler DVA{PP_Gs};
@@ -438,6 +438,7 @@ namespace
             }
         }
     }
+
 }  // namespace
 
 class IPCSimplexNormalContact final : public SimplexNormalContact
@@ -518,9 +519,6 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         using namespace cuda_tool;
         using namespace sym::codim_ipc_simplex_contact;
 
-        // Fused kernel: PT + EE + PE + PP in one launch using offset-based dispatch.
-        // Reduces 4 kernel launches to 1, improving GPU occupancy by providing
-        // more threads in a single launch.
         auto pt_count = (IndexT)info.PTs().size();
         auto ee_count = (IndexT)info.EEs().size();
         auto pe_count = (IndexT)info.PEs().size();
@@ -534,36 +532,43 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         IndexT pe_offset = ee_offset + ee_count;
         IndexT pp_offset = pe_offset + pe_count;
 
-        do_assemble_kernel<<<cuda_tool::best_grid_dim(total, do_assemble_kernel), cuda_tool::best_block_dim(do_assemble_kernel), 0, nullptr>>>(
-            info.gradient_only(),
-            info.contact_tabular().viewer(),
-            info.contact_element_ids().viewer(),
-            info.positions().viewer(),
-            info.rest_positions().viewer(),
-            info.thicknesses().viewer(),
-            info.d_hats().viewer(),
-            info.dt(),
-            // PT
-            info.PTs().viewer(),
-            info.PT_gradients().viewer(),
-            info.PT_hessians().viewer(),
-            // EE
-            info.EEs().viewer(),
-            info.EE_gradients().viewer(),
-            info.EE_hessians().viewer(),
-            // PE
-            info.PEs().viewer(),
-            info.PE_gradients().viewer(),
-            info.PE_hessians().viewer(),
-            // PP
-            info.PPs().viewer(),
-            info.PP_gradients().viewer(),
-            info.PP_hessians().viewer(),
-            // offsets
-            ee_offset,
-            pe_offset,
-            pp_offset,
-            total);
+        // Keep all contact types in one launch: rare PT/EE Hessians are
+        // individually expensive, and splitting them serializes work that the
+        // fused launch overlaps with the dominant PE population. Specialize
+        // only the uniform gradient/Hessian branch.
+        auto launch = [&]<bool GradientOnly>()
+        {
+            auto k = do_assemble_kernel<GradientOnly>;
+            k<<<cuda_tool::best_grid_dim(total, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.positions().viewer(),
+                info.rest_positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.dt(),
+                info.PTs().viewer(),
+                info.PT_gradients().viewer(),
+                info.PT_hessians().viewer(),
+                info.EEs().viewer(),
+                info.EE_gradients().viewer(),
+                info.EE_hessians().viewer(),
+                info.PEs().viewer(),
+                info.PE_gradients().viewer(),
+                info.PE_hessians().viewer(),
+                info.PPs().viewer(),
+                info.PP_gradients().viewer(),
+                info.PP_hessians().viewer(),
+                ee_offset,
+                pe_offset,
+                pp_offset,
+                total);
+        };
+
+        if(info.gradient_only())
+            launch.operator()<true>();
+        else
+            launch.operator()<false>();
     }
 };
 

@@ -151,6 +151,17 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     by 5.0% per Newton iteration, and wall mean/median moved from 162.7/182.3
     to 158.1/178.4 ms/frame. The next evidence-led target remains raw
     contact/FEM gradient-Hessian assembly.
+12. Raw contact/FEM assembly (DONE 2026-08-30): SNH now projects its `9x9`
+    material Hessian directly into ten `3x3` vertex blocks instead of forming
+    dense `9x12` and `12x12` intermediates. Stack use fell 6440 -> 1320
+    bytes/thread, the SNH kernel fell 1.795 -> 1.047 ms/call (-41.7%), and
+    case-88 `Assemble Subsystems` fell 3.60 -> 2.97 ms/Newton (-17.6%). IPC
+    contact keeps a single heterogeneous launch but compile-time specializes
+    gradient-only versus Hessian work. A per-stencil split was measured and
+    rejected: serial PT/EE kernels raised DyTopo assembly 4.52 -> 7.67
+    ms/Newton despite smaller static stack frames. Final DyTopo assembly is
+    4.47 ms/Newton, and two clean wall runs measured 156.0-157.0 ms mean /
+    173.1-173.9 ms median.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
