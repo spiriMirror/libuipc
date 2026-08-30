@@ -80,8 +80,11 @@ uses one manual `mesh_partition` to verify custom partitions are respected).
 Run a single executable with
 `./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`.
 CMake also registers every executable with CTest as `uipc.<name>`. The
-`common`, `core`, and `geometry` targets carry the `fast;cpu` labels; all other
-targets carry the `gpu` label. The local/CI CPU gate is therefore:
+`common`, `core`, and `geometry` targets carry `fast;cpu`; CUDA backend,
+simulation, regression, and CUDA-enabled sanity tests carry `gpu`; other
+targets are `cpu`. Every GPU CTest entry holds the `uipc_gpu` resource lock, so
+`ctest -j` may overlap CPU work but cannot contend two aggregate GPU executables
+on one device. The local/CI CPU gate is therefore:
 
 ```bash
 ctest --test-dir build --build-config Release --label-regex fast \
@@ -90,7 +93,7 @@ ctest --test-dir build --build-config Release --label-regex fast \
 
 **Catch2 v3.8 filtering, empirically verified**: multiple specs as separate argv entries are combined with **AND** (intersection) — often causing "No tests ran"; **OR must be written inside a single argv separated by commas**: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`. List cases: `--list-tests --verbosity quiet` (one case name per line).
 
-**sim_case isolated-process mode**: `python scripts/run_sim_case_isolated.py [--filter '3*'] [--start-from <case>] [--timeout 900]` — spawns an independent process per case, complementary to running the full suite in a single process; used to distinguish "cross-case global state pollution" from "case-local failures" (see the occupancy-cache incident in the handoff).
+**sim_case isolated-process/shard mode**: `python scripts/run_sim_case_isolated.py [--filter '3*'] [--start-from <case>] [--shard-count N --shard-index I] [--timeout 900]` discovers and alphabetically sorts the Catch names, then assigns stable round-robin shards and spawns one process per selected case. `--list-only --manifest <json>` produces a machine-readable selection without running. This remains complementary to the 95-case single-process aggregate, which is required to expose cross-case global-state pollution.
 
 **Verbosity of strict-mode errors**: both the warning for line search exceeding max_iter and the strict exception carry `alpha_last / E0 / E_last / rel_E_increase / ccd_alpha / cfl_alpha` (`advance_ipc.cu`, `advance_al.cu`), used to judge whether it is a real regression or a ULP-level jitter barely crossing the line.
 
@@ -101,11 +104,31 @@ and `pytest -m example python/tests` only in an interactive environment. Wheel C
 runs the portable suite after installing the wheel, in addition to the native
 metadata and `Engine("none")` smoke test.
 
+## Performance benchmark registry
+
+`benchmarks/manifest.json` is the root repository's versioned end-to-end
+benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
+canonicalizes tuning environment variables, and launches the implementation in
+the tracked `libuipc-samples` submodule without copying it. The first registered
+scene is `stiff-gipc-case2` (samples example 88):
+
+```bash
+python scripts/run_benchmark.py list
+python scripts/run_benchmark.py run stiff-gipc-case2 --quick
+python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
+```
+
+Each run writes command, environment overrides, repo/submodule revisions,
+GPU/driver/CUDA/Python facts, reported mean/median frame time, duration, and
+return code under `output/benchmark-runs/`. `--dry-run` resolves
+the contract without launching. Performance thresholds belong in compatible
+`uipc.profile` baseline/check artifacts, never in portable correctness tests.
+
 **Typical sim_case flow** (e.g. `0_abd_gravity.cpp`, `14_fem_3d_ground_contact.cpp`, `37_abd_revolute_joint.cpp`): `Engine{"cuda"}` → configure `Scene::default_config()` (gravity/contact/friction/line_search) → build geometry + `apply_to` constitution → `world.init(scene)` → loop `advance/retrieve` + `SceneIO::write_surface` to export obj each frame. `0_abd_gravity` uses two SECTIONs to compare `ipc` and `al-ipc`.
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, and immutable-action checks), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.

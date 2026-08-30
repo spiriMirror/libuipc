@@ -131,6 +131,10 @@ Representative map:
 Samples often include polyscope GUI loops. For CI or agent experiments, prefer a
 headless branch with a finite frame count, `advance/retrieve` pairing, and one
 small numerical assertion. Examples `88`–`93` already demonstrate this pattern.
+The root `benchmarks/manifest.json` promotes example 88 under the stable name
+`stiff-gipc-case2`; run it through `scripts/run_benchmark.py` so the sample
+submodule revision, canonical environment, command, and result status are
+recorded together.
 
 ## Documentation Source and Deployment
 

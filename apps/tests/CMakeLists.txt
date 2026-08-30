@@ -28,11 +28,22 @@ function(uipc_add_test name)
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         TIMEOUT 900)
 
-    if(name STREQUAL "common" OR name STREQUAL "core" OR name STREQUAL "geometry"
-       OR (name STREQUAL "sanity_check" AND NOT UIPC_WITH_CUDA_BACKEND))
+    set(is_gpu_test OFF)
+    if(UIPC_WITH_CUDA_BACKEND
+       AND (name STREQUAL "backend_cuda" OR name STREQUAL "sim_case"
+            OR name STREQUAL "regression" OR name STREQUAL "sanity_check"))
+        set(is_gpu_test ON)
+    endif()
+
+    if(is_gpu_test)
+        set_tests_properties(uipc.${name} PROPERTIES
+            LABELS "gpu"
+            RESOURCE_LOCK uipc_gpu)
+    elseif(name STREQUAL "common" OR name STREQUAL "core" OR name STREQUAL "geometry"
+           OR name STREQUAL "sanity_check")
         set_tests_properties(uipc.${name} PROPERTIES LABELS "fast;cpu")
     else()
-        set_tests_properties(uipc.${name} PROPERTIES LABELS "gpu")
+        set_tests_properties(uipc.${name} PROPERTIES LABELS "cpu")
     endif()
 endfunction()
 

@@ -1,5 +1,18 @@
 # Handoff — Current State of the Repo
 
+> **Test sharding and benchmark registry (2026-08-30, `refactor-main`)**:
+> the 95-case single-process `uipc.sim_case` remains the authoritative
+> global-state-pollution regression. `run_sim_case_isolated.py` now also emits
+> JSON manifests and stable sorted round-robin shards for parallel diagnosis;
+> a real 4-way discovery produced 24 cases in shard 0. CTest serializes its four
+> aggregate GPU executables through the `uipc_gpu` resource lock while allowing
+> CPU concurrency. Root `benchmarks/manifest.json` promotes samples example 88
+> as `stiff-gipc-case2`; `run_benchmark.py` validates assets/canonical env and
+> records both git revisions plus run status. Validation: runner unit tests 8
+> passed (complete scripts contract suite 25/25), dry-run/list, and an actual
+> one-frame case2 run (return 0, metadata
+> written with hardware/runtime facts and parsed frame timing).
+
 > **Optional legacy collision component (2026-08-30, `refactor-main`)**:
 > the V0, stackless, and linear-BVH simplex trajectory filters now belong to
 > `cuda_collision_legacy_objects`, separate from the default collision path.

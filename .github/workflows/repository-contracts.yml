@@ -34,4 +34,4 @@ jobs:
           python scripts/detect_0kb_files.py --check
           python scripts/check_constitution_api.py
           python scripts/check_workflow_pins.py
-          python -m unittest discover -s scripts/tests -p 'test_repository_contracts.py'
+          python -m unittest discover -s scripts/tests -p 'test_*.py'

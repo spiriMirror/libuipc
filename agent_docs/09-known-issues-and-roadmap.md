@@ -186,6 +186,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     the sources and registrations, while the build-specific scene schema drops
     the unavailable selectors instead of accepting a configuration that can
     only fail later during backend system construction.
+18. Test/performance entry points (DONE 2026-08-30): isolated sim cases support
+    stable manifests and round-robin shards without replacing the aggregate
+    pollution test; CTest GPU aggregates share a resource lock; the Stiff-GIPC
+    case2 sample has a root-owned benchmark contract and revision-recording
+    runner instead of another copied scene.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
