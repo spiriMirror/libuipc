@@ -6,6 +6,17 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Aggregate architecture validation (2026-08-30, through `67ff50c3`)**:
+> the default Release build completed for Core, none/CUDA backends, and all
+> native test targets. CTest passed 7/7 aggregates with CPU work concurrent and
+> all four GPU entries serialized by `uipc_gpu`; this includes sim_case 95 /
+> 14212. Python passed 79 portable tests (1 skipped, 54 deselected) and 48 CUDA
+> non-example tests (1 skipped, 85 deselected). Repository/script contracts
+> passed 27/27; default, legacy-off, and CUDA-off XMake configurations parsed;
+> full MkDocs+Doxygen output built; clang-format-18 passed for every C++ change
+> versus `origin/main`. Both tracked submodules were clean and `refactor-main`
+> matched `origin/refactor-main` before this documentation checkpoint.
+
 > **ADR and performance evidence archive (2026-08-30, `refactor-main`)**:
 > five accepted ADRs now cover the backend handshake, CUDA component boundary,
 > scene-config contract, deterministic SimSystem topology, and test/benchmark
