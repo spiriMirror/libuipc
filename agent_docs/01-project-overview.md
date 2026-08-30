@@ -30,7 +30,7 @@ Recent important changes (README News):
 | `libuipc-samples/` | Tracked git submodule containing the Python sample library (52 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
-| `agent_docs/` | This directory; agent guide |
+| `agent_docs/` | Agent guide, including durable `adr/` decisions, `performance/` evidence, and chronological `handoff.md` history |
 | `CMakeLists.txt` / `CMakePresets.json` / `pyproject.toml` | Build entry points |
 
 > **Local reference checkouts in this working copy (untracked, do NOT commit into this repo)**: `Stiff-GIPC/` (performance-alignment reference) and `references/` (third-party reference code). `libuipc-samples/` is different: it is a tracked submodule, so update its gitlink deliberately rather than treating its files as part of the root repository.

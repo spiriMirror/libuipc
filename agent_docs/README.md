@@ -21,7 +21,9 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | `10-code-navigation-and-extension-map.md` | Public API → implementation → backend → binding → test map; coordinated change recipes and verification matrix |
 | `11-scene-data-lifecycle-and-serialization.md` | Scene ownership, current/rest geometry, pending mutations, Animator, contact/subscene semantics, snapshots and serialization limits |
 | `12-secondary-modules-samples-and-docs.md` | Features, sanity checking, DiffSim, USD/VDB, Python helpers, samples index, MkDocs/API generation, deployment and release boundaries |
-| `handoff.md` | Session history: what was done and why (muda→cuda_tool, Stiff-GIPC alignment, cloth model, kappa policy, hygiene), with verification evidence |
+| `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
+| `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
+| `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |
 
 ## 30-Second Overview
 
@@ -39,10 +41,10 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 ## Onboarding Checklist for New Agents
 
-1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then read `10-code-navigation-and-extension-map.md` for the source path, `09-known-issues-and-roadmap.md` for open work, and the relevant topic guide. Use `handoff.md` only when historical evidence is needed.
+1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then read `10-code-navigation-and-extension-map.md` for the source path, `09-known-issues-and-roadmap.md` for open work, the relevant ADR, and the relevant topic guide. Use `handoff.md` only when historical detail is needed.
 2. Before coding, must read `.cursor/rules/cpp-format.mdc` (C++ style) and the conventions summary in `agent_docs/07-build-test-workflow.md`.
 3. Before modifying solver/constraints/GPU kernels, read `.cursor/skills/simulation-dev/SKILL.md` (index safety, NaN checks, debugging workflow).
-4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization see `.cursor/skills/gpu-optimization/SKILL.md`.
+4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization read `performance/README.md` before `.cursor/skills/gpu-optimization/SKILL.md`.
 5. Commits follow Conventional Commits (summarized in the `07` document).
 
 ## Known Documentation Drift Notes (as of 2026-08)

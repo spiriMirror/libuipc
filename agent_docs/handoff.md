@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Routing note (2026-08-30)**: this file is the chronological audit trail and
+> may retain detailed commands/incidents. New durable architecture rationale
+> belongs in `agent_docs/adr/`; reusable performance conclusions and rejected
+> experiments belong in `agent_docs/performance/`. Add a short handoff pointer
+> instead of growing this file as the only source of truth.
+
+> **ADR and performance evidence archive (2026-08-30, `refactor-main`)**:
+> five accepted ADRs now cover the backend handshake, CUDA component boundary,
+> scene-config contract, deterministic SimSystem topology, and test/benchmark
+> entry points. `agent_docs/performance/` defines evidence/interpretation rules,
+> provides a reusable template, and consolidates the four 2026-08-30 case2
+> assembly stages plus the rejected stencil split. Existing handoff history is
+> preserved rather than rewritten. Archive numbering/sections/local links are
+> enforced by the scripts contract suite (27/27 passed).
+
 > **Test sharding and benchmark registry (2026-08-30, `refactor-main`)**:
 > the 95-case single-process `uipc.sim_case` remains the authoritative
 > global-state-pollution regression. `run_sim_case_isolated.py` now also emits
@@ -10,8 +25,8 @@
 > as `stiff-gipc-case2`; `run_benchmark.py` validates assets/canonical env and
 > records both git revisions plus run status. Validation: runner unit tests 8
 > passed (complete scripts contract suite 25/25), dry-run/list, and an actual
-> one-frame case2 run (return 0, metadata
-> written with hardware/runtime facts and parsed frame timing).
+> one-frame case2 run (return 0, metadata written with hardware/runtime facts
+> and parsed frame timing).
 
 > **Optional legacy collision component (2026-08-30, `refactor-main`)**:
 > the V0, stackless, and linear-BVH simplex trajectory filters now belong to

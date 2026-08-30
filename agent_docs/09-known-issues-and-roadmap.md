@@ -191,6 +191,10 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     pollution test; CTest GPU aggregates share a resource lock; the Stiff-GIPC
     case2 sample has a root-owned benchmark contract and revision-recording
     runner instead of another copied scene.
+19. Decision/evidence retention (DONE 2026-08-30): accepted architecture now
+    has numbered ADRs, performance work has an evidence policy/template and a
+    case2 roll-up, and `handoff.md` is explicitly the chronological trail rather
+    than the sole permanent home for rationale and measurements.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
