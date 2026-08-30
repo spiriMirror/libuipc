@@ -52,7 +52,11 @@ project `src/` root because CUDA headers use `<backends/common/...>` paths; the
 narrower `src/backends` include alone works for some local paths but fails on
 Linux. They must also carry the backend directory/name definitions used by
 common path tooling; linking `uipc_core` does not synthesize
-`UIPC_BACKEND_DIR` for an OBJECT target.
+`UIPC_BACKEND_DIR` for an OBJECT target. On Linux, every component must also
+compile its host C++ with `-fPIC` and pass `-fPIC` through NVCC to the host
+compiler. OBJECT targets do not inherit the final shared backend's PIC flags;
+without this parity with CMake's `POSITION_INDEPENDENT_CODE ON`, the final link
+can fail on `thread_local` symbols with an `R_X86_64_TPOFF32` relocation.
 
 ## Test System
 

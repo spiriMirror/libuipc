@@ -11,8 +11,12 @@
 > project `src/` include root on Linux, so `<backends/common/sim_action.h>`
 > failed from CUDA translation units; after that was exposed, MAS compilation
 > also showed the OBJECT targets lacked CMake's `UIPC_BACKEND_DIR` definition.
-> `components.lua` now mirrors both boundaries. Repository Contracts
-> deliberately checks out no submodules, so its benchmark-manifest test now
+> A subsequent full Linux link exposed the third OBJECT-target boundary:
+> position-independent host code. `components.lua` now mirrors CMake's
+> source-root include, backend definitions, and `POSITION_INDEPENDENT_CODE ON`
+> behavior (`-fPIC` for C++ and through NVCC). A repository-contract regression
+> test covers PIC locally instead of relying on the long CUDA build. Repository
+> Contracts deliberately checks out no submodules, so its benchmark-manifest test now
 > validates the declaration without requiring
 > samples assets; runtime asset validation has an isolated partial-checkout unit
 > test. Rapid-push cancellations were concurrency behavior, not additional

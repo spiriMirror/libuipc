@@ -21,6 +21,13 @@ rule("cuda.component")
             "UIPC_VERSION_PATCH=" .. version:patch())
         target:add("deps", "uipc_core", "uipc_geometry", "uipc_io")
         target:add("cuflags", "--expt-relaxed-constexpr", "--extended-lambda", "-rdc=true")
+        if target:is_plat("linux") then
+            -- These OBJECT targets are linked into the shared CUDA backend.
+            -- Match CMake's POSITION_INDEPENDENT_CODE property for both host
+            -- C++ sources and the host side of CUDA translation units.
+            target:add("cxflags", "-fPIC")
+            target:add("cuflags", "-Xcompiler=-fPIC")
+        end
         if has_config("github_actions") then
             target:add("cugencodes", "sm_89")
         else

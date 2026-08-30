@@ -197,7 +197,10 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     than the sole permanent home for rationale and measurements.
 20. CI portability follow-up (DONE 2026-08-31): XMake CUDA components carry the
     source-root include and backend-directory definition needed by common
-    backend headers on Linux, and
+    backend headers on Linux. Their C++ and CUDA host code is also explicitly
+    position-independent because OBJECT targets are linked into the shared
+    backend and do not inherit its PIC flags. The repository contract guards
+    this requirement without waiting for a full CUDA link. In addition,
     repository-contract tests no longer confuse an intentionally unmaterialized
     samples submodule with an invalid benchmark declaration.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
