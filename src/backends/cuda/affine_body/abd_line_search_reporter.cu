@@ -40,6 +40,17 @@ namespace
             kinetic_energy(i) = 0.0;
         }
     }
+
+    __global__ void abd_line_search_reporter_combine_energy_kernel(
+        cuda_tool::CVarView<Float> kinetic_energy,
+        cuda_tool::CVarView<Float> shape_energy,
+        cuda_tool::CVarView<Float> reporter_energy,
+        cuda_tool::VarView<Float>  total_energy)
+    {
+        if(blockIdx.x != 0 || threadIdx.x != 0)
+            return;
+        *total_energy = *kinetic_energy + *shape_energy + *reporter_energy;
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
@@ -168,14 +179,11 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
                            reporter_energies.size());
     }
 
-    // Copy from device to host
-    Float K       = abd_kinetic_energy;
-    Float shape_E = abd_shape_energy;
-    Float other_E = total_reporter_energy;
-
-    Float E = K + shape_E + other_E;
-
-    info.energy(E);
+    abd_line_search_reporter_combine_energy_kernel<<<1, 1>>>(
+        abd_kinetic_energy.cview(),
+        abd_shape_energy.cview(),
+        total_reporter_energy.cview(),
+        info.energy());
 }
 
 void ABDLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)

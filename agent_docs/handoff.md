@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Device-side line-search energy aggregation (2026-08-30,
+> `refactor-main`)**: top-level ABD, FEM, and DyTopo energy reporters now write
+> their totals into contiguous device slots. `LineSearcher` performs one final
+> CUB reduction into a separate output slot, then downloads all reporter totals
+> and the aggregate with one contiguous D2H copy/synchronization. Per-reporter
+> finite-value diagnostics and detailed reporting remain intact. ABD and FEM
+> retain their existing component reductions but combine those device results
+> with named one-thread kernels; DyTopo reduces directly into its assigned
+> slot. On case 88 over 60 frames, initial-energy evaluation fell from 0.624 to
+> 0.529 ms/call (-15.2%), trial-energy evaluation from 0.542 to 0.448 ms/call
+> (-17.3%), and aggregate line search from 7.38 to 7.01 ms/Newton (-5.0%). Wall
+> mean/median moved from 162.7/182.3 to 158.1/178.4 ms/frame. Validation: CUDA
+> backend build, 11 CUDA test cases / 217 assertions, and the full simulation
+> suite (95 cases / 14212 assertions).
+
 > **Batched collision-count readback (2026-08-30, `refactor-main`)**:
 > the default `InfoStacklessBVH` exposes launch-only detect/query operations
 > plus an explicit result-finalization step. The simplex trajectory filter now

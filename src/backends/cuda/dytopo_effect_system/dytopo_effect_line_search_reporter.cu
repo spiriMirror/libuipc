@@ -60,8 +60,6 @@ void DyTopoEffectLineSearchReporter::do_compute_energy(LineSearcher::ComputeEner
     m_impl.compute_energy(info.is_initial());
 
     DeviceReduce().Sum(
-        m_impl.energies.data(), m_impl.energy.data(), m_impl.energies.size());
-
-    info.energy(m_impl.energy);
+        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
 }
 }  // namespace uipc::backend::cuda

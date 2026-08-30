@@ -23,6 +23,16 @@ namespace
             return;
         xs(i) = x_temps(i) + alpha * dxs(i);
     }
+
+    __global__ void FEMLineSearchReporter_combine_energy_kernel(
+        cuda_tool::CVarView<Float> kinetic_energy,
+        cuda_tool::CVarView<Float> reporter_energy,
+        cuda_tool::VarView<Float>  total_energy)
+    {
+        if(blockIdx.x != 0 || threadIdx.x != 0)
+            return;
+        *total_energy = *kinetic_energy + *reporter_energy;
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
@@ -113,11 +123,8 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
                            reporter_energies.size());
     }
 
-    Float K       = total_kinetic_energy;
-    Float other_E = total_reporter_energy;
-    Float total_E = K + other_E;
-
-    info.energy(total_E);
+    FEMLineSearchReporter_combine_energy_kernel<<<1, 1>>>(
+        total_kinetic_energy.cview(), total_reporter_energy.cview(), info.energy());
 }
 
 void FEMLineSearchReporter::Impl::init(LineSearchReporter::InitInfo& info)

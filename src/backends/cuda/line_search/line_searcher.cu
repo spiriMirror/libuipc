@@ -3,6 +3,7 @@
 #include <uipc/common/zip.h>
 #include <line_search/line_search_reporter.h>
 #include <uipc/common/timer.h>
+#include <cuda_tool/cub.h>
 
 namespace uipc::backend::cuda
 {
@@ -23,7 +24,9 @@ void LineSearcher::init()
     m_dt_attr = scene.config().find<Float>("dt");
     UIPC_ASSERT(m_dt_attr, "Scene config must have a 'dt' attribute.");
 
-    m_energy_values.resize(m_reporters.view().size(), 0);
+    const auto energy_count = m_reporters.view().size() + 1;
+    m_device_energy_values.resize(energy_count);
+    m_energy_values.resize(energy_count, 0);
 
     auto reporter_view = m_reporters.view();
 
@@ -57,25 +60,45 @@ Float LineSearcher::compute_energy(bool is_initial)
 {
     Timer timer{"Compute Energy"};
 
-    auto reporter_energyes = span{m_energy_values}.subspan(0, m_reporters.view().size());
+    auto reporter_view = m_reporters.view();
 
-    for(auto&& [E, R] : zip(reporter_energyes, m_reporters.view()))
+    for(auto&& [i, R] : enumerate(reporter_view))
     {
-        ComputeEnergyInfo info{this};
+        ComputeEnergyInfo info{
+            this, cuda_tool::VarView<Float>{m_device_energy_values.data() + i}};
         info.m_is_initial = is_initial;
         R->compute_energy(info);
-        UIPC_ASSERT(info.m_energy.has_value(),
+        UIPC_ASSERT(info.m_energy_set,
                     "Energy[{}] not set by reporter, did you forget to call energy()?",
                     R->name());
-        E = info.m_energy.value();
-        UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", R->name(), E);
     }
 
-    auto energy_reporter_energyes =
-        span{m_energy_values}.subspan(m_reporters.view().size());
+    const auto reporter_count = reporter_view.size();
+    auto* total_energy_device = m_device_energy_values.data() + reporter_count;
+    if(reporter_count > 0)
+    {
+        cuda_tool::DeviceReduce().Sum(m_device_energy_values.data(), total_energy_device, reporter_count);
+    }
+    else
+    {
+        cuda_tool::VarView<Float>{total_energy_device}.fill(0.0);
+    }
 
-    Float total_energy =
-        std::accumulate(m_energy_values.begin(), m_energy_values.end(), 0.0);
+    m_device_energy_values.copy_to(m_energy_values.data());
+
+    auto reporter_energies = span{m_energy_values}.first(reporter_count);
+    for(auto&& [energy, reporter] : zip(reporter_energies, reporter_view))
+    {
+        UIPC_ASSERT(!std::isnan(energy) && std::isfinite(energy),
+                    "Energy [{}] is {}",
+                    reporter->name(),
+                    energy);
+    }
+
+    Float total_energy = m_energy_values.back();
+    UIPC_ASSERT(!std::isnan(total_energy) && std::isfinite(total_energy),
+                "Total line-search energy is {}",
+                total_energy);
 
     if(m_report_energy)
     {
@@ -85,7 +108,7 @@ Float LineSearcher::compute_energy(bool is_initial)
 -------------------------------------------------------------------------------
 )";
         m_report_stream << "Total:" << total_energy << "\n";
-        for(auto&& [R, value] : zip(m_reporters.view(), reporter_energyes))
+        for(auto&& [R, value] : zip(reporter_view, reporter_energies))
         {
             m_report_stream << "  > " << R->name() << "=" << value << "\n";
         }
@@ -104,8 +127,10 @@ void LineSearcher::add_reporter(LineSearchReporter* reporter)
     m_reporters.register_sim_system(*reporter);
 }
 
-LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept
+LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl,
+                                                   cuda_tool::VarView<Float> energy) noexcept
     : m_impl(impl)
+    , m_energy(energy)
 {
 }
 
@@ -114,9 +139,10 @@ Float LineSearcher::ComputeEnergyInfo::dt() noexcept
     return m_impl->m_dt_attr->view()[0];
 }
 
-void LineSearcher::ComputeEnergyInfo::energy(Float e) noexcept
+cuda_tool::VarView<Float> LineSearcher::ComputeEnergyInfo::energy() noexcept
 {
-    m_energy = e;
+    m_energy_set = true;
+    return m_energy;
 }
 
 bool LineSearcher::ComputeEnergyInfo::is_initial() noexcept

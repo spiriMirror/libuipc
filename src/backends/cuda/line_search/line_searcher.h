@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <optional>
+#include <cuda_tool/buffer.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,17 +25,18 @@ class LineSearcher : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(LineSearcher* impl) noexcept;
-        Float dt() noexcept;
-        void  energy(Float e) noexcept;
-        bool  is_initial() noexcept;
+        ComputeEnergyInfo(LineSearcher* impl, cuda_tool::VarView<Float> energy) noexcept;
+        Float                     dt() noexcept;
+        cuda_tool::VarView<Float> energy() noexcept;
+        bool                      is_initial() noexcept;
 
 
       private:
         friend class LineSearcher;
-        LineSearcher*        m_impl       = nullptr;
-        std::optional<Float> m_energy     = std::nullopt;
-        bool                 m_is_initial = false;
+        LineSearcher*             m_impl = nullptr;
+        cuda_tool::VarView<Float> m_energy;
+        bool                      m_energy_set = false;
+        bool                      m_is_initial = false;
     };
 
     void add_reporter(LineSearchReporter* reporter);
@@ -54,6 +55,7 @@ class LineSearcher : public SimSystem
 
     SimSystemSlotCollection<LineSearchReporter> m_reporters;
 
+    cuda_tool::DeviceBuffer<Float>          m_device_energy_values;
     vector<Float>                           m_energy_values;
     bool                                    m_report_energy = false;
     std::stringstream                       m_report_stream;

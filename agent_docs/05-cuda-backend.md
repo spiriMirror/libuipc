@@ -57,6 +57,23 @@ Pipeline
 
 Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
+### Line-search energy aggregation
+
+Top-level line-search reporters do not download independent scalar totals.
+`LineSearcher` assigns one contiguous device slot to every ABD, FEM, or DyTopo
+reporter. Reporters launch their component reductions asynchronously and write
+their final value into that slot. A final CUB sum reads the reporter slots and
+writes to a distinct aggregate slot; one contiguous D2H transfer then returns
+the individual values plus the total. This preserves reporter-specific finite
+checks and diagnostic output while reducing the normal energy pass to one host
+synchronization.
+
+ABD and FEM still require separate reductions for their physical energy
+components, but named one-thread combine kernels add those device scalars
+without an intervening host read. DyTopo's CUB reduction writes directly into
+its assigned slot. Keep every CUB input and output range disjoint, including
+the final reporter-total reduction.
+
 `Engine::frame_stats()` / Python `Engine.frame_stats()` is the stable
 machine-readable complement to the Timer tree. CUDA returns schema v1 with the
 pipeline, completion/convergence flags, Newton count, cumulative line-search

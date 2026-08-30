@@ -143,6 +143,14 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     ms/Newton and aggregate DCD from 4.67 to 4.61 ms/detect; the structural
     synchronization reduction is larger than the noisy wall-time movement.
     The next host/device target is line-search energy aggregation.
+11. Line-search energy aggregation (DONE 2026-08-30): ABD, FEM, and DyTopo
+    reporters now publish totals to contiguous device slots. One final CUB
+    reduction writes to a separate slot, followed by one contiguous D2H copy
+    for reporter diagnostics and the aggregate. On case 88, initial/trial
+    energy evaluations improved by 15.2%/17.3%, aggregate line search improved
+    by 5.0% per Newton iteration, and wall mean/median moved from 162.7/182.3
+    to 158.1/178.4 ms/frame. The next evidence-led target remains raw
+    contact/FEM gradient-Hessian assembly.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 
