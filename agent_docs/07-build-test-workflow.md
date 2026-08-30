@@ -47,7 +47,10 @@ inventory in `src/backends/cuda/components.cmake`; XMake mirrors it in
 `components.lua`. Assign every compiled CUDA backend source to exactly one
 component in both manifests, including sources disabled by a feature option.
 Configuration rejects missing or duplicate ownership; headers remain on the
-final target for IDE navigation.
+final target for IDE navigation. XMake OBJECT components must include the
+project `src/` root because CUDA headers use `<backends/common/...>` paths; the
+narrower `src/backends` include alone works for some local paths but fails on
+Linux.
 
 ## Test System
 
@@ -128,7 +131,7 @@ the contract without launching. Performance thresholds belong in compatible
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`. Repository-contract checkout intentionally does not materialize large submodules: manifest tests validate declarations in that job, while `run_benchmark.py` validates actual sample assets before execution.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.

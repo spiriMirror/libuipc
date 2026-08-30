@@ -7,6 +7,7 @@ rule("cuda.component")
         target:set("default", false)
         target:set("group", "uipc-backends/cuda-components")
         target:add("includedirs",
+            path.join(os.projectdir(), "src"),
             path.directory(os.scriptdir()),
             os.scriptdir(),
             path.join(os.scriptdir(), "cuda_tool"))

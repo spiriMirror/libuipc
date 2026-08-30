@@ -6,6 +6,17 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **GitHub check portability fixes (2026-08-31, `refactor-main`)**: repeated
+> red runs had two independent causes. XMake CUDA OBJECT targets lacked the
+> project `src/` include root on Linux, so `<backends/common/sim_action.h>`
+> failed from CUDA translation units; `components.lua` now mirrors CMake's
+> include boundary. Repository Contracts deliberately checks out no submodules,
+> so its benchmark-manifest test now validates the declaration without requiring
+> samples assets; runtime asset validation has an isolated partial-checkout unit
+> test. Rapid-push cancellations were concurrency behavior, not additional
+> source failures. Local repository contracts passed 28/28 and XMake target
+> inspection confirms the source root precedes the narrower backend includes.
+
 > **Aggregate architecture validation (2026-08-30, through `67ff50c3`)**:
 > the default Release build completed for Core, none/CUDA backends, and all
 > native test targets. CTest passed 7/7 aggregates with CPU work concurrent and
