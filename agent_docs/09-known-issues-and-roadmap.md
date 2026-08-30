@@ -134,6 +134,15 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    390.2-415.8 ms. End-to-end wall variance remains larger than this isolated
    gain. The next step is batching collision counter readbacks, not broadening
    discard semantics to buffers whose initialization contract is uncertain.
+10. Collision count readbacks (DONE 2026-08-30): the default trajectory
+    filter batches four broad-phase query counters into one D2H synchronization
+    and batches the four PP/PE/PT/EE CUB selection counters into another. Queue
+    overflow handling remains exact and reruns only affected queries. A fully
+    active detect/filter cycle therefore uses two count synchronizations rather
+    than eight. On case 88, trajectory detection changed from 5.07 to 5.01
+    ms/Newton and aggregate DCD from 4.67 to 4.61 ms/detect; the structural
+    synchronization reduction is larger than the noisy wall-time movement.
+    The next host/device target is line-search energy aggregation.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

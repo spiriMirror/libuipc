@@ -146,6 +146,16 @@ build/detect/query parity coverage; the V0 test rebuilds at two sizes to cover
 persistent CUB workspace reuse and growth. The alternate selectors still need
 representative benchmarks before making speed claims.
 
+The default simplex trajectory filter batches host-visible counts. It launches
+all active broad-phase queries first, gathers the four queue counters into a
+single device array, and downloads them with one synchronization. If a count
+exceeds its queue capacity, only that queue grows and reruns. PP/PE/PT/EE CUB
+selection counts use the same contiguous one-copy pattern. The public
+`InfoStacklessBVH::detect/query` methods remain synchronous for independent
+callers; `launch_detect/launch_query` plus `prepare_query_result` are the
+internal batching interface. Do not consume a launch-only query result before
+the count batch has been synchronized and finalized.
+
 The MAS preconditioner also performs its hierarchy prefix scans through
 `cuda_tool::DeviceScan`. These wrappers share `details::cub_temp_storage`, so
 their temporary device memory is retained per CUDA stream and only grows when

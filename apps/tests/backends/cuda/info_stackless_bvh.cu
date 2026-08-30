@@ -313,6 +313,22 @@ void run_info_stackless_bvh_test(const SimplicialComplex& mesh)
     auto detect_gt = brute_force_detect(aabbs, bids, cids, cmts, cid_count);
     check_cp_conservative(detect_pairs, detect_gt);
 
+    // Exercise the launch/finalize split and its overflow retry with a queue
+    // deliberately smaller than the expected result.
+    InfoStacklessBVH::QueryBuffer batched_qbuffer;
+    batched_qbuffer.m_pairs.release();
+    batched_qbuffer.reserve(1);
+    bvh.launch_detect(d_cmts.view(), NodePred{}, LeafPred{}, batched_qbuffer);
+    int  batched_count = batched_qbuffer.m_cpNum;
+    bool retry = bvh.prepare_query_result(batched_qbuffer, batched_count);
+    if(retry)
+        bvh.launch_detect(d_cmts.view(), NodePred{}, LeafPred{}, batched_qbuffer);
+
+    std::vector<Vector2i> batched_pairs(batched_qbuffer.size());
+    batched_qbuffer.view().copy_to(batched_pairs.data());
+    check_cp_conservative(batched_pairs, detect_gt);
+    CHECK(retry == (batched_count > 1));
+
     std::vector<AABB>   query_aabbs = aabbs;
     std::vector<IndexT> query_bids  = bids;
     std::vector<IndexT> query_cids  = cids;

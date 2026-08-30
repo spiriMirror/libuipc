@@ -123,6 +123,12 @@ class InfoStacklessBVH
     void detect(cuda_tool::CBuffer2DView<IndexT> cmts, NodePred np, LeafPred lp, QueryBuffer& qbuffer);
 
     template <typename NodePred, typename LeafPred>
+    void launch_detect(cuda_tool::CBuffer2DView<IndexT> cmts,
+                       NodePred                         np,
+                       LeafPred                         lp,
+                       QueryBuffer&                     qbuffer);
+
+    template <typename NodePred, typename LeafPred>
     void query(cuda_tool::CBufferView<AABB>     query_aabbs,
                cuda_tool::CBufferView<IndexT>   query_BIDs,
                cuda_tool::CBufferView<IndexT>   query_CIDs,
@@ -130,6 +136,20 @@ class InfoStacklessBVH
                NodePred                         np,
                LeafPred                         lp,
                QueryBuffer&                     qbuffer);
+
+    template <typename NodePred, typename LeafPred>
+    void launch_query(cuda_tool::CBufferView<AABB>     query_aabbs,
+                      cuda_tool::CBufferView<IndexT>   query_BIDs,
+                      cuda_tool::CBufferView<IndexT>   query_CIDs,
+                      cuda_tool::CBuffer2DView<IndexT> cmts,
+                      NodePred                         np,
+                      LeafPred                         lp,
+                      QueryBuffer&                     qbuffer,
+                      bool                             rebuild_query = true);
+
+    // Publish a device-produced count and grow the output if a retry is
+    // required. The caller relaunches the same query when this returns true.
+    bool prepare_query_result(QueryBuffer& qbuffer, int count);
 
     Config&       config() noexcept { return m_impl.config; }
     const Config& config() const noexcept { return m_impl.config; }

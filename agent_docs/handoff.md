@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Batched collision-count readback (2026-08-30, `refactor-main`)**:
+> the default `InfoStacklessBVH` exposes launch-only detect/query operations
+> plus an explicit result-finalization step. The simplex trajectory filter now
+> launches all active PP/PE/PT/EE broad-phase queries, gathers their four device
+> counters with one tiny kernel, and performs one contiguous D2H copy/sync.
+> Overflow queues retain required-based growth and are the only queries rerun.
+> The four CUB selection counts are likewise stored contiguously and downloaded
+> once. Thus a fully populated detect/filter cycle uses two count readbacks
+> instead of eight; synchronous BVH callers keep their original API. On case 88
+> after the discard-growth change, clean-run trajectory detection moved from
+> 5.07 to 5.01 ms/Newton and aggregate DCD from 4.67 to 4.61 ms/detect; wall
+> mean/median moved 163.7/183.2 to 162.7/182.3 ms but remains within normal
+> contact-stage variance. Validation: CUDA backend build, 11 CUDA test cases /
+> 213 assertions, and the full simulation suite (95 cases / 14212 assertions).
+
 > **Required-based CUDA output growth (2026-08-30, `refactor-main`)**:
 > `cuda_tool::DeviceVector` now distinguishes value-initialized `resize()`
 > from `resize_discard()` / `resize_preserve()` and exact or amortized reserve

@@ -1046,18 +1046,33 @@ inline void InfoStacklessBVH::build(cuda_tool::CBufferView<AABB> aabbs)
     m_impl.build(aabbs, {}, {});
 }
 
-// detect() with NodePred / LeafPred: wrapper passes pre-loaded bid/cid to NodePredInfo
-template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVH::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
-                                     NodePred                         np,
-                                     LeafPred                         lp,
-                                     QueryBuffer&                     qbuffer)
+inline bool InfoStacklessBVH::prepare_query_result(QueryBuffer& qbuffer, int count)
 {
-    if(m_aabbs.size() == 0)
+    UIPC_ASSERT(count >= 0, "BVH query count must be non-negative, got %d", count);
+
+    const bool retry = static_cast<size_t>(count) > qbuffer.m_pairs.size();
+    if(retry)
     {
-        qbuffer.m_size = 0;
-        return;
+        const auto new_size = static_cast<size_t>(count * m_impl.config.reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
     }
+    qbuffer.m_size = count;
+    return retry;
+}
+
+template <typename NodePred, typename LeafPred>
+inline void InfoStacklessBVH::launch_detect(cuda_tool::CBuffer2DView<IndexT> cmts,
+                                            NodePred     np,
+                                            LeafPred     lp,
+                                            QueryBuffer& qbuffer)
+{
+    using namespace cuda_tool;
+    BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
+
+    if(m_aabbs.size() == 0)
+        return;
+
     UIPC_ASSERT(m_aabbs.size() == m_BIDs.size(),
                 "AABB and BID size mismatch. aabbs=%zu, bids=%zu",
                 m_aabbs.size(),
@@ -1067,24 +1082,57 @@ inline void InfoStacklessBVH::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
                 m_aabbs.size(),
                 m_CIDs.size());
 
-    using namespace cuda_tool;
-    auto do_query = [&]
-    {
-        BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
-        m_impl.stacklessSelf(np, lp, qbuffer.m_cpNum.view(), qbuffer.m_pairs.view());
-    };
+    m_impl.stacklessSelf(np, lp, qbuffer.m_cpNum.view(), qbuffer.m_pairs.view());
+}
 
-    do_query();
+// detect() with NodePred / LeafPred: wrapper passes pre-loaded bid/cid to NodePredInfo
+template <typename NodePred, typename LeafPred>
+inline void InfoStacklessBVH::detect(cuda_tool::CBuffer2DView<IndexT> cmts,
+                                     NodePred                         np,
+                                     LeafPred                         lp,
+                                     QueryBuffer&                     qbuffer)
+{
+    launch_detect(cmts, np, lp, qbuffer);
     int h_cp_num = qbuffer.m_cpNum;
-    if(h_cp_num > qbuffer.m_pairs.size())
-    {
-        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
-        qbuffer.m_pairs.reserve_discard(new_size);
-        qbuffer.m_pairs.resize_discard(new_size);
-        do_query();
-    }
-    UIPC_ASSERT(h_cp_num >= 0, "fatal error");
-    qbuffer.m_size = h_cp_num;
+    if(prepare_query_result(qbuffer, h_cp_num))
+        launch_detect(cmts, np, lp, qbuffer);
+}
+
+template <typename NodePred, typename LeafPred>
+inline void InfoStacklessBVH::launch_query(cuda_tool::CBufferView<AABB> query_aabbs,
+                                           cuda_tool::CBufferView<IndexT> query_BIDs,
+                                           cuda_tool::CBufferView<IndexT> query_CIDs,
+                                           cuda_tool::CBuffer2DView<IndexT> cmts,
+                                           NodePred     np,
+                                           LeafPred     lp,
+                                           QueryBuffer& qbuffer,
+                                           bool         rebuild_query)
+{
+    using namespace cuda_tool;
+    BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
+
+    if(m_aabbs.size() == 0 || query_aabbs.size() == 0)
+        return;
+
+    UIPC_ASSERT(query_aabbs.size() == query_BIDs.size(),
+                "Query AABB and BID size mismatch. aabbs=%zu, bids=%zu",
+                query_aabbs.size(),
+                query_BIDs.size());
+    UIPC_ASSERT(query_aabbs.size() == query_CIDs.size(),
+                "Query AABB and CID size mismatch. aabbs=%zu, cids=%zu",
+                query_aabbs.size(),
+                query_CIDs.size());
+
+    if(rebuild_query)
+        qbuffer.build(query_aabbs);
+    m_impl.stacklessOther(np,
+                          lp,
+                          query_aabbs,
+                          query_BIDs,
+                          query_CIDs,
+                          qbuffer.m_querySortedId.view(),
+                          qbuffer.m_cpNum.view(),
+                          qbuffer.m_pairs.view());
 }
 
 // query() with NodePred / LeafPred: passes query BIDs/CIDs to stacklessOther for SMem pre-load
@@ -1097,45 +1145,10 @@ inline void InfoStacklessBVH::query(cuda_tool::CBufferView<AABB>   query_aabbs,
                                     LeafPred                         lp,
                                     QueryBuffer&                     qbuffer)
 {
-    if(m_aabbs.size() == 0 || query_aabbs.size() == 0)
-    {
-        qbuffer.m_size = 0;
-        return;
-    }
-    UIPC_ASSERT(query_aabbs.size() == query_BIDs.size(),
-                "Query AABB and BID size mismatch. aabbs=%zu, bids=%zu",
-                query_aabbs.size(),
-                query_BIDs.size());
-    UIPC_ASSERT(query_aabbs.size() == query_CIDs.size(),
-                "Query AABB and CID size mismatch. aabbs=%zu, cids=%zu",
-                query_aabbs.size(),
-                query_CIDs.size());
-
-    using namespace cuda_tool;
-    qbuffer.build(query_aabbs);
-    auto do_query = [&]
-    {
-        BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
-        m_impl.stacklessOther(np,
-                              lp,
-                              query_aabbs,
-                              query_BIDs,
-                              query_CIDs,
-                              qbuffer.m_querySortedId.view(),
-                              qbuffer.m_cpNum.view(),
-                              qbuffer.m_pairs.view());
-    };
-    do_query();
+    launch_query(query_aabbs, query_BIDs, query_CIDs, cmts, np, lp, qbuffer, true);
     int h_cp_num = qbuffer.m_cpNum;
-    if(h_cp_num > qbuffer.m_pairs.size())
-    {
-        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
-        qbuffer.m_pairs.reserve_discard(new_size);
-        qbuffer.m_pairs.resize_discard(new_size);
-        do_query();
-    }
-    UIPC_ASSERT(h_cp_num >= 0, "fatal error");
-    qbuffer.m_size = h_cp_num;
+    if(prepare_query_result(qbuffer, h_cp_num))
+        launch_query(query_aabbs, query_BIDs, query_CIDs, cmts, np, lp, qbuffer, false);
 }
 
 }  // namespace uipc::backend::cuda

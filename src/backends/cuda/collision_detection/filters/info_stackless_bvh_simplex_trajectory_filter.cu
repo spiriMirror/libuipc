@@ -9,6 +9,7 @@
 #include <utils/simplex_contact_mask_utils.h>
 #include <uipc/common/zip.h>
 #include <utils/primitive_d_hat.h>
+#include <array>
 #include <cstdio>
 
 namespace uipc::backend::cuda
@@ -957,6 +958,21 @@ namespace
         }
     };
 
+    __global__ void InfoStacklessBVHSimplexTrajectoryFilter_collect_query_counts_kernel(
+        cuda_tool::CVarView<IndexT>   allp_codimp_count,
+        cuda_tool::CVarView<IndexT>   codimp_alle_count,
+        cuda_tool::CVarView<IndexT>   alle_alle_count,
+        cuda_tool::CVarView<IndexT>   allp_allt_count,
+        cuda_tool::BufferView<IndexT> counts)
+    {
+        if(blockIdx.x != 0 || threadIdx.x != 0)
+            return;
+        counts(0) = *allp_codimp_count;
+        counts(1) = *codimp_alle_count;
+        counts(2) = *alle_alle_count;
+        counts(3) = *allp_allt_count;
+    }
+
     /****************************************************
     *                   Filter TOI
     ****************************************************/
@@ -1180,6 +1196,9 @@ void InfoStacklessBVHSimplexTrajectoryFilter::do_build(BuildInfo&)
     {
         throw SimSystemException("Info stackless BVH unused");
     }
+
+    m_impl.query_counts.resize(4);
+    m_impl.selected_counts.resize(4);
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
@@ -1341,105 +1360,124 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     lbvh_E.build(edge_aabbs, edge_bids, edge_cids);
     lbvh_T.build(triangle_aabbs, triangle_bids, triangle_cids);
 
+    auto node_pred = InfoStacklessBVHSimplexTrajectoryFilter_detect_node_pred{
+        body_self_collisions, cmts.viewer()};
+    auto allp_codimp_pred = InfoStacklessBVHSimplexTrajectoryFilter_detect_AllP_CodimP_pred{
+        Vs,
+        codimVs,
+        Ps,
+        dxs,
+        info.thicknesses(),
+        info.dimensions(),
+        info.contact_element_ids(),
+        info.contact_mask_tabular().viewer(),
+        info.subscene_element_ids(),
+        info.subscene_mask_tabular().viewer(),
+        info.body_self_collision(),
+        info.d_hats(),
+        alpha};
+    auto codimp_alle_pred = InfoStacklessBVHSimplexTrajectoryFilter_detect_CodimP_AllE_pred{
+        codimVs,
+        Es,
+        Ps,
+        dxs,
+        info.thicknesses(),
+        info.contact_element_ids(),
+        info.contact_mask_tabular().viewer(),
+        info.subscene_element_ids(),
+        info.subscene_mask_tabular().viewer(),
+        info.body_self_collision(),
+        info.d_hats(),
+        alpha};
+    auto alle_alle_pred = InfoStacklessBVHSimplexTrajectoryFilter_detect_AllE_AllE_pred{
+        Es,
+        Ps,
+        dxs,
+        info.thicknesses(),
+        info.contact_element_ids(),
+        info.contact_mask_tabular().viewer(),
+        info.subscene_element_ids(),
+        info.subscene_mask_tabular().viewer(),
+        info.body_self_collision(),
+        info.d_hats(),
+        alpha};
+    auto allp_allt_pred = InfoStacklessBVHSimplexTrajectoryFilter_detect_AllP_AllT_pred{
+        Vs,
+        Fs,
+        Ps,
+        dxs,
+        info.thicknesses(),
+        info.contact_element_ids(),
+        info.contact_mask_tabular().viewer(),
+        info.subscene_element_ids(),
+        info.subscene_mask_tabular().viewer(),
+        info.body_self_collision(),
+        info.d_hats(),
+        alpha};
+
+    auto launch_allp_codimp = [&](bool rebuild_query)
+    {
+        lbvh_CodimP.launch_query(point_aabbs,
+                                 point_bids,
+                                 point_cids,
+                                 cmts,
+                                 node_pred,
+                                 allp_codimp_pred,
+                                 candidate_AllP_CodimP_pairs,
+                                 rebuild_query);
+    };
+    auto launch_codimp_alle = [&](bool rebuild_query)
+    {
+        lbvh_E.launch_query(codim_point_aabbs,
+                            codim_point_bids,
+                            codim_point_cids,
+                            cmts,
+                            node_pred,
+                            codimp_alle_pred,
+                            candidate_CodimP_AllE_pairs,
+                            rebuild_query);
+    };
+    auto launch_alle_alle = [&]
+    {
+        lbvh_E.launch_detect(cmts, node_pred, alle_alle_pred, candidate_AllE_AllE_pairs);
+    };
+    auto launch_allp_allt = [&](bool rebuild_query)
+    {
+        lbvh_T.launch_query(
+            point_aabbs, point_bids, point_cids, cmts, node_pred, allp_allt_pred, candidate_AllP_AllT_pairs, rebuild_query);
+    };
+
     if(codimVs.size() > 0)
     {
-        // Use AllP to query CodimP
-        {
-            lbvh_CodimP.build(codim_point_aabbs, codim_point_bids, codim_point_cids);
-
-            lbvh_CodimP.query(point_aabbs,
-                              point_bids,
-                              point_cids,
-                              cmts,
-                              InfoStacklessBVHSimplexTrajectoryFilter_detect_node_pred{
-                                  body_self_collisions, cmts.viewer()},
-                              InfoStacklessBVHSimplexTrajectoryFilter_detect_AllP_CodimP_pred{
-                                  Vs,
-                                  codimVs,
-                                  Ps,
-                                  dxs,
-                                  info.thicknesses(),
-                                  info.dimensions(),
-                                  info.contact_element_ids(),
-                                  info.contact_mask_tabular().viewer(),
-                                  info.subscene_element_ids(),
-                                  info.subscene_mask_tabular().viewer(),
-                                  info.body_self_collision(),
-                                  info.d_hats(),
-                                  alpha},
-                              candidate_AllP_CodimP_pairs);
-        }
-
-        // Use CodimP to query AllE
-        {
-            lbvh_E.query(codim_point_aabbs,
-                         codim_point_bids,
-                         codim_point_cids,
-                         cmts,
-                         InfoStacklessBVHSimplexTrajectoryFilter_detect_node_pred{
-                             body_self_collisions, cmts.viewer()},
-                         InfoStacklessBVHSimplexTrajectoryFilter_detect_CodimP_AllE_pred{
-                             codimVs,
-                             Es,
-                             Ps,
-                             dxs,
-                             info.thicknesses(),
-                             info.contact_element_ids(),
-                             info.contact_mask_tabular().viewer(),
-                             info.subscene_element_ids(),
-                             info.subscene_mask_tabular().viewer(),
-                             info.body_self_collision(),
-                             info.d_hats(),
-                             alpha},
-                         candidate_CodimP_AllE_pairs);
-        }
+        lbvh_CodimP.build(codim_point_aabbs, codim_point_bids, codim_point_cids);
+        launch_allp_codimp(true);
     }
-
-    // Use AllE to query AllE
-    if(Es.size() > 0)
+    else
     {
-        lbvh_E.detect(cmts,
-                      InfoStacklessBVHSimplexTrajectoryFilter_detect_node_pred{
-                          body_self_collisions, cmts.viewer()},
-                      InfoStacklessBVHSimplexTrajectoryFilter_detect_AllE_AllE_pred{
-                          Es,
-                          Ps,
-                          dxs,
-                          info.thicknesses(),
-                          info.contact_element_ids(),
-                          info.contact_mask_tabular().viewer(),
-                          info.subscene_element_ids(),
-                          info.subscene_mask_tabular().viewer(),
-                          info.body_self_collision(),
-                          info.d_hats(),
-                          alpha},
-                      candidate_AllE_AllE_pairs);
+        candidate_AllP_CodimP_pairs.m_cpNum.fill(0);
     }
+    launch_codimp_alle(true);
+    launch_alle_alle();
+    launch_allp_allt(true);
 
-    // Use AllP to query AllT
-    if(Fs.size() > 0)
-    {
-        lbvh_T.query(point_aabbs,
-                     point_bids,
-                     point_cids,
-                     cmts,
-                     InfoStacklessBVHSimplexTrajectoryFilter_detect_node_pred{
-                         body_self_collisions, cmts.viewer()},
-                     InfoStacklessBVHSimplexTrajectoryFilter_detect_AllP_AllT_pred{
-                         Vs,
-                         Fs,
-                         Ps,
-                         dxs,
-                         info.thicknesses(),
-                         info.contact_element_ids(),
-                         info.contact_mask_tabular().viewer(),
-                         info.subscene_element_ids(),
-                         info.subscene_mask_tabular().viewer(),
-                         info.body_self_collision(),
-                         info.d_hats(),
-                         alpha},
-                     candidate_AllP_AllT_pairs);
-    }
+    InfoStacklessBVHSimplexTrajectoryFilter_collect_query_counts_kernel<<<1, 1>>>(
+        candidate_AllP_CodimP_pairs.m_cpNum.cview(),
+        candidate_CodimP_AllE_pairs.m_cpNum.cview(),
+        candidate_AllE_AllE_pairs.m_cpNum.cview(),
+        candidate_AllP_AllT_pairs.m_cpNum.cview(),
+        query_counts.view());
+
+    std::array<IndexT, 4> host_counts{};
+    query_counts.copy_to(host_counts.data());
+
+    if(lbvh_CodimP.prepare_query_result(candidate_AllP_CodimP_pairs, host_counts[0]))
+        launch_allp_codimp(false);
+    if(lbvh_E.prepare_query_result(candidate_CodimP_AllE_pairs, host_counts[1]))
+        launch_codimp_alle(false);
+    if(lbvh_E.prepare_query_result(candidate_AllE_AllE_pairs, host_counts[2]))
+        launch_alle_alle();
+    if(lbvh_T.prepare_query_result(candidate_AllP_AllT_pairs, host_counts[3]))
+        launch_allp_allt(false);
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
@@ -1566,32 +1604,35 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveIn
 
         DeviceSelect().If(temp_PPs.data(),
                           PPs.data(),
-                          selected_PP_count.data(),
+                          selected_counts.data(),
                           temp_PPs.size(),
                           InfoStacklessBVHSimplexTrajectoryFilter_filter_active_PP_pred{});
 
         DeviceSelect().If(temp_PEs.data(),
                           PEs.data(),
-                          selected_PE_count.data(),
+                          selected_counts.data() + 1,
                           temp_PEs.size(),
                           InfoStacklessBVHSimplexTrajectoryFilter_filter_active_PE_pred{});
 
         DeviceSelect().If(temp_PTs.data(),
                           PTs.data(),
-                          selected_PT_count.data(),
+                          selected_counts.data() + 2,
                           temp_PTs.size(),
                           InfoStacklessBVHSimplexTrajectoryFilter_filter_active_PT_pred{});
 
         DeviceSelect().If(temp_EEs.data(),
                           EEs.data(),
-                          selected_EE_count.data(),
+                          selected_counts.data() + 3,
                           temp_EEs.size(),
                           InfoStacklessBVHSimplexTrajectoryFilter_filter_active_EE_pred{});
 
-        IndexT PP_count = selected_PP_count;
-        IndexT PE_count = selected_PE_count;
-        IndexT PT_count = selected_PT_count;
-        IndexT EE_count = selected_EE_count;
+        std::array<IndexT, 4> host_counts{};
+        selected_counts.copy_to(host_counts.data());
+
+        IndexT PP_count = host_counts[0];
+        IndexT PE_count = host_counts[1];
+        IndexT PT_count = host_counts[2];
+        IndexT EE_count = host_counts[3];
 
         PPs.resize_discard(PP_count);
         PEs.resize_discard(PE_count);
