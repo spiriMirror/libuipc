@@ -5,7 +5,8 @@ simulation scene. `Scene::config_schema()` / `Scene.config_schema()` is the
 machine-readable contract for every registered key: defaults, storage and JSON
 types, units, hard constraints, lifecycle, implementation status, descriptions,
 and source-level consumers. The tables below present the same contract for
-humans. Defaults and metadata come from
+humans. A single typed declaration creates both the runtime defaults and schema
+metadata, preventing the two views from drifting as keys evolve. It lives in
 [`scene_default_config.cpp`](https://github.com/spiriMirror/libuipc/blob/main/src/core/core/scene_default_config.cpp),
 while effective-value rules and selector values were checked against the CUDA
 backend that consumes them.
@@ -136,9 +137,9 @@ appropriate geometry instead.
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
 | `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
 | `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
-| `newton/semi_implicit/enable` | flag | `0` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
+| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
 | `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Semi-implicit early-exit threshold for accumulated beta. |
-| `newton/semi_implicit/K_min` | integer | `1` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
+| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
 
 See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
 termination logic and tuning guidance.
@@ -208,7 +209,7 @@ over the configured fallback bounds.
 
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
-| `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`, `"stackless_bvh"`, `"linear_bvh"`; `"info_stackless_bvh_v0"` is a legacy comparison path | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
+| `collision_detection/method` | string | `"info_stackless_bvh"` | `"info_stackless_bvh"`; optionally `"info_stackless_bvh_v0"`, `"stackless_bvh"`, `"linear_bvh"` | Broad-phase trajectory filter. Keep the default unless benchmarking or diagnosing the broad phase. |
 | `sanity_check/enable` | flag | `1` | `0`, `1` | Runs pre-initialization intersection and distance checks. A failed check makes the world invalid. |
 | `sanity_check/mode` | string | `"normal"` | `"normal"`, `"quiet"` | `normal` also writes diagnostic geometry when a check fails; `quiet` reports the failure without exporting that geometry. |
 | `diff_sim/enable` | flag | `0` | `0`, `1` | Initializes differentiable-simulation state. Calling non-const `scene.diff_sim()` sets this flag automatically; do so before world initialization. |
@@ -217,6 +218,13 @@ over the configured fallback bounds.
 | `extras/debug/dump_linear_pcg` | flag | `0` | `0`, `1` | Dumps PCG vectors for `linear_pcg`. `fused_pcg` warns and ignores this option. |
 | `extras/debug/dump_mas_matrices` | flag | `0` | `0`, `1` | Dumps MAS matrices when the MAS FEM preconditioner is active. |
 | `extras/strict_mode/enable` | flag | `0` | `0`, `1` | Converts nonlinear/line-search limit warnings into engine errors. Recommended for automated validation, not exploratory tuning. |
+
+The three alternate collision selectors are compiled only when
+`UIPC_WITH_CUDA_LEGACY_COLLISION=ON` (CMake, the default) or
+`cuda_legacy_collision=true` (XMake). Builds with the option disabled omit the
+filter implementations and remove their names from the schema enum, so scene
+construction rejects a serialized or manually edited unavailable selector.
+The machine-readable entry exposes this state in `conditionalValues`.
 
 ## Effective-value precedence
 

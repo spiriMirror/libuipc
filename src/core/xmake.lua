@@ -23,6 +23,22 @@ target("uipc_core")
     )
 
     add_defines("UIPC_RUNTIME_CHECK=1", {public = true})
+    if has_config("backend_cuda") and has_config("cuda_legacy_collision") then
+        add_defines("UIPC_WITH_CUDA_LEGACY_COLLISION=1")
+    else
+        add_defines("UIPC_WITH_CUDA_LEGACY_COLLISION=0")
+    end
+
+    on_load(function (target)
+        import("core.base.semver")
+        local version = semver.new(target:version())
+        target:add("defines",
+            "UIPC_VERSION_MAJOR=" .. version:major(),
+            "UIPC_VERSION_MINOR=" .. version:minor(),
+            "UIPC_VERSION_PATCH=" .. version:patch(),
+            {public = true}
+        )
+    end)
 
     if is_plat("linux") then
         add_syslinks("dl")

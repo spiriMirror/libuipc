@@ -314,7 +314,7 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     fem().set_dof_info(frame, info.gradients().offset(), info.gradients().size());
 
     // 1) Prepare Gradient Buffer
-    kinetic_gradients.resize_doublets(fem().xs.size());
+    kinetic_gradients.resize_doublets_discard(fem().xs.size());
     kinetic_gradients.reshape(fem().xs.size());
     loose_resize_entries(reporter_gradients, reporter_gradient_offsets_counts.total_count());
     reporter_gradients.reshape(fem().xs.size());
@@ -543,9 +543,9 @@ void FEMLinearSubsystem::Impl::loose_resize_entries(cuda_tool::DeviceDoubletVect
 {
     if(size > v.doublet_capacity())
     {
-        v.reserve_doublets(size * reserve_ratio);
+        v.reserve_doublets_discard(size * reserve_ratio);
     }
-    v.resize_doublets(size);
+    v.resize_doublets_discard(size);
 }
 
 void FEMLinearSubsystem::do_report_extent(GlobalLinearSystem::DiagExtentInfo& info)

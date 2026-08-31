@@ -17,16 +17,17 @@ folding. Applying bending alone does not create a complete cloth model.
 | Contact material | `ContactElement.apply_to(mesh)` | Friction/resistance pair identity. |
 
 The membrane must be applied before the formula-based bending overload. The
-bending implementation reads the vertex `thickness` attribute written by the
-membrane and evaluates
+bending implementation reads the one-sided thickness radius $r$ from the
+vertex `thickness` attribute. With full material thickness $h=2r$, it evaluates
 
 $$
-D = \frac{E t^3}{12(1-\nu^2)}.
+D = \frac{E h^3}{12(1-\nu^2)}
+  = \frac{E(2r)^3}{12(1-\nu^2)}.
 $$
 
-The raw overload `apply_to(mesh, bending_stiffness)` defaults to `100 kPa`,
-but then the supplied value is already the effective edge stiffness and is not
-derived from thickness.
+The raw overload `apply_to(mesh, bending_stiffness)` retains its legacy numeric
+default, but the supplied value is $\kappa$ directly in the Discrete Shells
+edge energy; it is neither per-area nor derived from thickness.
 
 ## Complete pinned-cloth scene
 
@@ -56,8 +57,8 @@ should resist extension much more strongly than in-plane shear.
 | Argument | Default in the convenience overload | Practical domain |
 | --- | --- | --- |
 | `moduli` | `E = 1 MPa`, `nu = 0.49` for both stretch and shear | Use `E > 0`; for ordinary isotropic 2D materials use `-1 < nu < 1`. |
-| `mass_density` | `200 kg/m^3` | Positive; surface mass scales as density times thickness. |
-| `thickness` | `0.001 m` | Positive and expressed in scene length units. Contact also consumes it. |
+| `mass_density` | `200 kg/m^3` | Positive; surface mass scales as density times full thickness $2r$. |
+| `thickness` | `0.001 m` | Positive one-sided offset $r$ in scene length units; contact consumes $r$, while mass/stretch/bending use full thickness $2r$. |
 | `strain_rate` | `100` | Non-negative amplification coefficient; `0` removes the extra cubic extension penalty, while larger values progressively stiffen over-stretch. |
 
 The C++ and Python bindings expose the same convenience and separated-moduli
@@ -87,7 +88,7 @@ controls material pairs, and the cloth still needs `label_surface`.
 
 For cloth, inspect these values together:
 
-- physical `thickness` on vertices;
+- one-sided `thickness` radius $r$ on vertices;
 - `contact/d_hat` or `contact/d_hat_relative`;
 - triangle size and aspect ratio;
 - `contact/eps_velocity` when friction is enabled; and

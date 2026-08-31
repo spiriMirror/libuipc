@@ -115,7 +115,7 @@ touching that area; several of these have bitten us more than once.
 - **Cloth vs Stiff-GIPC alignment audit (2026-08-24)**: the SLBWS membrane
   (energy/gradient/Hessian incl. the one-sided cubic limiter and both
   analytic SPD projections) matches Stiff's Baraff-Witkin term for term.
-  Convention differences are stiffness mappings (ours `E·t/(1-ν²)` per
+  Convention differences are stiffness mappings (ours `E·(2r)/(1-ν²)` per
   area; Stiff `E/(2(1+ν))` per area×thickness) and the bending model
   (ours: dihedral hinge with rest angle + per-Newton 12x12 EVD; Stiff's
   default build: flat-rest quadratic cotangent-Q with a constant PSD

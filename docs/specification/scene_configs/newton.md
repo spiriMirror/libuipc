@@ -41,6 +41,10 @@ These two parameters are easy to confuse:
 - `newton/semi_implicit/K_min` only controls when the beta accumulator starts
   updating in semi-implicit mode.
 
+Semi-implicit termination is enabled by default with `K_min = 6` and
+`beta_tol = 1e-3`. Set `newton/semi_implicit/enable = 0` to disable this
+additional early-exit criterion.
+
 With semi-implicit mode enabled, iterations at or after `K_min` update
 
 $$

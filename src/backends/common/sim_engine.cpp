@@ -6,6 +6,8 @@
 #include <fstream>
 #include <uipc/backend/engine_create_info.h>
 #include <backends/common/backend_path_tool.h>
+#include <algorithm>
+#include <vector>
 
 namespace uipc::backend
 {
@@ -35,10 +37,21 @@ WorldVisitor& SimEngine::world() noexcept
 
 void SimEngine::build_systems()
 {
-    auto& funcs = SimSystemAutoRegister::creators().entries;
-    for(auto& f : funcs)
+    const auto& registered_entries = SimSystemAutoRegister::creators().entries;
+
+    std::vector<const SimSystemAutoRegister::Entry*> entries;
+    entries.reserve(registered_entries.size());
+    for(const auto& entry : registered_entries)
+        entries.push_back(&entry);
+
+    std::ranges::sort(entries,
+                      {},
+                      [](const auto* entry) -> std::string_view
+                      { return entry->type_name; });
+
+    for(const auto* entry : entries)
     {
-        auto uptr = f(*this);
+        auto uptr = entry->creator(*this);
         if(uptr)
             m_system_collection.create(std::move(uptr));
     }

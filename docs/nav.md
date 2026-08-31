@@ -52,4 +52,5 @@
     - [Backend](development/backend.md)
     - [Backend Cuda](development/backend_cuda/index.md)
     - [Deterministic Mode](development/deterministic_mode.md)
+    - [Testing and Benchmarks](development/testing_and_benchmarks.md)
 - [Third-Party Libraries](misc/3rd_libs.md)

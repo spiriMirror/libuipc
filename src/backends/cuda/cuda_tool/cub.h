@@ -33,7 +33,7 @@ namespace details
         static thread_local std::unordered_map<cudaStream_t, DeviceVector<std::byte>> workspaces;
         auto& buf = workspaces[stream];
         if(buf.capacity() < bytes)
-            buf.reserve(bytes * 2, stream);
+            buf.reserve_discard(bytes * 2, stream);
         return reinterpret_cast<std::byte*>(buf.data());
     }
 

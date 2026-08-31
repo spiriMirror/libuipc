@@ -21,13 +21,15 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | `10-code-navigation-and-extension-map.md` | Public API → implementation → backend → binding → test map; coordinated change recipes and verification matrix |
 | `11-scene-data-lifecycle-and-serialization.md` | Scene ownership, current/rest geometry, pending mutations, Animator, contact/subscene semantics, snapshots and serialization limits |
 | `12-secondary-modules-samples-and-docs.md` | Features, sanity checking, DiffSim, USD/VDB, Python helpers, samples index, MkDocs/API generation, deployment and release boundaries |
-| `handoff.md` | Session history: what was done and why (muda→cuda_tool, Stiff-GIPC alignment, cloth model, kappa policy, hygiene), with verification evidence |
+| `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
+| `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
+| `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |
 
 ## 30-Second Overview
 
 - **libuipc** = a C++20 cross-platform GPU physics simulation library implementing Unified IPC (Incremental Potential Contact), unifying simulation of rigid bodies/soft bodies/cloth/rods with penetration-free frictional contact. Corresponding papers: GIPC 2024, StiffGIPC 2025 (Siggraph).
 - The user API has three conceptual layers: **Engine** (algorithm + backend) → **World** (`init/advance/retrieve`) → **Scene** (snapshot: Objects/Geometries/Constitutions/Contacts/Animator).
-- Backends are **runtime dynamically loaded MODULE libraries** (`uipc_backend_cuda`, `uipc_backend_none`), communicating through three exported symbols: `uipc_init_module/uipc_create_engine/uipc_destroy_engine`.
+- Backends are runtime-loaded shared libraries (`uipc_backend_cuda`, `uipc_backend_none`). Before init/create/destroy, `uipc_query_module` validates the backend ABI, libuipc major/minor version, and backend identity; test and packaged builds use the same library form.
 - Inside a backend, an ECS-style architecture of **DOP + RMR (Reporter-Manager-Receiver)** is used; all simulation functionality is implemented as `SimSystem` derived classes, auto-registered via the `REGISTER_SIM_SYSTEM` macro.
 - All GPU kernels are named `__global__` functions launched via raw `<<<>>>` (device utilities uniformly come from the in-house `src/backends/cuda/cuda_tool/`; no muda dependency; Eigen is retained).
 - The constitution layer spans FEM/ABD materials, shells/rods, constraints,
@@ -39,10 +41,10 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 
 ## Onboarding Checklist for New Agents
 
-1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then read `10-code-navigation-and-extension-map.md` for the source path, `09-known-issues-and-roadmap.md` for open work, and the relevant topic guide. Use `handoff.md` only when historical evidence is needed.
+1. **Read `rule.md` first** — owner-mandated working agreements (branch policy, minimal diffs, doc sync, language, build parity). Then read `10-code-navigation-and-extension-map.md` for the source path, `09-known-issues-and-roadmap.md` for open work, the relevant ADR, and the relevant topic guide. Use `handoff.md` only when historical detail is needed.
 2. Before coding, must read `.cursor/rules/cpp-format.mdc` (C++ style) and the conventions summary in `agent_docs/07-build-test-workflow.md`.
 3. Before modifying solver/constraints/GPU kernels, read `.cursor/skills/simulation-dev/SKILL.md` (index safety, NaN checks, debugging workflow).
-4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization see `.cursor/skills/gpu-optimization/SKILL.md`.
+4. For build/test commands see `07-build-test-workflow.md`; for GPU performance optimization read `performance/README.md` before `.cursor/skills/gpu-optimization/SKILL.md`.
 5. Commits follow Conventional Commits (summarized in the `07` document).
 
 ## Known Documentation Drift Notes (as of 2026-08)

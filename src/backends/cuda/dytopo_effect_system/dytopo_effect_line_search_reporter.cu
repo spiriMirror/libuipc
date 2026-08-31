@@ -31,7 +31,7 @@ void DyTopoEffectLineSearchReporter::Impl::compute_energy(bool is_init)
     }
 
     manager.reporter_energy_offsets_counts.scan();
-    energies.resize(manager.reporter_energy_offsets_counts.total_count());
+    loose_resize(energies, manager.reporter_energy_offsets_counts.total_count());
 
     for(auto&& [i, reporter] : enumerate(reporters))
     {
@@ -60,8 +60,6 @@ void DyTopoEffectLineSearchReporter::do_compute_energy(LineSearcher::ComputeEner
     m_impl.compute_energy(info.is_initial());
 
     DeviceReduce().Sum(
-        m_impl.energies.data(), m_impl.energy.data(), m_impl.energies.size());
-
-    info.energy(m_impl.energy);
+        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
 }
 }  // namespace uipc::backend::cuda

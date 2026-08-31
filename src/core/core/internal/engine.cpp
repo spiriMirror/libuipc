@@ -1,6 +1,7 @@
 #include <uipc/core/engine.h>
 #include <uipc/core/internal/engine.h>
 #include <dylib.hpp>
+#include <uipc/backend/module_info.h>
 #include <uipc/backend/module_init_info.h>
 #include <uipc/backend/engine_create_info.h>
 #include <uipc/common/uipc.h>
@@ -48,6 +49,41 @@ class Engine::Impl
         auto  backend =
             uipc::make_shared<dylib>(uipc_config["module_dir"].get<std::string>(),
                                      fmt::format("uipc_backend_{}", backend_name));
+
+        auto query = backend->get_function<int(UIPCBackendModuleInfo*)>("uipc_query_module");
+        if(!query)
+            throw Exception{
+                fmt::format("Backend [{}] does not expose uipc_query_module; the module is too old "
+                            "or is not a libuipc backend.",
+                            backend_name)};
+
+        UIPCBackendModuleInfo module_info{};
+        module_info.struct_size = sizeof(UIPCBackendModuleInfo);
+        if(!query(&module_info))
+            throw Exception{fmt::format("Backend [{}] rejected module-info structure size {}.",
+                                        backend_name,
+                                        sizeof(UIPCBackendModuleInfo))};
+        if(module_info.abi_version != UIPC_BACKEND_ABI_VERSION)
+            throw Exception{fmt::format("Backend [{}] ABI mismatch: module {}, core {}.",
+                                        backend_name,
+                                        module_info.abi_version,
+                                        UIPC_BACKEND_ABI_VERSION)};
+        if(module_info.uipc_version_major != UIPC_VERSION_MAJOR
+           || module_info.uipc_version_minor != UIPC_VERSION_MINOR)
+            throw Exception{fmt::format("Backend [{}] version mismatch: module {}.{}.{}, core {}.{}.{}.",
+                                        backend_name,
+                                        module_info.uipc_version_major,
+                                        module_info.uipc_version_minor,
+                                        module_info.uipc_version_patch,
+                                        UIPC_VERSION_MAJOR,
+                                        UIPC_VERSION_MINOR,
+                                        UIPC_VERSION_PATCH)};
+        if(module_info.backend_name == nullptr
+           || to_lower(module_info.backend_name) != to_lower(backend_name))
+            throw Exception{fmt::format(
+                "Backend identity mismatch: requested [{}], module reports [{}].",
+                backend_name,
+                module_info.backend_name ? module_info.backend_name : "<null>")};
 
         auto info             = make_unique<UIPCModuleInitInfo>();
         info->module_name     = backend_name;

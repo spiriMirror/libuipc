@@ -1,10 +1,13 @@
+includes("components.lua")
+
 target("cuda")
     add_rules("backend")
+    uipc_add_cuda_component_sources()
     if has_config("dev") then
         add_rules("clangd")
     end
-    add_files("**.cpp", "**.cu")
     add_headerfiles("**.h", "**.inl")
+    add_includedirs(path.join(os.projectdir(), "src"))
     add_includedirs(os.scriptdir(), {public = true})
     -- cuda_tool (self-written device utilities) on the include path for <cuda_tool/...>
     add_includedirs(path.join(os.scriptdir(), "cuda_tool"), {public = true})

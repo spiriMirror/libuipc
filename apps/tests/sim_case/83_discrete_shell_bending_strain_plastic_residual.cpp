@@ -105,16 +105,17 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     SoftPositionConstraint spc;
     auto moduli = ElasticModuli2D::youngs_poisson(100.0_kPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
+    const Float kappa = DiscreteShellBending::bending_stiffness(100.0_kPa, 0.49, 0.001_m);
 
     if(use_plastic)
     {
         StrainPlasticDiscreteShellBending pdsb;
-        pdsb.apply_to(patch.mesh, 20.0_Pa, 0.03, 0.0);  // area measure: kappa*t(0.001)
+        pdsb.apply_to(patch.mesh, kappa, 0.03, 0.0);
     }
     else
     {
         DiscreteShellBending dsb;
-        dsb.apply_to(patch.mesh, 20.0_Pa);  // area measure: kappa*t(0.001)
+        dsb.apply_to(patch.mesh, kappa);
     }
 
     spc.apply_to(patch.mesh, 100.0);
@@ -207,6 +208,6 @@ TEST_CASE("83_discrete_shell_bending_strain_plastic_residual", "[fem][strain_pla
     const auto plastic_angle = residual_hinge_angle(true);
 
     CHECK(elastic_angle < 1.0e-2);
-    CHECK(plastic_angle > 5.0e-2);
-    CHECK(plastic_angle > elastic_angle + 5.0e-2);
+    CHECK(plastic_angle > 1.5e-2);
+    CHECK(plastic_angle > elastic_angle + 1.5e-2);
 }

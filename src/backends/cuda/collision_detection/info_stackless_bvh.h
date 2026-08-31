@@ -68,10 +68,18 @@ class InfoStacklessBVH
     class QueryBuffer
     {
       public:
-        QueryBuffer() { m_pairs.resize(50 * 1024); }
+        QueryBuffer()
+        {
+            m_pairs.reserve_discard(50 * 1024);
+            m_pairs.resize_discard(50 * 1024);
+        }
 
-        auto  view() const noexcept { return m_pairs.view(0, m_size); }
-        void  reserve(size_t size) { m_pairs.resize(size); }
+        auto view() const noexcept { return m_pairs.view(0, m_size); }
+        void reserve(size_t size)
+        {
+            m_pairs.reserve_discard(size);
+            m_pairs.resize_discard(size);
+        }
         SizeT size() const noexcept { return m_size; }
         auto  viewer() const noexcept { return view().viewer(); }
 
@@ -115,6 +123,12 @@ class InfoStacklessBVH
     void detect(cuda_tool::CBuffer2DView<IndexT> cmts, NodePred np, LeafPred lp, QueryBuffer& qbuffer);
 
     template <typename NodePred, typename LeafPred>
+    void launch_detect(cuda_tool::CBuffer2DView<IndexT> cmts,
+                       NodePred                         np,
+                       LeafPred                         lp,
+                       QueryBuffer&                     qbuffer);
+
+    template <typename NodePred, typename LeafPred>
     void query(cuda_tool::CBufferView<AABB>     query_aabbs,
                cuda_tool::CBufferView<IndexT>   query_BIDs,
                cuda_tool::CBufferView<IndexT>   query_CIDs,
@@ -122,6 +136,20 @@ class InfoStacklessBVH
                NodePred                         np,
                LeafPred                         lp,
                QueryBuffer&                     qbuffer);
+
+    template <typename NodePred, typename LeafPred>
+    void launch_query(cuda_tool::CBufferView<AABB>     query_aabbs,
+                      cuda_tool::CBufferView<IndexT>   query_BIDs,
+                      cuda_tool::CBufferView<IndexT>   query_CIDs,
+                      cuda_tool::CBuffer2DView<IndexT> cmts,
+                      NodePred                         np,
+                      LeafPred                         lp,
+                      QueryBuffer&                     qbuffer,
+                      bool                             rebuild_query = true);
+
+    // Publish a device-produced count and grow the output if a retry is
+    // required. The caller relaunches the same query when this returns true.
+    bool prepare_query_result(QueryBuffer& qbuffer, int count);
 
     Config&       config() noexcept { return m_impl.config; }
     const Config& config() const noexcept { return m_impl.config; }

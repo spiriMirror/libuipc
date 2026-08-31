@@ -11,24 +11,29 @@ core::World  world{engine};
 
 ## Backend Module ABI
 
-A backend module must export exactly three C symbols (declared in `src/backends/common/module.h`):
+A backend module must export exactly four C symbols (declared in `src/backends/common/module.h`):
 
 ```cpp
 extern "C"
 {
-    // 1. Called once right after the dynamic library is loaded.
+    // 1. Called immediately after loading, before any backend code.
+    //    Reports ABI version, libuipc build version, and backend identity.
+    UIPC_BACKEND_API int uipc_query_module(UIPCBackendModuleInfo* info);
+
+    // 2. Called once after the module identity is validated.
     //    Synchronizes the host's std::pmr::memory_resource into the module,
     //    so pmr containers allocate consistently across the DLL boundary.
     UIPC_BACKEND_API void uipc_init_module(UIPCModuleInitInfo* info);
 
-    // 2. Called to create an engine instance.
+    // 3. Called to create an engine instance.
     UIPC_BACKEND_API core::IEngine* uipc_create_engine(backend::EngineCreateInfo* info);
 
-    // 3. Called to destroy the engine instance created by uipc_create_engine.
+    // 4. Called to destroy the engine instance created by uipc_create_engine.
     UIPC_BACKEND_API void uipc_destroy_engine(core::IEngine* engine);
 }
 ```
 
+- `UIPCBackendModuleInfo` (`include/uipc/backend/module_info.h`) is a size-versioned POD contract. The frontend rejects a missing query symbol, ABI mismatch, libuipc major/minor mismatch, or unexpected backend name before calling init/create.
 - `UIPCModuleInitInfo` (`include/uipc/backend/module_init_info.h`) carries the module name and the host PMR memory resource. The shared implementation in `src/backends/common/module.cpp` does `std::pmr::set_default_resource(info->memory_resource)` — reuse it.
 - `EngineCreateInfo` (`include/uipc/backend/engine_create_info.h`) carries the absolute `workspace` path and the engine `Json` config (e.g. `config["gpu"]["device"]`).
 - The frontend resolves the module from `uipc::config()["module_dir"]`, loading `uipc_backend_<name>` (with the platform shared-library extension). Loaded modules are cached, so repeated `Engine{"cuda"}` constructions reuse the same library.
@@ -48,7 +53,7 @@ file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(my_backend PRIVATE ${SOURCES})
 ```
 
-`uipc_add_backend` (defined in `src/backends/CMakeLists.txt`) creates a MODULE library target named `uipc_backend_my_backend`, links the backend common utilities, and sets the output directory so the frontend can find it.
+`uipc_add_backend` (defined in `src/backends/CMakeLists.txt`) creates a runtime-loadable shared library named `uipc_backend_my_backend`, links the backend common utilities, and sets the output directory so the frontend can find it. Tests and packaged builds deliberately use the same artifact semantics.
 
 ### Step 2: Implement the entrance
 
@@ -71,7 +76,8 @@ extern "C" UIPC_BACKEND_API void uipc_destroy_engine(core::IEngine* engine)
 }
 ```
 
-(`uipc_init_module` is already provided by `src/backends/common/module.cpp` — do not redefine it.)
+(`uipc_query_module` and `uipc_init_module` are already provided by
+`src/backends/common/module.cpp` — do not redefine them.)
 
 ### Step 3: Implement the engine
 
@@ -189,6 +195,12 @@ namespace uipc::my_backend
 
 Call `REGISTER_SIM_SYSTEM(MySimSystem)` in the source file to register your system to the backend engine automatically. Note that the constructor signature determines which engine the system belongs to: a system taking `cuda::SimEngine&` is only instantiated by the CUDA engine, a system taking `backend::SimEngine&` is instantiated by any engine.
 
+Registered systems are instantiated and built in ascending complete type-name
+order. This makes `systems.json`, compatible implementation lookup, and action
+registration reproducible across link layouts. Do not encode priority through
+source-file or static-initialization order; express required relationships with
+`require<T>()` and use an explicit dispatcher for ordered runtime actions.
+
 ### Dependency
 
 To build up the dependency between systems, call `require<T>` and `find<T>` in the `do_build` function of the system.
@@ -214,9 +226,9 @@ void MySimSystem::do_build()
 
 `require<T>` will throw an exception if the system is not found, and `find<T>` will return a nullptr if the system is not found. If any dependency is not satisfied, the dependent system should throw to invalidate itself. You can also manually throw a `SimSystemException` to invalidate the system.
 
-The backend common utilities will clean up the invalid systems — including any system that **strongly depends** on an invalid one (weak dependencies are tolerated) — and keep the valid systems in the backend engine. If such an exception propagates to the level of the backend engine, the engine will close itself and throw the exception to the frontend.
+The backend common utilities will clean up the invalid systems — including any system that **strongly depends** on an invalid one (weak dependencies are tolerated) — and keep the valid systems in the backend engine. The remaining strong-dependency graph must be acyclic. A cycle aborts backend initialization with the full path, such as `SystemA -> SystemB -> SystemA`, so mutually recursive ownership should be redesigned around one manager or a weak dependency. If such an exception propagates to the level of the backend engine, the engine will close itself and throw the exception to the frontend.
 
-It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. By default `find<T>` matches the exact type only (`{.exact = true}`); pass `find<T>({.exact = false})` to also accept a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one.
+It's recommended to use `require<T>` for systems that are necessary, and `find<T>` for optional ones. By default `find<T>` matches the exact type only (`{.exact = true}`); pass `find<T>({.exact = false})` to also accept a **derived** implementation of `T`, which is how backends override a base system's functionality with a specialized one. Compatible lookup follows the same deterministic type-name order and skips implementations that have already invalidated themselves, for example an inactive pipeline variant.
 
 To keep references to other systems, you **should** use `SimSystemSlot` and `SimSystemSlotCollection`. They manage the lifetime of the referenced systems properly: a system may be valid when you require it but invalid later (e.g. after a cascading cleanup), and the slots guard against such use-after-invalidation.
 

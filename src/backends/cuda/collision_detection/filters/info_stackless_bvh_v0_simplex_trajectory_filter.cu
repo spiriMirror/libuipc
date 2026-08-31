@@ -1416,11 +1416,11 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
     SizeT N_PTs     = candidate_AllP_AllT_pairs.size();
     SizeT N_EEs     = candidate_AllE_AllE_pairs.size();
 
-    temp_PPs.resize(N_PCoimP + N_CodimPE + N_PTs + N_EEs);
-    temp_PEs.resize(N_CodimPE + N_PTs + N_EEs);
+    temp_PPs.resize_discard(N_PCoimP + N_CodimPE + N_PTs + N_EEs);
+    temp_PEs.resize_discard(N_CodimPE + N_PTs + N_EEs);
 
-    temp_PTs.resize(N_PTs);
-    temp_EEs.resize(N_EEs);
+    temp_PTs.resize_discard(N_PTs);
+    temp_EEs.resize_discard(N_EEs);
 
     SizeT temp_PP_offset = 0;
     SizeT temp_PE_offset = 0;
@@ -1522,10 +1522,10 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
     UIPC_ASSERT(temp_PE_offset == temp_PEs.size(), "size mismatch");
 
     {
-        PPs.resize(temp_PPs.size());
-        PEs.resize(temp_PEs.size());
-        PTs.resize(temp_PTs.size());
-        EEs.resize(temp_EEs.size());
+        PPs.resize_discard(temp_PPs.size());
+        PEs.resize_discard(temp_PEs.size());
+        PTs.resize_discard(temp_PTs.size());
+        EEs.resize_discard(temp_EEs.size());
 
         DeviceSelect().If(temp_PPs.data(),
                           PPs.data(),
@@ -1556,10 +1556,10 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_active(FilterActive
         IndexT PT_count = selected_PT_count;
         IndexT EE_count = selected_EE_count;
 
-        PPs.resize(PP_count);
-        PEs.resize(PE_count);
-        PTs.resize(PT_count);
-        EEs.resize(EE_count);
+        PPs.resize_discard(PP_count);
+        PEs.resize_discard(PE_count);
+        PTs.resize_discard(PT_count);
+        EEs.resize_discard(EE_count);
     }
 
     info.PPs(PPs);
@@ -1620,7 +1620,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
         candidate_AllP_CodimP_pairs.size() + candidate_CodimP_AllE_pairs.size()
         + candidate_AllP_AllT_pairs.size() + candidate_AllE_AllE_pairs.size();
 
-    tois.resize(toi_size);
+    tois.resize_discard(toi_size);
 
     auto offset  = 0;
     auto PP_tois = tois.view(offset, candidate_AllP_CodimP_pairs.size());

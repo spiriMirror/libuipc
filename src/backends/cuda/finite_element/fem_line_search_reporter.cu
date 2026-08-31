@@ -23,6 +23,16 @@ namespace
             return;
         xs(i) = x_temps(i) + alpha * dxs(i);
     }
+
+    __global__ void FEMLineSearchReporter_combine_energy_kernel(
+        cuda_tool::CVarView<Float> kinetic_energy,
+        cuda_tool::CVarView<Float> reporter_energy,
+        cuda_tool::VarView<Float>  total_energy)
+    {
+        if(blockIdx.x != 0 || threadIdx.x != 0)
+            return;
+        *total_energy = *kinetic_energy + *reporter_energy;
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
@@ -77,7 +87,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
     // Compute Kinetic (special)
     {
         auto vertex_count = fem().xs.size();
-        kinetic_energies.resize(vertex_count);
+        kinetic_energies.resize_discard(vertex_count);
         auto kinetic_info = ComputeEnergyInfo{kinetic_energies.view(), info.dt()};
         finite_element_kinetic->compute_energy(kinetic_info);
 
@@ -98,7 +108,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         }
 
         reporter_energy_offsets_counts.scan();
-        reporter_energies.resize(reporter_energy_offsets_counts.total_count());
+        reporter_energies.resize_discard(reporter_energy_offsets_counts.total_count());
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {
@@ -113,16 +123,13 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
                            reporter_energies.size());
     }
 
-    Float K       = total_kinetic_energy;
-    Float other_E = total_reporter_energy;
-    Float total_E = K + other_E;
-
-    info.energy(total_E);
+    FEMLineSearchReporter_combine_energy_kernel<<<1, 1>>>(
+        total_kinetic_energy.cview(), total_reporter_energy.cview(), info.energy());
 }
 
 void FEMLineSearchReporter::Impl::init(LineSearchReporter::InitInfo& info)
 {
-    kinetic_energies.resize(fem().xs.size());
+    kinetic_energies.resize_discard(fem().xs.size());
 
     auto reporter_view = reporters.view();
     for(auto&& [i, R] : enumerate(reporter_view))

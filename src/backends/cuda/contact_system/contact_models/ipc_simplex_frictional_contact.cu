@@ -260,8 +260,8 @@ namespace
                                    P1);
     }
 
-    __global__ void do_assemble_kernel(bool gradient_only,
-                                       cuda_tool::CDense2D<ContactCoeff> table,
+    template <bool GradientOnly>
+    __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
                                        cuda_tool::CBufferView<IndexT> contact_ids,
                                        cuda_tool::CBufferView<Vector3> Ps,
                                        cuda_tool::CBufferView<Vector3> prev_Ps,
@@ -323,7 +323,7 @@ namespace
                 PT_d_hat(d_hats(PT[0]), d_hats(PT[1]), d_hats(PT[2]), d_hats(PT[3]));
 
             Vector12 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PT_friction_gradient(
                     G, kt2, d_hat, thickness, mu, eps_v * dt, prev_P, prev_T0, prev_T1, prev_T2, P, T0, T1, T2);
@@ -383,7 +383,7 @@ namespace
                 distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x);
 
             Vector12 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 if(mollified)
                     G.setZero();
@@ -436,7 +436,7 @@ namespace
             Float d_hat = PE_d_hat(d_hats(PE[0]), d_hats(PE[1]), d_hats(PE[2]));
 
             Vector9 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PE_friction_gradient(
                     G, kt2, d_hat, thickness, mu, eps_v * dt, prev_P, prev_E0, prev_E1, P, E0, E1);
@@ -475,7 +475,7 @@ namespace
             Float d_hat = PP_d_hat(d_hats(PP[0]), d_hats(PP[1]));
 
             Vector6 G;
-            if(gradient_only)
+            if constexpr(GradientOnly)
             {
                 PP_friction_gradient(
                     G, kt2, d_hat, thickness, mu, eps_v * dt, prev_P0, prev_P1, P0, P1);
@@ -496,6 +496,7 @@ namespace
             }
         }
     }
+
 }  // namespace
 
 class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
@@ -584,7 +585,6 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         using namespace cuda_tool;
         using namespace sym::codim_ipc_contact;
 
-        // Fused kernel: PT + EE + PE + PP friction in one launch
         auto pt_count = (IndexT)info.friction_PTs().size();
         auto ee_count = (IndexT)info.friction_EEs().size();
         auto pe_count = (IndexT)info.friction_PEs().size();
@@ -598,38 +598,44 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         IndexT pe_offset = ee_offset + ee_count;
         IndexT pp_offset = pe_offset + pe_count;
 
-        do_assemble_kernel<<<cuda_tool::best_grid_dim(total, do_assemble_kernel), cuda_tool::best_block_dim(do_assemble_kernel), 0, nullptr>>>(
-            info.gradient_only(),
-            info.contact_tabular().viewer(),
-            info.contact_element_ids().viewer(),
-            info.positions().viewer(),
-            info.prev_positions().viewer(),
-            info.rest_positions().viewer(),
-            info.thicknesses().viewer(),
-            info.d_hats().viewer(),
-            info.eps_velocity(),
-            info.dt(),
-            // PT
-            info.friction_PTs().viewer(),
-            info.friction_PT_gradients().viewer(),
-            info.friction_PT_hessians().viewer(),
-            // EE
-            info.friction_EEs().viewer(),
-            info.friction_EE_gradients().viewer(),
-            info.friction_EE_hessians().viewer(),
-            // PE
-            info.friction_PEs().viewer(),
-            info.friction_PE_gradients().viewer(),
-            info.friction_PE_hessians().viewer(),
-            // PP
-            info.friction_PPs().viewer(),
-            info.friction_PP_gradients().viewer(),
-            info.friction_PP_hessians().viewer(),
-            // offsets
-            ee_offset,
-            pe_offset,
-            pp_offset,
-            total);
+        // Keep all contact types in one launch so rare, expensive PT/EE work
+        // overlaps the dominant PE population. Specialize only the uniform
+        // gradient/Hessian branch.
+        auto launch = [&]<bool GradientOnly>()
+        {
+            auto k = do_assemble_kernel<GradientOnly>;
+            k<<<cuda_tool::best_grid_dim(total, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.contact_tabular().viewer(),
+                info.contact_element_ids().viewer(),
+                info.positions().viewer(),
+                info.prev_positions().viewer(),
+                info.rest_positions().viewer(),
+                info.thicknesses().viewer(),
+                info.d_hats().viewer(),
+                info.eps_velocity(),
+                info.dt(),
+                info.friction_PTs().viewer(),
+                info.friction_PT_gradients().viewer(),
+                info.friction_PT_hessians().viewer(),
+                info.friction_EEs().viewer(),
+                info.friction_EE_gradients().viewer(),
+                info.friction_EE_hessians().viewer(),
+                info.friction_PEs().viewer(),
+                info.friction_PE_gradients().viewer(),
+                info.friction_PE_hessians().viewer(),
+                info.friction_PPs().viewer(),
+                info.friction_PP_gradients().viewer(),
+                info.friction_PP_hessians().viewer(),
+                ee_offset,
+                pe_offset,
+                pp_offset,
+                total);
+        };
+
+        if(info.gradient_only())
+            launch.operator()<true>();
+        else
+            launch.operator()<false>();
     }
 };
 

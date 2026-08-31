@@ -11,3 +11,12 @@ $$
 $$
 
 Positions are the degrees of freedom that evolve over time. Each concrete constitution documents only the attributes it introduces and how they map to its energy formula.
+
+## Shell thickness convention
+
+For a triangle mesh, the vertex `thickness` attribute stores the one-sided
+collision offset (radius) $r$. The physical slab extends to both sides of the
+surface, so its full material thickness is $h=2r$. Shell mass uses
+$\rho A_0(2r)$, and shell constitutions that depend on physical thickness must
+use $2r$. A zero radius switches the generic vertex measure to triangle area,
+so `mass_density` is then interpreted as a surface density.

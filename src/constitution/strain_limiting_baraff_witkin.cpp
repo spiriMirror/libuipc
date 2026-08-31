@@ -33,11 +33,14 @@ void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
 
     // Cloth stiffness model (same convention as mas-pncg), with independent
     // stretch / shear material parameters:
-    //   stretchStiff = E_stretch * t / (1 - nu_stretch^2)  [= (lambda_s + 2*mu_s) * t]
+    //   stretchStiff = E_stretch * (2r) / (1 - nu_stretch^2)
+    //                [= (lambda_s + 2*mu_s) * (2r)]
     //   shearStiff   = E_shear / (2*(1 + nu_shear))        [= mu_shear]
-    // The backend membrane measure is the triangle AREA (no thickness), so
-    // these attribute values are used literally as the effective stiffnesses.
-    Float stretch_stiff = (stretch_moduli.lambda() + 2 * stretch_moduli.mu()) * thickness;
+    // The stored thickness is the one-sided collision offset. Stretch uses
+    // the full shell thickness 2r; shear remains an independently calibrated
+    // two-dimensional effective coefficient.
+    Float stretch_stiff =
+        (stretch_moduli.lambda() + 2 * stretch_moduli.mu()) * (2 * thickness);
     Float shear_stiff = shear_moduli.mu();
 
     UIPC_ASSERT_THROW(sc.dim() == 2, "StrainLimitingBaraffWitkinShell only supports 2D simplicial complex");

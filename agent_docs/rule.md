@@ -77,6 +77,23 @@ record it here in the same commit.**
    `cuda_tool`'s per-stream workspace); never allocate/free CUB scratch on
    every call. (Set 2026-08-25.)
 
+13. **Make CUDA buffer growth semantics explicit.** Keep `resize()` for
+   value-initialized state. Use `resize_discard()` only for output that the
+   following kernel/copy/CUB call completely regenerates, and use
+   `resize_preserve()` only when the old logical range must survive but the new
+   range may remain uninitialized. Growth capacity must be based on the latest
+   requirement with deliberate headroom; do not copy or initialize dead output
+   ranges merely to emulate `std::vector`. (Set 2026-08-30.)
+
+14. **Profile heterogeneous kernel fusion/splitting end to end.** Static
+    register or stack reductions do not prove a speedup. In particular, keep
+    IPC simplex PT/EE/PE/PP Hessian assembly in one launch unless both the
+    kernel profile and enclosing DyTopo timer prove a split is faster: rare
+    PT/EE threads are expensive and overlap the dominant PE population in the
+    fused launch. Compile-time specialization of a uniform mode such as
+    `gradient_only` is preferred when it removes dead work without serializing
+    stencil families. (Set 2026-08-30.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice

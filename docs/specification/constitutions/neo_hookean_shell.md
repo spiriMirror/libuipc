@@ -60,6 +60,13 @@ where:
 
 - $\ln J = \frac{1}{2}\ln(\det(\mathbf{A}) \det(\bar{\mathbf{B}}^{-1}))$ is the logarithmic strain
 
+The stored vertex thickness is the one-sided radius $r$. The per-triangle
+energy integrates the density over the full slab thickness $2r$:
+
+$$
+E_\triangle = \Psi\,A_0(2r).
+$$
+
 ## Attributes
 
 On `triangles`:

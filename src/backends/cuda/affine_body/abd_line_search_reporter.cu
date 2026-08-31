@@ -40,6 +40,17 @@ namespace
             kinetic_energy(i) = 0.0;
         }
     }
+
+    __global__ void abd_line_search_reporter_combine_energy_kernel(
+        cuda_tool::CVarView<Float> kinetic_energy,
+        cuda_tool::CVarView<Float> shape_energy,
+        cuda_tool::CVarView<Float> reporter_energy,
+        cuda_tool::VarView<Float>  total_energy)
+    {
+        if(blockIdx.x != 0 || threadIdx.x != 0)
+            return;
+        *total_energy = *kinetic_energy + *shape_energy + *reporter_energy;
+    }
 }  // namespace
 
 REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
@@ -92,7 +103,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
     // Compute kinetic energy
     {
-        body_id_to_kinetic_energy.resize(body_count);
+        body_id_to_kinetic_energy.resize_discard(body_count);
 
         ABDLineSearchReporter::ComputeEnergyInfo this_info;
         this_info.m_energies = body_id_to_kinetic_energy.view();
@@ -120,7 +131,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
     // Compute shape energy
     {
-        body_id_to_shape_energy.resize(body_count);
+        body_id_to_shape_energy.resize_discard(body_count);
 
         // Distribute the computation of shape energy to each constitution
         for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
@@ -151,7 +162,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         }
 
         reporter_energy_offsets_counts.scan();
-        reporter_energies.resize(reporter_energy_offsets_counts.total_count());
+        reporter_energies.resize_discard(reporter_energy_offsets_counts.total_count());
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {
@@ -168,14 +179,11 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
                            reporter_energies.size());
     }
 
-    // Copy from device to host
-    Float K       = abd_kinetic_energy;
-    Float shape_E = abd_shape_energy;
-    Float other_E = total_reporter_energy;
-
-    Float E = K + shape_E + other_E;
-
-    info.energy(E);
+    abd_line_search_reporter_combine_energy_kernel<<<1, 1>>>(
+        abd_kinetic_energy.cview(),
+        abd_shape_energy.cview(),
+        total_reporter_energy.cview(),
+        info.energy());
 }
 
 void ABDLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)

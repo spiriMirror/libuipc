@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/common/dllexport.h>
+#include <uipc/backend/module_info.h>
 #include <memory_resource>
 #include <uipc/core/i_engine.h>
 
@@ -12,6 +13,14 @@ class EngineCreateInfo;
 using EngineCreateInfo = uipc::backend::EngineCreateInfo;
 
 extern "C" {
+/**
+ * @brief Query the backend module ABI and build identity.
+ *
+ * The caller sets `info->struct_size` before the call. The backend returns
+ * zero when the caller's structure is too small or the pointer is null.
+ */
+UIPC_BACKEND_API int uipc_query_module(UIPCBackendModuleInfo* info);
+
 /**
  * @brief Create a new engine instance.
  * 

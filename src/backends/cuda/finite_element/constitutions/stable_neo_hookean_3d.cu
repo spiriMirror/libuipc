@@ -43,10 +43,6 @@ namespace
 
         auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
-        auto J = F.determinant();
-
-        //auto VecF = flatten(F);
-
         Float E;
 
         SNH::E(E, mu, lambda, F);
@@ -82,10 +78,6 @@ namespace
 
         auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
-        auto J = F.determinant();
-
-        //auto VecF = flatten(F);
-
         auto Vdt2 = volumes(I) * dt * dt;
 
         Matrix3x3 dEdF;
@@ -93,11 +85,15 @@ namespace
         auto VecdEdF = flatten(dEdF);
         VecdEdF *= Vdt2;
 
-        Matrix9x12 dFdx = fem::dFdx(Dm_inv);
-        Vector12   G    = dFdx.transpose() * VecdEdF;
+        auto shape_gradients = fem::tetrahedron_shape_gradients(Dm_inv);
 
         DoubletVectorAssembler DVA{G3s};
-        DVA.segment<StencilSize>(I * StencilSize).write(tet, G);
+#pragma unroll
+        for(int i = 0; i < StencilSize; ++i)
+        {
+            Vector3 G = fem::project_F_gradient(shape_gradients.col(i), VecdEdF);
+            DVA(I * StencilSize + i).write(tet(i), G);
+        }
 
         if(gradient_only)
             return;
@@ -107,9 +103,27 @@ namespace
         Matrix9x9 ddEddF;
         SNH::ddEddF_spd(ddEddF, mu, lambda, F);
         ddEddF *= Vdt2;
-        Matrix12x12            H = dFdx.transpose() * ddEddF * dFdx;
-        TripletMatrixAssembler TMA{H3x3s};
-        TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
+
+        IndexT hessian_offset = I * HalfHessianSize;
+#pragma unroll
+        for(int i = 0; i < StencilSize; ++i)
+        {
+#pragma unroll
+            for(int j = i; j < StencilSize; ++j)
+            {
+                int left  = i;
+                int right = j;
+                if(tet(left) > tet(right))
+                {
+                    left  = j;
+                    right = i;
+                }
+
+                Matrix3x3 H = fem::project_F_hessian_block(
+                    shape_gradients.col(left), ddEddF, shape_gradients.col(right));
+                H3x3s(hessian_offset++).write(tet(left), tet(right), H);
+            }
+        }
     }
 }  // namespace
 

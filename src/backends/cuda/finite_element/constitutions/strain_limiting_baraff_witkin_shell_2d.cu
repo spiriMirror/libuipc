@@ -67,8 +67,8 @@ namespace
         Vector2 anisotropic_b = Vector2(0, 1);
 
         // Membrane element weight is the triangle AREA (not volume): the
-        // stiffness attributes carry their own thickness factors
-        // (stretch ∝ t, shear is thickness-independent).
+        // stiffness attributes carry their own thickness conventions
+        // (stretch uses full thickness 2r; shear is thickness-independent).
         Float V = rest_area;
 
         Float E = BWS::E(F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);
@@ -116,8 +116,8 @@ namespace
         auto dFdx = BWS::dFdX(IB);
 
         // Membrane element weight is the triangle AREA (not volume): the
-        // stiffness attributes carry their own thickness factors
-        // (stretch ∝ t, shear is thickness-independent).
+        // stiffness attributes carry their own thickness conventions
+        // (stretch uses full thickness 2r; shear is thickness-independent).
         Float V = rest_area;
 
         Float Vdt2 = V * dt * dt;

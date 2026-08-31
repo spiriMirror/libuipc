@@ -122,8 +122,9 @@ TEST_CASE("discrete_shell_bending_formula_overload", "[constitution]")
     Float denom = 12.0 * (1.0 - nu * nu);
     for(SizeT i = 0; i < edges.size(); ++i)
     {
-        Float t_e = (tv[edges[i](0)] + tv[edges[i](1)]) * 0.5;
-        CHECK(bsv[i] == Catch::Approx(E * t_e * t_e * t_e / denom));
+        Float radius_e       = (tv[edges[i](0)] + tv[edges[i](1)]) * 0.5;
+        Float full_thickness = 2 * radius_e;
+        CHECK(bsv[i] == Catch::Approx(E * full_thickness * full_thickness * full_thickness / denom));
     }
 
     // missing thickness attribute -> clear error

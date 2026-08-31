@@ -1,5 +1,9 @@
 include(uipc_utils)
-file(GLOB BACKEND_COMMON_SOURCES CONFIGURE_DEPENDS "common/*.h" "common/*.cpp" "common/details/*.inl")
+file(GLOB BACKEND_COMMON_SOURCES CONFIGURE_DEPENDS
+    "common/*.h"
+    "common/*.cpp"
+    "common/details/*.h"
+    "common/details/*.inl")
 
 # ---------------------------------------------------------------------------
 # A dummy target to group all backends
@@ -14,12 +18,10 @@ set(UIPC_BACKENDS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 # ---------------------------------------------------------------------------
 function(uipc_add_backend name)
     uipc_info("Adding backend: [${name}]")
-    if(UIPC_BUILD_TESTS) # for tests, we need to link against the shared library
-        # uipc_info("UIPC_BUILD_TESTS=${UIPC_BUILD_TESTS}, so we build the backend [${name}] as shared library")
-        add_library(${name} SHARED)
-    else() # else, we just dynamically load the backend
-        add_library(${name} MODULE)
-    endif()
+    # Keep test and packaged artifacts identical. A shared library remains
+    # runtime-loadable while also allowing backend-internal unit tests to link
+    # against the same binary.
+    add_library(${name} SHARED)
 
     # alias the target
     add_library(uipc::backend::${name} ALIAS ${name})

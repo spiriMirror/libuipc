@@ -33,12 +33,29 @@ xmake run sim_case         # Run a test target
 ```
 Test target names are rewritten by the `uipc_test` rule into binary names `uipc_test_<target>`; `xmake run --help` lists all runnable targets.
 
-XMake mirrors the active CMake feature set: `backend_cuda`, `pybind`, `examples`,
-`tests`, and `benchmarks`, plus optional `usd` and `vdb` targets. The removed C++
-GUI, torch extension, and nonexistent RPC module have no stale options. Project
-policy explicitly disables `build.ccache`. The pybind post-build step copies the
-package, extension, and colocated runtime libraries synchronously before
-packaging begins.
+XMake mirrors the active CMake feature set: `backend_cuda`,
+`cuda_legacy_collision`, `pybind`, `examples`, `tests`, and `benchmarks`, plus
+optional `usd` and `vdb` targets. The removed C++ GUI, torch extension, and
+nonexistent RPC module have no stale options. Project policy explicitly
+disables `build.ccache`. The pybind post-build step copies the package,
+extension, and colocated runtime libraries synchronously before packaging
+begins.
+
+The CUDA backend has one runtime library and eight logical source components
+(seven primary domains plus optional legacy collision). CMake owns the
+inventory in `src/backends/cuda/components.cmake` and realizes it as OBJECT
+targets; XMake mirrors the ownership in `components.lua` but adds every enabled
+source directly to the final shared target. Assign every compiled CUDA backend
+source to exactly one component in both manifests, including sources disabled
+by a feature option. Configuration rejects missing or duplicate ownership.
+
+The XMake shape is intentionally different. Its built-in device-link only
+collects CUDA source batches owned by the final target; CUDA OBJECT dependencies
+reach the host linker but not device-link. On Windows that produces unresolved
+`__cudaRegisterLinkedBinary_*` symbols, while a Linux shared linker may accept
+the unresolved references and defer the failure to load time. Keep the direct
+source attachment, `-rdc=true`, project `src/` include, and final-target backend
+definitions together. The repository contract guards this boundary.
 
 ## Test System
 
@@ -55,6 +72,14 @@ packaging begins.
 | `sim_case/` | **95 simulation source files**: `abd_*` (affine body/joints), `fem_*`, `fem_mas_*` (linear systems), `*_stitch`, `discrete_shell_bending*`, joint series (revolute/prismatic/spherical/fixed + limit/driving/external force). Numeric IDs are not contiguous/unique: 45 and 84 each occur twice, and 62 is absent. |
 | `usd/` | Conditionally compiled when USD support is enabled; there is no C++ GUI test directory anymore |
 
+The CUDA-backend, simulation, and GPU regression targets are added only when
+the CUDA backend itself is enabled. This keeps CMake and XMake
+CPU/interface-only configurations free of dangling `cuda` target dependencies;
+the mixed sanity-check target remains available, but compiles its CUDA sections
+only when that backend exists, preserving its none-backend coverage in lean
+builds. In that configuration CTest relabels it `fast;cpu`; CUDA builds retain
+its `gpu` label because the same executable exercises both backends.
+
 The `fem_mas_*` cases (53-61, 81 + the stitch regression) activate MAS via
 `config["linear_system"]["fem_preconditioner"] = "mas"` — not via
 `mesh_partition()` calls (2026-08-24 switch redesign; 58_hybrid_mix still
@@ -63,8 +88,11 @@ uses one manual `mesh_partition` to verify custom partitions are respected).
 Run a single executable with
 `./build/<config>/bin/uipc_test_<name> ["test name"] ['[tag]'] [--list-tests] [--log-level info]`.
 CMake also registers every executable with CTest as `uipc.<name>`. The
-`common`, `core`, and `geometry` targets carry the `fast;cpu` labels; all other
-targets carry the `gpu` label. The local/CI CPU gate is therefore:
+`common`, `core`, and `geometry` targets carry `fast;cpu`; CUDA backend,
+simulation, regression, and CUDA-enabled sanity tests carry `gpu`; other
+targets are `cpu`. Every GPU CTest entry holds the `uipc_gpu` resource lock, so
+`ctest -j` may overlap CPU work but cannot contend two aggregate GPU executables
+on one device. The local/CI CPU gate is therefore:
 
 ```bash
 ctest --test-dir build --build-config Release --label-regex fast \
@@ -73,7 +101,7 @@ ctest --test-dir build --build-config Release --label-regex fast \
 
 **Catch2 v3.8 filtering, empirically verified**: multiple specs as separate argv entries are combined with **AND** (intersection) — often causing "No tests ran"; **OR must be written inside a single argv separated by commas**: `uipc_test_sim_case "0_abd_gravity,13_fem_3d_gravity"`. List cases: `--list-tests --verbosity quiet` (one case name per line).
 
-**sim_case isolated-process mode**: `python scripts/run_sim_case_isolated.py [--filter '3*'] [--start-from <case>] [--timeout 900]` — spawns an independent process per case, complementary to running the full suite in a single process; used to distinguish "cross-case global state pollution" from "case-local failures" (see the occupancy-cache incident in the handoff).
+**sim_case isolated-process/shard mode**: `python scripts/run_sim_case_isolated.py [--filter '3*'] [--start-from <case>] [--shard-count N --shard-index I] [--timeout 900]` discovers and alphabetically sorts the Catch names, then assigns stable round-robin shards and spawns one process per selected case. `--list-only --manifest <json>` produces a machine-readable selection without running. This remains complementary to the 95-case single-process aggregate, which is required to expose cross-case global-state pollution.
 
 **Verbosity of strict-mode errors**: both the warning for line search exceeding max_iter and the strict exception carry `alpha_last / E0 / E_last / rel_E_increase / ccd_alpha / cfl_alpha` (`advance_ipc.cu`, `advance_al.cu`), used to judge whether it is a real regression or a ULP-level jitter barely crossing the line.
 
@@ -84,11 +112,31 @@ and `pytest -m example python/tests` only in an interactive environment. Wheel C
 runs the portable suite after installing the wheel, in addition to the native
 metadata and `Engine("none")` smoke test.
 
+## Performance benchmark registry
+
+`benchmarks/manifest.json` is the root repository's versioned end-to-end
+benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
+canonicalizes tuning environment variables, and launches the implementation in
+the tracked `libuipc-samples` submodule without copying it. The first registered
+scene is `stiff-gipc-case2` (samples example 88):
+
+```bash
+python scripts/run_benchmark.py list
+python scripts/run_benchmark.py run stiff-gipc-case2 --quick
+python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
+```
+
+Each run writes command, environment overrides, repo/submodule revisions,
+GPU/driver/CUDA/Python facts, reported mean/median frame time, duration, and
+return code under `output/benchmark-runs/`. `--dry-run` resolves
+the contract without launching. Performance thresholds belong in compatible
+`uipc.profile` baseline/check artifacts, never in portable correctness tests.
+
 **Typical sim_case flow** (e.g. `0_abd_gravity.cpp`, `14_fem_3d_ground_contact.cpp`, `37_abd_revolute_joint.cpp`): `Engine{"cuda"}` → configure `Scene::default_config()` (gravity/contact/friction/line_search) → build geometry + `apply_to` constitution → `world.init(scene)` → loop `advance/retrieve` + `SceneIO::write_surface` to export obj each frame. `0_abd_gravity` uses two SECTIONs to compare `ipc` and `al-ipc`.
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, and immutable-action checks), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, CUDA 12.8), `docs.yml`, `hotfix_publish.yml`. Repository-contract checkout intentionally does not materialize large submodules: manifest tests validate declarations in that job, while `run_benchmark.py` validates actual sample assets before execution.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.

@@ -25,11 +25,12 @@ Recent important changes (README News):
 | `external/` | Third-party in-tree sources: `GKlib/` + `METIS/` only (muda was fully removed; the CUDA backend now uses the in-house `src/backends/cuda/cuda_tool/`) |
 | `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
+| `benchmarks/` | Versioned end-to-end benchmark manifest and reproducibility contract; implementations/assets remain in `libuipc-samples/` |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
 | `libuipc-samples/` | Tracked git submodule containing the Python sample library (52 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
-| `agent_docs/` | This directory; agent guide |
+| `agent_docs/` | Agent guide, including durable `adr/` decisions, `performance/` evidence, and chronological `handoff.md` history |
 | `CMakeLists.txt` / `CMakePresets.json` / `pyproject.toml` | Build entry points |
 
 > **Local reference checkouts in this working copy (untracked, do NOT commit into this repo)**: `Stiff-GIPC/` (performance-alignment reference) and `references/` (third-party reference code). `libuipc-samples/` is different: it is a tracked submodule, so update its gitlink deliberately rather than treating its files as part of the root repository.

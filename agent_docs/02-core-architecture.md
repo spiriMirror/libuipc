@@ -17,9 +17,10 @@ core::Engine / World / Scene          ← public handle layer (holds only S<inte
 `Engine::Impl::load_module(backend_name)` in `src/core/core/internal/engine.cpp`:
 
 1. Uses `dylib` to load the `uipc_backend_<name>` dynamic library from `uipc::config()["module_dir"]` (static cache `m_cache` + mutex; a module with the same name is loaded only once).
-2. Calls the exported symbol **`uipc_init_module(UIPCModuleInitInfo*)`** (defined in `include/uipc/backend/module_init_info.h`): passes the host's `std::pmr::get_default_resource()` to the backend and calls `set_default_resource`, ensuring consistent pmr container allocators across DLLs.
-3. Calls **`uipc_create_engine(EngineCreateInfo*)`** to create the `IEngine*`; **`uipc_destroy_engine`** serves as the deleter. `EngineCreateInfo{ workspace, Json config }` (`include/uipc/backend/engine_create_info.h`).
-4. The three exported symbols are declared in `src/backends/common/module.h`; each backend implements them in `entrance.cpp` (cuda: `new cuda::SimEngine(info)`; none: `new none::SimEngine(info)`).
+2. Calls **`uipc_query_module(UIPCBackendModuleInfo*)`** before any backend code. The loader requires the current backend ABI, the same libuipc major/minor version, and an identity matching the requested backend name. Missing query support is reported as an old/non-libuipc module instead of failing later at an arbitrary virtual call.
+3. Calls **`uipc_init_module(UIPCModuleInitInfo*)`** (defined in `include/uipc/backend/module_init_info.h`): passes the host's `std::pmr::get_default_resource()` to the backend and calls `set_default_resource`, ensuring consistent pmr container allocators across DLLs.
+4. Calls **`uipc_create_engine(EngineCreateInfo*)`** to create the `IEngine*`; **`uipc_destroy_engine`** serves as the deleter. `EngineCreateInfo{ workspace, Json config }` (`include/uipc/backend/engine_create_info.h`).
+5. The four exported symbols are declared in `src/backends/common/module.h`. The common module source implements query/init; each backend's `entrance.cpp` implements create/destroy (cuda: `new cuda::SimEngine(info)`; none: `new none::SimEngine(info)`). CMake and XMake both build the same runtime-loadable shared-library form in test and packaged configurations.
 
 Custom engines can also be injected: the `Engine(S<IEngine> overrider)` constructor (used by pyuipc and similar scenarios) does not load any module.
 
@@ -60,15 +61,19 @@ Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular ref
 Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
 - `dt=0.01`, `gravity`, `cfl/enable`
 - `integrator/type="bdf1"`
-- `newton/*` (max_iter, velocity_tol use unit literals such as `0.05_m/1.0_s`; `semi_implicit/{enable,beta_tol,K_min}` = Stiff-GIPC-style early exit: from iteration `K_min` on, β←(1-α)β per iteration, exit when β≤beta_tol. `newton/min_iter` is a pure hard floor, default 0 = no forced minimum — normal convergence may exit at any iteration)
+- `newton/*` (max_iter, velocity_tol use unit literals such as `0.05_m/1.0_s`; `semi_implicit/{enable,beta_tol,K_min}` = Stiff-GIPC-style early exit, enabled by default with `beta_tol=1e-3` and `K_min=6`: from iteration `K_min` on, β←(1-α)β per iteration, exit when β≤beta_tol. `newton/min_iter` is a pure hard floor, default 0 = no forced minimum — normal convergence may exit at any iteration)
 - `linear_system/*`: `solver="fused_pcg"`; `fem_preconditioner` = `"diag"` (default) | `"mas"` (MAS, auto-partitions all FEM geometries internally, fixed cluster size 16); `use_cuda_graph` (0/1/2, PCG graph replay); `check_interval` (host convergence check cadence)
 - `line_search/*`
 - `contact/enable`, `contact/d_hat`, `contact/constitution="ipc"` (or `"al-ipc"` and its tuning parameters); `contact/d_hat_relative` (when >0, d_hat = relative value × scene diagonal, the Stiff-GIPC convention), `newton/velocity_tol_relative` (when >0, exit threshold = relative value × diagonal × dt), `contact/eps_velocity_relative` (when >0, friction C1 smoothing threshold = relative value × diagonal × dt) — scene-adaptive parameters, default 0 (disabled); `contact/adaptive/{min_kappa,max_kappa,init_kappa}` bound the effective contact stiffness
-- `collision_detection/*` (`method`: `info_stackless_bvh` default, `info_stackless_bvh_v0`), `sanity_check/*`, `diff_sim/enable`
+- `collision_detection/*` (`method`: `info_stackless_bvh` default; the V0, stackless, and linear-BVH selectors are schema-visible only when the matching legacy CUDA component was built), `sanity_check/*`, `diff_sim/enable`
 
-**Config contract**: `Scene::config_schema()` returns all 46 entries with their
-defaults, JSON/storage types, units, hard bounds/enums, lifecycle, status,
-descriptions, and source consumers. `from_config_json` rejects unknown keys and
+**Config contract**: a single `make_scene_config_contract()` declaration creates
+both the typed `AttributeCollection` defaults and the metadata for all 46 keys.
+`Scene::default_config()` and `Scene::config_schema()` consume that same result,
+so a default cannot be added or changed independently of its public schema.
+`Scene::config_schema()` returns defaults, JSON/storage types, units, hard
+bounds/enums, lifecycle, status, descriptions, and source consumers.
+`from_config_json` rejects unknown keys and
 validates constraints during construction; `World::init(Scene&)` validates the
 mutable attribute collection again. Adding, destroying, or changing a config
 attribute through `Scene::config()` therefore cannot silently bypass the
@@ -102,9 +107,9 @@ Key points:
 - **`ISimSystem`**: `name/is_valid/is_engine_aware/is_building`, strong/weak dependencies (`strong_dependencies/weak_dependencies`), `to_json`; dump/recover lifecycle `dump/try_recover/apply_recover/clear_recover` mapped to `do_*` virtual functions; `BaseInfo{frame, workspace, config}`.
 - **`backend::SimSystem`**: holds a `SimEngine&`; `find<T>(QueryOptions)/require<T>` look up other systems in the `SimSystemCollection`; on failure `require` throws `SimSystemException` → this system is judged invalid during build.
 - **`cuda::SimSystem`**: adds event registration `on_init_scene/on_rebuild_scene/on_write_scene` (may only be called inside `do_build()`; the actions are stored in the engine's `SimActionCollection`); `check_state(SimEngineState)` asserts the pipeline stage.
-- **`SimSystemCollection`** (`common/sim_system_collection.cpp`): keyed by `typeid(s).hash_code()`; `build_systems()` first calls `set_building(true)` on all systems → builds them one by one (internally calling `do_build()`) → caught exceptions mark a system invalid → `cleanup_invalid_systems()` **cascades the deletion of systems whose strong dependencies have become invalid** (weak dependencies are unaffected).
-- **Override mechanism**: `QueryOptions{exact}`; `exact=false` allows returning a derived-type system — i.e. replacing base-class functionality with a derived class. There are also `*FeatureOverrider` classes (e.g. `affine_body_state_accessor_feature.cu`) that override features via `engine.features()`.
-- **Auto-registration**: the `REGISTER_SIM_SYSTEM(T)` macro (at the end of `common/sim_system.h`) registers a creator at static-init time via `SimSystemAutoRegister`; `SimEngine::build_systems()` iterates over the creators to instantiate the systems. The creator's constructor parameter type determines which engine it belongs to (cuda systems take `cuda::SimEngine&` as constructor parameter, verified via dynamic_cast).
+- **`SimSystemCollection`** (`common/sim_system_collection.cpp`): exact lookup is keyed by collision-safe `std::type_index`, while a separate registration-order vector controls all iteration, JSON, build, and invalidation order. `build_systems()` first calls `set_building(true)` on all systems → builds them one by one (internally calling `do_build()`) → caught exceptions mark a system invalid → `cleanup_invalid_systems()` **cascades the deletion of systems whose strong dependencies have become invalid** (weak dependencies are unaffected). The remaining strong-dependency graph must be acyclic; a cycle aborts initialization with its complete `A -> B -> A` path.
+- **Override mechanism**: `QueryOptions{exact}`; `exact=false` allows returning a derived-type system — i.e. replacing base-class functionality with a derived class. Compatible lookup follows deterministic registration order and skips implementations already invalidated by a selector or missing dependency. There are also `*FeatureOverrider` classes (e.g. `affine_body_state_accessor_feature.cu`) that override features via `engine.features()`.
+- **Auto-registration**: the `REGISTER_SIM_SYSTEM(T)` macro (at the end of `common/sim_system.h`) registers a named creator at static-init time via `SimSystemAutoRegister`; `SimEngine::build_systems()` sorts creators by their complete demangled type name before instantiation. The creator's constructor parameter type determines which engine it belongs to (cuda systems take `cuda::SimEngine&` as constructor parameter, verified via dynamic_cast). Systems must not use source/link/static-initialization order as an implicit priority.
 - **SimSystemSlot<T> / SimSystemSlotCollection<T>** (`common/sim_system_slot.h`): lazily-bound slots; `register_sim_system(T&)` hooks a system into the manager's slot; `lazy_init()` confirms the binding on first access. Managers use SlotCollection to gather all reporters/subsystems.
 
 ## Peripheral Subsystems (within core)

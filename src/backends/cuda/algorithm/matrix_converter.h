@@ -96,8 +96,8 @@ class MatrixConverter
     void loose_resize(cuda_tool::DeviceBuffer<U>& buf, size_t new_size)
     {
         if(buf.capacity() < new_size)
-            buf.reserve(new_size * m_reserve_ratio);
-        buf.resize(new_size);
+            buf.reserve_discard(new_size * m_reserve_ratio);
+        buf.resize_discard(new_size);
     }
 
     void ge2sym(cuda_tool::DeviceBCOOMatrix<T, N>& to);

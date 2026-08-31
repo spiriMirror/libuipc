@@ -1,6 +1,6 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-25, source audit at `947bb921`. Completed performance work is
+Status as of 2026-08-30. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
@@ -48,7 +48,8 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
   the old `newton/min_iter` doubled as a hard floor (≥6 with the benchmark
   configs), cancelling the semi-implicit early exit. Since then
   `min_iter` is a pure floor with default 0 and the beta-accumulation
-  start moved to `newton/semi_implicit/K_min` (default 1). Per-Newton
+  start moved to `newton/semi_implicit/K_min`. Semi-implicit termination is
+  now enabled by default with `K_min=6`. Per-Newton
   solver time already beats Stiff on the same MAS bunny (≈39 ms wall vs
   48.8 ms GPU), so the frame-time gap on MAS scenes is dominated by the
   Newton count, not solver efficiency.
@@ -123,6 +124,99 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
    targets are raw contact/FEM subsystem assembly and the remaining
    line-search launch traffic, not another broad-phase or DyTopo sort rewrite.
+9. Dynamic output initialization/growth (DONE 2026-08-30):
+   `DeviceVector` now has explicit discard/preserve and amortized reserve
+   policies. Fully regenerated collision, line-search, matrix-conversion,
+   active-set, and triplet outputs no longer copy or value-initialize dead
+   ranges when their logical size fluctuates. Existing `resize()` semantics
+   are unchanged for state and sentinel buffers. On case 88, `Scan and
+   Allocate` fell from 80.8 ms total over 60 frames to 38.0-65.5 ms, while
+   the initial/trial `Compute Energy` scopes together fell from 667.1 ms to
+   390.2-415.8 ms. End-to-end wall variance remains larger than this isolated
+   gain. The next step is batching collision counter readbacks, not broadening
+   discard semantics to buffers whose initialization contract is uncertain.
+10. Collision count readbacks (DONE 2026-08-30): the default trajectory
+    filter batches four broad-phase query counters into one D2H synchronization
+    and batches the four PP/PE/PT/EE CUB selection counters into another. Queue
+    overflow handling remains exact and reruns only affected queries. A fully
+    active detect/filter cycle therefore uses two count synchronizations rather
+    than eight. On case 88, trajectory detection changed from 5.07 to 5.01
+    ms/Newton and aggregate DCD from 4.67 to 4.61 ms/detect; the structural
+    synchronization reduction is larger than the noisy wall-time movement.
+    The next host/device target is line-search energy aggregation.
+11. Line-search energy aggregation (DONE 2026-08-30): ABD, FEM, and DyTopo
+    reporters now publish totals to contiguous device slots. One final CUB
+    reduction writes to a separate slot, followed by one contiguous D2H copy
+    for reporter diagnostics and the aggregate. On case 88, initial/trial
+    energy evaluations improved by 15.2%/17.3%, aggregate line search improved
+    by 5.0% per Newton iteration, and wall mean/median moved from 162.7/182.3
+    to 158.1/178.4 ms/frame. The next evidence-led target remains raw
+    contact/FEM gradient-Hessian assembly.
+12. Raw contact/FEM assembly (DONE 2026-08-30): SNH now projects its `9x9`
+    material Hessian directly into ten `3x3` vertex blocks instead of forming
+    dense `9x12` and `12x12` intermediates. Stack use fell 6440 -> 1320
+    bytes/thread, the SNH kernel fell 1.795 -> 1.047 ms/call (-41.7%), and
+    case-88 `Assemble Subsystems` fell 3.60 -> 2.97 ms/Newton (-17.6%). IPC
+    contact keeps a single heterogeneous launch but compile-time specializes
+    gradient-only versus Hessian work. A per-stencil split was measured and
+    rejected: serial PT/EE kernels raised DyTopo assembly 4.52 -> 7.67
+    ms/Newton despite smaller static stack frames. Final DyTopo assembly is
+    4.47 ms/Newton, and two clean wall runs measured 156.0-157.0 ms mean /
+    173.1-173.9 ms median.
+13. Backend module boundary (DONE 2026-08-30): test and packaged builds now
+    use the same shared-library artifact semantics. A required
+    `uipc_query_module` handshake validates ABI version, libuipc major/minor,
+    and backend identity before PMR synchronization or engine construction.
+    This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
+14. CUDA build ownership (DONE 2026-08-30, corrected 2026-08-31): 198 compiled
+    backend sources belong to seven primary domains and one optional
+    legacy-collision component, followed by one final RDC device-link into the
+    existing backend DLL. Matching CMake/XMake manifests reject unowned and
+    multiply-owned sources. CMake uses internal OBJECT targets; XMake keeps the
+    same logical partition but attaches sources to the final target because its
+    device-link omits CUDA OBJECT dependencies.
+15. Scene configuration ownership (DONE 2026-08-30): typed runtime defaults and
+    machine-readable schema metadata now come from one declaration. The public
+    normalized schema remains exactly equivalent, while future key additions can
+    no longer silently update only one of the two former parallel lists.
+16. SimSystem topology (DONE 2026-08-30): creator instantiation and every
+    collection traversal now use one deterministic complete-type-name order;
+    exact lookup uses `std::type_index`, compatible lookup skips invalid
+    variants, and active strong-dependency cycles fail with an explicit path.
+17. Legacy collision isolation (DONE 2026-08-30): the three alternate simplex
+    trajectory filters have a dedicated optional component. Lean builds omit
+    the sources and registrations, while the build-specific scene schema drops
+    the unavailable selectors instead of accepting a configuration that can
+    only fail later during backend system construction.
+18. Test/performance entry points (DONE 2026-08-30): isolated sim cases support
+    stable manifests and round-robin shards without replacing the aggregate
+    pollution test; CTest GPU aggregates share a resource lock; the Stiff-GIPC
+    case2 sample has a root-owned benchmark contract and revision-recording
+    runner instead of another copied scene.
+19. Decision/evidence retention (DONE 2026-08-30): accepted architecture now
+    has numbered ADRs, performance work has an evidence policy/template and a
+    case2 roll-up, and `handoff.md` is explicitly the chronological trail rather
+    than the sole permanent home for rationale and measurements.
+20. CI portability follow-up (DONE 2026-08-31): XMake CUDA sources now stay on
+    the final shared target, which supplies the source-root include,
+    backend-directory definitions, shared-library PIC behavior, and the one
+    complete RDC device-link on both platforms. This replaces an intermediate
+    OBJECT-target implementation that failed successively on missing includes,
+    definitions, Linux PIC, and finally Windows device-link. The repository
+    contract guards the final-target ownership requirement. In addition,
+    repository-contract tests no longer confuse an intentionally unmaterialized
+    samples submodule with an invalid benchmark declaration.
+21. Thin-shell reference measure (DONE 2026-09-01): elastic and both plastic
+    Discrete Shells paths retain the paper's complete `L0/h_bar = 3L0^2/A`
+    metric and no longer multiply the adjacent area a second time. The stored
+    thickness is consistently the one-sided collision radius `r`: formula-based
+    bending uses full thickness `2r`, and Baraff-Witkin stretch uses `2r` while
+    its separately calibrated shear coefficient remains thickness-independent.
+22. QR-SVD float sign transfer (DONE 2026-09-01): the Wilkinson shift in
+    libuipc, GPU_IPC, and Stiff-GIPC no longer calls the standard-library
+    sign-copy function from host/device templates. It applies the sign with a
+    branch in the original scalar type and defines `sign(0)=+1`; a libuipc CUDA
+    regression instantiates and executes the float path on the GPU.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

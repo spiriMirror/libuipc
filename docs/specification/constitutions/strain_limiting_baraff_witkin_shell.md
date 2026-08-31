@@ -82,13 +82,29 @@ $$
 
 ## Total Energy
 
+Let the stored vertex `thickness` be the one-sided collision offset $r_t$, so
+the full material thickness is $h=2r_t$. The effective coefficients are
+
+$$
+k_{\mathrm{stretch}}
+= (\lambda_s+2\mu_s)h
+= \frac{E_s(2r_t)}{1-\nu_s^2},
+\qquad
+k_{\mathrm{shear}}
+= \mu_{sh}
+= \frac{E_{sh}}{2(1+\nu_{sh})}.
+$$
+
 The total energy for each triangle element is:
 
 $$
-E = \Psi \cdot A_0
+E = \left(k_{\mathrm{stretch}}\Psi_{\mathrm{stretch}}
+          + k_{\mathrm{shear}}\Psi_{\mathrm{shear}}\right) A_0
 $$
 
-where $A_0$ is the rest area of the triangle. The membrane weight is the **area**, not the volume: the shell thickness enters through the stiffness attributes instead — the stretch stiffness carries $t$ ($E_\text{stretch} \cdot t / (1 - \nu_\text{stretch}^2)$ per unit area), while the shear stiffness $E_\text{shear} / (2(1 + \nu_\text{shear}))$ is thickness-independent.
+Here $A_0$ is the rest area. Stretch uses the full shell thickness $2r_t$.
+Shear remains an independently calibrated two-dimensional effective
+coefficient and is intentionally thickness-independent.
 
 The directional stretch metric is floored at $10^{-12}$ to guard the $1/\sqrt{I_5}$ singularity at fully collapsed triangles (finite huge response instead of NaN).
 
@@ -96,11 +112,12 @@ The directional stretch metric is floored at $10^{-12}$ to guard the $1/\sqrt{I_
 
 The strain rate parameter $r$ is set via the `strain_rate` argument of `apply_to` (default 100) and controls the strength of the cubic extension penalty.
 
-The thickness $t$ and mass density are inherited from the [Finite Element](./finite_element.md) base and set via the `apply_to` interface.
+The one-sided thickness radius $r_t$ and mass density are inherited from the
+[Finite Element](./finite_element.md) base and set via `apply_to`.
 
 ## Attributes
 
 On `triangles`:
 
-- `mu`: $\mu$, the shear stiffness
-- `lambda`: $\lambda$, the stretch stiffness
+- `mu`: $k_{\mathrm{shear}}$, the effective shear stiffness
+- `lambda`: $k_{\mathrm{stretch}}$, the full-thickness stretch stiffness

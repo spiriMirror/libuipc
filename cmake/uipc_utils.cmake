@@ -59,6 +59,7 @@ function(uipc_show_options)
 
     message(STATUS "Backend Options:")
     message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
+    message(STATUS "    * UIPC_WITH_CUDA_LEGACY_COLLISION: ${UIPC_WITH_CUDA_LEGACY_COLLISION}")
     message(STATUS "    * UIPC_CUDA_ARCHITECTURES: ${UIPC_CUDA_ARCHITECTURES}")
     
     message(STATUS "Details:")

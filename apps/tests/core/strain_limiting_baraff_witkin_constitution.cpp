@@ -47,8 +47,8 @@ TEST_CASE("strain_limiting_baraff_witkin_attribute_layout", "[constitution]")
     CHECK(mu->size() == mesh.triangles().size());
     CHECK(sr->size() == mesh.triangles().size());
 
-    // stretch attr = E_stretch * t / (1 - nu_stretch^2)  [= (lambda + 2*mu) * t]
-    Float expect_stretch = E_stretch * thickness / (1.0 - nu_stretch * nu_stretch);
+    // Stored thickness is one-sided; stretch uses the full shell thickness 2r.
+    Float expect_stretch = E_stretch * (2 * thickness) / (1.0 - nu_stretch * nu_stretch);
     // shear attr = E_shear / (2 * (1 + nu_shear))  (thickness-independent)
     Float expect_shear = E_shear / (2.0 * (1.0 + nu_shear));
 

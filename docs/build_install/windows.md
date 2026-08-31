@@ -57,6 +57,10 @@ cmake -S .. -DUIPC_BUILD_PYBIND=1
 cmake --build . --config <Release/RelWithDebInfo> -j8
 ```
 
+The default CUDA build retains the V0, stackless, and linear-BVH comparison
+filters. Add `-DUIPC_WITH_CUDA_LEGACY_COLLISION=OFF` to the configure command
+for a lean build containing only the default broad-phase trajectory filter.
+
 !!!NOTE
     Use multi-thread to speed up the build process as possible, becasue the NVCC compiler will take a lot of time.
 

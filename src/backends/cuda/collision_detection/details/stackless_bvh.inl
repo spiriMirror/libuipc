@@ -1142,7 +1142,9 @@ void StacklessBVH::detect(Pred callback, QueryBuffer& qbuffer)
     // if failed, resize and retry
     if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_impl.config.reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
 
@@ -1203,7 +1205,9 @@ void StacklessBVH::query(cuda_tool::CBufferView<AABB> aabbs, Pred callback, Quer
     // if failed, resize and retry
     if(h_cp_num > qbuffer.m_pairs.size())
     {
-        qbuffer.m_pairs.resize(h_cp_num * m_impl.config.reserve_ratio);
+        const auto new_size = static_cast<size_t>(h_cp_num * m_impl.config.reserve_ratio);
+        qbuffer.m_pairs.reserve_discard(new_size);
+        qbuffer.m_pairs.resize_discard(new_size);
         do_query();
     }
 

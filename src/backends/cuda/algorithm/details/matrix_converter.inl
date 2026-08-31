@@ -328,7 +328,7 @@ void MatrixConverter<T, N>::convert(const cuda_tool::DeviceTripletMatrix<T, N>& 
                                     cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
     to.reshape(from.rows(), from.cols());
-    to.resize_triplets(from.triplet_count());
+    to.resize_triplets_discard(from.triplet_count());
 
 
     if(to.triplet_count() == 0)
@@ -355,7 +355,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
 
     loose_resize(ij_hash, src_row_indices.size());
     loose_resize(sort_index, src_row_indices.size());
-    ij_pairs.resize(src_row_indices.size());
+    loose_resize(ij_pairs, src_row_indices.size());
 
 
     // hash ij
@@ -410,7 +410,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
 
     loose_resize(ij_hash, src_row_indices.size());
     loose_resize(sort_index, src_row_indices.size());
-    ij_pairs.resize(src_row_indices.size());
+    loose_resize(ij_pairs, src_row_indices.size());
 
 
     // hash ij
@@ -480,10 +480,10 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceTripletM
 
     int h_count = count;
 
-    unique_ij_pairs.resize(h_count);
-    unique_counts.resize(h_count);
+    unique_ij_pairs.resize_discard(h_count);
+    unique_counts.resize_discard(h_count);
 
-    offsets.resize(unique_counts.size());
+    loose_resize(offsets, unique_counts.size());
 
     DeviceScan().ExclusiveSum(
         unique_counts.data(), offsets.data(), unique_counts.size());
@@ -494,7 +494,7 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceTripletM
         matrix_converter_make_unique_indices_k1_kernel<<<(n_unique + 256 - 1) / 256, 256, 0, nullptr>>>(
             unique_ij_pairs.view(), row_indices, col_indices, n_unique);
 
-    to.resize_triplets(h_count);
+    to.resize_triplets_discard(h_count);
 }
 
 template <typename T, int N>
@@ -557,11 +557,11 @@ void MatrixConverter<T, N>::_calculate_block_offsets(
 
     auto dst_row_offsets = to.row_offsets();
 
-    col_counts_per_row.resize(dst_row_offsets.size());
+    loose_resize(col_counts_per_row, dst_row_offsets.size());
     col_counts_per_row.fill(0);
 
-    unique_indices.resize(from.non_zeros());
-    unique_counts.resize(from.non_zeros());
+    loose_resize(unique_indices, from.non_zeros());
+    loose_resize(unique_counts, from.non_zeros());
 
 
     // run length encode the row
@@ -572,8 +572,8 @@ void MatrixConverter<T, N>::_calculate_block_offsets(
                                    from.non_zeros());
     int h_count = count;
 
-    unique_indices.resize(h_count);
-    unique_counts.resize(h_count);
+    unique_indices.resize_discard(h_count);
+    unique_counts.resize_discard(h_count);
 
     int n_scatter = (int)unique_counts.size();
     if(n_scatter > 0)
@@ -594,7 +594,7 @@ void MatrixConverter<T, N>::convert(const cuda_tool::DeviceDoubletVector<T, N>& 
                                     cuda_tool::DeviceBCOOVector<T, N>& to)
 {
     to.reshape(from.count());
-    to.resize_doublets(from.doublet_count());
+    to.resize_doublets_discard(from.doublet_count());
 
     if(to.doublet_count() == 0)
         return;
@@ -642,10 +642,10 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceDoubletV
 
     int h_count = count;
 
-    unique_indices.resize(h_count);
-    unique_counts.resize(h_count);
+    unique_indices.resize_discard(h_count);
+    unique_counts.resize_discard(h_count);
 
-    offsets.resize(unique_counts.size());
+    loose_resize(offsets, unique_counts.size());
 
     DeviceScan().ExclusiveSum(
         unique_counts.data(), offsets.data(), unique_counts.size());
@@ -655,7 +655,7 @@ void MatrixConverter<T, N>::_make_unique_indices(const cuda_tool::DeviceDoubletV
         matrix_converter_make_unique_vector_indices_k1_kernel<<<(n_unique + 256 - 1) / 256, 256, 0, nullptr>>>(
             unique_indices.view(), dst_indices, n_unique);
 
-    to.resize_doublets(h_count);
+    to.resize_doublets_discard(h_count);
 }
 
 template <typename T, int N>
@@ -742,7 +742,7 @@ void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceBCOOMatrix<T, N>& to)
 
     int h_total_count = count;
 
-    to.resize_triplets(h_total_count);
+    to.resize_triplets_discard(h_total_count);
 }
 
 template <typename T, int N>
@@ -798,7 +798,7 @@ void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceTripletMatrix<T, N>& to)
 
     int h_total_count = count;
 
-    to.resize_triplets(h_total_count);
+    to.resize_triplets_discard(h_total_count);
 }
 
 
@@ -845,7 +845,7 @@ void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from
 
     auto general_bcoo_size = 2 * (sym_size - diag_count) + diag_count;
 
-    to.resize(from.rows(), from.cols(), general_bcoo_size);
+    to.resize_discard(from.rows(), from.cols(), general_bcoo_size);
 
     // copy blocks and ij
     // in this sequence:

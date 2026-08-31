@@ -33,6 +33,9 @@ xmake f --usd=true --vdb=true -c
 
 # CPU/interface-only configuration (the none backend still builds).
 xmake f --backend_cuda=false -c
+
+# Lean CUDA build: omit legacy comparison/alternate broad-phase filters.
+xmake f --cuda_legacy_collision=false -c
 ```
 
 `--usd=true` resolves OpenUSD 25.08 or newer, and `--vdb=true` resolves a shared

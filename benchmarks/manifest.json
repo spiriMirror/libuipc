@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "benchmarks": [
+    {
+      "name": "stiff-gipc-case2",
+      "description": "Stiff-GIPC set_case2-aligned two-FEM-bunny and cloth benchmark",
+      "entrypoint": "libuipc-samples/examples/88_stiff_gipc_benchmark/main.py",
+      "workingDirectory": "libuipc-samples/examples/88_stiff_gipc_benchmark",
+      "arguments": ["--headless", "{frames}"],
+      "defaultFrames": 250,
+      "quickFrames": 3,
+      "requiredPaths": [
+        "libuipc-samples/examples/88_stiff_gipc_benchmark/main.py",
+        "libuipc-samples/examples/88_stiff_gipc_benchmark/asset_dir.py",
+        "libuipc-samples/assets/sim_data/tetmesh/bunny2.msh",
+        "libuipc-samples/assets/sim_data/trimesh/cloth_high.obj"
+      ],
+      "environment": {
+        "WB_LOG": "Warn",
+        "WB_TIMER": "0"
+      },
+      "unsetEnvironment": ["NO_MAS", "NO_GRAPH"],
+      "metadataOutput": "output/benchmark-runs/stiff-gipc-case2.json",
+      "comparability": "Do not retune scene parameters; compare identical repo, samples, CUDA, GPU, driver, and frame counts."
+    }
+  ]
+}

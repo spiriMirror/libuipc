@@ -96,6 +96,55 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertTrue(any("reviewed tag comment" in error for error in errors))
             self.assertTrue(any("revision must be" in error for error in errors))
 
+    def test_cuda_xmake_sources_stay_on_shared_target_for_device_link(self) -> None:
+        components = (
+            ROOT / "src/backends/cuda/components.lua"
+        ).read_text(encoding="utf-8")
+        backend = (ROOT / "src/backends/cuda/xmake.lua").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("function uipc_add_cuda_component_sources()", components)
+        self.assertIn("add_files(path.join(backend_dir, pattern))", components)
+        self.assertNotIn('target:set("kind", "object")', components)
+        self.assertIn("uipc_add_cuda_component_sources()", backend)
+        self.assertIn('add_cuflags("-rdc=true")', backend)
+
+    def test_thin_shell_reference_weight_and_thickness_contract(self) -> None:
+        cuda_constitutions = ROOT / "src/backends/cuda/finite_element/constitutions"
+        reference = (cuda_constitutions / "discrete_shell_bending_reference.h").read_text(
+            encoding="utf-8"
+        )
+        wrappers = [
+            "discrete_shell_bending_function.h",
+            "strain_plastic_discrete_shell_bending_function.h",
+            "stress_plastic_discrete_shell_bending_function.h",
+        ]
+
+        self.assertIn("h_bar      = A / 3.0 / L0;", reference)
+        self.assertIn("outer_weight = 1.0;", reference)
+        for wrapper in wrappers:
+            text = (cuda_constitutions / wrapper).read_text(encoding="utf-8")
+            self.assertIn("compute_discrete_shell_bending_reference", text)
+
+        stretch = (ROOT / "src/constitution/strain_limiting_baraff_witkin.cpp").read_text(
+            encoding="utf-8"
+        )
+        bending = (ROOT / "src/constitution/discrete_shell_bending.cpp").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("* (2 * thickness)", stretch)
+        self.assertIn("Float full_thickness = 2 * thickness;", bending)
+
+    def test_qr_svd_uses_explicit_t_precision_sign(self) -> None:
+        qr_svd = (
+            ROOT / "src/backends/cuda/algorithm/qr_svd.hpp"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("copysign", qr_svd)
+        self.assertIn("if(d < (T)0)", qr_svd)
+        self.assertIn("shift = -shift;", qr_svd)
+
 
 if __name__ == "__main__":
     unittest.main()
