@@ -117,19 +117,27 @@ metadata and `Engine("none")` smoke test.
 `benchmarks/manifest.json` is the root repository's versioned end-to-end
 benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
 canonicalizes tuning environment variables, and launches the implementation in
-the tracked `libuipc-samples` submodule without copying it. The first registered
-scene is `stiff-gipc-case2` (samples example 88):
+the tracked `libuipc-samples` submodule without copying it. The canonical suite
+is `rigid-wrecking-balls` (sample 6), `stiff-gipc-case2` (88), `mas-bunny` (89),
+and `cube-wall-cloth` (93):
 
 ```bash
 python scripts/run_benchmark.py list
+python scripts/run_benchmark.py run rigid-wrecking-balls --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
+python scripts/run_benchmark.py run mas-bunny --frames 100
+python scripts/run_benchmark.py run cube-wall-cloth --frames 100
 ```
 
 Each run writes command, environment overrides, repo/submodule revisions,
-GPU/driver/CUDA/Python facts, reported mean/median frame time, duration, and
-return code under `output/benchmark-runs/`. `--dry-run` resolves
-the contract without launching. Performance thresholds belong in compatible
+GPU/driver/CUDA/Python facts, the complete frame-time distribution, structured
+Newton/line-search/linear-solver counts, final-state observables, an approximate
+total-device memory peak, duration, return code, and the raw log under
+`output/benchmark-runs/`. `--dry-run` resolves the contract without launching.
+Canonical throughput runs keep `UIPC_BENCHMARK_TIMERS=0`; use a separate
+`--env UIPC_BENCHMARK_TIMERS=1` run for synchronized stage timing because Timer
+instrumentation changes wall time. Performance thresholds belong in compatible
 `uipc.profile` baseline/check artifacts, never in portable correctness tests.
 
 **Typical sim_case flow** (e.g. `0_abd_gravity.cpp`, `14_fem_3d_ground_contact.cpp`, `37_abd_revolute_joint.cpp`): `Engine{"cuda"}` → configure `Scene::default_config()` (gravity/contact/friction/line_search) → build geometry + `apply_to` constitution → `world.init(scene)` → loop `advance/retrieve` + `SceneIO::write_surface` to export obj each frame. `0_abd_gravity` uses two SECTIONs to compare `ipc` and `al-ipc`.

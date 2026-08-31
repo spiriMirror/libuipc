@@ -6,6 +6,17 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Canonical benchmark suite expansion (2026-09-01)**: root benchmark
+> ownership now covers sample 6 (`rigid-wrecking-balls`), 88
+> (`stiff-gipc-case2`), 89 (`mas-bunny`), and 93 (`cube-wall-cloth`). The sample
+> implementations share machine-readable headless reporting without changing
+> scene parameters. Normal runs keep synchronized Timer scopes off and archive
+> full-precision frame times, backend Newton/line-search/linear-solver counts,
+> final-state observables, raw logs, revisions/runtime facts, and an approximate
+> WDDM total-memory peak; separate Timer-enabled runs provide stage diagnostics.
+> All four entries completed real three-frame smoke runs before the baseline
+> campaign. Durable measurements are routed to `agent_docs/performance/`.
+
 > **Post-merge clang-format race fix (2026-09-01)**: PR #486 merged while its
 > format job was running. The job then fetched moving `origin/main` with
 > `--depth=1`, replacing the original PR base and producing `no merge base`;

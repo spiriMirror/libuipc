@@ -12,6 +12,8 @@ from scripts.run_benchmark import (
     build_environment,
     load_manifest,
     missing_required_paths,
+    parse_gpu_memory_mib,
+    parse_reported_benchmark,
     parse_reported_summary,
     parse_overrides,
     resolve_python,
@@ -19,9 +21,17 @@ from scripts.run_benchmark import (
 
 
 class BenchmarkManifestTests(unittest.TestCase):
-    def test_project_manifest_declares_case2_benchmark(self) -> None:
+    def test_project_manifest_declares_canonical_benchmark_suite(self) -> None:
         registry = load_manifest(DEFAULT_MANIFEST)
-        self.assertIn("stiff-gipc-case2", registry)
+        self.assertEqual(
+            set(registry),
+            {
+                "rigid-wrecking-balls",
+                "stiff-gipc-case2",
+                "mas-bunny",
+                "cube-wall-cloth",
+            },
+        )
         entry = registry["stiff-gipc-case2"]
         self.assertIn(entry["entrypoint"], entry["requiredPaths"])
         self.assertTrue(
@@ -36,6 +46,12 @@ class BenchmarkManifestTests(unittest.TestCase):
         )
         self.assertEqual(command[-2:], ["--headless", "3"])
         self.assertEqual(working_directory.name, "88_stiff_gipc_benchmark")
+
+        for benchmark in registry.values():
+            self.assertIn(
+                "libuipc-samples/examples/benchmark_utils.py",
+                benchmark["requiredPaths"],
+            )
 
     def test_runtime_asset_check_reports_partial_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -73,6 +89,23 @@ class BenchmarkManifestTests(unittest.TestCase):
             {"frames": 3, "meanFrameMs": 12.5, "medianFrameMs": 11.0},
         )
         self.assertIsNone(parse_reported_summary("no summary"))
+
+    def test_structured_benchmark_result_is_validated(self) -> None:
+        payload = {
+            "frame_ms": [12.0, 10.0],
+            "frame_stats": [{"frame": 1}, {"frame": 2}],
+            "observables": {"height": 0.5},
+        }
+        output = "BENCHMARK_RESULT " + __import__("json").dumps(payload)
+        self.assertEqual(parse_reported_benchmark(output), payload)
+        with self.assertRaises(ValueError):
+            parse_reported_benchmark(
+                'BENCHMARK_RESULT {"frame_ms":[1],"frame_stats":[]}'
+            )
+
+    def test_gpu_memory_csv_parser_handles_multiple_devices(self) -> None:
+        self.assertEqual(parse_gpu_memory_mib("1024\n2048 MiB"), [1024, 2048])
+        self.assertIsNone(parse_gpu_memory_mib("N/A"))
 
 
 if __name__ == "__main__":

@@ -130,11 +130,14 @@ Representative map:
 
 Samples often include polyscope GUI loops. For CI or agent experiments, prefer a
 headless branch with a finite frame count, `advance/retrieve` pairing, and one
-small numerical assertion. Examples `88`–`93` already demonstrate this pattern.
-The root `benchmarks/manifest.json` promotes example 88 under the stable name
-`stiff-gipc-case2`; run it through `scripts/run_benchmark.py` so the sample
-submodule revision, canonical environment, command, and result status are
-recorded together.
+small numerical assertion. Examples 6 and 88–93 already demonstrate this pattern.
+The root `benchmarks/manifest.json` promotes examples 6, 88, 89, and 93 as the
+canonical cross-domain performance suite. Run them through
+`scripts/run_benchmark.py` so the sample submodule revision, canonical
+environment, full frame distribution, backend iteration counts, physical
+observable, approximate memory peak, command, and result status are recorded
+together. Throughput runs leave synchronized Timer scopes disabled; stage
+diagnostics are separate runs.
 
 ## Documentation Source and Deployment
 

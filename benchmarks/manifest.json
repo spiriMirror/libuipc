@@ -2,6 +2,31 @@
   "schemaVersion": 1,
   "benchmarks": [
     {
+      "name": "rigid-wrecking-balls",
+      "description": "Pure affine-body wrecking-ball contact benchmark",
+      "entrypoint": "libuipc-samples/examples/6_wrecking_balls/main.py",
+      "workingDirectory": "libuipc-samples/examples/6_wrecking_balls",
+      "arguments": ["--headless", "{frames}"],
+      "defaultFrames": 120,
+      "quickFrames": 3,
+      "requiredPaths": [
+        "libuipc-samples/examples/6_wrecking_balls/main.py",
+        "libuipc-samples/examples/6_wrecking_balls/asset_dir.py",
+        "libuipc-samples/examples/benchmark_utils.py",
+        "libuipc-samples/assets/sim_data/wrecking_ball.json",
+        "libuipc-samples/assets/sim_data/tetmesh/cube.msh",
+        "libuipc-samples/assets/sim_data/tetmesh/ball.msh",
+        "libuipc-samples/assets/sim_data/tetmesh/link.msh"
+      ],
+      "environment": {
+        "WB_LOG": "Warn",
+        "UIPC_BENCHMARK_TIMERS": "0"
+      },
+      "unsetEnvironment": ["WB_TIMER"],
+      "metadataOutput": "output/benchmark-runs/rigid-wrecking-balls.json",
+      "comparability": "Keep the sample scene/configuration unchanged; compare identical repo, samples, CUDA, GPU, driver, and frame counts."
+    },
+    {
       "name": "stiff-gipc-case2",
       "description": "Stiff-GIPC set_case2-aligned two-FEM-bunny and cloth benchmark",
       "entrypoint": "libuipc-samples/examples/88_stiff_gipc_benchmark/main.py",
@@ -12,16 +37,62 @@
       "requiredPaths": [
         "libuipc-samples/examples/88_stiff_gipc_benchmark/main.py",
         "libuipc-samples/examples/88_stiff_gipc_benchmark/asset_dir.py",
+        "libuipc-samples/examples/benchmark_utils.py",
         "libuipc-samples/assets/sim_data/tetmesh/bunny2.msh",
         "libuipc-samples/assets/sim_data/trimesh/cloth_high.obj"
       ],
       "environment": {
         "WB_LOG": "Warn",
-        "WB_TIMER": "0"
+        "UIPC_BENCHMARK_TIMERS": "0"
       },
-      "unsetEnvironment": ["NO_MAS", "NO_GRAPH"],
+      "unsetEnvironment": ["NO_MAS", "NO_GRAPH", "WB_TIMER"],
       "metadataOutput": "output/benchmark-runs/stiff-gipc-case2.json",
       "comparability": "Do not retune scene parameters; compare identical repo, samples, CUDA, GPU, driver, and frame counts."
+    },
+    {
+      "name": "mas-bunny",
+      "description": "Single stiff FEM bunny with MAS and ground contact",
+      "entrypoint": "libuipc-samples/examples/89_mas_bunny/main.py",
+      "workingDirectory": "libuipc-samples/examples/89_mas_bunny",
+      "arguments": ["--headless", "{frames}"],
+      "defaultFrames": 100,
+      "quickFrames": 3,
+      "requiredPaths": [
+        "libuipc-samples/examples/89_mas_bunny/main.py",
+        "libuipc-samples/examples/89_mas_bunny/asset_dir.py",
+        "libuipc-samples/examples/benchmark_utils.py",
+        "libuipc-samples/assets/sim_data/tetmesh/bunny2.msh"
+      ],
+      "environment": {
+        "WB_LOG": "Warn",
+        "UIPC_BENCHMARK_TIMERS": "0"
+      },
+      "unsetEnvironment": ["NO_MAS", "NO_GRAPH", "WB_TIMER"],
+      "metadataOutput": "output/benchmark-runs/mas-bunny.json",
+      "comparability": "Keep MAS and the Stiff-GIPC-aligned sample configuration unchanged; compare identical repo, samples, CUDA, GPU, driver, and frame counts."
+    },
+    {
+      "name": "cube-wall-cloth",
+      "description": "Large affine-body cube wall falling onto pinned cloth",
+      "entrypoint": "libuipc-samples/examples/93_cube_wall_cloth/main.py",
+      "workingDirectory": "libuipc-samples/examples/93_cube_wall_cloth",
+      "arguments": ["--headless", "{frames}"],
+      "defaultFrames": 100,
+      "quickFrames": 3,
+      "requiredPaths": [
+        "libuipc-samples/examples/93_cube_wall_cloth/main.py",
+        "libuipc-samples/examples/93_cube_wall_cloth/asset_dir.py",
+        "libuipc-samples/examples/benchmark_utils.py",
+        "libuipc-samples/assets/sim_data/tetmesh/stiff_cube.msh",
+        "libuipc-samples/assets/sim_data/trimesh/cloth_high.obj"
+      ],
+      "environment": {
+        "WB_LOG": "Warn",
+        "UIPC_BENCHMARK_TIMERS": "0"
+      },
+      "unsetEnvironment": ["NO_MAS", "NO_GRAPH", "WB_TIMER"],
+      "metadataOutput": "output/benchmark-runs/cube-wall-cloth.json",
+      "comparability": "Keep the 1920-body wall, pinned cloth, MAS, and sample configuration unchanged; compare identical repo, samples, CUDA, GPU, driver, and frame counts."
     }
   ]
 }

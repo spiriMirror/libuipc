@@ -11,8 +11,10 @@ import platform
 import re
 import shlex
 import shutil
+import statistics
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Mapping
@@ -204,6 +206,99 @@ def parse_reported_summary(output: str) -> dict[str, Any] | None:
     }
 
 
+def parse_reported_benchmark(output: str) -> dict[str, Any] | None:
+    """Parse the last compact result emitted by a canonical sample."""
+    prefix = "BENCHMARK_RESULT "
+    lines = [line for line in output.splitlines() if line.startswith(prefix)]
+    if not lines:
+        return None
+    payload = json.loads(lines[-1][len(prefix):])
+    if not isinstance(payload, dict):
+        raise ValueError("BENCHMARK_RESULT must be a JSON object")
+    frame_ms = payload.get("frame_ms")
+    frame_stats = payload.get("frame_stats")
+    if not isinstance(frame_ms, list) or not frame_ms:
+        raise ValueError("BENCHMARK_RESULT.frame_ms must be a non-empty list")
+    if not isinstance(frame_stats, list) or len(frame_stats) != len(frame_ms):
+        raise ValueError(
+            "BENCHMARK_RESULT.frame_stats must match the frame_ms length"
+        )
+    if not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        for value in frame_ms
+    ):
+        raise ValueError("BENCHMARK_RESULT.frame_ms must contain only numbers")
+    return payload
+
+
+def parse_gpu_memory_mib(output: str) -> list[int] | None:
+    """Parse one total-memory row per GPU from nvidia-smi CSV output."""
+    values: list[int] = []
+    for line in output.splitlines():
+        match = re.search(r"(\d+)", line)
+        if match is None:
+            return None
+        values.append(int(match.group(1)))
+    return values or None
+
+
+def query_gpu_memory_mib(environment: Mapping[str, str]) -> list[int] | None:
+    output = command_output(
+        [
+            "nvidia-smi",
+            "--query-gpu=memory.used",
+            "--format=csv,noheader,nounits",
+        ],
+        environment,
+    )
+    return None if output == "unavailable" else parse_gpu_memory_mib(output)
+
+
+class GpuMemoryMonitor:
+    """Best-effort total GPU-memory sampler for an isolated benchmark run."""
+
+    def __init__(self, environment: Mapping[str, str], interval: float = 0.2):
+        self._environment = environment
+        self._interval = interval
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._baseline = query_gpu_memory_mib(environment)
+        self._peak = None if self._baseline is None else list(self._baseline)
+        self._samples = 1 if self._baseline is not None else 0
+
+    def start(self) -> None:
+        if self._baseline is None:
+            return
+        self._thread = threading.Thread(target=self._sample, daemon=True)
+        self._thread.start()
+
+    def _sample(self) -> None:
+        while not self._stop.wait(self._interval):
+            values = query_gpu_memory_mib(self._environment)
+            if values is None or self._peak is None or len(values) != len(self._peak):
+                continue
+            self._peak = [max(old, new) for old, new in zip(self._peak, values)]
+            self._samples += 1
+
+    def stop(self) -> dict[str, Any] | None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=max(1.0, self._interval * 2.0))
+        if self._baseline is None or self._peak is None:
+            return None
+        return {
+            "semantics": "total device memory; peak delta includes concurrent WDDM/display activity",
+            "baselineTotalMiB": self._baseline,
+            "peakTotalMiB": self._peak,
+            "peakDeltaMiB": [
+                peak - baseline
+                for baseline, peak in zip(self._baseline, self._peak)
+            ],
+            "samples": self._samples,
+            "sampleIntervalSeconds": self._interval,
+        }
+
+
 def write_metadata(path: Path, payload: Mapping[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -242,6 +337,8 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
     started = dt.datetime.now(dt.timezone.utc)
     start_time = time.perf_counter()
     output_lines: list[str] = []
+    memory_monitor = GpuMemoryMonitor(environment)
+    memory_monitor.start()
     try:
         process = subprocess.Popen(
             command,
@@ -265,7 +362,20 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
             except subprocess.TimeoutExpired:
                 process.kill()
         return_code = 130
+    gpu_memory = memory_monitor.stop()
     duration = time.perf_counter() - start_time
+
+    output = "".join(output_lines)
+    reported_benchmark = parse_reported_benchmark(output)
+    reported_timing = parse_reported_summary(output)
+    if reported_benchmark is not None:
+        frame_ms = [float(value) for value in reported_benchmark["frame_ms"]]
+        reported_timing = {
+            "frames": len(frame_ms),
+            "meanFrameMs": statistics.mean(frame_ms),
+            "medianFrameMs": statistics.median(frame_ms),
+            "p95FrameMs": sorted(frame_ms)[round(0.95 * (len(frame_ms) - 1))],
+        }
 
     metadata = {
         "schemaVersion": 1,
@@ -289,15 +399,20 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         },
         "python": python,
         "runtime": runtime_facts(python, environment),
-        "reportedFrameTiming": parse_reported_summary("".join(output_lines)),
+        "reportedFrameTiming": reported_timing,
+        "reportedBenchmark": reported_benchmark,
+        "gpuMemory": gpu_memory,
     }
     metadata_path = repo_path(entry["metadataOutput"])
     archive_path = metadata_path.with_name(
         f"{metadata_path.stem}-{metadata['runId']}{metadata_path.suffix}"
     )
+    log_path = archive_path.with_suffix(".log")
+    log_path.write_text(output, encoding="utf-8")
     write_metadata(archive_path, metadata)
     write_metadata(metadata_path, metadata)
     print(f"metadata:  {archive_path}")
+    print(f"log:       {log_path}")
     print(f"latest:    {metadata_path}")
     return return_code
 
