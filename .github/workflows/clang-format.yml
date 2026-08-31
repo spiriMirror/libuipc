@@ -37,8 +37,9 @@ jobs:
 
       - name: Check changed C++ files
         run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1
-          FILES=$(git diff --name-only --diff-filter=ACMR "origin/${{ github.base_ref }}...HEAD" -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh')
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          FILES=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA...$HEAD_SHA" -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh')
           if [ -z "$FILES" ]; then
             echo "No C++ files changed."
             exit 0

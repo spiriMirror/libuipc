@@ -145,6 +145,15 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("if(d < (T)0)", qr_svd)
         self.assertIn("shift = -shift;", qr_svd)
 
+    def test_clang_format_uses_immutable_pull_request_shas(self) -> None:
+        workflow = (
+            ROOT / ".github/workflows/clang-format.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("github.event.pull_request.base.sha", workflow)
+        self.assertIn("github.event.pull_request.head.sha", workflow)
+        self.assertNotIn('git fetch origin "${{ github.base_ref }}" --depth=1', workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
