@@ -16,6 +16,8 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
     REQUIRE(entries.at("dt").at("default").get<Float>() == Catch::Approx(0.01));
     REQUIRE(entries.at("dt").at("unit") == "s");
     REQUIRE(entries.at("gravity").at("componentCount") == 3);
+    REQUIRE(entries.at("newton/semi_implicit/enable").at("default").get<IndexT>() == 1);
+    REQUIRE(entries.at("newton/semi_implicit/K_min").at("default").get<IndexT>() == 6);
     REQUIRE(entries.at("newton/use_adaptive_tol").at("status") == "reserved");
     REQUIRE(entries.at("newton/use_adaptive_tol").at("const") == 0);
     REQUIRE(entries.at("sanity_check/mode").at("enum") == Json::array({"normal", "quiet"}));

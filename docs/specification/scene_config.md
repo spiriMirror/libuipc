@@ -137,9 +137,9 @@ appropriate geometry instead.
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
 | `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
 | `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
-| `newton/semi_implicit/enable` | flag | `0` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
+| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
 | `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Semi-implicit early-exit threshold for accumulated beta. |
-| `newton/semi_implicit/K_min` | integer | `1` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
+| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
 
 See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
 termination logic and tuning guidance.

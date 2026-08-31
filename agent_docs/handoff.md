@@ -6,6 +6,15 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Semi-implicit Newton default (2026-09-01, `refactor-main`)**:
+> `newton/semi_implicit/enable` now defaults to `1` and
+> `newton/semi_implicit/K_min` defaults to `6`. The beta tolerance remains
+> `1e-3`, and `K_min` remains an accumulation start rather than a hard Newton
+> iteration floor; `newton/min_iter` is still the separate floor and defaults
+> to zero. The scene-config schema test locks both new defaults. Validation
+> passed Core 36 cases / 1005 assertions and the complete CUDA sim suite 95
+> cases / 14212 assertions.
+
 > **Thin-shell reference-weight correction (2026-09-01, `refactor-main`)**:
 > the elastic, strain-plastic, and stress-plastic Discrete Shells paths had
 > multiplied their already integrated `L0/h_bar = 3L0^2/A` metric by `A` a
@@ -492,8 +501,10 @@
 >   `linear_system/use_cuda_graph = 0`.
 > - **Newton exit semantics split (2026-08-24)**: `newton/min_iter` is a pure
 >   hard floor (default 0 = off); the semi-implicit beta start moved to
->   `newton/semi_implicit/K_min` (default 1). Found via the case-89 parity
->   run: Stiff averages 2.55 Newton/frame while we forced >=6. Case 88
+>   `newton/semi_implicit/K_min` (default 1 at that revision; superseded by
+>   the 2026-09-01 default of 6 with semi-implicit termination enabled). Found
+>   via the case-89 parity run: Stiff averages 2.55 Newton/frame while we forced
+>   >=6. Case 88
 >   429 -> 320 ms/frame from this alone.
 > - **Perf rounds on case 88 (2026-08-24, now ~266 ms mean / ~299 ms
 >   median)**: two-level warp->block reduction in `Spmv_rbk_sym_spmv_dot` /

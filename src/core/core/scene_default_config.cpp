@@ -125,7 +125,7 @@ static SceneConfigContract make_scene_config_contract()
         Json{{"minimum", 0.0}},
         "1/s");
     add("newton/semi_implicit/enable",
-        IndexT{0},
+        IndexT{1},
         "integer",
         "Enable semi-implicit beta termination.",
         {"src/backends/cuda/engine"},
@@ -137,7 +137,7 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/engine"},
         Json{{"minimum", 0.0}, {"maximum", 1.0}});
     add("newton/semi_implicit/K_min",
-        IndexT{1},
+        IndexT{6},
         "integer",
         "Newton iteration at which semi-implicit beta accumulation starts.",
         {"src/backends/cuda/engine"},

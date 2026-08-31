@@ -48,7 +48,8 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
   the old `newton/min_iter` doubled as a hard floor (≥6 with the benchmark
   configs), cancelling the semi-implicit early exit. Since then
   `min_iter` is a pure floor with default 0 and the beta-accumulation
-  start moved to `newton/semi_implicit/K_min` (default 1). Per-Newton
+  start moved to `newton/semi_implicit/K_min`. Semi-implicit termination is
+  now enabled by default with `K_min=6`. Per-Newton
   solver time already beats Stiff on the same MAS bunny (≈39 ms wall vs
   48.8 ms GPU), so the frame-time gap on MAS scenes is dominated by the
   Newton count, not solver efficiency.

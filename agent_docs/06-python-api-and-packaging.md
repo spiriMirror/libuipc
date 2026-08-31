@@ -117,6 +117,7 @@ escapes the smoke test.
   ImportError — migrate them to the config switch.
 - `newton/min_iter` semantics narrowed: it is now a pure hard floor with
   default `0` (no forced minimum). The semi-implicit beta accumulation
-  start moved to `config["newton"]["semi_implicit"]["K_min"]` (default 1).
+  start lives at `config["newton"]["semi_implicit"]["K_min"]` (default 6),
+  and semi-implicit termination is enabled by default.
   Old scenes that set `min_iter` for the Stiff-GIPC Kmin role should set
   `K_min` instead.
