@@ -6,6 +6,13 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Post-merge clang-format race fix (2026-09-01)**: PR #486 merged while its
+> format job was running. The job then fetched moving `origin/main` with
+> `--depth=1`, replacing the original PR base and producing `no merge base`;
+> no source formatting violation occurred. The workflow now diffs the immutable
+> pull-request `base.sha...head.sha`, and a repository contract prevents the
+> moving shallow-fetch pattern from returning.
+
 > **QR-SVD float sign hardening (2026-09-01)**: the Wilkinson shift in
 > libuipc, GPU_IPC, and Stiff-GIPC now computes its magnitude in the template
 > scalar type and applies the sign with `d < 0 ? -shift : shift`, explicitly
