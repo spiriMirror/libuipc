@@ -6,6 +6,15 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Samples cloth calibration (2026-09-01)**: `libuipc-samples/main` now ends
+> at `4e83b83`, and the parent gitlink follows it. All eight simulated-cloth
+> examples use Baraff-Witkin membrane plus formula-based Discrete Shell
+> bending with one-sided thickness `r=1e-3` and density 200. Example 88 remains
+> the common baseline (`stretch E=5e4`, `shear E=1e1`, `nu=0.49`,
+> `strain_rate=100`, `bending E=3e4`); subsequent owner tuning sets example 11
+> to stretch/bending `E=1e4`, example 34 to `E=1e4`, `nu=0.40`, and example 93
+> to `strain_rate=10000`. Python syntax checks passed for every changed scene.
+
 > **Semi-implicit Newton default (2026-09-01, `refactor-main`)**:
 > `newton/semi_implicit/enable` now defaults to `1` and
 > `newton/semi_implicit/K_min` defaults to `6`. The beta tolerance remains
