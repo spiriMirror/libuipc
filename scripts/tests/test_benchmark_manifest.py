@@ -16,6 +16,7 @@ from scripts.run_benchmark import (
     parse_reported_benchmark,
     parse_reported_summary,
     parse_overrides,
+    percentile,
     resolve_python,
 )
 
@@ -106,6 +107,10 @@ class BenchmarkManifestTests(unittest.TestCase):
     def test_gpu_memory_csv_parser_handles_multiple_devices(self) -> None:
         self.assertEqual(parse_gpu_memory_mib("1024\n2048 MiB"), [1024, 2048])
         self.assertIsNone(parse_gpu_memory_mib("N/A"))
+
+    def test_percentile_interpolates_short_samples(self) -> None:
+        self.assertEqual(percentile([0.0, 10.0, 20.0], 0.5), 10.0)
+        self.assertEqual(percentile([0.0, 10.0], 0.95), 9.5)
 
 
 if __name__ == "__main__":

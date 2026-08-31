@@ -34,11 +34,17 @@ total-device peak memory, duration, return code, and the raw log under
 `output/benchmark-runs/`. On WDDM/display GPUs the memory delta also includes
 concurrent desktop activity and must be interpreted as an approximate upper
 bound rather than process-private allocation.
+Tracked modifications and untracked paths are recorded separately, so local
+reference checkouts do not falsely mark an otherwise reproducible source tree
+dirty.
 The timestamped record is retained and the un-suffixed JSON is refreshed as a
 convenient latest-run pointer.
 
 The normal regression suite remains correctness-focused. Benchmark results are
 hardware-specific evidence and should be compared with the Python
 `uipc.profile` baseline/check tools, not asserted as universal CI wall times.
+The current three-run RTX 5090/CUDA 13.2 reference and synchronized stage
+diagnostics are recorded in
+[`agent_docs/performance/2026-09-01-cross-domain-baseline.md`](../agent_docs/performance/2026-09-01-cross-domain-baseline.md).
 Native microbenchmarks under `apps/benchmarks/` are a separate, lower-level
 facility.

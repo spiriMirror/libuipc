@@ -5,9 +5,11 @@
 After running a simulation, use `SimulationStats` to generate a full performance report — including per-frame timer charts, a profiler heatmap, and system dependency graphs — in one call:
 
 ```python
+from uipc import Timer
 from uipc.stats import SimulationStats
 
 stats = SimulationStats()
+Timer.enable_all()  # synchronized diagnostic scopes; not throughput timing
 
 for i in range(num_frames):
     world.advance()
@@ -15,9 +17,15 @@ for i in range(num_frames):
     stats.collect()
 
 stats.summary_report(output_dir='perf_report', workspace='workspace')
+Timer.disable_all()
 ```
 
 This creates a `perf_report/` folder containing `report.md` and a set of SVG figures. Open `report.md` in any Markdown viewer to inspect the results.
+
+Enabling Timer makes CUDA stages synchronize at scope boundaries. This is
+appropriate for attribution and charts, but it perturbs end-to-end throughput.
+Collect normal wall time with Timer disabled and use a separate Timer-enabled
+run for stage diagnosis.
 
 ## Benchmarking (`uipc.profile`)
 
@@ -74,6 +82,12 @@ different GPUs, builds, CUDA toolkits, or platforms are not a valid CI gate.
 
 The equivalent Python API is
 `uipc.profile.create_baseline(...)` / `uipc.profile.check_baseline(...)`.
+
+For the repository's fixed cross-domain workloads, revision archival, and
+current machine-specific reference numbers, see
+[Testing and Benchmarks](../development/testing_and_benchmarks.md). That runner
+keeps throughput and synchronized diagnostics separate and records structured
+solver counters after each frame.
 
 ### Structured solver statistics
 

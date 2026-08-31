@@ -22,6 +22,7 @@ when iteration counts change. Report both and state which is the primary signal.
 
 | Record | Status | Scope |
 |---|---|---|
+| [2026-09-01 cross-domain main baseline](2026-09-01-cross-domain-baseline.md) | Current reference | Three-run ABD, FEM/MAS, cloth/contact envelope and synchronized stage diagnostics |
 | [2026-08-30 case2 assembly roll-up](2026-08-30-case2-assembly-rollup.md) | Accepted with caveats | Buffer growth, collision readback, line-search aggregation, contact/FEM assembly, rejected split |
 | [`handoff.md`](../handoff.md) | Historical source | Earlier MAS, CUDA graph, CUB, DyTopo, lifecycle, and detailed command history |
 
@@ -42,6 +43,8 @@ scenes are launched through `benchmarks/manifest.json` and
 `scripts/run_benchmark.py`; its archived metadata supplies the minimum runtime
 and revision facts. Approved regression thresholds belong in versioned
 `uipc.profile` baseline artifacts with environment compatibility checks.
+The 2026-09-01 shared-WDDM baseline is deliberately a measured range rather
+than an enforced threshold; promote it only on a stable dedicated runner.
 
 ## Interpretation rules
 

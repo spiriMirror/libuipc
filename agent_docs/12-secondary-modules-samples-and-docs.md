@@ -119,7 +119,7 @@ Representative map:
 | rods/codimension-one bending | `23_kirchoff_rod_bending` |
 | mixed ABD + FEM/cloth | `90_abd_fem_cube_stack`, `93_cube_wall_cloth` |
 | scene save/load | `14_load_scene` |
-| incremental scene commits | `15_scene_commit` (read doc 11 limitations first) |
+| incremental scene commits | `15_scene_commit` (read doc 11 baseline/lifecycle contract first) |
 | geometry operations | `16_geometry_operation`, `27_compute_mesh_d_hat` |
 | joints/articulation | `17_affine_body_revolute_joint`, `18_pendulum_joint`, `33_external_articulation_constraint`, `38_*`, `39_*` |
 | contact pair materials | `14_load_scene` |

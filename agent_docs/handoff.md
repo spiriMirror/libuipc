@@ -14,8 +14,15 @@
 > full-precision frame times, backend Newton/line-search/linear-solver counts,
 > final-state observables, raw logs, revisions/runtime facts, and an approximate
 > WDDM total-memory peak; separate Timer-enabled runs provide stage diagnostics.
-> All four entries completed real three-frame smoke runs before the baseline
-> campaign. Durable measurements are routed to `agent_docs/performance/`.
+> All four entries completed real three-frame smoke runs and then three full
+> interleaved throughput runs. Median run means on RTX 5090/CUDA 13.2 are
+> 129.5 ms/frame (rigid, 120 frames), 201.1 (case2, 250), 60.2 (MAS bunny,
+> 100), and 125.6 (wall/cloth, 100); all frames completed/converged with no
+> iteration-limit hits. Collision-rich trajectories and WDDM memory/timing
+> have measured envelopes rather than exact goldens. Durable method, raw run
+> IDs, stage diagnostics, and interpretation are in
+> `agent_docs/performance/2026-09-01-cross-domain-baseline.md`; historical
+> 73/156/301 ms notes below are not the current baseline.
 
 > **Post-merge clang-format race fix (2026-09-01)**: PR #486 merged while its
 > format job was running. The job then fetched moving `origin/main` with
@@ -41,8 +48,13 @@
 > blocked by the unrelated CUDA 13.2/fmt 12 character-literal issue, although
 > the new test translation unit itself compiles.
 
-> **Samples cloth calibration (2026-09-01)**: `libuipc-samples/main` now ends
-> at `4e83b83`, and the parent gitlink follows it. All eight simulated-cloth
+> **Samples cloth calibration (2026-09-01)**: at that checkpoint,
+> `libuipc-samples/main` ended at `4e83b83` and the parent gitlink followed it.
+> The later benchmark contract advances the gitlink to `4fb26b7` on the
+> samples `benchmark-baseline` branch; measurements used its scene-identical
+> instrumentation parent `8701983`, and the child only corrects benchmark
+> prose. All
+> eight simulated-cloth
 > examples use Baraff-Witkin membrane plus formula-based Discrete Shell
 > bending with one-sided thickness `r=1e-3` and density 200. Example 88 remains
 > the common baseline (`stretch E=5e4`, `shear E=1e1`, `nu=0.49`,

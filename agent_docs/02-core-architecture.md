@@ -27,7 +27,9 @@ Custom engines can also be injected: the `Engine(S<IEngine> overrider)` construc
 Other details:
 - A C++ process must call `uipc::init` with an existing `module_dir` before constructing a named backend Engine. The default process config leaves this path empty. The Python package performs this step automatically and points it at `uipc/_native`.
 - The normal named-backend constructor converts the workspace to an absolute path and calls `create_directory` when it is absent (only the final directory level, not recursive parent creation). The explicit `IEngine` overrider constructor does not normalize or create the workspace.
-- `advance()` clears the sync flag; `retrieve()` automatically calls `sync()` first if not yet synced. The implicit call currently does not mark the wrapper synchronized, so repeated `retrieve()` calls can repeat a backend sync.
+- `advance()` clears the sync flag; `retrieve()` automatically calls `sync()`
+  first if not yet synced and marks the wrapper synchronized. Repeated
+  `retrieve()` calls therefore do not repeat the backend synchronization.
 - `Engine::default_config()` can be overridden by the environment variable `UIPC_ENGINE_DEFAULT_CONFIG` (pointing to a JSON file); the active default is `gpu/device=0`. It also still carries the stale key `extras/gui/enable=true` even though the C++ GUI has been removed; no current backend consumes it.
 - Every backend call is wrapped in `LogPatternGuard{backend_name}` to switch the log prefix.
 
@@ -54,7 +56,10 @@ Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular ref
 - **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`). The CUDA backend calls `begin_pending()` during initialization and `solve_pending()` in each rebuild phase. The `none` backend does neither, so post-init additions remain pending there. `Scene::Objects::destroy` chooses between direct destroy and pending destroy based on `is_started()/is_pending()`.
 - `dt()` is read from the config attribute `"dt"`.
 - Calling non-const `Scene::diff_sim()` sets `diff_sim/enable=1`; merely requesting the mutable handle changes Scene configuration.
-- `update_from(const SceneSnapshotCommit&)` applies config/objects/contact/current/rest geometry data, but currently omits subscene updates and has append/update-oriented geometry semantics. See doc 11 for the verified limitations.
+- `update_from(const SceneSnapshotCommit&)` applies config, objects, contact and
+  subscene tables, independent current/rest geometry commits, removals, exact
+  sparse IDs, and allocator next-ID state. The commit remains relative to its
+  compatible full baseline rather than a standalone Scene file; see doc 11.
 
 ## Scene Default Configuration (`src/core/core/scene_default_config.cpp`)
 
@@ -116,7 +121,11 @@ Key points:
 
 - **SanityCheck** (`src/sanity_check/`): scene validation before init (built-in checkers such as surface distance/intersection, half-plane distance); tests in `apps/tests/sanity_check/`.
 - **DiffSim** (`include/uipc/diff_sim/`): parameter set `ParameterCollection`; `broadcast()` is triggered after recover; GPU side in `src/backends/cuda/diff_sim/`.
-- **SceneSnapshot/Commit**: incremental Scene change representation used by `SceneIO::commit/update`. It is not currently a lossless general GUI/network replication protocol: subscene changes, geometry removal, and sparse geometry IDs have known limitations (doc 11).
+- **SceneSnapshot/Commit**: incremental Scene change representation used by
+  `SceneIO::commit/update`. It is lossless relative to the exact compatible
+  baseline, including subscene changes, removals, sparse IDs, and allocator
+  state. It is not a standalone archive or a schema-negotiating network
+  protocol (doc 11).
 
 ## Logging, Errors, and Infrastructure (`include/uipc/common/`)
 

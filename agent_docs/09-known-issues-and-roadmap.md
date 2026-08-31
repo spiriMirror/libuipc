@@ -1,6 +1,6 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-08-30. Completed performance work is
+Status as of 2026-09-01. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
@@ -21,7 +21,27 @@ These previously verified gaps are closed on `refactor-main` as of 2026-08-25:
   immutable vcpkg commit as the generated registry baseline. The repository
   contracts workflow rejects floating action and revision refs.
 
-## Performance: remaining gap vs Stiff-GIPC
+## Current performance baseline
+
+The current machine-specific reference is the
+[2026-09-01 cross-domain baseline](performance/2026-09-01-cross-domain-baseline.md):
+RTX 5090, CUDA 13.2, Windows Release, three fresh processes per scene, canonical
+Timer-free throughput paths.
+
+| Benchmark | Frames | Reference mean | Three-run range | Newton/frame | PCG/frame |
+|---|---:|---:|---:|---:|---:|
+| pure ABD wrecking balls | 120 | 129.5 ms | 126.4–131.3 ms | 3.95 | 107.3 |
+| case2 FEM + cloth | 250 | 201.1 ms | 199.0–230.6 ms | 6.64 | 246.8 |
+| MAS bunny | 100 | 60.2 ms | 60.1–62.0 ms | 4.67 | 358.8 |
+| ABD wall + cloth | 100 | 125.6 ms | 121.8–165.0 ms | 5.13 | 200.1 |
+
+All 12 throughput runs completed and converged without hitting iteration
+limits. Collision-rich scenes have trajectory and WDDM/dynamic-memory
+variability, so future work must compare three-run envelopes plus structured
+iteration counts. The older Stiff-GIPC ratios below have not been refreshed
+under this contract and must not be presented as current cross-project results.
+
+### Superseded Stiff-GIPC comparison context
 
 Measured on aligned scenes (same machine, clean runs; see handoff for the
 full evidence chain):
@@ -54,7 +74,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
   48.8 ms GPU), so the frame-time gap on MAS scenes is dominated by the
   Newton count, not solver efficiency.
 
-**Planned levers (in priority order)**:
+**Historical optimization ledger (completed or explicitly deferred):**
 1. ~~Cooperative-groups persistent-kernel fusion or CUDA-graph capture of the
    PCG inner loop~~ **DONE (2026-08-23)**: FusedPCG now replays
    `check_interval`-sized iteration blocks as CUDA graphs
@@ -119,7 +139,8 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    case 88, `Compute DyTopo Effect` fell from 6.11 to 4.76 ms/Newton (-22.0%);
    final `Convert To BCOO` stayed flat (1.85 -> 1.86 ms/Newton), and the clean
    wall mean/median improved 175.6/196.4 -> 165.5/184.2 ms/frame.
-8. Current case-88 frame budget (60 frames, 165.5 ms mean representative):
+8. Historical case-88 frame budget at that revision/window (60 frames,
+   165.5 ms mean representative):
    Build Linear System 43.4 ms + DyTopo 26.3 ms + trajectory detect 26.9 ms
    + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
    targets are raw contact/FEM subsystem assembly and the remaining
@@ -263,9 +284,13 @@ assertions).
   interaction with stream capture in the test binary; if someone revisits,
   start from `scripts/run_sim_case_isolated.py` + a binary-search over
   engine-count.
-- **Remaining case2 gap after the PCG graph work**: measure again with the
-  graph on; the next levers are BVH distance-fusion and FEM assembly
-  throughput (doc above).
+- **Performance work must start from the current four-scene baseline**: graph
+  replay, DCD distance fusion, SNK1, discard-aware growth, batched readbacks,
+  and direct FEM/contact assembly are already included. The synchronized
+  diagnostic has no single universal hotspot: rigid is global-solve/assembly
+  heavy, MAS bunny is linear-solve heavy, and case2/wall-cloth distribute cost
+  across solve, line search, trajectory detection, DyTopo, and DCD. Profile the
+  target scene before selecting another lever.
 
 ## External PRs under review
 

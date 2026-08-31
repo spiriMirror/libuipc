@@ -143,10 +143,17 @@ def git_state(path: Path) -> dict[str, Any]:
         )
         return result.stdout.strip() if result.returncode == 0 else "unknown"
 
-    status = run("status", "--porcelain")
+    tracked_status = run("status", "--porcelain", "--untracked-files=no")
+    full_status = run("status", "--porcelain", "--untracked-files=normal")
+    untracked = [
+        line[3:]
+        for line in full_status.splitlines()
+        if line.startswith("?? ")
+    ]
     return {
         "commit": run("rev-parse", "HEAD"),
-        "dirty": status not in ("", "unknown"),
+        "dirty": tracked_status not in ("", "unknown"),
+        "untracked": untracked,
     }
 
 
@@ -229,6 +236,17 @@ def parse_reported_benchmark(output: str) -> dict[str, Any] | None:
     ):
         raise ValueError("BENCHMARK_RESULT.frame_ms must contain only numbers")
     return payload
+
+
+def percentile(values: list[float], quantile: float) -> float:
+    ordered = sorted(float(value) for value in values)
+    if not ordered:
+        raise ValueError("percentile requires at least one value")
+    position = (len(ordered) - 1) * quantile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
 
 
 def parse_gpu_memory_mib(output: str) -> list[int] | None:
@@ -374,7 +392,7 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
             "frames": len(frame_ms),
             "meanFrameMs": statistics.mean(frame_ms),
             "medianFrameMs": statistics.median(frame_ms),
-            "p95FrameMs": sorted(frame_ms)[round(0.95 * (len(frame_ms) - 1))],
+            "p95FrameMs": percentile(frame_ms, 0.95),
         }
 
     metadata = {
