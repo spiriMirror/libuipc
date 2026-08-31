@@ -16,8 +16,8 @@ namespace math
 
     template <typename T>
     UIPC_GENERIC constexpr void polar_decomposition(const Eigen::Matrix<T, 2, 2>& A,
-                                       Eigen::Matrix<T, 2, 2>&       S,
-                                       GivensRotation<T>&            R) noexcept
+                                                    Eigen::Matrix<T, 2, 2>& S,
+                                                    GivensRotation<T>& R) noexcept
     {
         S = A;
         Eigen::Matrix<T, 2, 1> x{A(0, 0) + A(1, 1), A(1, 0) - A(0, 1)};
@@ -37,9 +37,9 @@ namespace math
 
     template <typename T>
     UIPC_GENERIC constexpr void qr_svd2x2(const Eigen::Matrix<T, 2, 2>& A,
-                             Eigen::Matrix<T, 2, 1>&       S,
-                             GivensRotation<T>&            U,
-                             GivensRotation<T>&            V) noexcept
+                                          Eigen::Matrix<T, 2, 1>&       S,
+                                          GivensRotation<T>&            U,
+                                          GivensRotation<T>& V) noexcept
     {
         Eigen::Matrix<T, 2, 2> S_sym;
         polar_decomposition(A, S_sym, U);
@@ -92,14 +92,22 @@ namespace math
     template <typename T>
     UIPC_GENERIC constexpr T wilkinson_shift(const T a1, const T b1, const T a2) noexcept
     {
-        T d  = (T)0.5 * (a1 - a2);
-        T bs = b1 * b1;
-        T mu = a2 - std::copysign(bs / (std::abs(d) + std::sqrt(d * d + bs)), d);
+        T d     = (T)0.5 * (a1 - a2);
+        T bs    = b1 * b1;
+        T shift = bs / (std::abs(d) + std::sqrt(d * d + bs));
+        // Keep the sign operation in T precision. The standard-library
+        // sign-copy overload is unreliable for float in CUDA host/device code;
+        // Wilkinson uses sign(0) = +1.
+        if(d < (T)0)
+            shift = -shift;
+        T mu = a2 - shift;
         return mu;
     }
 
     template <typename T>
-    UIPC_GENERIC constexpr void flip_sign(int j, Eigen::Matrix<T, 3, 3>& U, Eigen::Matrix<T, 3, 1>& S) noexcept
+    UIPC_GENERIC constexpr void flip_sign(int                     j,
+                                          Eigen::Matrix<T, 3, 3>& U,
+                                          Eigen::Matrix<T, 3, 1>& S) noexcept
     {
         S(j)     = -S(j);
         U.col(j) = -U.col(j);
@@ -107,8 +115,8 @@ namespace math
 
     template <int t, typename T>
     UIPC_GENERIC constexpr void sort_sigma(Eigen::Matrix<T, 3, 3>& U,
-                              Eigen::Matrix<T, 3, 1>& sigma,
-                              Eigen::Matrix<T, 3, 3>& V) noexcept
+                                           Eigen::Matrix<T, 3, 1>& sigma,
+                                           Eigen::Matrix<T, 3, 3>& V) noexcept
     {
         /// t == 0
         if constexpr(t == 0)
@@ -184,9 +192,9 @@ namespace math
 
     template <int t, typename T>
     UIPC_GENERIC constexpr void process(Eigen::Matrix<T, 3, 3>& B,
-                           Eigen::Matrix<T, 3, 3>& U,
-                           Eigen::Matrix<T, 3, 1>& S,
-                           Eigen::Matrix<T, 3, 3>& V) noexcept
+                                        Eigen::Matrix<T, 3, 3>& U,
+                                        Eigen::Matrix<T, 3, 1>& S,
+                                        Eigen::Matrix<T, 3, 3>& V) noexcept
     {
         GivensRotation<T> u{0, 1};
         GivensRotation<T> v{0, 1};
@@ -195,8 +203,8 @@ namespace math
         Eigen::Matrix<T, 2, 2> B_ = B.template block<2, 2>(t, t);
         Eigen::Matrix<T, 2, 1> S_;
         qr_svd2x2(B_, S_, u, v);
-        S(t)                         = S_(0);
-        S(t + 1)                     = S_(1);
+        S(t)     = S_(0);
+        S(t + 1) = S_(1);
 
         u.rowi += t;
         u.rowk += t;
@@ -209,9 +217,9 @@ namespace math
 
     template <typename T>
     UIPC_GENERIC constexpr void qr_svd(const Eigen::Matrix<T, 3, 3>& A,
-                          Eigen::Matrix<T, 3, 1>&       S,
-                          Eigen::Matrix<T, 3, 3>&       U,
-                          Eigen::Matrix<T, 3, 3>&       V) noexcept
+                                       Eigen::Matrix<T, 3, 1>&       S,
+                                       Eigen::Matrix<T, 3, 3>&       U,
+                                       Eigen::Matrix<T, 3, 3>&       V) noexcept
     {
         U.setIdentity();
         V.setIdentity();

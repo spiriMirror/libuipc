@@ -212,6 +212,11 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     thickness is consistently the one-sided collision radius `r`: formula-based
     bending uses full thickness `2r`, and Baraff-Witkin stretch uses `2r` while
     its separately calibrated shear coefficient remains thickness-independent.
+22. QR-SVD float sign transfer (DONE 2026-09-01): the Wilkinson shift in
+    libuipc, GPU_IPC, and Stiff-GIPC no longer calls the standard-library
+    sign-copy function from host/device templates. It applies the sign with a
+    branch in the original scalar type and defines `sign(0)=+1`; a libuipc CUDA
+    regression instantiates and executes the float path on the GPU.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

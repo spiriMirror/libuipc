@@ -6,6 +6,23 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **QR-SVD float sign hardening (2026-09-01)**: the Wilkinson shift in
+> libuipc, GPU_IPC, and Stiff-GIPC now computes its magnitude in the template
+> scalar type and applies the sign with `d < 0 ? -shift : shift`, explicitly
+> taking `sign(0)=+1`. This removes the unsafe standard-library sign-copy call
+> from CUDA float paths. The sibling commits are GPU_IPC `4fb6019` and
+> Stiff-GIPC `bb2849a`. Libuipc has a named-kernel regression covering float
+> positive, negative, and negative-zero inputs on the GPU; the repository
+> contract also forbids reintroducing the call. A standalone CUDA 13.2 / sm_120
+> execution returned `[-1, -0.414213538, 2.41421366]`; libuipc's complete CUDA
+> backend built with device-link in 541 seconds and sim_case passed 95 cases /
+> 14212 assertions. GPU_IPC and Stiff-GIPC both completed full Release builds;
+> GPU_IPC also completed one frame. Stiff cases 1 and 2 remain blocked before
+> QR-SVD by their pre-existing `DeviceBuffer allocation size overflow` during
+> initial triplet allocation. The local aggregate backend test target remains
+> blocked by the unrelated CUDA 13.2/fmt 12 character-literal issue, although
+> the new test translation unit itself compiles.
+
 > **Samples cloth calibration (2026-09-01)**: `libuipc-samples/main` now ends
 > at `4e83b83`, and the parent gitlink follows it. All eight simulated-cloth
 > examples use Baraff-Witkin membrane plus formula-based Discrete Shell

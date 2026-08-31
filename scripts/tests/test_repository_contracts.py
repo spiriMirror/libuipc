@@ -136,6 +136,15 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("* (2 * thickness)", stretch)
         self.assertIn("Float full_thickness = 2 * thickness;", bending)
 
+    def test_qr_svd_uses_explicit_t_precision_sign(self) -> None:
+        qr_svd = (
+            ROOT / "src/backends/cuda/algorithm/qr_svd.hpp"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("copysign", qr_svd)
+        self.assertIn("if(d < (T)0)", qr_svd)
+        self.assertIn("shift = -shift;", qr_svd)
+
 
 if __name__ == "__main__":
     unittest.main()
