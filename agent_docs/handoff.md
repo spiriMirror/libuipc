@@ -6,6 +6,23 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Thin-shell reference-weight correction (2026-09-01, `refactor-main`)**:
+> the elastic, strain-plastic, and stress-plastic Discrete Shells paths had
+> multiplied their already integrated `L0/h_bar = 3L0^2/A` metric by `A` a
+> second time. Their generic outer weight is now neutral, preserving the
+> paper's inverse-area normalization and uniform-scale invariance. The stored
+> vertex `thickness=r` is explicitly one-sided: formula-based bending uses
+> `E*(2r)^3/(12*(1-nu^2))`, and Baraff-Witkin stretch uses
+> `(lambda+2mu)*(2r)`. Its separately calibrated shear coefficient remains
+> thickness-independent. Focused regression coverage checks all three bending
+> variants at two uniformly scaled rest hinges. Validation passed repository
+> contracts 30/30, Core 36 cases / 1001 assertions, the full CUDA backend build
+> including device-link, sim_case 95 cases / 14212 assertions, and the focused
+> MAS stitch regression 1 case / 4 assertions. Rebuilding the complete local
+> CUDA test executable remains blocked by the existing CUDA 13.2/fmt 12
+> character-literal incompatibility in unrelated `.cu` tests; the new host-side
+> reference-weight test itself compiles.
+
 > **GitHub check portability fixes (2026-08-31, `refactor-main`)**: successive
 > full XMake runs exposed that CUDA OBJECT dependencies first lacked the project
 > `src/` include, then backend definitions, then Linux PIC, and finally did not
@@ -917,6 +934,11 @@ regression).
   (same 250-frame window: 171.8ms → 1.75×).
 
 ## Cloth stiffness model update + strain_rate exposure (after `b7056879`)
+
+> **Partly superseded on 2026-09-01:** the historical area multiplier and
+> one-sided stretch/bending formulas below were corrected as recorded at the
+> top of this handoff. They remain here only as the chronological explanation
+> of the regression.
 
 - Cloth stiffness formulas aligned with mas-pncg; membrane-element weights
   use the triangle **area** (not volume, avoiding incorrect volume-measure

@@ -205,6 +205,12 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     contract guards the final-target ownership requirement. In addition,
     repository-contract tests no longer confuse an intentionally unmaterialized
     samples submodule with an invalid benchmark declaration.
+21. Thin-shell reference measure (DONE 2026-09-01): elastic and both plastic
+    Discrete Shells paths retain the paper's complete `L0/h_bar = 3L0^2/A`
+    metric and no longer multiply the adjacent area a second time. The stored
+    thickness is consistently the one-sided collision radius `r`: formula-based
+    bending uses full thickness `2r`, and Baraff-Witkin stretch uses `2r` while
+    its separately calibrated shear coefficient remains thickness-independent.
 Every such change must re-pass the full sim suite (currently 95 cases / 14212
 assertions).
 

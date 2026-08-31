@@ -33,7 +33,8 @@ Returns:
         R"(Apply DiscreteShellBending constitution to a simplicial complex.
 Args:
     sc: SimplicialComplex to apply to.
-    bending_stiffness: Bending stiffness in kPa (default: 100.0 kPa).)");
+    bending_stiffness: Raw kappa coefficient in the Discrete Shells edge energy
+        (legacy numeric default: 100000).)");
 
     class_DiscreteShellBending.def(
         "apply_to",
@@ -44,10 +45,9 @@ Args:
         py::arg("poisson_ratio"),
         R"(Apply DiscreteShellBending constitution to a simplicial complex, computing
 the bending stiffness from the material as the classical shell value
-E*t^3/(12*(1-nu^2)) (the backend bending measure is the element area, so the
-value is used literally). The thickness t is read per edge from the mesh's
-vertex "thickness" attribute (average of the two endpoints), so a membrane
-(stretch) constitution with thickness must be applied first.
+E*h^3/(12*(1-nu^2)). The mesh stores the one-sided collision offset r in its
+vertex "thickness" attribute; the full material thickness is h=2r. The radius
+is averaged over each edge, so a membrane constitution must be applied first.
 Args:
     sc: SimplicialComplex to apply to.
     young_modulus: Young's modulus of the shell material.
@@ -58,8 +58,7 @@ Args:
                                           py::arg("young_modulus"),
                                           py::arg("poisson_ratio"),
                                           py::arg("thickness"),
-                                          R"(Compute the raw bending_stiffness attribute value E*t^3/(12*(1-nu^2))
-(the classical shell bending stiffness; the backend bending measure is the
-element area, so the value is used literally).)");
+                                          R"(Compute the classical shell bending stiffness
+E*h^3/(12*(1-nu^2)) from the one-sided thickness radius r, with h=2r.)");
 }
 }  // namespace pyuipc::constitution

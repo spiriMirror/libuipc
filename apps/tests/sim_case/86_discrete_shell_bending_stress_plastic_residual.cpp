@@ -106,16 +106,17 @@ uipc::Float residual_hinge_angle(bool use_stress_plastic)
     SoftPositionConstraint spc;
     auto moduli = ElasticModuli2D::youngs_poisson(100.0_kPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
+    const Float kappa = DiscreteShellBending::bending_stiffness(100.0_kPa, 0.49, 0.001_m);
 
     if(use_stress_plastic)
     {
         StressPlasticDiscreteShellBending spdsb;
-        spdsb.apply_to(patch.mesh, 20.0_Pa, 7.2_Pa, 0.0);  // area measure: kappa & yield_stress *t(0.001)
+        spdsb.apply_to(patch.mesh, kappa, 0.36 * kappa, 0.0);
     }
     else
     {
         DiscreteShellBending dsb;
-        dsb.apply_to(patch.mesh, 20.0_Pa);  // area measure: kappa*t(0.001)
+        dsb.apply_to(patch.mesh, kappa);
     }
 
     spc.apply_to(patch.mesh, 100.0);

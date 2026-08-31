@@ -1,5 +1,6 @@
 #pragma once
 #include <type_define.h>
+#include <finite_element/constitutions/discrete_shell_bending_reference.h>
 #include <utils/dihedral_angle.h>
 //ref: https://www.cs.columbia.edu/cg/pdfs/10_ds.pdf
 namespace uipc::backend::cuda
@@ -22,16 +23,8 @@ namespace sym::discrete_shell_bending
                                                Float          thickness3)
 
     {
-        L0         = (x2_bar - x1_bar).norm();
-        Vector3 n1 = (x1_bar - x0_bar).cross(x2_bar - x0_bar);
-        Vector3 n2 = (x2_bar - x3_bar).cross(x1_bar - x3_bar);
-        Float   A  = (n1.norm() + n2.norm()) / 2.0;
-        h_bar      = A / 3.0 / L0;
-        dihedral_angle(x0_bar, x1_bar, x2_bar, x3_bar, theta_bar);
-
-        // Shell element weight is the AREA: the bending_stiffness attribute
-        // carries the full thickness dependence (κ = E·t³/(12·(1-ν²))).
-        V_bar = A;
+        detail::compute_discrete_shell_bending_reference(
+            L0, h_bar, theta_bar, V_bar, x0_bar, x1_bar, x2_bar, x3_bar);
     }
 
     inline UIPC_GENERIC Float E(const Vector3& x0,

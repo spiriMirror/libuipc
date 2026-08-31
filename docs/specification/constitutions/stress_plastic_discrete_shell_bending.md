@@ -40,11 +40,14 @@ where $\operatorname{wrap}(\cdot)$ maps an angle to the principal branch $[-\pi,
 
 ### Kinematics and Yield Condition
 
-The purely elastic bending energy density is defined as:
+The purely elastic per-edge bending energy is defined as:
 $$
 E^E(\Delta\theta) = \kappa \frac{\Delta\theta^2 L_0}{\bar{h}}
 $$
 where $\kappa$ is the bending stiffness parameter.
+
+The factor $L_0/\bar h=3L_0^2/A$ already contains the complete reference
+metric. No additional triangle-area multiplier is applied.
 
 The generalized trial bending stress (trial moment) is the derivative of the elastic energy with respect to the deformation angle:
 $$
@@ -61,14 +64,14 @@ $$
 \theta_Y = \frac{\tau_Y \bar{h}}{2\kappa L_0}
 $$
 
-### Augmented Bending Energy Density (ECI)
+### Augmented Bending Energy (ECI)
 
 To formulate a force-based implicit return mapping that perfectly preserves the elastic spring-back force, we construct an augmented energy density. The plastic slip is measured by:
 $$
 \delta \gamma = \max(|\Delta\theta^{tr}| - \theta_Y, 0)
 $$
 
-The augmented energy density replaces the standard elastic energy in the variational solver:
+The augmented per-edge energy replaces the standard elastic energy in the variational solver:
 $$
 E_{aug}(\theta) = \begin{cases} \kappa \frac{L_0}{\bar{h}} (\Delta\theta^{tr})^2 & |\Delta\theta^{tr}| \le \theta_Y \\ \kappa \frac{L_0}{\bar{h}} \theta_Y^2 + \tau_Y \delta \gamma & \text{otherwise} \end{cases}
 $$

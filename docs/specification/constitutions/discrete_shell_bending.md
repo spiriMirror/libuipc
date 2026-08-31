@@ -24,16 +24,16 @@ From the reference configuration with rest positions $\bar{\mathbf{x}}_0$, $\bar
   $$
   \bar{h} = \frac{A}{3 L_0}
   $$
-  where $A$ is the average area of the two triangles:
+  where $A=A_1+A_2$ is the combined rest area of the two triangles:
   $$
-  A = \frac{1}{2}\left(\|(\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0) \times (\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0)\|_2 + \|(\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0) \times (\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_3)\|_2\right)
+  A = \frac{1}{2}\left(\|(\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0) \times (\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0)\|_2 + \|(\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_3) \times (\bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_3)\|_2\right)
   $$
 
 - **Rest Dihedral Angle:** $\bar{\theta}$ is the dihedral angle in the rest configuration
 
-### Bending Energy Density
+### Bending Energy
 
-The bending energy density of the discrete shell element is given by:
+The per-edge bending energy is:
 
 $$
 E = \kappa \frac{(\theta - \bar{\theta})^2 L_0}{\bar{h}}
@@ -47,10 +47,21 @@ where:
 - $L_0$ is the rest length of the shared edge
 - $\bar{h}$ is the average height parameter from the rest configuration
 
-The energy penalizes deviations of the dihedral angle from its rest value, scaled by the edge length and inversely by the average height, which accounts for the local geometry of the shell element.
+Because $\bar h=A/(3L_0)$, the reference metric is
+$L_0/\bar h=3L_0^2/A$. This already contains the complete Discrete Shells
+geometric weight: the backend does **not** multiply by $A$ again. Consequently,
+the metric is invariant under uniform scaling of the rest hinge.
+
+For the formula overload, the mesh stores a one-sided thickness radius $r$.
+The full material thickness is $h=2r$, and
+
+$$
+\kappa=D=\frac{E h^3}{12(1-\nu^2)}
+        =\frac{E(2r)^3}{12(1-\nu^2)}.
+$$
 
 ## Attributes
 
 On `edges`:
 
-- `bending_stiffness`: $\kappa$ in the energy above
+- `bending_stiffness`: $\kappa$ in the energy above; it is not a per-area value

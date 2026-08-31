@@ -12,8 +12,9 @@ class UIPC_CONSTITUTION_API StrainLimitingBaraffWitkinShell : public FiniteEleme
   public:
     StrainLimitingBaraffWitkinShell(const Json& config = default_config()) noexcept;
 
-    // Separate stretch / shear moduli (cloth: the two deformation modes have
-    // independent material parameters, cf. mas-pncg ClothMaterialConfig).
+    // Separate stretch / shear moduli. The stored thickness is the one-sided
+    // collision offset r; stretch uses the full material thickness 2r, while
+    // shear is an independently calibrated two-dimensional coefficient.
     void apply_to(geometry::SimplicialComplex& sc,
                   const ElasticModuli2D&       stretch_moduli,
                   const ElasticModuli2D&       shear_moduli,

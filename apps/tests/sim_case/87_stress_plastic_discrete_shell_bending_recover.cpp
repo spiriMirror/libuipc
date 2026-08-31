@@ -1,6 +1,7 @@
 #include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/neo_hookean_shell.h>
+#include <uipc/constitution/discrete_shell_bending.h>
 #include <uipc/constitution/stress_plastic_discrete_shell_bending.h>
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
@@ -93,7 +94,8 @@ S<geometry::GeometrySlot> build_scene(Scene& scene)
 
     auto moduli = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
-    spdsb.apply_to(patch.mesh, 5.0_Pa, 1.2_Pa, 0.0);  // area measure: kappa & yield_stress *t(0.001)
+    const Float kappa = DiscreteShellBending::bending_stiffness(10.0_MPa, 0.49, 0.001_m);
+    spdsb.apply_to(patch.mesh, kappa, 0.24 * kappa, 0.0);
     spc.apply_to(patch.mesh, 100.0);
 
     auto [slot, rest_slot] = object->geometries().create(patch.mesh);

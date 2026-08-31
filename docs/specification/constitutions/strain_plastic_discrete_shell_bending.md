@@ -37,9 +37,9 @@ $$
 $$
 where $\operatorname{wrap}(\cdot)$ maps an angle to the principal branch $[-\pi,\pi]$.
 
-### Bending Energy Density
+### Bending Energy
 
-The bending energy density is
+The per-edge bending energy is
 $$
 E = \kappa \frac{\Delta\theta^2 L_0}{\bar{h}},
 $$
@@ -50,6 +50,9 @@ where:
 - $\bar{\theta}$ is the current bending rest angle state
 - $L_0$ is the rest length of the shared edge
 - $\bar{h}$ is the average height parameter from the rest configuration
+
+The factor $L_0/\bar h=3L_0^2/A$ already contains the complete reference
+metric. No additional triangle-area multiplier is applied.
 
 ### Plastic Evolution
 

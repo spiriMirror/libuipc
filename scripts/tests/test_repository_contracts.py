@@ -110,6 +110,32 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("uipc_add_cuda_component_sources()", backend)
         self.assertIn('add_cuflags("-rdc=true")', backend)
 
+    def test_thin_shell_reference_weight_and_thickness_contract(self) -> None:
+        cuda_constitutions = ROOT / "src/backends/cuda/finite_element/constitutions"
+        reference = (cuda_constitutions / "discrete_shell_bending_reference.h").read_text(
+            encoding="utf-8"
+        )
+        wrappers = [
+            "discrete_shell_bending_function.h",
+            "strain_plastic_discrete_shell_bending_function.h",
+            "stress_plastic_discrete_shell_bending_function.h",
+        ]
+
+        self.assertIn("h_bar      = A / 3.0 / L0;", reference)
+        self.assertIn("outer_weight = 1.0;", reference)
+        for wrapper in wrappers:
+            text = (cuda_constitutions / wrapper).read_text(encoding="utf-8")
+            self.assertIn("compute_discrete_shell_bending_reference", text)
+
+        stretch = (ROOT / "src/constitution/strain_limiting_baraff_witkin.cpp").read_text(
+            encoding="utf-8"
+        )
+        bending = (ROOT / "src/constitution/discrete_shell_bending.cpp").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("* (2 * thickness)", stretch)
+        self.assertIn("Float full_thickness = 2 * thickness;", bending)
+
 
 if __name__ == "__main__":
     unittest.main()
