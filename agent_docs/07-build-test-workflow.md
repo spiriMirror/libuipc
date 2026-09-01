@@ -216,7 +216,9 @@ Local validation used the real Visual Studio 2022 generator and CUDA 13.2:
 all 198 functional sources compiled, `nvcc -dlink` listed every domain object,
 the backend DLL linked and loaded, and the focused `0_abd_gravity` IPC/AL test
 passed 178 assertions. The existing Ninja configuration also rebuilt and
-device-linked successfully.
+device-linked successfully. GitHub CMake, XMake, and repository-contract runs
+then passed, followed by a manual non-publishing cibuildwheel run whose complete
+Windows/Linux CPython 3.10–3.14 matrix passed 10/10.
 
 **Standing debt**: remove the `ports/tinygltf` overlay and relax the two
 xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Workflow

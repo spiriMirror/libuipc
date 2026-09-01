@@ -21,7 +21,11 @@
 > the 17,622,528-byte `uipc_backend_cuda.dll`, and passed `0_abd_gravity`
 > (IPC + AL-IPC, 178 assertions). The existing Ninja build also regenerated,
 > device-linked, and rebuilt `sim_case` successfully; repository contracts pass
-> 36/36.
+> 36/36. GitHub then passed CMake run `33490698492`, XMake run `33490698388`,
+> and Repository Contracts run `33490698389`. A manual non-publishing wheel run
+> `33490746393` passed all ten CPython 3.10–3.14 Windows/Linux jobs; the five
+> Windows jobs that had failed on `main` now build, install-test, and upload
+> successfully.
 
 > **Canonical benchmark suite expansion (2026-09-01)**: root benchmark
 > ownership now covers sample 6 (`rigid-wrecking-balls`), 88
