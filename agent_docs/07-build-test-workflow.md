@@ -195,6 +195,29 @@ current pattern to follow:
    Fix: pinned `tinygltf <3` in `src/core/xmake.lua` (same idiom as the
    existing `dylib <3`).
 
+### Windows wheel CUDA device-link incident (2026-09)
+
+scikit-build-core selected the Visual Studio generator for Windows wheels. The
+198 CUDA translation units compiled with RDC inside domain OBJECT targets, but
+the final shared target had no directly owned CUDA-language source. Visual
+Studio therefore skipped `nvcc -dlink` and all five Windows ABI jobs failed at
+the final DLL with 198 unresolved `__cudaRegisterLinkedBinary_*` symbols;
+Linux and the Ninja-based CMake workflow passed.
+
+The final CMake CUDA target now owns a generated comment-only `.cu` language
+anchor. This leaves the functional source/domain manifests unchanged while
+making Visual Studio schedule the required device-link. A repository contract
+locks the anchor and `CUDA_RESOLVE_DEVICE_SYMBOLS ON`; a minimal two-OBJECT,
+cross-TU CUDA probe reproduced the failure without the anchor and linked with
+it. Do not replace this with a wheel-only generator override: ordinary Visual
+Studio CMake builds need the same correction.
+
+Local validation used the real Visual Studio 2022 generator and CUDA 13.2:
+all 198 functional sources compiled, `nvcc -dlink` listed every domain object,
+the backend DLL linked and loaded, and the focused `0_abd_gravity` IPC/AL test
+passed 178 assertions. The existing Ninja configuration also rebuilt and
+device-linked successfully.
+
 **Standing debt**: remove the `ports/tinygltf` overlay and relax the two
 xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Workflow
 actions are pinned to reviewed full commit SHAs; the vcpkg executable revision

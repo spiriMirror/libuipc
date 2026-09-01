@@ -6,6 +6,23 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Windows wheel RDC fix (2026-09-01)**: `main@b6f2b006` had five real
+> Windows wheel failures; CMake, XMake, repository contracts, and all five Linux
+> wheels passed. scikit-build-core's Visual Studio generator compiled all 198
+> domain OBJECT sources with RDC but omitted `nvcc -dlink`, ending with 198
+> unresolved `__cudaRegisterLinkedBinary_*` symbols. A minimal cross-TU CUDA
+> probe reproduced the failure for both OBJECT attachment idioms. Giving the
+> final shared target one directly owned, generated comment-only `.cu` source
+> made Visual Studio emit the correct device-link and the probe passed. CMake
+> now carries that language anchor; domain ownership and XMake are unchanged,
+> and a repository contract prevents its removal. Validation then configured
+> the real project with the Visual Studio 2022 generator, compiled all 198 CUDA
+> sources, executed `nvcc -dlink` over every domain object, produced and loaded
+> the 17,622,528-byte `uipc_backend_cuda.dll`, and passed `0_abd_gravity`
+> (IPC + AL-IPC, 178 assertions). The existing Ninja build also regenerated,
+> device-linked, and rebuilt `sim_case` successfully; repository contracts pass
+> 36/36.
+
 > **Canonical benchmark suite expansion (2026-09-01)**: root benchmark
 > ownership now covers sample 6 (`rigid-wrecking-balls`), 88
 > (`stiff-gipc-case2`), 89 (`mas-bunny`), and 93 (`cube-wall-cloth`). The sample

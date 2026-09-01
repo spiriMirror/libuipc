@@ -28,6 +28,14 @@ Both paths use RDC and resolve all device symbols once in the final module. This
 preserves static `REGISTER_SIM_SYSTEM` objects without turning domains into
 runtime DLL boundaries.
 
+CMake's Visual Studio generator has a language-detection limitation: when every
+`.cu` reaches the final DLL only through OBJECT expressions, it skips
+`nvcc -dlink` even with `CUDA_RESOLVE_DEVICE_SYMBOLS=ON`. CMake therefore
+generates one comment-only `uipc_cuda_device_link_anchor.cu` in the binary
+directory and attaches it directly to the final target. It contains no runtime
+code and is not a ninth domain; it only makes multi-config generators schedule
+the same single device-link that Ninja and XMake already perform.
+
 `UIPC_WITH_CUDA_LEGACY_COLLISION` (CMake) /
 `cuda_legacy_collision` (XMake) defaults to ON for compatibility. Turning it
 off omits the three legacy filter translation units and their static

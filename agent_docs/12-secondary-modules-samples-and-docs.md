@@ -247,6 +247,10 @@ equivalent doctor probe) before CUDA compatibility is considered verified.
 - CMake remains the primary and wheel-tested build. XMake now mirrors the
   active USD/VDB options, omits removed GUI/torch/RPC surfaces, and explicitly
   disables ccache.
+- Windows wheel builds may use CMake's Visual Studio generator; the final CUDA
+  target's generated language anchor is required so its domain OBJECT inputs
+  participate in the one RDC device-link. XMake already owns CUDA sources
+  directly on the final target and needs no matching synthetic source.
 - CMake/vcpkg pins fmt 10.2.1 while XMake pins fmt 12.1.0 for an NVCC compatibility
   workaround; keep ABI/version effects in mind.
 - XMake's pybind target is an importable shared module (`.pyd` on Windows),

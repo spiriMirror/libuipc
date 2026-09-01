@@ -189,13 +189,18 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     `uipc_query_module` handshake validates ABI version, libuipc major/minor,
     and backend identity before PMR synchronization or engine construction.
     This prevents stale/mixed backend DLLs from reaching the C++ virtual ABI.
-14. CUDA build ownership (DONE 2026-08-30, corrected 2026-08-31): 198 compiled
+14. CUDA build ownership (DONE 2026-08-30, corrected 2026-08-31 and
+    2026-09-01): 198 compiled
     backend sources belong to seven primary domains and one optional
     legacy-collision component, followed by one final RDC device-link into the
     existing backend DLL. Matching CMake/XMake manifests reject unowned and
     multiply-owned sources. CMake uses internal OBJECT targets; XMake keeps the
     same logical partition but attaches sources to the final target because its
     device-link omits CUDA OBJECT dependencies.
+    CMake's final target additionally owns one generated comment-only CUDA
+    language anchor because Visual Studio otherwise omits the RDC device-link
+    when all real CUDA sources arrive through OBJECT expressions. Functional
+    source ownership remains unchanged.
 15. Scene configuration ownership (DONE 2026-08-30): typed runtime defaults and
     machine-readable schema metadata now come from one declaration. The public
     normalized schema remains exactly equivalent, while future key additions can
