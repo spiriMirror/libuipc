@@ -57,6 +57,9 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 
 ### Stiff-GIPC Benchmark Suite (88–93)
 
+The reproducible headless cross-domain registry and current machine-specific
+reference are documented in [Testing and Benchmarks](https://spirimirror.github.io/libuipc-doc/development/testing_and_benchmarks/).
+
 - [88: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark)
 - [89: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny)
 - [90: set_case1](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/90_abd_fem_cube_stack)

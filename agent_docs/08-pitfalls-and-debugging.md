@@ -75,6 +75,11 @@ touching that area; several of these have bitten us more than once.
 
 ## Performance measurement
 
+- **Start from the current four-scene reference**, not a number copied from
+  handoff history. The 2026-09-01 RTX 5090/CUDA 13.2 baseline is
+  `performance/2026-09-01-cross-domain-baseline.md` and requires three fresh
+  processes, the declared frame window, structured iteration counts, and a
+  separate Timer diagnostic.
 - **Build contention pollutes timing completely.** A hot build once made
   sanity_check look like a 112 ms/frame culprit (idle machine: 2-5 ms).
   Benchmark only on an idle machine.
@@ -84,8 +89,10 @@ touching that area; several of these have bitten us more than once.
   segments, or recompute marginal costs (instrumented runs) instead of
   naive frame diffs.
 - **Stiff-GIPC's logged "average time cost" is per-Newton-iteration GPU
-  time** (`totalTime/totalNT`), not per-frame. Its clean reference numbers:
-  wrecking ball 42.8 ms/frame (frames 2-120), case2 142.8 ms/frame.
+  time** (`totalTime/totalNT`), not per-frame. Its historical clean reference
+  numbers were wrecking ball 42.8 ms/frame (frames 2-120) and case2
+  142.8 ms/frame. They were not rerun under the current manifest/revisions, so
+  do not combine them with the 2026-09-01 libuipc baseline into a new ratio.
 - cub wrappers keep a **stream-level workspace cache**
   (`cuda_tool/details::cub_temp_storage`); per-call cudaMalloc/cudaFree
   (~10-100 µs + implicit sync each) once cost ~15%/frame. Never go back to
@@ -148,10 +155,11 @@ touching that area; several of these have bitten us more than once.
   `_native/` dir before running — otherwise python silently runs the OLD
   solver and trajectory/timing comparisons are garbage (this once cost a
   full debug round chasing a MAS "freeze" that was just a stale dll).
-- **Do not use incremental Scene commits as a general replication protocol.**
-  The current update path omits subscene changes, does not faithfully propagate
-  geometry removal, and assumes append-aligned geometry IDs. Use full SceneIO for
-  topology-changing transfers and read doc 11 before extending commit/update.
+- **Incremental Scene commits require the exact compatible baseline.** They now
+  propagate subscene/contact topology, geometry removal, sparse IDs, and
+  allocator state, but they are deltas rather than standalone Scene files. Use
+  full SceneIO to establish or migrate a baseline, reject pending mutations at
+  snapshot time, and read doc 11 before extending commit/update.
 - **The `none` backend is not a CPU simulator.** It advances the frame without
   physics and does not settle post-init pending geometry mutations.
 

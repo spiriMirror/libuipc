@@ -41,6 +41,11 @@ with the corresponding CMake/XMake option.
   keeps CUDA sources on the final target so device-link sees every RDC object.
   Users still load one DLL.
 - A compatibility build owns 198 sources; a lean legacy-off build compiles 195.
+- CMake generates one additional comment-only CUDA-language anchor in the build
+  directory. It is not a functional/domain source: it makes Visual Studio
+  schedule the final RDC device-link when all real CUDA code comes from OBJECT
+  targets. Ninja already linked correctly; XMake directly owns all sources on
+  the final target and needs no equivalent anchor.
 
 ## Alternatives considered
 

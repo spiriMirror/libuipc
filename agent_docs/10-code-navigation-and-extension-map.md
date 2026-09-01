@@ -173,8 +173,10 @@ Python JSON conversion as separate surfaces. Add round-trip tests for:
 - geometry creation and destruction with non-contiguous IDs;
 - a snapshot taken at a supported synchronization point.
 
-Read doc 11 before relying on the incremental path; it is currently append/update
-oriented and does not faithfully represent every Scene mutation.
+Read doc 11 before relying on the incremental path. It faithfully represents
+the supported Scene mutations relative to an exact compatible full baseline,
+but a commit is not a standalone archive and pending mutations are forbidden at
+snapshot time.
 
 ## Verification Map
 

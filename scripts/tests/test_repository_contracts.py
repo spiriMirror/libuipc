@@ -110,6 +110,19 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("uipc_add_cuda_component_sources()", backend)
         self.assertIn('add_cuflags("-rdc=true")', backend)
 
+    def test_cmake_final_cuda_target_has_multiconfig_device_link_anchor(self) -> None:
+        backend = (ROOT / "src/backends/cuda/CMakeLists.txt").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("UIPC_CUDA_DEVICE_LINK_ANCHOR", backend)
+        self.assertIn("uipc_cuda_device_link_anchor.cu", backend)
+        self.assertIn(
+            'target_sources(cuda PRIVATE "${UIPC_CUDA_DEVICE_LINK_ANCHOR}")',
+            backend,
+        )
+        self.assertIn("CUDA_RESOLVE_DEVICE_SYMBOLS ON", backend)
+
     def test_thin_shell_reference_weight_and_thickness_contract(self) -> None:
         cuda_constitutions = ROOT / "src/backends/cuda/finite_element/constitutions"
         reference = (cuda_constitutions / "discrete_shell_bending_reference.h").read_text(

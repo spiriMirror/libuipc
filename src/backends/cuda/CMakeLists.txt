@@ -55,6 +55,19 @@ set_target_properties(cuda PROPERTIES
     CUDA_STANDARD 20
 )
 
+# CMake's Visual Studio generator does not schedule the RDC device-link when a
+# target receives CUDA exclusively through OBJECT-library expressions. Give the
+# final backend target a generated CUDA-language source so every generator sees
+# CUDA directly. The file intentionally contains no runtime code; all 198
+# functional sources remain owned by the domain OBJECT targets below.
+set(UIPC_CUDA_DEVICE_LINK_ANCHOR
+    "${CMAKE_CURRENT_BINARY_DIR}/uipc_cuda_device_link_anchor.cu")
+file(GENERATE
+    OUTPUT "${UIPC_CUDA_DEVICE_LINK_ANCHOR}"
+    CONTENT "// Generated CMake CUDA-language anchor for the final RDC device-link.\n")
+set_source_files_properties("${UIPC_CUDA_DEVICE_LINK_ANCHOR}" PROPERTIES GENERATED TRUE)
+target_sources(cuda PRIVATE "${UIPC_CUDA_DEVICE_LINK_ANCHOR}")
+
 target_compile_options(cuda PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028>
     $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr>

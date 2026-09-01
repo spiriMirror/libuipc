@@ -26,7 +26,11 @@ Keep performance out of portable correctness assertions. Root
 `benchmarks/manifest.json` owns stable benchmark names, canonical arguments,
 environment cleanup, assets, and metadata paths while implementations remain in
 the tracked samples submodule. `run_benchmark.py` preserves child status and
-records revisions, runtime/hardware facts, and scene-reported frame timing.
+records revisions, runtime/hardware facts, full scene-reported frame timing,
+structured backend iteration counts, final-state observables, approximate peak
+device memory, and raw logs. The canonical suite spans pure ABD contact, mixed
+FEM/cloth contact, stiff MAS FEM, and large ABD-cloth coupling. Synchronized
+Timer scopes are collected only in separate diagnostic runs.
 
 ## Consequences
 
@@ -50,5 +54,6 @@ records revisions, runtime/hardware facts, and scene-reported frame timing.
 
 Real discovery found 95 cases and produced a 24-case shard 0 of 4; isolated and
 aggregate executions passed. CTest exposes the resource lock on all four GPU
-aggregates. Script contracts passed 25/25, documentation built, and the promoted
-case2 runner completed a one-frame end-to-end run with archived metadata.
+aggregates. The four benchmark entries pass real three-frame smoke runs with
+archived metadata, structured frame statistics, physical observables, raw logs,
+and sampled memory peaks.

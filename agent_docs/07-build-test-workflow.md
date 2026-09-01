@@ -117,19 +117,27 @@ metadata and `Engine("none")` smoke test.
 `benchmarks/manifest.json` is the root repository's versioned end-to-end
 benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
 canonicalizes tuning environment variables, and launches the implementation in
-the tracked `libuipc-samples` submodule without copying it. The first registered
-scene is `stiff-gipc-case2` (samples example 88):
+the tracked `libuipc-samples` submodule without copying it. The canonical suite
+is `rigid-wrecking-balls` (sample 6), `stiff-gipc-case2` (88), `mas-bunny` (89),
+and `cube-wall-cloth` (93):
 
 ```bash
 python scripts/run_benchmark.py list
+python scripts/run_benchmark.py run rigid-wrecking-balls --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
+python scripts/run_benchmark.py run mas-bunny --frames 100
+python scripts/run_benchmark.py run cube-wall-cloth --frames 100
 ```
 
 Each run writes command, environment overrides, repo/submodule revisions,
-GPU/driver/CUDA/Python facts, reported mean/median frame time, duration, and
-return code under `output/benchmark-runs/`. `--dry-run` resolves
-the contract without launching. Performance thresholds belong in compatible
+GPU/driver/CUDA/Python facts, the complete frame-time distribution, structured
+Newton/line-search/linear-solver counts, final-state observables, an approximate
+total-device memory peak, duration, return code, and the raw log under
+`output/benchmark-runs/`. `--dry-run` resolves the contract without launching.
+Canonical throughput runs keep `UIPC_BENCHMARK_TIMERS=0`; use a separate
+`--env UIPC_BENCHMARK_TIMERS=1` run for synchronized stage timing because Timer
+instrumentation changes wall time. Performance thresholds belong in compatible
 `uipc.profile` baseline/check artifacts, never in portable correctness tests.
 
 **Typical sim_case flow** (e.g. `0_abd_gravity.cpp`, `14_fem_3d_ground_contact.cpp`, `37_abd_revolute_joint.cpp`): `Engine{"cuda"}` → configure `Scene::default_config()` (gravity/contact/friction/line_search) → build geometry + `apply_to` constitution → `world.init(scene)` → loop `advance/retrieve` + `SceneIO::write_surface` to export obj each frame. `0_abd_gravity` uses two SECTIONs to compare `ipc` and `al-ipc`.
@@ -186,6 +194,31 @@ current pattern to follow:
 3. **xmake tinygltf v3.0.1** moved `tiny_gltf.h` out of the include root.
    Fix: pinned `tinygltf <3` in `src/core/xmake.lua` (same idiom as the
    existing `dylib <3`).
+
+### Windows wheel CUDA device-link incident (2026-09)
+
+scikit-build-core selected the Visual Studio generator for Windows wheels. The
+198 CUDA translation units compiled with RDC inside domain OBJECT targets, but
+the final shared target had no directly owned CUDA-language source. Visual
+Studio therefore skipped `nvcc -dlink` and all five Windows ABI jobs failed at
+the final DLL with 198 unresolved `__cudaRegisterLinkedBinary_*` symbols;
+Linux and the Ninja-based CMake workflow passed.
+
+The final CMake CUDA target now owns a generated comment-only `.cu` language
+anchor. This leaves the functional source/domain manifests unchanged while
+making Visual Studio schedule the required device-link. A repository contract
+locks the anchor and `CUDA_RESOLVE_DEVICE_SYMBOLS ON`; a minimal two-OBJECT,
+cross-TU CUDA probe reproduced the failure without the anchor and linked with
+it. Do not replace this with a wheel-only generator override: ordinary Visual
+Studio CMake builds need the same correction.
+
+Local validation used the real Visual Studio 2022 generator and CUDA 13.2:
+all 198 functional sources compiled, `nvcc -dlink` listed every domain object,
+the backend DLL linked and loaded, and the focused `0_abd_gravity` IPC/AL test
+passed 178 assertions. The existing Ninja configuration also rebuilt and
+device-linked successfully. GitHub CMake, XMake, and repository-contract runs
+then passed, followed by a manual non-publishing cibuildwheel run whose complete
+Windows/Linux CPython 3.10–3.14 matrix passed 10/10.
 
 **Standing debt**: remove the `ports/tinygltf` overlay and relax the two
 xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Workflow

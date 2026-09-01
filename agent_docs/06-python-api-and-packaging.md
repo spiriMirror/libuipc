@@ -45,6 +45,12 @@ torch/warp adapters still require their own optional frameworks.
 - `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada native code plus a forward-compatible PTX path instead of the 0.0.26 wheel's Ada-only target.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
 - cibuildwheel: on linux, auditwheel excludes all CUDA libraries (relies on system CUDA 12.8).
+- On Windows, scikit-build-core may select the Visual Studio generator. The
+  final CUDA target owns a generated comment-only `.cu` language anchor so VS
+  schedules the RDC device-link for the 198 functional objects supplied by
+  CMake OBJECT domains. Without it all ABI jobs reach the final DLL and fail
+  with unresolved `__cudaRegisterLinkedBinary_*` symbols. This is a general
+  CMake multi-config fix, not a wheel-only Ninja override.
 - The Windows wheel also relies on the system CUDA 12 runtime. In 0.0.26,
   `dumpbin /DEPENDENTS uipc_backend_cuda.dll` shows a direct
   `cublas64_12.dll` import. CUDA 13 installs only `cublas64_13.dll`, so a

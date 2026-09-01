@@ -119,7 +119,7 @@ Representative map:
 | rods/codimension-one bending | `23_kirchoff_rod_bending` |
 | mixed ABD + FEM/cloth | `90_abd_fem_cube_stack`, `93_cube_wall_cloth` |
 | scene save/load | `14_load_scene` |
-| incremental scene commits | `15_scene_commit` (read doc 11 limitations first) |
+| incremental scene commits | `15_scene_commit` (read doc 11 baseline/lifecycle contract first) |
 | geometry operations | `16_geometry_operation`, `27_compute_mesh_d_hat` |
 | joints/articulation | `17_affine_body_revolute_joint`, `18_pendulum_joint`, `33_external_articulation_constraint`, `38_*`, `39_*` |
 | contact pair materials | `14_load_scene` |
@@ -130,11 +130,14 @@ Representative map:
 
 Samples often include polyscope GUI loops. For CI or agent experiments, prefer a
 headless branch with a finite frame count, `advance/retrieve` pairing, and one
-small numerical assertion. Examples `88`–`93` already demonstrate this pattern.
-The root `benchmarks/manifest.json` promotes example 88 under the stable name
-`stiff-gipc-case2`; run it through `scripts/run_benchmark.py` so the sample
-submodule revision, canonical environment, command, and result status are
-recorded together.
+small numerical assertion. Examples 6 and 88–93 already demonstrate this pattern.
+The root `benchmarks/manifest.json` promotes examples 6, 88, 89, and 93 as the
+canonical cross-domain performance suite. Run them through
+`scripts/run_benchmark.py` so the sample submodule revision, canonical
+environment, full frame distribution, backend iteration counts, physical
+observable, approximate memory peak, command, and result status are recorded
+together. Throughput runs leave synchronized Timer scopes disabled; stage
+diagnostics are separate runs.
 
 ## Documentation Source and Deployment
 
@@ -244,6 +247,10 @@ equivalent doctor probe) before CUDA compatibility is considered verified.
 - CMake remains the primary and wheel-tested build. XMake now mirrors the
   active USD/VDB options, omits removed GUI/torch/RPC surfaces, and explicitly
   disables ccache.
+- Windows wheel builds may use CMake's Visual Studio generator; the final CUDA
+  target's generated language anchor is required so its domain OBJECT inputs
+  participate in the one RDC device-link. XMake already owns CUDA sources
+  directly on the final target and needs no matching synthetic source.
 - CMake/vcpkg pins fmt 10.2.1 while XMake pins fmt 12.1.0 for an NVCC compatibility
   workaround; keep ABI/version effects in mind.
 - XMake's pybind target is an importable shared module (`.pyd` on Windows),

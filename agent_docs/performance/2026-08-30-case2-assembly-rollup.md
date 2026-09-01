@@ -1,5 +1,10 @@
 # 2026-08-30 — Case2 CUDA Assembly Optimization Roll-up
 
+> Historical controlled A/B record. Its 60-frame wall values describe the
+> revisions and windows below, not the current main baseline. Use
+> [the 2026-09-01 cross-domain baseline](2026-09-01-cross-domain-baseline.md)
+> for current end-to-end reference values.
+
 - Status: Accepted with wall-time caveats
 - Workload: samples `88_stiff_gipc_benchmark`, MAS, 60 measured frames
 - Environment: Windows Release build, NVIDIA RTX 5090, CUDA 13.2
