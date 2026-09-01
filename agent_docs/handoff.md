@@ -6,6 +6,24 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **cuBLAS-free CUDA runtime boundary (2026-09-02)**: published wheels through
+> 0.0.27 directly import CUDA 12 cuBLAS, but current source no longer uses or
+> links cuBLAS. `LinearSystemContext` dot/norm now use named block-partial
+> kernels plus CUB final reduction; partial/result storage is persistent and
+> geometrically grown, CUB scratch remains per-stream and persistent, and norm
+> uses a scaled-square state to avoid overflow/underflow. The heavy reduction
+> header is included only by the three calling TUs and focused CUDA test, so the
+> lightweight `linear_system.h`/`cuda_tool.h` path does not transitively pull in
+> all CUB algorithms. CMake and XMake links are synchronized. A wheel CI audit
+> rejects dynamic Toolkit libraries via dumpbin/readelf; compatibility policy
+> now requires only driver >=525.60.13 (Linux) or >=528.33 (Windows). Final
+> CUDA 13.2/RTX 5090 validation passed the CMake and XMake backend builds, the
+> 12-assertion focused reduction test, all 274 CUDA-backend assertions, all
+> 14,212 assertions in the 95-case simulation suite, four representative
+> benchmark scenes, 43 repository-script tests, 79 portable Python tests, the
+> real CUDA doctor probe, and a full Doxygen/MkDoxy/MkDocs build. Both local
+> build systems produced a backend DLL with no CUDA Toolkit imports.
+
 > **Windows wheel RDC fix (2026-09-01)**: `main@b6f2b006` had five real
 > Windows wheel failures; CMake, XMake, repository contracts, and all five Linux
 > wheels passed. scikit-build-core's Visual Studio generator compiled all 198
@@ -444,9 +462,9 @@
 > 75/80/86/89 SASS plus compute-89 PTX rather than only architecture 89, and
 > embed ABI/toolkit/architecture metadata in `build_info()`. The packaged
 > `compatibility.json` is checked against both pyprojects and CI. `python -m
-> uipc doctor` diagnoses Python ABI, CUDA 12 cuBLAS discovery, backend dynamic
-> loading, NVIDIA driver/GPU architecture, and optionally a real CUDA engine
-> construction via `--probe-cuda`.
+> uipc doctor` diagnoses Python ABI, the self-contained CUDA runtime boundary,
+> backend dynamic loading, NVIDIA driver/GPU architecture, and optionally a real
+> CUDA engine construction via `--probe-cuda`.
 > Pytest now defaults to the portable `not example and not cuda` suite; GPU and
 > interactive cases have explicit markers, module-stubbing tests restore global
 > import state, and every cibuildwheel job executes the portable suite against

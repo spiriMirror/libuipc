@@ -23,9 +23,6 @@ uipc_add_backend(cuda)
 
 # basic setup
 target_link_libraries(cuda PUBLIC
-    cublas
-    cusparse
-    cusolver
     uipc_geometry
     uipc_io
 )

@@ -1,13 +1,31 @@
 #pragma once
 // Minimal linear-system formats used by the backend's global linear solver.
-// Raw CUDA containers + views; dot/norm reductions replace muda's cublas context.
+// Raw CUDA containers + views; dot/norm reductions replace the legacy BLAS context.
 #include <cuda_tool/buffer.h>
 #include <cuda_tool/linear_system/views.h>
-#include <cublas_v2.h>
 #include <Eigen/Core>
 
 namespace uipc::backend::cuda_tool
 {
+namespace details
+{
+    template <typename T>
+    struct ScaledSquareSum
+    {
+        T scale      = T{0};
+        T square_sum = T{1};
+    };
+
+    template <typename T>
+    struct LinearReductionStorage
+    {
+        DeviceVector<T>                  dot_partials;
+        DeviceVar<T>                     dot_result;
+        DeviceVector<ScaledSquareSum<T>> norm_partials;
+        DeviceVar<ScaledSquareSum<T>>    norm_result;
+    };
+}  // namespace details
+
 // A single sparse-matrix entry. Block matrices (M,N > 1) store an Eigen block as value.
 template <typename T, int M, int N>
 struct MatrixTriplet
@@ -412,8 +430,8 @@ class DeviceDenseMatrix
 };
 
 // ---------------------------------------------------------------------------
-// LinearSystemContext: holds a cublas handle and provides dot/norm reductions
-// on dense vectors, matching cuda_tool::LinearSystemContext's used surface.
+// LinearSystemContext: owns persistent partial/result storage and provides
+// CUB-backed dot/norm reductions on dense vectors.
 // ---------------------------------------------------------------------------
 class LinearSystemContext
 {
@@ -421,14 +439,8 @@ class LinearSystemContext
     LinearSystemContext(cudaStream_t s = default_stream())
         : m_stream(s)
     {
-        cublasCreate(&m_handle);
-        cublasSetStream(m_handle, m_stream);
     }
-    ~LinearSystemContext()
-    {
-        if(m_handle)
-            cublasDestroy(m_handle);
-    }
+    ~LinearSystemContext()                                     = default;
     LinearSystemContext(const LinearSystemContext&)            = delete;
     LinearSystemContext& operator=(const LinearSystemContext&) = delete;
 
@@ -468,41 +480,23 @@ class LinearSystemContext
 
   private:
     template <typename T>
+    details::LinearReductionStorage<T>& reduction_storage()
+    {
+        static_assert(std::is_same_v<T, float> || std::is_same_v<T, double>);
+        if constexpr(std::is_same_v<T, float>)
+            return m_float_reduction;
+        else
+            return m_double_reduction;
+    }
+
+    template <typename T>
     T dot_view(CBufferView<T> x, CBufferView<T> y);
+
     template <typename T>
     T norm_view(CBufferView<T> x);
 
-    cudaStream_t   m_stream;
-    cublasHandle_t m_handle = nullptr;
+    cudaStream_t                            m_stream;
+    details::LinearReductionStorage<float>  m_float_reduction;
+    details::LinearReductionStorage<double> m_double_reduction;
 };
-
-template <>
-inline float LinearSystemContext::dot_view<float>(CBufferView<float> x, CBufferView<float> y)
-{
-    float r;
-    cublasSdot(m_handle, (int)x.size(), x.data(), 1, y.data(), 1, &r);
-    return r;
-}
-template <>
-inline double LinearSystemContext::dot_view<double>(CBufferView<double> x,
-                                                    CBufferView<double> y)
-{
-    double r;
-    cublasDdot(m_handle, (int)x.size(), x.data(), 1, y.data(), 1, &r);
-    return r;
-}
-template <>
-inline float LinearSystemContext::norm_view<float>(CBufferView<float> x)
-{
-    float r;
-    cublasSnrm2(m_handle, (int)x.size(), x.data(), 1, &r);
-    return r;
-}
-template <>
-inline double LinearSystemContext::norm_view<double>(CBufferView<double> x)
-{
-    double r;
-    cublasDnrm2(m_handle, (int)x.size(), x.data(), 1, &r);
-    return r;
-}
 }  // namespace uipc::backend::cuda_tool

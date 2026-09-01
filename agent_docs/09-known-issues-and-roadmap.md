@@ -265,19 +265,20 @@ assertions).
 
 ## Open issues
 
-- **PyPI 0.0.26 Windows wheel needs the CUDA 12 cuBLAS runtime**: package
+- **Published wheels through 0.0.27 need the CUDA 12 cuBLAS runtime; current
+  source removes it**: package
   installation and `import uipc` succeed, but `Engine("cuda", ...)` fails on
   a CUDA 13.2-only machine because `uipc_backend_cuda.dll` directly imports
   `cublas64_12.dll`; the machine provides only `cublas64_13.dll`. This is not
   a missing bundled vcpkg DLL and not a driver-compatibility problem. Current
-  workaround: install CUDA 12.8 side-by-side and expose its `bin` directory,
-  or build from source against CUDA 13. The immutable 0.0.26 wheel cannot be
-  corrected in place. The next-release policy keeps the explicit system CUDA
-  12.8 runtime, adds CPython 3.14, replaces the Ada-only code image with native
-  7.5/8.0/8.6/8.9 images plus 8.9 PTX, embeds build metadata, and ships
-  `python -m uipc doctor`. Remaining before calling this closed: release those
-  wheels and add a GPU-capable CI job that constructs the CUDA engine; a hosted
-  no-GPU import/none-backend smoke test is insufficient.
+  workaround for 0.0.27: install CUDA 12.8 side-by-side and expose its `bin`
+  directory, or build from current source. The source tree now replaces the
+  remaining cuBLAS dot/norm calls with persistent raw-CUDA/CUB reductions and
+  audits every wheel for dynamic Toolkit dependencies. Future wheels require a
+  compatible NVIDIA driver rather than a local Toolkit. Remaining before
+  calling the release-level issue closed: publish those wheels and add a
+  GPU-capable CI job that constructs the CUDA engine; hosted binary inspection
+  plus the no-GPU smoke test cannot prove actual driver/GPU execution.
 - **CUDA-graph capture crash in the C++ suite binary (worked around)**: with
   Timer objects created inside the captured call chain, the single-process
   suite deterministically fail-fasted (0xC0000409) at the second engine's

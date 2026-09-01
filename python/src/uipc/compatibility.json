@@ -12,6 +12,11 @@
   },
   "wheel": {
     "cuda_toolkit": "12.8",
+    "requires_system_cuda_toolkit": false,
+    "minimum_driver": {
+      "linux": "525.60.13",
+      "windows": "528.33"
+    },
     "cuda_architectures": [
       "75-real",
       "80-real",

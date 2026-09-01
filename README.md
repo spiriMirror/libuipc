@@ -98,12 +98,18 @@ reference are documented in [Testing and Benchmarks](https://spirimirror.github.
 pip install pyuipc
 ```
 
-The release pipeline builds **Windows / Linux, Python 3.10–3.14, CUDA 12.8
-runtime** wheels. The immutable 0.0.26 release predates Python 3.14 support, so
-Python 3.14 users need the next release or a source build.
-The Windows wheel dynamically loads `cublas64_12.dll`; a CUDA 13-only install
-does not provide that versioned runtime. Use CUDA 12.8 side-by-side, or build
-from source for CUDA 13.
+The release pipeline builds **Windows / Linux, Python 3.10–3.14** wheels with
+CUDA 12.8. Wheels built from the current source carry the CUDA runtime code they
+use and require a compatible NVIDIA driver, not a locally installed CUDA
+Toolkit. The minimum supported driver is 525.60.13 on Linux and 528.33 on
+Windows; newer CUDA 13 drivers remain backward compatible under NVIDIA's
+[CUDA compatibility model](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html).
+Those are the CUDA 12.x minor-compatibility floors; a GPU that must use the
+packaged forward-JIT PTX path can require a newer driver.
+
+The immutable 0.0.27 wheel still dynamically loads `cublas64_12.dll`. Install
+CUDA 12.8 side-by-side when using that release on a CUDA 13-only machine, or use
+a source build until the next wheel release removes the dependency.
 
 New wheels contain native code for compute capabilities 7.5, 8.0, 8.6, and 8.9,
 plus compute-8.9 PTX for forward JIT on newer GPUs. Diagnose an installation

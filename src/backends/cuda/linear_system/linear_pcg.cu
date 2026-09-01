@@ -1,6 +1,7 @@
 #include <linear_system/linear_pcg.h>
 #include <sim_engine.h>
 #include <linear_system/global_linear_system.h>
+#include <cuda_tool/linear_reduction.h>
 #include <cuda_device/builtin.h>
 #include <utils/matrix_market.h>
 #include <backends/common/backend_path_tool.h>

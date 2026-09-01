@@ -123,6 +123,36 @@ class RepositoryContractTests(unittest.TestCase):
         )
         self.assertIn("CUDA_RESOLVE_DEVICE_SYMBOLS ON", backend)
 
+    def test_cuda_backend_has_no_toolkit_library_link_or_transitive_cub_umbrella(
+        self,
+    ) -> None:
+        cmake_backend = (ROOT / "src/backends/cuda/CMakeLists.txt").read_text(
+            encoding="utf-8"
+        )
+        cmake_components = (ROOT / "src/backends/cuda/components.cmake").read_text(
+            encoding="utf-8"
+        )
+        xmake_backend = (ROOT / "src/backends/cuda/xmake.lua").read_text(
+            encoding="utf-8"
+        )
+        linear_system = (
+            ROOT / "src/backends/cuda/cuda_tool/linear_system.h"
+        ).read_text(encoding="utf-8")
+        reduction = (
+            ROOT / "src/backends/cuda/cuda_tool/linear_reduction.h"
+        ).read_text(encoding="utf-8")
+        wheel_workflow = (
+            ROOT / ".github/workflows/python-wheels.yml"
+        ).read_text(encoding="utf-8")
+
+        for text in (cmake_backend, cmake_components, xmake_backend):
+            for library in ("cublas", "cusparse", "cusolver"):
+                self.assertNotIn(library, text.lower())
+        self.assertNotIn("cublas", linear_system.lower())
+        self.assertNotIn("#include <cuda_tool/cub.h>", linear_system)
+        self.assertIn("DeviceReduce(m_stream)", reduction)
+        self.assertIn("audit_wheel_cuda_dependencies.py", wheel_workflow)
+
     def test_thin_shell_reference_weight_and_thickness_contract(self) -> None:
         cuda_constitutions = ROOT / "src/backends/cuda/finite_element/constitutions"
         reference = (cuda_constitutions / "discrete_shell_bending_reference.h").read_text(

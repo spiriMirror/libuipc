@@ -27,10 +27,7 @@ target("cuda")
     add_cuflags("-rdc=true")
     
     add_links(
-        "cudart",
-        "cublas",
-        "cusparse",
-        "cusolver"
+        "cudart"
     )
 
     add_deps("uipc_geometry", "uipc_io")

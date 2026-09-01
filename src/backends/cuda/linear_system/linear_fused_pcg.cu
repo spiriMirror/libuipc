@@ -1,6 +1,7 @@
 #include <linear_system/linear_fused_pcg.h>
 #include <sim_engine.h>
 #include <linear_system/global_linear_system.h>
+#include <cuda_tool/linear_reduction.h>
 #include <uipc/common/timer.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cuda_tool/cub.h>
@@ -293,7 +294,7 @@ void LinearFusedPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
     }
 }
 
-// d_result = x^T * y  (cublas-free, device-only, CUB warp reduction)
+// d_result = x^T * y  (device-only CUB warp reduction)
 void fused_dot(cuda_tool::CDenseVectorView<Float> x,
                cuda_tool::CDenseVectorView<Float> y,
                cuda_tool::VarView<Float>          d_result,
