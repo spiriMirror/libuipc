@@ -44,6 +44,15 @@ def check_policy(root: Path = ROOT) -> list[str]:
             classifier = f"Programming Language :: Python :: {version}"
             if classifier not in classifiers:
                 errors.append(f"{relative_path}: missing classifier {classifier!r}")
+        if wheel_policy.get("requires_system_cuda_toolkit", True):
+            expected_runtime_text = f"require CUDA {wheel_policy['cuda_toolkit']}"
+        else:
+            expected_runtime_text = "require a compatible NVIDIA driver"
+        if expected_runtime_text not in project.get("description", ""):
+            errors.append(
+                f"{relative_path}: description must state that prebuilt wheels "
+                f"{expected_runtime_text}"
+            )
 
     root_pyproject = _load_toml(root / "pyproject.toml")
     actual_architectures = root_pyproject["tool"]["scikit-build"]["cmake"][

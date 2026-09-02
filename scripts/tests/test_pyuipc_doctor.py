@@ -47,6 +47,18 @@ class PyUIPCDoctorTests(unittest.TestCase):
         self.assertEqual(rows[0]["compute_capability"], "8.6")
         self.assertEqual(rows[1]["name"], "NVIDIA GeForce RTX 5090")
 
+    def test_driver_version_comparison_handles_different_widths(self) -> None:
+        self.assertTrue(doctor.version_at_least("528.33", "528.33"))
+        self.assertTrue(doctor.version_at_least("595.79", "528.33"))
+        self.assertTrue(doctor.version_at_least("525.60.13", "525.60.13"))
+        self.assertFalse(doctor.version_at_least("525.59", "525.60.13"))
+
+    def test_release_wheel_does_not_require_a_system_cuda_toolkit(self) -> None:
+        wheel = doctor.load_policy()["wheel"]
+        self.assertFalse(wheel["requires_system_cuda_toolkit"])
+        self.assertEqual(wheel["minimum_driver"]["windows"], "528.33")
+        self.assertEqual(wheel["minimum_driver"]["linux"], "525.60.13")
+
 
 if __name__ == "__main__":
     unittest.main()

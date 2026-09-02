@@ -25,7 +25,7 @@ maintainers = [
 
 readme = "README.md"
 license = {file = "LICENSE"}
-description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (prebuilt wheels require CUDA 12.8)"
+description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (prebuilt wheels require a compatible NVIDIA driver)"
 
 keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
 

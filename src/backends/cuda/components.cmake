@@ -20,10 +20,7 @@ function(uipc_add_cuda_component name)
     target_link_libraries(${name} PRIVATE
         uipc::core
         uipc_geometry
-        uipc_io
-        cublas
-        cusparse
-        cusolver)
+        uipc_io)
     set_target_properties(${name} PROPERTIES
         POSITION_INDEPENDENT_CODE ON
         CUDA_SEPARABLE_COMPILATION ON

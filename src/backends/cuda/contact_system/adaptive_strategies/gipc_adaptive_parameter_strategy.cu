@@ -6,6 +6,7 @@
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
 #include <linear_system/global_linear_system.h>
+#include <cuda_tool/linear_reduction.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 #include <cuda_tool/cub.h>
 

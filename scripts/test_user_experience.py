@@ -189,8 +189,8 @@ try:
 
     print("[OK] Package imported successfully")
 
-    # Backends are loaded lazily. A plain `import uipc` does not detect a
-    # missing CUDA-major runtime such as cublas64_12.dll.
+    # Backends are loaded lazily. A plain `import uipc` does not validate the
+    # NVIDIA driver, GPU code image, or CUDA engine initialization path.
     with tempfile.TemporaryDirectory(prefix="uipc-wheel-check-") as workspace:
         engine = Engine("cuda", workspace)
         print("[OK] CUDA backend loaded successfully")

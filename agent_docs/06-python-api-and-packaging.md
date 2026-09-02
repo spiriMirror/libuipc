@@ -44,19 +44,24 @@ torch/warp adapters still require their own optional frameworks.
   workflow ABI/toolkit matrix, and the CMake wheel architecture list against it.
 - `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada native code plus a forward-compatible PTX path instead of the 0.0.26 wheel's Ada-only target.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
-- cibuildwheel: on linux, auditwheel excludes all CUDA libraries (relies on system CUDA 12.8).
+- cibuildwheel: on Linux, auditwheel defensively excludes CUDA Toolkit
+  libraries. The current backend has no dynamic Toolkit dependency; a
+  post-build `readelf`/`dumpbin` audit rejects any regression before upload.
 - On Windows, scikit-build-core may select the Visual Studio generator. The
   final CUDA target owns a generated comment-only `.cu` language anchor so VS
   schedules the RDC device-link for the 198 functional objects supplied by
   CMake OBJECT domains. Without it all ABI jobs reach the final DLL and fail
   with unresolved `__cudaRegisterLinkedBinary_*` symbols. This is a general
   CMake multi-config fix, not a wheel-only Ninja override.
-- The Windows wheel also relies on the system CUDA 12 runtime. In 0.0.26,
+- Published wheels through 0.0.27 rely on the system CUDA 12 runtime:
   `dumpbin /DEPENDENTS uipc_backend_cuda.dll` shows a direct
-  `cublas64_12.dll` import. CUDA 13 installs only `cublas64_13.dll`, so a
-  CUDA 13-only machine can import `uipc` but cannot construct
-  `Engine("cuda", ...)`. The prebuilt-wheel compatibility statement must say
-  CUDA **12.8 runtime**, not "12.6+". Source builds can target CUDA 13.
+  `cublas64_12.dll` import. Current source replaces the four cuBLAS dot/norm
+  calls with persistent raw-CUDA/CUB reductions and removes the CMake/XMake
+  link. The resulting backend has no CUDA Toolkit DLL import; future wheels
+  require only a compatible NVIDIA driver (Linux >=525.60.13, Windows
+  >=528.33). Those are the CUDA 12.x minor-compatibility floors; PTX JIT on
+  hardware without a packaged native image may require a newer driver. The
+  build toolkit remains 12.8 for a reproducible binary baseline.
 
 **Development mode (`python/pyproject.toml` + `python/setup.py`)**:
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
@@ -69,9 +74,8 @@ torch/warp adapters still require their own optional frameworks.
 the audited revision. Prerequisite: pyuipc installed (CMake build or
 `uv pip install -e .`).
 
-The release matrix covers CPython 3.10-3.14 on Windows and manylinux. The
-immutable 0.0.26 release stops at 3.13; Python 3.14 support begins with the next
-wheel release.
+The release matrix and immutable 0.0.27 release cover CPython 3.10-3.14 on
+Windows and manylinux.
 
 Pytest excludes `example` and `cuda` by default, so the portable unit suite can
 run on wheel builders without a display or NVIDIA device. Select GPU coverage
@@ -84,8 +88,9 @@ and the portable pytest suite against the installed wheel.
 Release verification must go beyond `import uipc`: importing loads the pybind
 extension and core DLLs, while the backend is loaded lazily. At minimum create
 `Engine("cuda", temporary_workspace)` from a clean environment; preferably
-advance one asset-free frame. Otherwise a missing CUDA-major runtime dependency
-escapes the smoke test.
+advance one asset-free frame. Binary dependency inspection proves Toolkit
+independence, but only a GPU probe detects driver, code-image, and execution
+failures.
 
 ## Key points for extending bindings
 
@@ -101,12 +106,13 @@ escapes the smoke test.
 ## Packaging/helper invariants
 
 - Root and development metadata both include `matplotlib`, require
-  `pytest>=9.0.3` for the dev extra, and describe the prebuilt-wheel CUDA 12.8
-  runtime requirement consistently.
+  `pytest>=9.0.3` for the dev extra, and describe the prebuilt-wheel NVIDIA
+  driver requirement consistently. `compatibility.json` separately records
+  the 12.8 build toolkit, static runtime policy, and platform driver floors.
 - `python -m uipc doctor [--probe-cuda] [--json]` separates Python ABI, native
-  extension ABI, CUDA runtime-library, backend-load, driver, and GPU-code-image
-  failures. It consumes both packaged `compatibility.json` and native
-  `build_info()` instead of guessing from the package version.
+  extension ABI, self-contained CUDA runtime, backend-load, driver, and
+  GPU-code-image failures. It consumes both packaged `compatibility.json` and
+  native `build_info()` instead of guessing from the package version.
 - The Warp adapter falls back to the dtype's element size when a one-dimensional
   array reports no stride; a focused optional-Warp test covers this path.
 - Python exposes `Scene.Objects.created_count()` as the exclusive object-ID upper

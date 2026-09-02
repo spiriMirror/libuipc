@@ -88,7 +88,7 @@ The native extension is only part of `python/src/uipc/`. The pure-Python layer a
 Packaging/helper invariants verified in the current tree:
 
 - root and development metadata include `matplotlib`, pin the dev extra to
-  `pytest>=9.0.3`, and use the same prebuilt-wheel CUDA 12.8 statement;
+  `pytest>=9.0.3`, and use the same driver-only prebuilt-wheel statement;
 - the Warp empty-strides fallback uses the dtype element size;
 - `Scene.Objects.created_count()` is bound to Python and
   `assets.strip_constitutions` uses that ID upper bound, so sparse object IDs are
@@ -224,7 +224,8 @@ warnings are generated-API routes that do not exist until MkDoxy runs.
 ## Release Workflow Boundary
 
 `.github/workflows/python-wheels.yml` builds Windows/Linux wheels for CPython
-3.10–3.14 on CUDA 12.8 (0.0.26 remains a 3.10–3.13 release). The normal flow is:
+3.10–3.14 with CUDA 12.8. Release 0.0.27 contains that complete ABI matrix. The
+normal flow is:
 
 ```text
 tag/build -> installed-wheel smoke tests -> wheel artifacts -> TestPyPI
@@ -237,10 +238,11 @@ and publishes them to PyPI, so it depends on those artifacts still being retaine
 `scripts/smoke_test_wheel.py` is deliberately safe on hosted runners without a GPU:
 it validates the imported version, packaged native directory, and
 `Engine("none", workspace)`. This catches broken installation/layout and basic
-ABI-load failures, but not the lazy CUDA backend. `import uipc` and the current
-hosted smoke test cannot detect a missing CUDA runtime DLL; a CUDA-capable release
-runner must additionally construct `Engine("cuda", workspace)` (or run the
-equivalent doctor probe) before CUDA compatibility is considered verified.
+ABI-load failures, but not the lazy CUDA backend. Every wheel is also unpacked
+and inspected with `dumpbin` or `readelf`; CUDA Toolkit dependencies are a hard
+failure. A CUDA-capable release runner must still construct
+`Engine("cuda", workspace)` (or run the equivalent doctor probe) before driver,
+GPU-architecture, and execution compatibility are considered verified.
 
 ## Current Build-Metadata Differences to Keep Visible
 
