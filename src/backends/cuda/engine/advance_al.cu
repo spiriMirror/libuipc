@@ -12,6 +12,7 @@
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
 #include <active_set_system/global_active_set_manager.h>
+#include <engine/al_progress.h>
 #include <algorithm>
 #include <cmath>
 
@@ -19,9 +20,10 @@ namespace uipc::backend::cuda
 {
 void SimEngine::advance_AL()
 {
-    Float alpha     = 1.0;
-    Float ccd_alpha = 1.0;
-    Float beta      = 0.0;
+    Float  alpha                 = 1.0;
+    Float  ccd_alpha             = 1.0;
+    Float  remaining_weight      = 1.0;
+    IndexT completed_outer_steps = 0;
 
     /***************************************************************************************
     *                                  Function Shortcuts
@@ -184,7 +186,7 @@ void SimEngine::advance_AL()
         if(m_global_active_set_manager)
         {
             auto toi_threshold = m_global_active_set_manager->toi_threshold();
-            if(beta < 1.0 - toi_threshold)
+            if(remaining_weight > toi_threshold)
                 return false;
         }
 
@@ -200,30 +202,25 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto check_line_search_iter = [&](SizeT iter, Float E0, Float E)
+    auto report_line_search_failure = [&](Float trial_alpha, Float E0, Float E)
     {
-        if(iter >= m_line_searcher->max_iter())
-        {
-            m_frame_hit_line_search_limit = true;
-            // (alpha, E) is the last actually tried pair in this loop form
-            Float abs_E0         = std::abs(E0);
-            Float rel_E_increase = (E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
-            auto  detail         = fmt::format(
-                "Line Search Exits with Max Iteration: {} (Frame={}, alpha_last={}, "
-                         "E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e})",
-                m_line_searcher->max_iter(),
-                m_current_frame,
-                alpha,
-                E0,
-                E,
-                rel_E_increase);
-            logger::warn("{}", detail);
+        m_frame_hit_line_search_limit = true;
+        Float abs_E0                  = std::abs(E0);
+        Float rel_E_increase = (E - E0) / (abs_E0 > 1e-30 ? abs_E0 : 1e-30);
+        auto  detail         = fmt::format(
+            "Line Search Exits with Max Iteration: {} (Frame={}, alpha_last={}, "
+                     "E0={:.6e}, E_last={:.6e}, rel_E_increase={:.3e}); "
+                     "rejecting the trial step",
+            m_line_searcher->max_iter(),
+            m_current_frame,
+            trial_alpha,
+            E0,
+            E,
+            rel_E_increase);
+        logger::warn("{}", detail);
 
-            if(m_strict_mode->view()[0])
-            {
-                throw SimEngineException("StrictMode: " + detail);
-            }
-        }
+        if(m_strict_mode->view()[0])
+            throw SimEngineException("StrictMode: " + detail);
     };
 
     auto check_newton_iter = [this](SizeT iter)
@@ -360,8 +357,9 @@ void SimEngine::advance_AL()
                 m_global_vertex_manager->collect_vertex_displacements();
 
                 // 6) Begin Line Search
-                m_state                = SimEngineState::LineSearch;
-                SizeT line_search_iter = 0;
+                m_state                     = SimEngineState::LineSearch;
+                SizeT line_search_iter      = 0;
+                bool  line_search_succeeded = false;
                 {
                     Timer timer{"Line Search"};
 
@@ -381,33 +379,42 @@ void SimEngine::advance_AL()
                     Float E                        = compute_energy(alpha);
                     ++m_frame_line_search_trials;
 
+                    while(true)
                     {
-                        while(line_search_iter < m_line_searcher->max_iter())
-                        {
-                            Timer timer{"Line Search Iteration"};
-                            m_line_search_iter = line_search_iter;
+                        Timer timer{"Line Search Iteration"};
+                        m_line_search_iter = line_search_iter;
 
-                            // Check Energy Decrease
-                            // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
-                            bool success = E <= E0 + 1e-12 || newton_converged;
+                        // Check every trial, including the final permitted
+                        // backtracking step. A rejected trial is never allowed
+                        // to become the next Newton state.
+                        line_search_succeeded =
+                            details::al_line_search_accepts(E0, E, newton_converged);
+                        if(line_search_succeeded
+                           || line_search_iter >= m_line_searcher->max_iter())
+                            break;
 
-                            if(success)
-                                break;
+                        alpha /= 2;
+                        ++line_search_iter;
+                        m_frame_last_line_search_alpha = alpha;
+                        E                              = compute_energy(alpha);
+                        ++m_frame_line_search_trials;
+                    }
 
-                            // If not success, then shrink alpha
-                            alpha /= 2;
-                            m_frame_last_line_search_alpha = alpha;
-                            E = compute_energy(alpha);
-                            ++m_frame_line_search_trials;
-
-                            line_search_iter++;
-                        }
-
-                        // Check Line Search Iteration
-                        // report warnings or throw exceptions if needed
-                        check_line_search_iter(line_search_iter, E0, E);
+                    if(!line_search_succeeded)
+                    {
+                        const Float rejected_alpha = alpha;
+                        // Restore the recorded start point before reporting;
+                        // strict mode may throw from the report function.
+                        alpha = 0.0;
+                        m_global_vertex_manager->step_forward(alpha);
+                        m_line_searcher->step_forward(alpha);
+                        m_frame_last_line_search_alpha = alpha;
+                        report_line_search_failure(rejected_alpha, E0, E);
                     }
                 }
+
+                if(!line_search_succeeded)
+                    break;
 
                 // A backtracked step has not solved the current fixed-slack
                 // subproblem. Continue Newton without changing multipliers or
@@ -446,8 +453,15 @@ void SimEngine::advance_AL()
                         alpha = 0.0;
                 }
 
-                // Update alpha and beta for next iteration
-                beta = beta + (1 - beta) * alpha;
+                // Algorithm 1: the early-state weight remains one through the
+                // first K_min - 1 completed outer solves, then every applied
+                // collision-free step attenuates it by (1 - alpha).
+                ++completed_outer_steps;
+                const IndexT k_min =
+                    details::al_effective_k_min(m_semi_implicit_enabled,
+                                                m_semi_implicit_kmin->view()[0]);
+                remaining_weight = details::al_update_remaining_weight(
+                    remaining_weight, alpha, completed_outer_steps, k_min);
 
                 bool converged = convergence_check(newton_iter);
                 bool terminated = converged && (newton_iter + 1 >= newton_min_iter);
@@ -471,7 +485,8 @@ void SimEngine::advance_AL()
 
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
-            check_newton_iter(newton_iter);
+            if(!m_frame_hit_line_search_limit)
+                check_newton_iter(newton_iter);
             m_frame_completed = true;
         }
 

@@ -169,10 +169,14 @@ same fixed-multiplier inner solve. Only a full step updates the multipliers,
 runs CCD from the last collision-free state to the iterate, and advances that
 safe state by a finite step clamped to `[0, 1]`.
 
-AL's cumulative safe-path check is currently the paper's `K_min = 1` form and
-uses `contact/al-ipc/toi_threshold`. The global
-`newton/semi_implicit/{enable,beta_tol,K_min}` controls are consumed only by
-`advance_ipc.cu`; `newton/min_iter` is the separate hard floor on both paths.
+AL's cumulative safe-path check consumes
+`newton/semi_implicit/{enable,K_min}`. The initial-state weight remains one
+through the first `K_min - 1` completed outer updates, is attenuated by each
+later `(1 - CCD alpha)`, and is compared with
+`contact/al-ipc/toi_threshold`. `beta_tol` remains IPC-only;
+`newton/min_iter` is the separate hard floor on both paths. A failed AL line
+search restores both vertex and reporter state to the recorded start point;
+never allow the final rejected trial to become the next frame's state.
 
 `GlobalActiveSetManager` implements the per-vertex earliest-TOI filter from
 AL-IPC Algorithm 3. Existing active pairs are excluded when computing each
@@ -187,10 +191,20 @@ restore the old cross-thread `sort_idx(i-1)` rewrite.
 Inactive constraints increment a non-negative decay count, active constraints
 reset it to zero, and a pair is removed at the first count for which
 `pow(decay_factor, count) < 0.01`. The removal limit is derived from the scene
-factor instead of the historical hard-coded 25. At frame start,
-`mu_scale_mode="diag_norm"` assembles the non-contact system and fills all
-vertex penalties with `0.1 * max_i(abs(H_E(i,i)))` by default. The
-`"per_vertex"` mode retains the FEM/ABD mass-based estimators.
+factor instead of the historical hard-coded 25. The default
+`mu_scale_mode="per_vertex"` uses the FEM/ABD mass-based estimators. The
+experimental `"diag_norm"` mode assembles the non-contact system and fills all
+vertex penalties with `mu_scale_diag_norm * max_i(abs(H_E(i,i)))`; this
+uniform scale produced repeated non-descent steps in the mixed cloth/FEM case
+88 and must remain opt-in until a heterogeneous conditioning strategy is
+validated.
+
+AL simplex friction uses PT and EE-specific tangent Jacobians. Keep the EE
+energy, gradient, and Hessian on `edge_edge_jacobi`; substituting
+`point_triangle_jacobi` gives a finite but physically wrong direction. As in
+the IPC friction path, near-parallel EE pairs are consistently mollified out
+of both energy and derivative assembly, and skipped output ranges must be
+explicitly zeroed because the dynamic buffers use discard-resize semantics.
 
 ## Current cross-domain performance reference
 

@@ -4,9 +4,10 @@ This page explains how the nonlinear and linear stopping criteria fit
 together. See [Scene Configuration Reference](../scene_config.md) for the
 complete key table and defaults.
 
-The ordinary and semi-implicit criteria below describe the standard `ipc`
-pipeline. `al-ipc` shares the tolerance check inside its inner solve but has a
-separate safe-path termination rule described below.
+The ordinary and IPC semi-implicit criteria below describe the standard `ipc`
+pipeline. `al-ipc` shares the tolerance check inside its fixed-active-set inner
+solve and consumes `semi_implicit/enable` plus `K_min`, but has a separate
+safe-path termination tolerance described below.
 
 ## One frame, from outside to inside
 
@@ -62,16 +63,30 @@ additional early-exit condition. It does not force the solver to run until
 ## AL-IPC termination
 
 AL-IPC retains a possibly penetrating optimization iterate while advancing a
-separate collision-free state by CCD. It accumulates the applied safe-step
-fractions and terminates once the remaining initial-state weight is at most
-`contact/al-ipc/toi_threshold`. This current rule is the `K_min = 1` form of the
-AL-IPC paper's cumulative-TOI criterion. The `newton/semi_implicit/*` controls
-are not consumed by `advance_al.cu`; `newton/min_iter` remains the explicit hard
-floor for that path.
+separate collision-free state by CCD. Let `w` be the remaining weight of the
+initial collision-free state. It starts at one and, with semi-implicit mode
+enabled, stays at one for the first `K_min - 1` completed outer updates. From
+the `K_min`-th update onward,
+
+$$
+w \leftarrow (1 - \alpha_{\mathrm{CCD}})w.
+$$
+
+AL-IPC terminates when `w <= contact/al-ipc/toi_threshold` and animation plus
+`newton/min_iter` conditions pass. Therefore its default `K_min = 6` prevents
+the one-step termination that otherwise changes a stiff scene's transient
+trajectory. `beta_tol` remains IPC-only. If semi-implicit mode is disabled, or
+if `K_min < 1`, AL-IPC uses an effective `K_min` of one.
 
 An AL CCD fraction is counted only when it is finite, clamped into `[0, 1]`,
 and greater than `contact/al-ipc/alpha_lower_bound`. A rejected tiny step does
 not create false termination progress.
+
+AL line search evaluates the final configured backtracking trial as well as
+the earlier ones. If every trial fails, it restores the exact recorded start
+point and ends that frame as non-converged; strict mode throws. This recovery
+prevents an energy-increasing trial from turning the next CCD query and active
+set into invalid data.
 
 ## Linear solve
 

@@ -6,6 +6,30 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **AL-IPC sample 88 trajectory correction (2026-09-03, `refactor-main`)**:
+> the severe early trajectory split was traced to AL ignoring the configured
+> `K_min=6`, an EE friction derivative assembled with the PT Jacobian, and the
+> uniform `diag_norm` penalty being unsuitable as the default for mixed
+> cloth/volumetric masses. AL now delays cumulative safe-path attenuation until
+> `K_min`, uses the correct EE Jacobian and consistent parallel-edge
+> mollification, and defaults to mass-based `per_vertex` scaling while keeping
+> `diag_norm` experimental. Exhausted line search restores its recorded start
+> point rather than accepting the last energy-increasing trial. PT/EE/plane
+> finite-difference tests pass, as does the AL `K_min` simulation assertion.
+> In matched 60-frame sample 88 runs, upper/lower centroid error versus IPC fell
+> from 0.2963/0.0807 to 0.0115/0.0045. A full corrected 250-frame run completed
+> without a Newton limit or runtime error; one non-descent frame was rolled back
+> safely and the remaining 249 converged. See the durable evidence and
+> regression boundary in
+> [`2026-09-03-al-ipc-case88-correction.md`](performance/2026-09-03-al-ipc-case88-correction.md).
+> Final validation passed CMake/Core 36 cases / 1040 assertions, CUDA backend
+> 21 / 335, the single-process simulation suite 95 / 14213, Python portable
+> tests 80 passed / 1 skipped, repository contracts 43/43, fast CTest 3/3,
+> the complete Doxygen/MkDoxy/MkDocs build, and the XMake production CUDA
+> target. XMake's aggregate CUDA test target still encounters the already
+> documented CUDA 13.2/fmt 12 character-literal incompatibility; the CMake
+> build compiled and executed every new CUDA test.
+
 > **AL-IPC `AL-release` integration audit (2026-09-02, `refactor-main`)**:
 > the six fork-only commits were reviewed against current libuipc and the
 > AL-IPC paper rather than cherry-picked across 188 intervening local commits.
@@ -22,8 +46,9 @@
 > `NewtonToleranceManager`. The fork's global CCD-margin edit was scoped to
 > AL-IPC so normal IPC retains its established margin. Large benchmark assets,
 > screenshots, and unrelated example/README edits were intentionally omitted.
-> AL keeps its pre-existing `K_min = 1` cumulative-safe-path termination;
-> multi-state `K_min > 1` remains explicit paper-parity work in doc 09. On
+> At this audit revision AL kept its pre-existing `K_min = 1`
+> cumulative-safe-path termination; the 2026-09-03 correction above supersedes
+> that limitation with the configured multi-state `K_min > 1` rule. On
 > CUDA 13.2 / RTX 5090, CMake and XMake production builds passed, as did the
 > focused AL math test (17 assertions after final review), Core (36 cases /
 > 1040 assertions), CUDA backend (17 / 291), all 19 AL sections, and the full

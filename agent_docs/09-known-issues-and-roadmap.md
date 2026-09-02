@@ -1,16 +1,23 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-09-01. Completed performance work is
+Status as of 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner
-solve boundary. Remaining paper-parity work includes the multi-state
-`K_min > 1` cumulative termination rule, penalty-free moving boundaries, and
-the specialized conflict-free analytic PSD Hessian assembly. Do not claim
-complete parity with the reference simulator until those paths and its large
-stress scenes are independently ported and validated.
+solve boundary. Its multi-state `K_min > 1` cumulative termination rule is now
+implemented and validated on sample 88. Remaining paper-parity work includes
+penalty-free moving boundaries and the specialized conflict-free analytic PSD
+Hessian assembly. Do not claim complete parity with the reference simulator
+until those paths and its large stress scenes are independently ported and
+validated.
+
+The uniform AL `diag_norm` penalty mode remains experimental. It caused
+repeated non-descent line-search failures in mixed-resolution cloth/FEM sample
+88 even after friction derivatives were corrected; `per_vertex` is therefore
+the default. A future conditioning design should retain local mass/material
+heterogeneity rather than broadcasting one global scalar.
 
 ## Cross-cutting source-audit findings
 

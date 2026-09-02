@@ -37,31 +37,37 @@ the fork.
 - Rely on stable CUB radix sorting and old-before-new input order to preserve
   an existing pair's multiplier state. Do not perform cross-thread writes to a
   neighboring sort index.
-- Make conditioning-aware `mu = C * max_i(abs(H_E(i,i)))` the default, where
-  AL contact is disabled while assembling `H_E` and `C` defaults to 0.1. Keep
-  the former FEM/ABD mass-scaled path as explicit `per_vertex` compatibility
-  mode and fall back to it if the diagonal estimate is invalid.
+- Keep the FEM/ABD mass-scaled `per_vertex` penalty as the default. Retain
+  conditioning-aware `mu = C * max_i(abs(H_E(i,i)))`, where AL contact is
+  disabled while assembling `H_E` and `C` defaults to 0.1, as explicit
+  experimental `diag_norm` mode and fall back to `per_vertex` if its estimate
+  is invalid.
 - Let the AL inner energy line search start at one without IPC's CFL clamp. A
   backtracked step remains inside the same fixed-multiplier solve; multiplier,
   CCD, and collision-free-state updates occur only at a full step.
+- Apply `newton/semi_implicit/K_min` to AL's cumulative safe-path weight. Check
+  every permitted line-search trial and restore the recorded start point if
+  all trials fail rather than accepting an energy-increasing state.
+- Use the EE tangent Jacobian for EE friction, and apply the same near-parallel
+  EE mollifier consistently to its energy, gradient, and Hessian.
 - Use CCD margin 0.001 only for AL-IPC. Preserve 0.1 for IPC.
 
 ## Consequences
 
-AL-IPC gains the fork's active-set compactness and conditioning strategy
-without importing obsolete runtime abstractions or changing IPC behavior.
-`mu_scale_fem` and `mu_scale_abd` no longer affect the default mode; scenes that
-depend on those values must select `mu_scale_mode="per_vertex"`.
+AL-IPC gains the fork's active-set compactness and optional conditioning
+strategy without importing obsolete runtime abstractions or changing IPC
+behavior. `mu_scale_fem` and `mu_scale_abd` affect the stable default mode;
+`mu_scale_diag_norm` affects only explicitly selected experiments.
 
 The extra per-vertex TOI pass and one non-contact Hessian assembly per frame
 have measurable costs. They are accepted only with simulation regressions and
 should be compared on contact-rich scenes, where smaller active sets and better
 PCG conditioning can amortize them.
 
-This does not claim feature parity with the paper's simulator. The current AL
-termination remains its existing `K_min = 1` cumulative-safe-path form;
-multi-state `K_min > 1`, penalty-free moving boundaries, and the specialized
-conflict-free analytic PSD Hessian assembly remain separate future work.
+This does not claim feature parity with the paper's simulator. Multi-state
+`K_min > 1` is implemented, but penalty-free moving boundaries and the
+specialized conflict-free analytic PSD Hessian assembly remain separate future
+work.
 
 ## Alternatives considered
 
@@ -76,9 +82,12 @@ conflict-free analytic PSD Hessian assembly remain separate future work.
 
 ## Validation
 
-The focused CUDA test covers exact decay boundaries, earliest-candidate
-selection, negative-TOI clamping, and preservation of a subnormal double by the
-device atomic minimum. Configuration tests cover both modes and reject unknown
-values. Representative ABD, FEM, half-plane, simplex, friction, and mixed
-AL-IPC simulations are compared with pre-change logs; the aggregate CUDA/core
-tests and repository contracts remain required before merge.
+The focused CUDA tests cover exact decay boundaries, earliest-candidate
+selection, negative-TOI clamping, preservation of a subnormal double by the
+device atomic minimum, `K_min` progress, finite line-search acceptance, and
+finite-difference gradients for PT, EE, and half-plane friction. Configuration
+tests cover both modes and reject unknown values. Sample 88 supplies the mixed
+cloth/FEM trajectory regression; details and measured failure counts are in
+[`2026-09-03-al-ipc-case88-correction.md`](../performance/2026-09-03-al-ipc-case88-correction.md).
+The aggregate CUDA/core tests and repository contracts remain required before
+merge.

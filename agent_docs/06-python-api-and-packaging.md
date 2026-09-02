@@ -131,7 +131,9 @@ failures.
   default `0` (no forced minimum). On the standard IPC path, the semi-implicit
   beta accumulation start lives at
   `config["newton"]["semi_implicit"]["K_min"]` (default 6), and
-  semi-implicit termination is enabled by default. AL-IPC has separate
-  cumulative-safe-path termination controls.
+  semi-implicit termination is enabled by default. AL-IPC consumes the same
+  `enable` and `K_min` keys for its cumulative-safe-path delay, but compares
+  remaining weight with `config["contact"]["al-ipc"]["toi_threshold"]`;
+  `beta_tol` is IPC-only.
   Old scenes that set `min_iter` for the Stiff-GIPC Kmin role should set
   `K_min` instead.

@@ -21,7 +21,7 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
     REQUIRE(entries.at("newton/use_adaptive_tol").at("status") == "reserved");
     REQUIRE(entries.at("newton/use_adaptive_tol").at("const") == 0);
     REQUIRE(entries.at("sanity_check/mode").at("enum") == Json::array({"normal", "quiet"}));
-    REQUIRE(entries.at("contact/al-ipc/mu_scale_mode").at("default") == "diag_norm");
+    REQUIRE(entries.at("contact/al-ipc/mu_scale_mode").at("default") == "per_vertex");
     REQUIRE(entries.at("contact/al-ipc/mu_scale_mode").at("enum")
             == Json::array({"diag_norm", "per_vertex"}));
     REQUIRE(entries.at("contact/al-ipc/mu_scale_diag_norm").at("default").get<Float>()

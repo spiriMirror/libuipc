@@ -127,7 +127,7 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/semi_implicit/enable",
         IndexT{1},
         "integer",
-        "Enable semi-implicit beta termination in the standard IPC pipeline.",
+        "Enable semi-implicit cumulative-step termination in IPC and its K_min delay in AL-IPC.",
         {"src/backends/cuda/engine"},
         flag);
     add("newton/semi_implicit/beta_tol",
@@ -139,7 +139,7 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/semi_implicit/K_min",
         IndexT{6},
         "integer",
-        "Standard IPC iteration at which semi-implicit beta accumulation starts.",
+        "Completed step count at which cumulative progress attenuation starts in IPC and AL-IPC.",
         {"src/backends/cuda/engine"},
         Json{{"minimum", 0}});
 
@@ -231,9 +231,9 @@ static SceneConfigContract make_scene_config_contract()
         Json{{"enum", Json::array({"ipc", "al-ipc"})}});
 
     add("contact/al-ipc/mu_scale_mode",
-        std::string{"diag_norm"},
+        std::string{"per_vertex"},
         "string",
-        "Select Hessian-diagonal or legacy mass-based AL penalty scaling.",
+        "Select mass-based per-vertex or experimental Hessian-diagonal AL penalty scaling.",
         {"src/backends/cuda/active_set_system", "src/backends/cuda/engine"},
         Json{{"enum", Json::array({"diag_norm", "per_vertex"})}});
     add("contact/al-ipc/mu_scale_diag_norm",

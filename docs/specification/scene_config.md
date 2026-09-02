@@ -137,9 +137,9 @@ appropriate geometry instead.
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
 | `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
 | `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
-| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables the standard IPC path's semi-implicit beta termination criterion. |
-| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Standard IPC semi-implicit early-exit threshold for accumulated beta. |
-| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Standard IPC iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count and is not consumed by AL-IPC. |
+| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables cumulative-step termination in IPC and the configured `K_min` delay in AL-IPC. |
+| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Standard IPC early-exit threshold for accumulated beta. AL-IPC uses `contact/al-ipc/toi_threshold` instead. |
+| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Delays cumulative-progress attenuation until the configured step count. It is not a hard ordinary-Newton floor in IPC; in AL-IPC it prevents safe-path termination before that many completed outer steps. Values below `1` are treated as `1` by AL-IPC. |
 
 See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
 termination logic and tuning guidance.
@@ -184,7 +184,7 @@ algorithm parameters rather than material contact resistance.
 
 | Key | Type | Default | Valid domain | Meaning |
 | --- | --- | --- | --- | --- |
-| `contact/al-ipc/mu_scale_mode` | string | `"diag_norm"` | `"diag_norm"`, `"per_vertex"` | Selects conditioning-aware Hessian scaling or the legacy mass-based per-vertex estimate. |
+| `contact/al-ipc/mu_scale_mode` | string | `"per_vertex"` | `"per_vertex"`, `"diag_norm"` | Selects the stable mass-based per-vertex estimate or experimental uniform Hessian-diagonal scaling. |
 | `contact/al-ipc/mu_scale_diag_norm` | float | `0.1` | `> 0` | In `diag_norm` mode, sets `mu = value * max_i(abs(H_E(i,i)))`, with AL contact excluded from `H_E`. |
 | `contact/al-ipc/mu_scale_fem` | float | `5e7` | `> 0` | FEM scale used only in `per_vertex` mode: `mu_i = mass_i * value * dt²`. |
 | `contact/al-ipc/mu_scale_abd` | float | `1e5` | `> 0` | ABD scale used only in `per_vertex` mode: `mu_i = body_mass * value * dt²`. |
@@ -192,11 +192,14 @@ algorithm parameters rather than material contact resistance.
 | `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | normally `(0, 1]` | CCD steps at or below this value do not advance the collision-free state or termination progress. |
 | `contact/al-ipc/decay_factor` | float | `0.3` | normally `(0, 1)` | Multiplies an inactive constraint's weight after each outer AL update. The pair is removed once the accumulated weight is below `0.01`. |
 
-`diag_norm` follows the conditioning-aware initialization in the AL-IPC paper
-and is the recommended mode. `per_vertex` is retained for reproducing older
-libuipc scenes that tuned `mu_scale_fem` or `mu_scale_abd` directly. If the
-assembled diagonal norm is empty or non-finite, the backend logs a warning and
-falls back to `per_vertex` for that frame.
+`per_vertex` is the default because it remains stable when one scene mixes
+cloth, volumetric FEM, affine bodies, and very different vertex masses.
+`diag_norm` follows the conditioning-aware initialization in the AL-IPC paper,
+but applies one uniform value to every vertex and is retained as an explicit
+experimental comparison mode. Validate its trajectory and line-search status
+before using it for production scenes. If its assembled diagonal norm is empty
+or non-finite, the backend logs a warning and falls back to `per_vertex` for
+that frame.
 
 ## Adaptive contact resistance
 

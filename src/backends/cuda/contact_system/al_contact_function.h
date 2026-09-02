@@ -1,5 +1,6 @@
 #pragma once
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
+#include <utils/distance/edge_edge_mollifier.h>
 #include <utils/friction_utils.h>
 #include <type_define.h>
 
@@ -7,6 +8,21 @@ namespace uipc::backend::cuda
 {
 namespace sym::al_simplex_contact
 {
+    inline UIPC_DEVICE bool EE_friction_mollified(const Vector3& rest_Ea0,
+                                                  const Vector3& rest_Ea1,
+                                                  const Vector3& rest_Eb0,
+                                                  const Vector3& rest_Eb1,
+                                                  const Vector3& prev_Ea0,
+                                                  const Vector3& prev_Ea1,
+                                                  const Vector3& prev_Eb0,
+                                                  const Vector3& prev_Eb1)
+    {
+        Float eps_x;
+        distance::edge_edge_mollifier_threshold(
+            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, static_cast<Float>(1e-3), eps_x);
+        return distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x);
+    }
+
     inline UIPC_GENERIC Float penalty_energy(Float           scale,
                                              Float           d0,
                                              const Vector12& d_grad,
@@ -179,7 +195,7 @@ namespace sym::al_simplex_contact
         edge_edge_tan_rel_dx(dEa0, dEa1, dEb0, dEb1, basis, gamma, tan_rel_dx);
 
         Matrix<Float, 2, 12> J;
-        point_triangle_jacobi(basis, gamma, J);
+        edge_edge_jacobi(basis, gamma, J);
 
         Vector2 G2;
         friction_gradient(G2, mu, normal_force, eps_vh, tan_rel_dx);

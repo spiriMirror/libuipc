@@ -21,7 +21,7 @@ def test_scene_config_schema_matches_public_defaults() -> None:
     assert entries["gravity"]["componentCount"] == 3
     assert entries["newton/use_adaptive_tol"]["status"] == "reserved"
     assert entries["sanity_check/mode"]["enum"] == ["normal", "quiet"]
-    assert entries["contact/al-ipc/mu_scale_mode"]["default"] == "diag_norm"
+    assert entries["contact/al-ipc/mu_scale_mode"]["default"] == "per_vertex"
     assert entries["contact/al-ipc/mu_scale_mode"]["enum"] == [
         "diag_norm",
         "per_vertex",

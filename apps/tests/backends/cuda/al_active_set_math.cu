@@ -1,4 +1,5 @@
 #include <active_set_system/al_active_set_math.h>
+#include <engine/al_progress.h>
 #include <app/app.h>
 #include <cuda_tool/cuda_tool.h>
 #include <limits>
@@ -68,4 +69,33 @@ TEST_CASE("AL active-set filtering math", "[cuda][al-ipc][active-set]")
         CUDA_TOOL_CHECK(cudaGetLastError());
         CHECK(static_cast<Float>(result) == 0.0);
     }
+}
+
+TEST_CASE("AL cumulative progress honors outer K_min", "[cuda][al-ipc][progress]")
+{
+    namespace details = uipc::backend::cuda::details;
+
+    CHECK(details::al_effective_k_min(false, 6) == 1);
+    CHECK(details::al_effective_k_min(true, 0) == 1);
+    CHECK(details::al_effective_k_min(true, 6) == 6);
+
+    uipc::Float remaining = 1.0;
+    for(uipc::IndexT step = 1; step < 6; ++step)
+        remaining = details::al_update_remaining_weight(remaining, 0.25, step, 6);
+    CHECK(remaining == 1.0);
+
+    remaining = details::al_update_remaining_weight(remaining, 0.25, 6, 6);
+    CHECK(remaining == 0.75);
+    remaining = details::al_update_remaining_weight(remaining, 0.5, 7, 6);
+    CHECK(remaining == 0.375);
+    remaining = details::al_update_remaining_weight(remaining, 1.0, 8, 6);
+    CHECK(remaining == 0.0);
+
+    CHECK(details::al_line_search_accepts(2.0, 1.5, false));
+    CHECK_FALSE(details::al_line_search_accepts(2.0, 2.5, false));
+    CHECK(details::al_line_search_accepts(2.0, 2.5, true));
+    CHECK_FALSE(details::al_line_search_accepts(
+        2.0, std::numeric_limits<uipc::Float>::infinity(), true));
+    CHECK_FALSE(details::al_line_search_accepts(
+        2.0, std::numeric_limits<uipc::Float>::quiet_NaN(), true));
 }

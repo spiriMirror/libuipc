@@ -178,10 +178,14 @@ Fused-PCG CUDA graph replay is currently disabled automatically under AL-IPC.
 Start with IPC unless a method comparison or an AL-specific workflow requires
 the alternative.
 
-`newton/semi_implicit/{enable,beta_tol,K_min}` belongs to the standard IPC
-advance path. AL-IPC currently uses the `K_min = 1` cumulative-TOI form and its
-termination tolerance is `contact/al-ipc/toi_threshold`; use
-`newton/min_iter` when the AL path needs a true iteration floor.
+`newton/semi_implicit/K_min` also controls AL-IPC cumulative safe-path
+termination. With semi-implicit mode enabled, the remaining initial-state
+weight stays at one through the first `K_min - 1` completed outer updates and
+is then multiplied by `(1 - alpha)` after each accepted CCD-safe update.
+AL-IPC compares that weight with `contact/al-ipc/toi_threshold`; it does not
+use `newton/semi_implicit/beta_tol`. Disabling semi-implicit mode gives AL-IPC
+an effective `K_min` of one. `newton/min_iter` remains the independent hard
+iteration floor.
 
 The AL path keeps two positions: a possibly penetrating Newton iterate and the
 last collision-free state. Its inner fixed-active-set solve updates slack and
@@ -189,6 +193,10 @@ takes ordinary energy line-search steps without IPC's CFL clamp. Multipliers,
 CCD, and the collision-free state are updated only after the line search accepts
 a full step. CCD then clamps the safe-state interpolation to `[0, 1]`; a
 non-finite result advances it by zero rather than moving the state backwards.
+Every permitted backtracking trial is checked. If none decreases the finite
+energy, the backend restores the recorded line-search start point before
+warning (or throwing in strict mode), so a rejected trial cannot contaminate
+the next frame.
 
 New CCD candidates are filtered before they enter the active set. Candidates
 already present in the set do not participate in the filter. For every surface
@@ -204,6 +212,13 @@ while the standard IPC path retains its existing `0.1` margin. The margin is an
 internal method constant, not a scene parameter. See
 [the AL-IPC method paper](https://arxiv.org/abs/2512.12151) and the
 [`AL-release` fork that motivated this integration](https://github.com/wiso-enoji/libuipc/tree/AL-release).
+
+The default AL penalty mode is `per_vertex`: FEM and ABD estimators scale the
+penalty with their local mass and timestep. `diag_norm` is available as an
+experimental uniform-penalty mode. It can be useful for controlled
+single-scale comparisons, but mixed cloth/FEM scenes must be checked for
+line-search failures rather than assuming that one global diagonal norm is a
+safe scale for every vertex.
 
 ## Broad phase and sanity checks
 
