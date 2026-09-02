@@ -128,8 +128,10 @@ failures.
   cluster size 16). Old scripts calling `mesh_partition(...)` raise
   ImportError — migrate them to the config switch.
 - `newton/min_iter` semantics narrowed: it is now a pure hard floor with
-  default `0` (no forced minimum). The semi-implicit beta accumulation
-  start lives at `config["newton"]["semi_implicit"]["K_min"]` (default 6),
-  and semi-implicit termination is enabled by default.
+  default `0` (no forced minimum). On the standard IPC path, the semi-implicit
+  beta accumulation start lives at
+  `config["newton"]["semi_implicit"]["K_min"]` (default 6), and
+  semi-implicit termination is enabled by default. AL-IPC has separate
+  cumulative-safe-path termination controls.
   Old scenes that set `min_iter` for the Stiff-GIPC Kmin role should set
   `K_min` instead.

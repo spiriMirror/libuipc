@@ -178,6 +178,33 @@ Fused-PCG CUDA graph replay is currently disabled automatically under AL-IPC.
 Start with IPC unless a method comparison or an AL-specific workflow requires
 the alternative.
 
+`newton/semi_implicit/{enable,beta_tol,K_min}` belongs to the standard IPC
+advance path. AL-IPC currently uses the `K_min = 1` cumulative-TOI form and its
+termination tolerance is `contact/al-ipc/toi_threshold`; use
+`newton/min_iter` when the AL path needs a true iteration floor.
+
+The AL path keeps two positions: a possibly penetrating Newton iterate and the
+last collision-free state. Its inner fixed-active-set solve updates slack and
+takes ordinary energy line-search steps without IPC's CFL clamp. Multipliers,
+CCD, and the collision-free state are updated only after the line search accepts
+a full step. CCD then clamps the safe-state interpolation to `[0, 1]`; a
+non-finite result advances it by zero rather than moving the state backwards.
+
+New CCD candidates are filtered before they enter the active set. Candidates
+already present in the set do not participate in the filter. For every surface
+vertex, the backend computes the earliest remaining candidate TOI and keeps a
+pair only when it is earliest for at least one incident vertex. Inactive pairs
+remain in the set with a zero multiplier while their penalty weight is
+multiplied by `contact/al-ipc/decay_factor`; they are removed when that
+accumulated weight is below `0.01`. These operations use persistent, amortized
+GPU buffers and a double-precision atomic minimum.
+
+AL simplex CCD uses a `0.001` safety margin, matching the AL implementation,
+while the standard IPC path retains its existing `0.1` margin. The margin is an
+internal method constant, not a scene parameter. See
+[the AL-IPC method paper](https://arxiv.org/abs/2512.12151) and the
+[`AL-release` fork that motivated this integration](https://github.com/wiso-enoji/libuipc/tree/AL-release).
+
 ## Broad phase and sanity checks
 
 The always-available broad phase is `info_stackless_bvh` (default).

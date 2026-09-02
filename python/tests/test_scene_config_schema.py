@@ -15,12 +15,18 @@ def test_scene_config_schema_matches_public_defaults() -> None:
 
     assert schema["schemaVersion"] == 1
     assert schema["strictUnknownKeys"] is True
-    assert len(entries) == 46
+    assert len(entries) == 48
     assert entries["dt"]["default"] == pytest.approx(0.01)
     assert entries["dt"]["exclusiveMinimum"] == 0.0
     assert entries["gravity"]["componentCount"] == 3
     assert entries["newton/use_adaptive_tol"]["status"] == "reserved"
     assert entries["sanity_check/mode"]["enum"] == ["normal", "quiet"]
+    assert entries["contact/al-ipc/mu_scale_mode"]["default"] == "diag_norm"
+    assert entries["contact/al-ipc/mu_scale_mode"]["enum"] == [
+        "diag_norm",
+        "per_vertex",
+    ]
+    assert entries["contact/al-ipc/mu_scale_diag_norm"]["default"] == pytest.approx(0.1)
 
     collision = entries["collision_detection/method"]
     conditional = collision["conditionalValues"]
@@ -48,6 +54,9 @@ def test_scene_config_schema_matches_public_defaults() -> None:
         lambda config: config.__setitem__("dt", 0.0),
         lambda config: config["integrator"].__setitem__("type", "rk4"),
         lambda config: config["newton"].__setitem__("use_adaptive_tol", 1),
+        lambda config: config["contact"]["al-ipc"].__setitem__(
+            "mu_scale_mode", "unknown"
+        ),
     ],
 )
 def test_scene_config_rejects_invalid_values(mutate) -> None:

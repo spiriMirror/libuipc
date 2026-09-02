@@ -10,7 +10,7 @@ namespace uipc::backend::cuda
 namespace
 {
     // TODO: just hard code the slackness for now
-    constexpr Float eta = 0.01;
+    constexpr Float eta = 0.001;
 
     __global__ void ALVertexHalfPlaneTrajectoryFilter_filter_toi_kernel(
         cuda_tool::CBufferView<IndexT>  surf_vertices,
@@ -34,8 +34,10 @@ namespace
             return;
         for(int j = 0; j < half_plane_positions.total_size(); ++j)
         {
-            IndexT vI = surf_vertices(i);
-            IndexT vJ = plane_vertex_offset + j;
+            IndexT vI         = surf_vertices(i);
+            IndexT vJ         = plane_vertex_offset + j;
+            SizeT  pair_index = i * half_plane_positions.total_size() + j;
+            PHs(pair_index)   = Vector2i{vI, j};
 
             IndexT L = contact_element_ids(vI);
             IndexT R = contact_element_ids(vJ);
@@ -61,11 +63,10 @@ namespace
 
             Float t = -N.dot(dx);
 
-            PHs(i * half_plane_positions.total_size() + j) = Vector2i{vI, j};
             if(t <= 0)
             {
                 // moving away from the plane, no collision
-                tois(i * half_plane_positions.total_size() + j) = 1.1;
+                tois(pair_index) = 1.1;
             }
             else
             {
@@ -75,7 +76,7 @@ namespace
 
                 Float this_toi = t0 / t * (1 - eta);
 
-                tois(i * half_plane_positions.total_size() + j) = this_toi;
+                tois(pair_index) = this_toi;
             }
         }
     }
@@ -151,6 +152,7 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
             n);
     }
 
-    DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
+    if(tois.size() > 0)
+        DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
 }
 }  // namespace uipc::backend::cuda

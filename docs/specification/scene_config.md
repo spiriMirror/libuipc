@@ -137,9 +137,9 @@ appropriate geometry instead.
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
 | `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
 | `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
-| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables the semi-implicit beta termination criterion. |
-| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Semi-implicit early-exit threshold for accumulated beta. |
-| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count. |
+| `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables the standard IPC path's semi-implicit beta termination criterion. |
+| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Standard IPC semi-implicit early-exit threshold for accumulated beta. |
+| `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Standard IPC iteration at which beta accumulation starts. It is **not** a minimum Newton-iteration count and is not consumed by AL-IPC. |
 
 See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
 termination logic and tuning guidance.
@@ -184,11 +184,19 @@ algorithm parameters rather than material contact resistance.
 
 | Key | Type | Default | Valid domain | Meaning |
 | --- | --- | --- | --- | --- |
-| `contact/al-ipc/mu_scale_fem` | float | `5e7` | `> 0` | Scales FEM augmented-Lagrangian penalty estimates. |
-| `contact/al-ipc/mu_scale_abd` | float | `1e5` | `> 0` | Scales ABD penalty estimates; the estimator multiplies body mass, this value, and `dt²`. |
-| `contact/al-ipc/toi_threshold` | float | `0.1` | normally `(0, 1]` | TOI threshold used by active-set handling. |
-| `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | normally `(0, 1]` | Lower bound for AL step length. |
-| `contact/al-ipc/decay_factor` | float | `0.3` | normally `(0, 1)` | Penalty/constraint decay factor. |
+| `contact/al-ipc/mu_scale_mode` | string | `"diag_norm"` | `"diag_norm"`, `"per_vertex"` | Selects conditioning-aware Hessian scaling or the legacy mass-based per-vertex estimate. |
+| `contact/al-ipc/mu_scale_diag_norm` | float | `0.1` | `> 0` | In `diag_norm` mode, sets `mu = value * max_i(abs(H_E(i,i)))`, with AL contact excluded from `H_E`. |
+| `contact/al-ipc/mu_scale_fem` | float | `5e7` | `> 0` | FEM scale used only in `per_vertex` mode: `mu_i = mass_i * value * dt²`. |
+| `contact/al-ipc/mu_scale_abd` | float | `1e5` | `> 0` | ABD scale used only in `per_vertex` mode: `mu_i = body_mass * value * dt²`. |
+| `contact/al-ipc/toi_threshold` | float | `0.1` | normally `(0, 1]` | Remaining cumulative safe-path weight tolerated by AL termination. Smaller values require more outer progress. |
+| `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | normally `(0, 1]` | CCD steps at or below this value do not advance the collision-free state or termination progress. |
+| `contact/al-ipc/decay_factor` | float | `0.3` | normally `(0, 1)` | Multiplies an inactive constraint's weight after each outer AL update. The pair is removed once the accumulated weight is below `0.01`. |
+
+`diag_norm` follows the conditioning-aware initialization in the AL-IPC paper
+and is the recommended mode. `per_vertex` is retained for reproducing older
+libuipc scenes that tuned `mu_scale_fem` or `mu_scale_abd` directly. If the
+assembled diagonal norm is empty or non-finite, the backend logs a warning and
+falls back to `per_vertex` for that frame.
 
 ## Adaptive contact resistance
 

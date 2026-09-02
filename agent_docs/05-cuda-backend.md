@@ -162,6 +162,36 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
+AL-IPC follows a nested solve boundary that must not be collapsed into the IPC
+line search. The unconstrained/penalty iterate may penetrate, so its energy line
+search starts at one without the IPC CFL clamp. A backtracked step continues the
+same fixed-multiplier inner solve. Only a full step updates the multipliers,
+runs CCD from the last collision-free state to the iterate, and advances that
+safe state by a finite step clamped to `[0, 1]`.
+
+AL's cumulative safe-path check is currently the paper's `K_min = 1` form and
+uses `contact/al-ipc/toi_threshold`. The global
+`newton/semi_implicit/{enable,beta_tol,K_min}` controls are consumed only by
+`advance_ipc.cu`; `newton/min_iter` is the separate hard floor on both paths.
+
+`GlobalActiveSetManager` implements the per-vertex earliest-TOI filter from
+AL-IPC Algorithm 3. Existing active pairs are excluded when computing each
+vertex minimum. PT and EE candidates are mapped through the global surface
+topology, then retained when their TOI matches at least one incident minimum.
+`Float` is double in this project; never port the fork's `int*`/
+`__float_as_int` atomic minimum. The implementation uses a 64-bit CAS minimum
+and persistent 1.5x-grown scratch buffers. CUB radix sort is stable, so old
+pairs precede duplicate new pairs and keep their lambda/decay state; do not
+restore the old cross-thread `sort_idx(i-1)` rewrite.
+
+Inactive constraints increment a non-negative decay count, active constraints
+reset it to zero, and a pair is removed at the first count for which
+`pow(decay_factor, count) < 0.01`. The removal limit is derived from the scene
+factor instead of the historical hard-coded 25. At frame start,
+`mu_scale_mode="diag_norm"` assembles the non-contact system and fills all
+vertex penalties with `0.1 * max_i(abs(H_E(i,i)))` by default. The
+`"per_vertex"` mode retains the FEM/ABD mass-based estimators.
+
 ## Current cross-domain performance reference
 
 The current absolute reference is the

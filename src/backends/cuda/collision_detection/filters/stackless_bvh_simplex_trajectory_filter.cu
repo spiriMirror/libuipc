@@ -1598,7 +1598,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 
     // TODO: Now hard code the minimum separation coefficient
     // gap = eta * (dist2_cur - thickness * thickness) / (dist_cur + thickness);
-    constexpr Float eta = 0.1;
+    const Float eta = info.toi_safety_margin();
 
     // TODO: Now hard code the maximum iteration
     constexpr SizeT max_iter = 1000;

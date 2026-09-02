@@ -127,19 +127,19 @@ static SceneConfigContract make_scene_config_contract()
     add("newton/semi_implicit/enable",
         IndexT{1},
         "integer",
-        "Enable semi-implicit beta termination.",
+        "Enable semi-implicit beta termination in the standard IPC pipeline.",
         {"src/backends/cuda/engine"},
         flag);
     add("newton/semi_implicit/beta_tol",
         Float{1e-3},
         "number",
-        "Early-exit threshold for accumulated semi-implicit beta.",
+        "Standard IPC early-exit threshold for accumulated semi-implicit beta.",
         {"src/backends/cuda/engine"},
         Json{{"minimum", 0.0}, {"maximum", 1.0}});
     add("newton/semi_implicit/K_min",
         IndexT{6},
         "integer",
-        "Newton iteration at which semi-implicit beta accumulation starts.",
+        "Standard IPC iteration at which semi-implicit beta accumulation starts.",
         {"src/backends/cuda/engine"},
         Json{{"minimum", 0}});
 
@@ -230,16 +230,28 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/pipeline", "src/backends/cuda/engine"},
         Json{{"enum", Json::array({"ipc", "al-ipc"})}});
 
+    add("contact/al-ipc/mu_scale_mode",
+        std::string{"diag_norm"},
+        "string",
+        "Select Hessian-diagonal or legacy mass-based AL penalty scaling.",
+        {"src/backends/cuda/active_set_system", "src/backends/cuda/engine"},
+        Json{{"enum", Json::array({"diag_norm", "per_vertex"})}});
+    add("contact/al-ipc/mu_scale_diag_norm",
+        Float{0.1},
+        "number",
+        "Multiplier applied to the maximum non-contact Hessian diagonal in diag_norm mode.",
+        {"src/backends/cuda/active_set_system", "src/backends/cuda/engine"},
+        Json{{"exclusiveMinimum", 0.0}});
     add("contact/al-ipc/mu_scale_fem",
         Float{5e7},
         "number",
-        "FEM augmented-Lagrangian penalty estimate scale.",
+        "FEM mass-based augmented-Lagrangian penalty scale used in per_vertex mode.",
         {"src/backends/cuda/contact_system"},
         Json{{"exclusiveMinimum", 0.0}});
     add("contact/al-ipc/mu_scale_abd",
         Float{1e5},
         "number",
-        "Affine-body augmented-Lagrangian penalty estimate scale.",
+        "Affine-body mass-based augmented-Lagrangian penalty scale used in per_vertex mode.",
         {"src/backends/cuda/contact_system"},
         Json{{"exclusiveMinimum", 0.0}});
     add("contact/al-ipc/toi_threshold",
@@ -257,7 +269,7 @@ static SceneConfigContract make_scene_config_contract()
     add("contact/al-ipc/decay_factor",
         Float{0.3},
         "number",
-        "AL penalty and constraint decay factor.",
+        "Per-outer-update AL weight decay for inactive constraints.",
         {"src/backends/cuda/contact_system"},
         Json{{"exclusiveMinimum", 0.0}, {"exclusiveMaximum", 1.0}});
 

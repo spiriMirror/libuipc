@@ -14,10 +14,6 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    // TODO: Now hard code the minimum separation coefficient
-    // gap = eta * (dist2_cur - thickness * thickness) / (dist_cur + thickness);
-    constexpr Float eta = 0.1;
-
     // TODO: Now hard code the maximum iteration
     constexpr SizeT max_iter = 1000;
 
@@ -786,6 +782,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  positions,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -833,6 +830,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -884,6 +882,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -938,6 +937,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -1463,6 +1463,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1483,6 +1484,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1503,6 +1505,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1522,6 +1525,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }

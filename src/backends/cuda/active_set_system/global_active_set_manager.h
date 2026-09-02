@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <sim_system.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
@@ -106,10 +107,20 @@ class GlobalActiveSetManager final : public SimSystem
 
         cuda_tool::DeviceBuffer<Vector3> non_penetrate_positions;
 
+        // Persistent scratch for Algorithm 3's per-vertex earliest-collision
+        // filter. The pair buffers store max_v(min_i T_i) for each candidate.
+        cuda_tool::DeviceBuffer<Float> vertex_min_candidate_toi;
+        cuda_tool::DeviceBuffer<Float> PH_max_vertex_min_toi;
+        cuda_tool::DeviceBuffer<Float> PT_max_vertex_min_toi;
+        cuda_tool::DeviceBuffer<Float> EE_max_vertex_min_toi;
+
         Float                                   decay_factor;
+        int                                     inactive_count_limit = 0;
         S<const geometry::AttributeSlot<Float>> dt_attr;
         Float                                   toi_threshold;
         Float                                   alpha_lower_bound;
+        std::string                             mu_scale_mode;
+        Float                                   mu_scale_diag_norm = 0.1;
         bool                                    energy_enabled;
         bool should_discard_friction_candidates = false;
 
@@ -124,7 +135,9 @@ class GlobalActiveSetManager final : public SimSystem
         }
 
         void init_mu();
+        void init_mu_from_scalar(Float mu);
         void filter_active();
+        void filter_new_candidates();
         void update_active_set();
         void linearize_constraints();
         void update_slack();
@@ -168,10 +181,12 @@ class GlobalActiveSetManager final : public SimSystem
 
     cuda_tool::CBufferView<Float> mu_vertices() const;
     //tex: $\Gamma$
-    Float decay_factor() const;
-    Float toi_threshold() const;
-    Float alpha_lower_bound() const;
-    bool  is_enabled() const;
+    Float              decay_factor() const;
+    Float              toi_threshold() const;
+    Float              alpha_lower_bound() const;
+    bool               is_enabled() const;
+    const std::string& mu_scale_mode() const noexcept;
+    Float              mu_scale_diag_norm() const noexcept;
 
   protected:
     virtual void do_build() override;
@@ -182,6 +197,7 @@ class GlobalActiveSetManager final : public SimSystem
     void init();
 
     void init_mu();
+    void init_mu_from_scalar(Float mu);
     void filter_active();
     void update_active_set();
     void linearize_constraints();

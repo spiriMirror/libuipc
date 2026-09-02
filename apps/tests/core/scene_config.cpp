@@ -12,7 +12,7 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
 
     REQUIRE(schema.at("schemaVersion") == 1);
     REQUIRE(schema.at("strictUnknownKeys") == true);
-    REQUIRE(entries.size() == 46);
+    REQUIRE(entries.size() == 48);
     REQUIRE(entries.at("dt").at("default").get<Float>() == Catch::Approx(0.01));
     REQUIRE(entries.at("dt").at("unit") == "s");
     REQUIRE(entries.at("gravity").at("componentCount") == 3);
@@ -21,6 +21,11 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
     REQUIRE(entries.at("newton/use_adaptive_tol").at("status") == "reserved");
     REQUIRE(entries.at("newton/use_adaptive_tol").at("const") == 0);
     REQUIRE(entries.at("sanity_check/mode").at("enum") == Json::array({"normal", "quiet"}));
+    REQUIRE(entries.at("contact/al-ipc/mu_scale_mode").at("default") == "diag_norm");
+    REQUIRE(entries.at("contact/al-ipc/mu_scale_mode").at("enum")
+            == Json::array({"diag_norm", "per_vertex"}));
+    REQUIRE(entries.at("contact/al-ipc/mu_scale_diag_norm").at("default").get<Float>()
+            == Catch::Approx(0.1));
 
     const auto& collision          = entries.at("collision_detection/method");
     const auto& methods            = collision.at("enum");
@@ -59,6 +64,10 @@ TEST_CASE("scene_config_schema_and_validation", "[scene][config]")
 
         config                               = Scene::default_config();
         config["newton"]["use_adaptive_tol"] = 1;
+        REQUIRE_THROWS(Scene{config});
+
+        config                                       = Scene::default_config();
+        config["contact"]["al-ipc"]["mu_scale_mode"] = "unknown";
         REQUIRE_THROWS(Scene{config});
 
         config                                  = Scene::default_config();

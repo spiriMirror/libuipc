@@ -6,6 +6,34 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **AL-IPC `AL-release` integration audit (2026-09-02, `refactor-main`)**:
+> the six fork-only commits were reviewed against current libuipc and the
+> AL-IPC paper rather than cherry-picked across 188 intervening local commits.
+> The useful core is reimplemented in current `cuda_tool`: per-vertex
+> earliest-TOI candidate filtering (excluding existing pairs), decay-derived
+> active-pair lifetime, stable preservation of old pair state, configurable
+> Hessian-diagonal penalty initialization, AL-specific CCD safety margin, and
+> the full-step boundary between inner Newton work and outer multiplier/CCD
+> updates. Scratch is persistent and amortized. Important fork defects were
+> not copied: its 32-bit `__float_as_int` atomic corrupts this project's
+> double-precision `Float`; its fixed 25-update lifetime disagrees with the
+> documented `gamma < 0.01` rule; it includes existing pairs in the candidate
+> minima; and its raw displacement convergence test discards the current
+> `NewtonToleranceManager`. The fork's global CCD-margin edit was scoped to
+> AL-IPC so normal IPC retains its established margin. Large benchmark assets,
+> screenshots, and unrelated example/README edits were intentionally omitted.
+> AL keeps its pre-existing `K_min = 1` cumulative-safe-path termination;
+> multi-state `K_min > 1` remains explicit paper-parity work in doc 09. On
+> CUDA 13.2 / RTX 5090, CMake and XMake production builds passed, as did the
+> focused AL math test (17 assertions after final review), Core (36 cases /
+> 1040 assertions), CUDA backend (17 / 291), all 19 AL sections, and the full
+> single-process simulation suite (95 / 14212). Repository contracts passed
+> 43/43, the current native Python schema reports 48 keys, and the full
+> Doxygen/MkDoxy/MkDocs site built. In mixed ABD/FEM case 18, maximum active
+> pairs fell from 81 to 42 and total PCG iterations from 1125 to 700; outer
+> solves rose from 114 to 135, so future performance claims must still use the
+> canonical large scenes.
+
 > **cuBLAS-free CUDA runtime boundary (2026-09-02)**: published wheels through
 > 0.0.27 directly import CUDA 12 cuBLAS, but current source no longer uses or
 > links cuBLAS. `LinearSystemContext` dot/norm now use named block-partial

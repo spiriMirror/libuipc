@@ -12,6 +12,8 @@
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
 #include <active_set_system/global_active_set_manager.h>
+#include <algorithm>
+#include <cmath>
 
 namespace uipc::backend::cuda
 {
@@ -19,7 +21,6 @@ void SimEngine::advance_AL()
 {
     Float alpha     = 1.0;
     Float ccd_alpha = 1.0;
-    Float cfl_alpha = 1.0;
     Float beta      = 0.0;
 
     /***************************************************************************************
@@ -61,7 +62,43 @@ void SimEngine::advance_AL()
             Timer timer{"Compute Adaptive Mu"};
             m_global_active_set_manager->disable();
 
-            m_global_active_set_manager->init_mu();
+            bool initialized = false;
+            if(m_global_active_set_manager->mu_scale_mode() == "diag_norm" && m_global_linear_system)
+            {
+                // Assemble the unconstrained objective once. Disabling the
+                // active set keeps AL contact out of the Hessian used to
+                // choose the conditioning-aware penalty scale.
+                if(m_global_dytopo_effect_manager)
+                    m_global_dytopo_effect_manager->compute_dytopo_effect();
+
+                const Float diagonal_norm = m_global_linear_system->diag_norm();
+                const Float mu =
+                    diagonal_norm * m_global_active_set_manager->mu_scale_diag_norm();
+                if(std::isfinite(mu) && mu > 0.0)
+                {
+                    m_global_active_set_manager->init_mu_from_scalar(mu);
+                    initialized = true;
+                    logger::info(
+                        "AL penalty initialization: mode=diag_norm, "
+                        "diag_norm={}, scale={}, mu={}",
+                        diagonal_norm,
+                        m_global_active_set_manager->mu_scale_diag_norm(),
+                        mu);
+                }
+                else
+                {
+                    logger::warn(
+                        "AL diag-norm penalty initialization produced {}, "
+                        "falling back to per-vertex scaling.",
+                        mu);
+                }
+            }
+
+            if(!initialized)
+            {
+                m_global_active_set_manager->init_mu();
+                logger::info("AL penalty initialization: mode=per_vertex");
+            }
             m_global_active_set_manager->enable();
         }
     };
@@ -76,23 +113,6 @@ void SimEngine::advance_AL()
             Timer timer{"Compute DyTopo Effect"};
             m_global_dytopo_effect_manager->compute_dytopo_effect();
         }
-    };
-
-    auto cfl_condition = [&cfl_alpha, this](Float alpha)
-    {
-        if(m_global_contact_manager)
-        {
-            Timer timer{"Compute CFL Condition"};
-            cfl_alpha = m_global_contact_manager->compute_cfl_condition();
-            m_frame_last_cfl_alpha = cfl_alpha;
-            if(cfl_alpha < alpha)
-            {
-                logger::info("CFL Filter: {} < {}", cfl_alpha, alpha);
-                return cfl_alpha;
-            }
-        }
-
-        return alpha;
     };
 
     auto filter_toi = [&ccd_alpha, this](Float alpha)
@@ -340,7 +360,8 @@ void SimEngine::advance_AL()
                 m_global_vertex_manager->collect_vertex_displacements();
 
                 // 6) Begin Line Search
-                m_state = SimEngineState::LineSearch;
+                m_state                = SimEngineState::LineSearch;
+                SizeT line_search_iter = 0;
                 {
                     Timer timer{"Line Search"};
 
@@ -354,9 +375,6 @@ void SimEngine::advance_AL()
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
 
-                    // CFL Condition
-                    alpha = cfl_condition(alpha);
-
                     // * Step Forward => x = x_0 + alpha * dx
                     // Compute Test Energy => E
                     m_frame_last_line_search_alpha = alpha;
@@ -364,7 +382,6 @@ void SimEngine::advance_AL()
                     ++m_frame_line_search_trials;
 
                     {
-                        SizeT line_search_iter = 0;
                         while(line_search_iter < m_line_searcher->max_iter())
                         {
                             Timer timer{"Line Search Iteration"};
@@ -392,6 +409,13 @@ void SimEngine::advance_AL()
                     }
                 }
 
+                // A backtracked step has not solved the current fixed-slack
+                // subproblem. Continue Newton without changing multipliers or
+                // the collision-free reference state; a full step marks the
+                // inner AL solve boundary.
+                if(line_search_iter > 0 && !newton_converged)
+                    continue;
+
                 // 7) CCD for AL contact
                 m_state = SimEngineState::AdvanceNonPenetrate;
                 if(m_global_active_set_manager)
@@ -406,16 +430,27 @@ void SimEngine::advance_AL()
                     m_global_active_set_manager->update_active_set();
                     m_global_active_set_manager->post_ccd();
 
+                    if(!std::isfinite(alpha))
+                    {
+                        logger::warn("AL CCD returned a non-finite step; clamping progress to zero.");
+                        alpha = 0.0;
+                    }
+                    else
+                    {
+                        alpha = std::clamp(alpha, Float{0.0}, Float{1.0});
+                    }
+
                     if(alpha > m_global_active_set_manager->alpha_lower_bound())
                         m_global_active_set_manager->advance_non_penetrate_positions(alpha);
+                    else
+                        alpha = 0.0;
                 }
 
                 // Update alpha and beta for next iteration
                 beta = beta + (1 - beta) * alpha;
 
                 bool converged = convergence_check(newton_iter);
-                bool terminated =
-                    converged && (newton_iter + 1 >= newton_min_iter || newton_converged);
+                bool terminated = converged && (newton_iter + 1 >= newton_min_iter);
 
                 if(terminated)
                 {

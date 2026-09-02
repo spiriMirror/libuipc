@@ -4,6 +4,10 @@ This page explains how the nonlinear and linear stopping criteria fit
 together. See [Scene Configuration Reference](../scene_config.md) for the
 complete key table and defaults.
 
+The ordinary and semi-implicit criteria below describe the standard `ipc`
+pipeline. `al-ipc` shares the tolerance check inside its inner solve but has a
+separate safe-path termination rule described below.
+
 ## One frame, from outside to inside
 
 For each `world.advance()`, the CUDA backend performs a nonlinear solve. A
@@ -54,6 +58,20 @@ $$
 where $\alpha$ is the accepted line-search step. `beta <= beta_tol` is an
 additional early-exit condition. It does not force the solver to run until
 `K_min`; use `newton/min_iter` if a true iteration floor is required.
+
+## AL-IPC termination
+
+AL-IPC retains a possibly penetrating optimization iterate while advancing a
+separate collision-free state by CCD. It accumulates the applied safe-step
+fractions and terminates once the remaining initial-state weight is at most
+`contact/al-ipc/toi_threshold`. This current rule is the `K_min = 1` form of the
+AL-IPC paper's cumulative-TOI criterion. The `newton/semi_implicit/*` controls
+are not consumed by `advance_al.cu`; `newton/min_iter` remains the explicit hard
+floor for that path.
+
+An AL CCD fraction is counted only when it is finite, clamped into `[0, 1]`,
+and greater than `contact/al-ipc/alpha_lower_bound`. A rejected tiny step does
+not create false termination progress.
 
 ## Linear solve
 
