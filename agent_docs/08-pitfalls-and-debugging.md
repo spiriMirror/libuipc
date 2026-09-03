@@ -14,6 +14,29 @@ touching that area; several of these have bitten us more than once.
   pyd, project/binary dirs, config/build type, and `--build_wheel OFF`). A stale
   dll once made a whole performance-alignment round compare against an old
   binary.
+- **Quote the architecture list in `set_target_properties`.** An unquoted
+  `CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}` expands a multi-arch list into
+  separate arguments, which breaks the `PROPERTIES` key/value pairing: the
+  property keeps only the first entry and the rest are silently absorbed as
+  bogus property names. Every release wheel up to 0.0.27 was built this way and
+  shipped `sm_75` SASS only, with the `89-virtual` PTX fallback dropped, so
+  Blackwell (`sm_120`) failed at `world.init(scene)` with CUDA error 500
+  `named symbol not found` — under CUDA 12.x lazy module loading a missing
+  device image surfaces as an unregistered symbol, not as error 209
+  `cudaErrorNoKernelImageForDevice`. The local default `native` is a single
+  element, so the defect never reproduces in a developer build. Verify a change
+  through `arch=compute_*,code=*` in `compile_commands.json`, not `flags.make`.
+  To audit a built artifact use
+  `cuobjdump -all --list-elf <so> | grep -oP 'sm_\d+' | sort -u` for SASS and
+  `cuobjdump -all -ptx <so> | grep -c '^\s*\.target'` for PTX;
+  `--list-ptx` reports nothing even for libraries that do embed PTX.
+- **The comma form of `UIPC_CUDA_ARCHITECTURES` only works because the root
+  `CMakeLists.txt` normalizes the option in place.** The backend targets read
+  the option directly into their `CUDA_ARCHITECTURES` property, so normalizing
+  `CMAKE_CUDA_ARCHITECTURES` alone is not enough: a comma list survives
+  configure and then fails the first `.cu` compile with
+  `nvcc fatal : '89' is not in 'keyword=value' format`. Keep the in-place
+  `set(... CACHE STRING ... FORCE)` if that block is ever refactored.
 - **Changing `IEngine` virtuals requires every backend's most-derived vtable to
   be rebuilt.** Do not trust a core-only relink: explicitly rebuild `none` and
   `cuda`, then run the Python post-build sync above. A mixed old/new vtable can
