@@ -9,5 +9,5 @@ target("uipc_metis")
     if is_plat("linux") then
         add_defines("LINUX")
         add_syslinks("m")
-        add_cxxflags("-fPIC", {force = true})
+        add_cxxflags("-fPIC")
     end

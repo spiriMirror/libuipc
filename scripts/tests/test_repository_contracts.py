@@ -231,7 +231,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('includes("metis")', geometry_xmake)
         self.assertIn('add_deps("uipc_core", "uipc_metis")', geometry_xmake)
         self.assertIn("POSITION_INDEPENDENT_CODE ON", metis_cmake)
-        self.assertIn('add_cxxflags("-fPIC", {force = true})', metis_xmake)
+        self.assertIn('add_cxxflags("-fPIC")', metis_xmake)
         self.assertTrue((embedded / "LICENSE-METIS").is_file())
         self.assertTrue((embedded / "LICENSE-GKlib").is_file())
 
