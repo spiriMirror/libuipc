@@ -94,6 +94,13 @@ record it here in the same commit.**
     `gradient_only` is preferred when it removes dead work without serializing
     stencil families. (Set 2026-08-30.)
 
+15. **Keep AL-IPC's parallel-EE friction mollifier predicate disabled.** Pass
+    the established negative coefficient (`-1.0`) to its threshold calculation
+    so the non-negative EE cross-norm squared can never satisfy
+    `need_mollify()`. Do not replace it with standard IPC's positive threshold;
+    AL-IPC treats every such active pair as an ordinary EE friction pair. (Set
+    2026-09-03.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice

@@ -48,8 +48,9 @@ the fork.
 - Apply `newton/semi_implicit/K_min` to AL's cumulative safe-path weight. Check
   every permitted line-search trial and restore the recorded start point if
   all trials fail rather than accepting an energy-increasing state.
-- Use the EE tangent Jacobian for EE friction, and apply the same near-parallel
-  EE mollifier consistently to its energy, gradient, and Hessian.
+- Use the EE tangent Jacobian for EE friction. Preserve AL-IPC's negative
+  mollifier-threshold sentinel so the parallel-EE predicate remains disabled;
+  do not import standard IPC's positive mollifier threshold into this path.
 - Use CCD margin 0.001 only for AL-IPC. Preserve 0.1 for IPC.
 
 ## Consequences
@@ -84,9 +85,10 @@ work.
 
 The focused CUDA tests cover exact decay boundaries, earliest-candidate
 selection, negative-TOI clamping, preservation of a subnormal double by the
-device atomic minimum, `K_min` progress, finite line-search acceptance, and
-finite-difference gradients for PT, EE, and half-plane friction. Configuration
-tests cover both modes and reject unknown values. Sample 88 supplies the mixed
+device atomic minimum, `K_min` progress, finite line-search acceptance,
+finite-difference gradients for PT, EE, and half-plane friction, and the
+disabled AL parallel-EE sentinel. Configuration tests cover both modes and
+reject unknown values. Sample 88 supplies the mixed
 cloth/FEM trajectory regression; details and measured failure counts are in
 [`2026-09-03-al-ipc-case88-correction.md`](../performance/2026-09-03-al-ipc-case88-correction.md).
 The aggregate CUDA/core tests and repository contracts remain required before

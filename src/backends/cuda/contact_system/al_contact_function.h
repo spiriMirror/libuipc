@@ -1,6 +1,5 @@
 #pragma once
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
-#include <utils/distance/edge_edge_mollifier.h>
 #include <utils/friction_utils.h>
 #include <type_define.h>
 
@@ -8,20 +7,7 @@ namespace uipc::backend::cuda
 {
 namespace sym::al_simplex_contact
 {
-    inline UIPC_DEVICE bool EE_friction_mollified(const Vector3& rest_Ea0,
-                                                  const Vector3& rest_Ea1,
-                                                  const Vector3& rest_Eb0,
-                                                  const Vector3& rest_Eb1,
-                                                  const Vector3& prev_Ea0,
-                                                  const Vector3& prev_Ea1,
-                                                  const Vector3& prev_Eb0,
-                                                  const Vector3& prev_Eb1)
-    {
-        Float eps_x;
-        distance::edge_edge_mollifier_threshold(
-            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, static_cast<Float>(1e-3), eps_x);
-        return distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x);
-    }
+    inline constexpr Float EE_FRICTION_MOLLIFIER_DISABLED = -1.0;
 
     inline UIPC_GENERIC Float penalty_energy(Float           scale,
                                              Float           d0,

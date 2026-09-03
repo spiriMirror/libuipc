@@ -201,10 +201,11 @@ validated.
 
 AL simplex friction uses PT and EE-specific tangent Jacobians. Keep the EE
 energy, gradient, and Hessian on `edge_edge_jacobi`; substituting
-`point_triangle_jacobi` gives a finite but physically wrong direction. As in
-the IPC friction path, near-parallel EE pairs are consistently mollified out
-of both energy and derivative assembly, and skipped output ranges must be
-explicitly zeroed because the dynamic buffers use discard-resize semantics.
+`point_triangle_jacobi` gives a finite but physically wrong direction. Unlike
+the standard IPC friction path, AL-IPC intentionally disables parallel-EE
+mollification with a negative threshold coefficient. The non-negative
+cross-norm squared can therefore never satisfy `need_mollify`; do not replace
+the sentinel with IPC's positive `1e-3` coefficient.
 
 ## Current cross-domain performance reference
 

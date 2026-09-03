@@ -2,6 +2,7 @@
 #include <contact_system/al_contact_function.h>
 #include <contact_system/al_vertex_half_plane_contact_function.h>
 #include <cuda_tool/cuda_tool.h>
+#include <utils/distance/edge_edge_mollifier.h>
 
 namespace al_friction_test
 {
@@ -151,21 +152,6 @@ __global__ void ee_energy_gradient_fd_kernel(cuda_tool::CBufferView<Vector3> pre
         result(1 + dof)     = gradient(dof);
         result(13 + dof)    = (E_plus - E_minus) / (2.0 * h);
     }
-
-    result(25) = EE_friction_mollified(previous(0),
-                                       previous(1),
-                                       previous(2),
-                                       previous(3),
-                                       previous(0),
-                                       previous(1),
-                                       previous(2),
-                                       previous(3));
-    const Vector3 parallel_0{-1.0, 0.0, 0.0};
-    const Vector3 parallel_1{1.0, 0.0, 0.0};
-    const Vector3 parallel_2{-1.0, 0.0, 0.2};
-    const Vector3 parallel_3{1.0, 0.0, 0.2};
-    result(26) = EE_friction_mollified(
-        parallel_0, parallel_1, parallel_2, parallel_3, parallel_0, parallel_1, parallel_2, parallel_3);
 }
 
 __global__ void ph_energy_gradient_fd_kernel(Vector3 previous,
@@ -199,6 +185,20 @@ __global__ void ph_energy_gradient_fd_kernel(Vector3 previous,
         result(1 + dof) = gradient(dof);
         result(4 + dof) = (E_plus - E_minus) / (2.0 * h);
     }
+}
+
+__global__ void disabled_ee_mollifier_kernel(cuda_tool::BufferView<Float> result)
+{
+    const Vector3 ea0{-1.0, 0.0, 0.0};
+    const Vector3 ea1{1.0, 0.0, 0.0};
+    const Vector3 eb0{-1.0, 0.0, 0.2};
+    const Vector3 eb1{1.0, 0.0, 0.2};
+
+    Float eps_x;
+    distance::edge_edge_mollifier_threshold(
+        ea0, ea1, eb0, eb1, sym::al_simplex_contact::EE_FRICTION_MOLLIFIER_DISABLED, eps_x);
+    result(0) = eps_x;
+    result(1) = distance::need_mollify(ea0, ea1, eb0, eb1, eps_x);
 }
 }  // namespace al_friction_test
 
@@ -244,7 +244,7 @@ TEST_CASE("AL edge-edge friction gradient matches its energy", "[cuda][al-ipc][f
                                              Vector3{1.04, -0.01, -0.02},
                                              Vector3{-0.02, -0.96, 0.31},
                                              Vector3{0.01, 1.03, 0.28}};
-    cuda_tool::DeviceVector<Float>   result(27);
+    cuda_tool::DeviceVector<Float>   result(25);
 
     al_friction_test::ee_energy_gradient_fd_kernel<<<1, 1>>>(
         previous.cview(), current.cview(), result.view());
@@ -258,8 +258,6 @@ TEST_CASE("AL edge-edge friction gradient matches its energy", "[cuda][al-ipc][f
         CAPTURE(dof, host[1 + dof], host[13 + dof]);
         CHECK(host[1 + dof] == Catch::Approx(host[13 + dof]).epsilon(1e-6).margin(1e-8));
     }
-    CHECK(host[25] == 0.0);
-    CHECK(host[26] == 1.0);
 }
 
 TEST_CASE("AL point-half-plane friction gradient matches its energy", "[cuda][al-ipc][friction]")
@@ -282,4 +280,19 @@ TEST_CASE("AL point-half-plane friction gradient matches its energy", "[cuda][al
         CAPTURE(dof, host[1 + dof], host[4 + dof]);
         CHECK(host[1 + dof] == Catch::Approx(host[4 + dof]).epsilon(1e-6).margin(1e-8));
     }
+}
+
+TEST_CASE("AL parallel-edge friction mollifier remains disabled", "[cuda][al-ipc][friction]")
+{
+    using namespace uipc;
+    namespace cuda_tool = uipc::backend::cuda_tool;
+
+    cuda_tool::DeviceVector<Float> result(2);
+    al_friction_test::disabled_ee_mollifier_kernel<<<1, 1>>>(result.view());
+    CUDA_TOOL_CHECK(cudaGetLastError());
+
+    std::vector<Float> host;
+    result.copy_to(host);
+    CHECK(host[0] < 0.0);
+    CHECK(host[1] == 0.0);
 }

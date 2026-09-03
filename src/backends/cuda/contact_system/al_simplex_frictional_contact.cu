@@ -55,7 +55,6 @@ namespace
                                                 cuda_tool::CBufferView<Vector4i> EEs,
                                                 cuda_tool::CBufferView<Float> lambda,
                                                 cuda_tool::CBufferView<Vector3> x,
-                                                cuda_tool::CBufferView<Vector3> rest_x,
                                                 cuda_tool::CBufferView<Vector3> prev_x,
                                                 cuda_tool::BufferView<Float> Es,
                                                 int                          n)
@@ -75,11 +74,6 @@ namespace
         auto  coeff = sym::codim_ipc_contact::EE_contact_coeff(table, cids);
         Float mu    = coeff.mu;
 
-        const Vector3& rest_Ea0 = rest_x(EE[0]);
-        const Vector3& rest_Ea1 = rest_x(EE[1]);
-        const Vector3& rest_Eb0 = rest_x(EE[2]);
-        const Vector3& rest_Eb1 = rest_x(EE[3]);
-
         const Vector3& prev_Ea0 = prev_x(EE[0]);
         const Vector3& prev_Ea1 = prev_x(EE[1]);
         const Vector3& prev_Eb0 = prev_x(EE[2]);
@@ -89,13 +83,6 @@ namespace
         const Vector3& Ea1 = x(EE[1]);
         const Vector3& Eb0 = x(EE[2]);
         const Vector3& Eb1 = x(EE[3]);
-
-        if(EE_friction_mollified(
-               rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1))
-        {
-            Es(idx) = 0.0;
-            return;
-        }
 
         Es(idx) = EE_friction_energy(
             mu, eps_v * dt, lambda(idx), prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, Ea0, Ea1, Eb0, Eb1);
@@ -194,22 +181,26 @@ namespace
         const Vector3& Eb0 = x(EE[2]);
         const Vector3& Eb1 = x(EE[3]);
 
-        const bool mollified = EE_friction_mollified(
-            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1);
-
-        Vector12    G = Vector12::Zero();
-        Matrix12x12 H = Matrix12x12::Zero();
-        if(!mollified)
+        // AL-IPC intentionally disables the IPC parallel-EE friction
+        // mollifier. The cross-norm squared is non-negative, while this
+        // coefficient makes eps_x negative, so need_mollify() stays false.
+        Float eps_x;
+        distance::edge_edge_mollifier_threshold(
+            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, EE_FRICTION_MOLLIFIER_DISABLED, eps_x);
+        if(!distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x))
         {
+            Vector12    G;
+            Matrix12x12 H;
+
             EE_friction_gradient_hessian(
                 G, H, mu, eps_v * dt, lambda(idx), prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, Ea0, Ea1, Eb0, Eb1);
+
+            DoubletVectorAssembler DVA{Gs};
+            DVA.segment<4>(idx * 4).write(EE, G);
+
+            TripletMatrixAssembler TMA{Hs};
+            TMA.half_block<4>(idx * 10).write(EE, H);
         }
-
-        DoubletVectorAssembler DVA{Gs};
-        DVA.segment<4>(idx * 4).write(EE, G);
-
-        TripletMatrixAssembler TMA{Hs};
-        TMA.half_block<4>(idx * 10).write(EE, H);
     }
 }  // namespace
 
@@ -271,7 +262,6 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
     auto EE_energies = info.energies().subview(PT_size, EE_size);
 
     auto x         = global_vertex_manager->positions();
-    auto rest_x    = global_vertex_manager->rest_positions();
     auto prev_x    = global_vertex_manager->prev_positions();
     auto PTs       = active_set->PTs_friction();
     auto EEs       = active_set->EEs_friction();
@@ -300,7 +290,6 @@ void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::E
             EEs.cviewer(),
             EE_lambda.cviewer(),
             x.cviewer(),
-            rest_x.cviewer(),
             prev_x.cviewer(),
             EE_energies.viewer(),
             (int)EE_size);

@@ -23,8 +23,7 @@ Three independent defects amplified one another:
    took enough Newton work to follow the intended stiff transient.
 2. EE friction computed edge-edge relative displacement and energy but mapped
    its derivative with `point_triangle_jacobi`. The resulting vector was finite
-   but was not the derivative of the reported energy. Nearly parallel EE pairs
-   were also treated inconsistently between energy and assembly.
+   but was not the derivative of the reported energy.
 3. The newly selected `diag_norm` default broadcast one uniform penalty to
    cloth and volumetric vertices with very different masses and stiffnesses.
    On this scene it generated repeated non-descent directions. This is a
@@ -41,9 +40,10 @@ energy to approximately `4.1e15` and failed in the following CCD query.
   `K_min - 1` completed outer updates and starts `(1 - alpha)` attenuation at
   update `K_min`. `beta_tol` remains standard-IPC-only; AL uses
   `contact/al-ipc/toi_threshold`.
-- EE friction uses `edge_edge_jacobi`. The IPC near-parallel EE mollifier is
-  applied to both energy and derivatives, and discarded assembly ranges are
-  explicitly zeroed.
+- EE friction uses `edge_edge_jacobi`. AL's existing negative threshold
+  coefficient remains unchanged, intentionally making its parallel-EE
+  mollifier predicate always false; standard IPC's positive threshold must not
+  be copied into this path.
 - `per_vertex` mass-based scaling is again the default. `diag_norm` remains an
   explicit experimental comparison mode.
 - Line search checks its final permitted trial, rejects non-finite energy, and
@@ -70,15 +70,14 @@ The penalty-mode isolation after the friction fixes was decisive:
 
 | AL mode, 100 frames | Mean ms/frame | Line-search-limit frames | Non-converged frames |
 | --- | ---: | ---: | ---: |
-| uniform `diag_norm` | 467.64 | 29 | 29 |
-| mass-based `per_vertex` | 144.65 | 0 | 0 |
+| uniform `diag_norm` | 965.20 | 44 | 44 |
+| mass-based `per_vertex` | 152.28 | 0 | 0 |
 
-The final corrected default completed all 250 frames in 171.71 ms/frame mean,
-with no Newton-limit or runtime error. One frame rejected a non-descent step,
-rolled back safely, and reported non-convergence; the other 249 converged and
-the trajectory continued smoothly. Final upper/lower centroids were
-`(-0.6224, -0.8674, -0.4038)` and
-`(-0.1132, -0.8894, 0.0579)`, respectively. Both bodies remained on the
+The final corrected default, with AL's parallel-edge mollifier still disabled,
+completed all 250 frames in 153.96 ms/frame mean. Every frame converged with no
+line-search limit, Newton limit, or runtime error. Final upper/lower centroids
+were `(-0.6552, -0.8712, 0.0871)` and
+`(-0.0299, -0.8898, 0.1598)`, respectively. Both bodies remained on the
 floor-scale contact region instead of the old prematurely terminated fall.
 
 ## Regression boundary
@@ -87,7 +86,7 @@ Keep the following checks together when changing AL friction, penalty scaling,
 or solve boundaries:
 
 - finite-difference PT, EE, and half-plane friction gradients;
-- EE parallel-pair mollifier classification;
+- the negative AL parallel-EE sentinel and its always-false predicate;
 - AL cumulative-progress unit tests at `K_min=1` and `K_min=6`;
 - a simulation assertion that an AL contact frame honors configured `K_min`;
 - sample 88 with cloth enabled, inspecting structured `frame_stats()` for line
