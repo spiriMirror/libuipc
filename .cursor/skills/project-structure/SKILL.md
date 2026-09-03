@@ -13,7 +13,6 @@ Overview of the main directories and important files in the repository.
 - `assets/` - Scene assets and simulation data.
 - `cmake/` - Shared CMake utilities and macros.
 - `docs/` - Documentation, specs, and site assets.
-- `external/` - Third-party dependencies bundled in-tree (GKlib and METIS). muda has been removed; `src/backends/cuda/cuda_tool/` is an in-house raw-CUDA utility layer, not vendored muda.
 - `include/` - Public C++ headers.
 - `output/` - Generated outputs from simulations. (the contents is ignored by git)
 - `python/` - Python package, tests, and metadata.
@@ -48,10 +47,6 @@ Overview of the main directories and important files in the repository.
 - `media/` - Images for docs pages.
 - `misc/` - Miscellaneous documentation.
 
-### `external/`
-
-- `GKlib/`, `METIS/` - In-tree graph-partitioning dependencies.
-
 ### `include/`
 
 - `uipc/` - Public headers grouped by module (backend, core, geometry, io, etc.). The removed C++ GUI has no public header tree.
@@ -73,6 +68,8 @@ Overview of the main directories and important files in the repository.
   - `common/` - Common utilities for all backends.
   - `cuda/` - CUDA backend with CUDA kernels.
   - `none/` - An empty backend that does nothing, as a template for creating a new backend or checking the basic functionality.
+- `geometry/metis/` - Private C++ METIS implementation and required
+  GKlib-derived support code, built as `uipc_metis` for mesh partitioning.
 - `constitution/` - Physical constitution implementations.
 - `core/` - Core engine systems and modules.
 - `geometry/` - Geometry algorithms and data types.

@@ -16,7 +16,7 @@ option("python_version", {default = "3.11.x", description = "Specify python vers
 option("python_system", {default = false, description = "Use system python"})
 
 
-includes("external/GKlib", "external/METIS", "src", "apps", "xmake/*.lua")
+includes("src", "apps", "xmake/*.lua")
 
 add_rules("mode.release", "mode.debug", "mode.releasedbg", "uipc.basic")
 

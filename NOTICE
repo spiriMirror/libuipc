@@ -1,1 +1,8 @@
 This project builds upon the GPU IPC project, originally developed and continuously optimized by Dr. Kemeng Huang. The work is led by Dr. Kemeng Huang and Professor Taku Komura (The University of Hong Kong), in collaboration with Professor Minchen Li (Carnegie Mellon University). With comprehensive support from TransGP, the project involves the reconstruction and encapsulation of the original technology to enhance its usability and scalability across various application scenarios. We would also like to extend our sincere gratitude to the many contributors from the open-source community, with special thanks to Xinyu Lu, who initially worked with us during his time at TransGP and has continued to help maintain the project even after leaving.
+
+The embedded mesh-partitioning implementation under src/geometry/metis is
+derived from METIS and GKlib. METIS is Copyright 1995-2013, Regents of the
+University of Minnesota. GKlib is Copyright 1995-2018, Regents of the
+University of Minnesota. Both are licensed under Apache-2.0; their notices are
+preserved alongside the embedded sources. Unused non-Apache compatibility and
+optional MT19937-64 RNG code from upstream GKlib are not included in this port.

@@ -14,6 +14,7 @@ owns; source code remains authoritative when implementation and prose differ.
 | [0004](0004-deterministic-sim-system-topology.md) | Accepted | Make SimSystem creation/traversal deterministic and reject strong cycles |
 | [0005](0005-test-and-benchmark-entrypoints.md) | Accepted | Separate aggregate pollution tests, isolated shards, and performance evidence |
 | [0006](0006-al-ipc-active-set-integration.md) | Accepted | Reimplement AL-IPC active-set and conditioning improvements safely on current CUDA interfaces |
+| [0007](0007-embedded-cpp-metis.md) | Accepted | Build the private C++ METIS port inside geometry and remove the external C dependency tree |
 
 ## Lifecycle
 

@@ -1,7 +1,8 @@
 find_package(libigl REQUIRED)
 find_package(TBB REQUIRED)
 find_package(Octree CONFIG REQUIRED)
-# METIS is built from source in external/METIS (not vcpkg)
+
+add_subdirectory(metis)
 
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
@@ -15,7 +16,7 @@ target_link_libraries(uipc_geometry PRIVATE
     igl::igl_core
     Octree::Octree
     TBB::tbb
-    metis
+    uipc_metis
 )
 
 if(UIPC_WITH_VDB_SUPPORT)
