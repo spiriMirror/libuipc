@@ -23,11 +23,40 @@ def _load_toml(path: Path) -> dict[str, Any]:
         return tomllib.load(stream)
 
 
+def _version_tuple(value: object) -> tuple[int, ...]:
+    return tuple(int(item) for item in re.findall(r"\d+", str(value)))
+
+
 def check_policy(root: Path = ROOT) -> list[str]:
     policy = load_policy(root / "python" / "src" / "uipc" / "compatibility.json")
     python_policy = policy["python"]
     wheel_policy = policy["wheel"]
     errors: list[str] = []
+
+    minimum_driver = wheel_policy.get("minimum_driver")
+    minimum_ptx_driver = wheel_policy.get("minimum_ptx_jit_driver")
+    for name, values in (
+        ("minimum_driver", minimum_driver),
+        ("minimum_ptx_jit_driver", minimum_ptx_driver),
+    ):
+        if not isinstance(values, dict):
+            errors.append(f"compatibility.json: wheel.{name} must be an object")
+            continue
+        for driver_platform in ("linux", "windows"):
+            if not values.get(driver_platform):
+                errors.append(
+                    f"compatibility.json: wheel.{name} is missing {driver_platform!r}"
+                )
+
+    if isinstance(minimum_driver, dict) and isinstance(minimum_ptx_driver, dict):
+        for driver_platform in ("linux", "windows"):
+            base = minimum_driver.get(driver_platform)
+            ptx = minimum_ptx_driver.get(driver_platform)
+            if base and ptx and _version_tuple(ptx) < _version_tuple(base):
+                errors.append(
+                    "compatibility.json: PTX JIT driver floor "
+                    f"{ptx!r} is older than the base {driver_platform} floor {base!r}"
+                )
 
     for relative_path in ("pyproject.toml", "python/pyproject.toml"):
         path = root / relative_path

@@ -69,7 +69,9 @@
 > lightweight `linear_system.h`/`cuda_tool.h` path does not transitively pull in
 > all CUB algorithms. CMake and XMake links are synchronized. A wheel CI audit
 > rejects dynamic Toolkit libraries via dumpbin/readelf; compatibility policy
-> now requires only driver >=525.60.13 (Linux) or >=528.33 (Windows). Final
+> requires driver >=525.60.13 (Linux) or >=528.33 (Windows) when a packaged
+> SASS image applies, and >=570.124.06 / >=572.61 when the CUDA 12.8 Update 1
+> PTX image must be JIT compiled. Final
 > CUDA 13.2/RTX 5090 validation passed the CMake and XMake backend builds, the
 > 12-assertion focused reduction test, all 274 CUDA-backend assertions, all
 > 14,212 assertions in the 95-case simulation suite, four representative
@@ -1265,7 +1267,7 @@ regression).
   `scripts/check_release_policy.py` stays green. Note this grows wheel size
   and CI compile time by one full architecture.
 - Verification: configured with the full list and confirmed all 199 CUDA
-  translation units in `compile_commands.json` now carry five
+  translation units in `compile_commands.json` now carry six
   `arch=compute_*,code=*` entries including `code=[compute_89]`; before the
   fix only `sm_75` was emitted. Reference build with `native` on the 5090
   (`sm_120`) runs `hello_affine_body` and the Python `0_check_libuipc` sample
@@ -1284,3 +1286,16 @@ regression).
   normalizes the cache entry in place. A `get_target_property` fast fail on the
   `cuda` target guards the truncation case; configure was checked with the full
   six-entry list, the comma form, and `native`.
+- Post-merge hardening on `refactor-main` replaces all three raw property sites
+  with `uipc_set_target_cuda_architectures`, which sets and reads back the
+  property for the final library, every component OBJECT target, and the CUDA
+  test target. A repository contract prevents any target kind from bypassing
+  the helper. Wheel compatibility now distinguishes the CUDA 12.x SASS driver
+  floor from the CUDA 12.8 PTX-JIT floor; `uipc doctor` reports the selected
+  code path and no longer labels an old-driver PTX-only GPU compatible.
+  Validation configured the comma-form release matrix and found all 214 CUDA
+  translation units in the test-enabled build carrying all six codegen flags,
+  then restored `native`. CMake and XMake production builds, fast CTest 3/3,
+  repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
+  real Python 3.14 CUDA doctor probe, and the complete documentation build all
+  passed.

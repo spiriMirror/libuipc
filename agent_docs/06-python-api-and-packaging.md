@@ -42,7 +42,7 @@ torch/warp adapters still require their own optional frameworks.
 - `python/src/uipc/compatibility.json` is the canonical release support policy.
   `scripts/check_release_policy.py` verifies both pyprojects, classifiers, the
   workflow ABI/toolkit matrix, and the CMake wheel architecture list against it.
-- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;120-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada/Blackwell-consumer native code plus a forward-compatible PTX path. The list only reaches nvcc if every `set_target_properties(... CUDA_ARCHITECTURES ...)` site quotes the variable — see the Build & CI pitfall; 0.0.27 and earlier shipped Turing-only SASS with no PTX because of that.
+- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;120-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada/Blackwell-consumer native code plus a forward-compatible PTX path. Every final, component, and test CUDA target uses `uipc_set_target_cuda_architectures(...)`, which sets the property without list expansion and reads it back as a configure-time invariant; 0.0.27 and earlier shipped Turing-only SASS with no PTX because raw `set_target_properties` truncated the list.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
 - cibuildwheel: on Linux, auditwheel defensively excludes CUDA Toolkit
   libraries. The current backend has no dynamic Toolkit dependency; a
@@ -58,10 +58,11 @@ torch/warp adapters still require their own optional frameworks.
   `cublas64_12.dll` import. Current source replaces the four cuBLAS dot/norm
   calls with persistent raw-CUDA/CUB reductions and removes the CMake/XMake
   link. The resulting backend has no CUDA Toolkit DLL import; future wheels
-  require only a compatible NVIDIA driver (Linux >=525.60.13, Windows
-  >=528.33). Those are the CUDA 12.x minor-compatibility floors; PTX JIT on
-  hardware without a packaged native image may require a newer driver. The
-  build toolkit remains 12.8 for a reproducible binary baseline.
+  require only a compatible NVIDIA driver. Packaged SASS uses the CUDA 12.x
+  minor-compatibility floors (Linux >=525.60.13, Windows >=528.33); a GPU that
+  relies on the wheel builder's CUDA 12.8 Update 1 PTX JIT instead requires
+  Linux >=570.124.06 or Windows >=572.61. The build toolkit remains 12.8 for a
+  reproducible binary baseline.
 
 **Development mode (`python/pyproject.toml` + `python/setup.py`)**:
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
@@ -112,7 +113,9 @@ failures.
 - `python -m uipc doctor [--probe-cuda] [--json]` separates Python ABI, native
   extension ABI, self-contained CUDA runtime, backend-load, driver, and
   GPU-code-image failures. It consumes both packaged `compatibility.json` and
-  native `build_info()` instead of guessing from the package version.
+  native `build_info()` instead of guessing from the package version, selects
+  SASS before PTX when both can serve a GPU, and applies the higher driver floor
+  only when PTX JIT is actually required.
 - The Warp adapter falls back to the dtype's element size when a one-dimensional
   array reports no stride; a focused optional-Warp test covers this path.
 - Python exposes `Scene.Objects.created_count()` as the exclusive object-ID upper

@@ -24,10 +24,10 @@ function(uipc_add_cuda_component name)
     set_target_properties(${name} PROPERTIES
         POSITION_INDEPENDENT_CODE ON
         CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES "${UIPC_CUDA_ARCHITECTURES}"
         CUDA_STANDARD_REQUIRED ON
         CUDA_STANDARD 20
         FOLDER "uipc-backends/cuda-components")
+    uipc_set_target_cuda_architectures(${name} "${UIPC_CUDA_ARCHITECTURES}")
     uipc_target_set_relative_source_file(${name})
     target_sources(cuda PRIVATE $<TARGET_OBJECTS:${name}>)
 endfunction()

@@ -290,7 +290,9 @@ assertions).
   directory, or build from current source. The source tree now replaces the
   remaining cuBLAS dot/norm calls with persistent raw-CUDA/CUB reductions and
   audits every wheel for dynamic Toolkit dependencies. Future wheels require a
-  compatible NVIDIA driver rather than a local Toolkit. Remaining before
+  compatible NVIDIA driver rather than a local Toolkit: the base CUDA 12.x
+  floor applies to packaged SASS, while PTX-only GPUs require the recorded CUDA
+  12.8 JIT-driver floor. Remaining before
   calling the release-level issue closed: publish those wheels and add a
   GPU-capable CI job that constructs the CUDA engine; hosted binary inspection
   plus the no-GPU smoke test cannot prove actual driver/GPU execution.

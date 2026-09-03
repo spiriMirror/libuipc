@@ -123,6 +123,33 @@ class RepositoryContractTests(unittest.TestCase):
         )
         self.assertIn("CUDA_RESOLVE_DEVICE_SYMBOLS ON", backend)
 
+    def test_cmake_cuda_architecture_guard_covers_every_target_kind(self) -> None:
+        utilities = (ROOT / "cmake/uipc_utils.cmake").read_text(encoding="utf-8")
+        backend = (ROOT / "src/backends/cuda/CMakeLists.txt").read_text(
+            encoding="utf-8"
+        )
+        components = (ROOT / "src/backends/cuda/components.cmake").read_text(
+            encoding="utf-8"
+        )
+        tests = (ROOT / "apps/tests/backends/cuda/CMakeLists.txt").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("function(uipc_set_target_cuda_architectures", utilities)
+        self.assertIn("get_target_property(", utilities)
+        self.assertIn(
+            'uipc_set_target_cuda_architectures(cuda "${UIPC_CUDA_ARCHITECTURES}")',
+            backend,
+        )
+        self.assertIn(
+            'uipc_set_target_cuda_architectures(${name} "${UIPC_CUDA_ARCHITECTURES}")',
+            components,
+        )
+        self.assertIn(
+            'uipc_set_target_cuda_architectures(backend_cuda "${CMAKE_CUDA_ARCHITECTURES}")',
+            tests,
+        )
+
     def test_cuda_backend_has_no_toolkit_library_link_or_transitive_cub_umbrella(
         self,
     ) -> None:
