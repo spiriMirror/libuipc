@@ -134,6 +134,12 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     {
         world.advance();
         REQUIRE(world.is_valid());
+        if(contact_constitution == "al-ipc" && world.frame() == 1)
+        {
+            const auto stats = engine.frame_stats();
+            REQUIRE(stats.at("newton_iterations").get<IndexT>()
+                    >= config["newton"]["semi_implicit"]["K_min"].get<IndexT>());
+        }
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));

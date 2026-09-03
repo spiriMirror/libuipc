@@ -94,6 +94,15 @@ record it here in the same commit.**
     `gradient_only` is preferred when it removes dead work without serializing
     stencil families. (Set 2026-08-30.)
 
+15. **Use pipeline-specific parallel-EE handling.** AL-IPC never classifies
+    parallel EE pairs: both normal and frictional contact use the shared
+    negative disabled threshold, making `need_mollify()` false and routing all
+    AL pairs through their ordinary EE paths. Standard IPC uses the positive
+    `1e-3` coefficient. Its normal-contact path evaluates the complete
+    mollified energy, gradient, and Hessian for detected parallel pairs; its
+    friction path skips detected parallel pairs. Do not make `need_mollify()`
+    globally constant. (Set 2026-09-03; refined 2026-09-03.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice

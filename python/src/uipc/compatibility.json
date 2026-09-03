@@ -17,6 +17,10 @@
       "linux": "525.60.13",
       "windows": "528.33"
     },
+    "minimum_ptx_jit_driver": {
+      "linux": "570.124.06",
+      "windows": "572.61"
+    },
     "cuda_architectures": [
       "75-real",
       "80-real",

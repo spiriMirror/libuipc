@@ -26,7 +26,7 @@ namespace
 
         auto PT = PTs(idx);
         auto mu = min(min(mu_v(PT(0)), mu_v(PT(1))), min(mu_v(PT(2)), mu_v(PT(3))));
-        auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto c  = max(cnt(idx), 0);
         Es(idx) = penalty_energy(
             pow(decay, c) * mu, d0(idx), d_grad(idx), x(PT(0)), x(PT(1)), x(PT(2)), x(PT(3)));
     }
@@ -49,7 +49,7 @@ namespace
 
         auto EE = EEs(idx);
         auto mu = min(min(mu_v(EE(0)), mu_v(EE(1))), min(mu_v(EE(2)), mu_v(EE(3))));
-        auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto c  = max(cnt(idx), 0);
         Es(idx) = penalty_energy(
             pow(decay, c) * mu, d0(idx), d_grad(idx), x(EE(0)), x(EE(1)), x(EE(2)), x(EE(3)));
     }
@@ -75,7 +75,7 @@ namespace
         auto mu = min(min(mu_v(PT(0)), mu_v(PT(1))), min(mu_v(PT(2)), mu_v(PT(3))));
         Vector12    G;
         Matrix12x12 H;
-        auto        c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto        c = max(cnt(idx), 0);
         penalty_gradient_hessian(
             pow(decay, c) * mu, d0(idx), d_grad(idx), x(PT(0)), x(PT(1)), x(PT(2)), x(PT(3)), G, H);
 
@@ -107,7 +107,7 @@ namespace
         auto mu = min(min(mu_v(EE(0)), mu_v(EE(1))), min(mu_v(EE(2)), mu_v(EE(3))));
         Vector12    G;
         Matrix12x12 H;
-        auto        c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto        c = max(cnt(idx), 0);
         penalty_gradient_hessian(
             pow(decay, c) * mu, d0(idx), d_grad(idx), x(EE(0)), x(EE(1)), x(EE(2)), x(EE(3)), G, H);
 

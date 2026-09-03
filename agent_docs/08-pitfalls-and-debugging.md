@@ -14,22 +14,30 @@ touching that area; several of these have bitten us more than once.
   pyd, project/binary dirs, config/build type, and `--build_wheel OFF`). A stale
   dll once made a whole performance-alignment round compare against an old
   binary.
-- **Quote the architecture list in `set_target_properties`.** An unquoted
-  `CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}` expands a multi-arch list into
-  separate arguments, which breaks the `PROPERTIES` key/value pairing: the
-  property keeps only the first entry and the rest are silently absorbed as
-  bogus property names. Every release wheel up to 0.0.27 was built this way and
-  shipped `sm_75` SASS only, with the `89-virtual` PTX fallback dropped, so
-  Blackwell (`sm_120`) failed at `world.init(scene)` with CUDA error 500
-  `named symbol not found` — under CUDA 12.x lazy module loading a missing
-  device image surfaces as an unregistered symbol, not as error 209
-  `cudaErrorNoKernelImageForDevice`. The local default `native` is a single
-  element, so the defect never reproduces in a developer build. Verify a change
-  through `arch=compute_*,code=*` in `compile_commands.json`, not `flags.make`.
+- **Set CUDA architecture lists only through
+  `uipc_set_target_cuda_architectures`.** An unquoted
+  `CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}` inside raw
+  `set_target_properties` expands a multi-arch list and breaks the `PROPERTIES`
+  key/value pairing. The checked helper uses the single-property API and reads
+  the value back for every final, component OBJECT, and CUDA-test target. Every
+  release wheel up to 0.0.27 used the raw form and shipped `sm_75` SASS only,
+  with the `89-virtual` PTX fallback dropped, so Blackwell (`sm_120`) failed at
+  `world.init(scene)` with CUDA error 500 `named symbol not found`. The local
+  default `native` is a single element, so the defect never reproduces in a
+  developer build. Verify a change through `arch=compute_*,code=*` in
+  `compile_commands.json`, not `flags.make`.
   To audit a built artifact use
   `cuobjdump -all --list-elf <so> | grep -oP 'sm_\d+' | sort -u` for SASS and
   `cuobjdump -all -ptx <so> | grep -c '^\s*\.target'` for PTX;
   `--list-ptx` reports nothing even for libraries that do embed PTX.
+- **A virtual architecture needs a newer driver than the CUDA 12.x SASS
+  floor.** Minor-version compatibility down to Linux 525.60.13 / Windows
+  528.33 requires a matching SASS image; a CUDA 12.8 `compute_89` PTX fallback
+  built by CUDA 12.8 Update 1 needs its matching driver generation (Linux
+  570.124.06 / Windows 572.61 here).
+  Keep both floors in `compatibility.json`, and keep the doctor path-aware so
+  an H100 using PTX is not reported compatible merely because 525 can run a
+  CUDA 12 SASS application.
 - **The comma form of `UIPC_CUDA_ARCHITECTURES` only works because the root
   `CMakeLists.txt` normalizes the option in place.** The backend targets read
   the option directly into their `CUDA_ARCHITECTURES` property, so normalizing

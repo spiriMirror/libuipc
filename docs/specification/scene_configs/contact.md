@@ -178,6 +178,54 @@ Fused-PCG CUDA graph replay is currently disabled automatically under AL-IPC.
 Start with IPC unless a method comparison or an AL-specific workflow requires
 the alternative.
 
+`newton/semi_implicit/K_min` also controls AL-IPC cumulative safe-path
+termination. With semi-implicit mode enabled, the remaining initial-state
+weight stays at one through the first `K_min - 1` completed outer updates and
+is then multiplied by `(1 - alpha)` after each accepted CCD-safe update.
+AL-IPC compares that weight with `contact/al-ipc/toi_threshold`; it does not
+use `newton/semi_implicit/beta_tol`. Disabling semi-implicit mode gives AL-IPC
+an effective `K_min` of one. `newton/min_iter` remains the independent hard
+iteration floor.
+
+The AL path keeps two positions: a possibly penetrating Newton iterate and the
+last collision-free state. Its inner fixed-active-set solve updates slack and
+takes ordinary energy line-search steps without IPC's CFL clamp. Multipliers,
+CCD, and the collision-free state are updated only after the line search accepts
+a full step. CCD then clamps the safe-state interpolation to `[0, 1]`; a
+non-finite result advances it by zero rather than moving the state backwards.
+Every permitted backtracking trial is checked. If none decreases the finite
+energy, the backend restores the recorded line-search start point before
+warning (or throwing in strict mode), so a rejected trial cannot contaminate
+the next frame.
+
+New CCD candidates are filtered before they enter the active set. Candidates
+already present in the set do not participate in the filter. For every surface
+vertex, the backend computes the earliest remaining candidate TOI and keeps a
+pair only when it is earliest for at least one incident vertex. Inactive pairs
+remain in the set with a zero multiplier while their penalty weight is
+multiplied by `contact/al-ipc/decay_factor`; they are removed when that
+accumulated weight is below `0.01`. These operations use persistent, amortized
+GPU buffers and a double-precision atomic minimum.
+
+AL simplex CCD uses a `0.001` safety margin, matching the AL implementation,
+while the standard IPC path retains its existing `0.1` margin. The margin is an
+internal method constant, not a scene parameter. See
+[the AL-IPC method paper](https://arxiv.org/abs/2512.12151) and the
+[`AL-release` fork that motivated this integration](https://github.com/wiso-enoji/libuipc/tree/AL-release).
+
+Standard IPC detects parallel EE pairs with mollifier coefficient `1e-3`; its
+normal-contact implementation includes the matching mollified energy,
+gradient, and Hessian, while standard IPC friction skips detected parallel
+pairs. AL-IPC uses a negative disabled threshold for both normal and
+frictional contact, treating all of its edge-edge pairs as ordinary EE terms.
+
+The default AL penalty mode is `per_vertex`: FEM and ABD estimators scale the
+penalty with their local mass and timestep. `diag_norm` is available as an
+experimental uniform-penalty mode. It can be useful for controlled
+single-scale comparisons, but mixed cloth/FEM scenes must be checked for
+line-search failures rather than assuming that one global diagonal norm is a
+safe scale for every vertex.
+
 ## Broad phase and sanity checks
 
 The always-available broad phase is `info_stackless_bvh` (default).

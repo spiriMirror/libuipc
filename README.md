@@ -101,19 +101,22 @@ pip install pyuipc
 The release pipeline builds **Windows / Linux, Python 3.10–3.14** wheels with
 CUDA 12.8. Wheels built from the current source carry the CUDA runtime code they
 use and require a compatible NVIDIA driver, not a locally installed CUDA
-Toolkit. The minimum supported driver is 525.60.13 on Linux and 528.33 on
-Windows; newer CUDA 13 drivers remain backward compatible under NVIDIA's
+Toolkit. For GPUs served by a packaged SASS image, the driver floor is
+525.60.13 on Linux and 528.33 on Windows; newer CUDA 13 drivers remain backward
+compatible under NVIDIA's
 [CUDA compatibility model](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html).
-Those are the CUDA 12.x minor-compatibility floors; a GPU that must use the
-packaged forward-JIT PTX path can require a newer driver.
+Those are the CUDA 12.x minor-compatibility floors when the GPU selects a
+packaged SASS image. A GPU that must JIT the packaged CUDA 12.8 PTX requires at
+least driver 570.124.06 on Linux or 572.61 on Windows.
 
 The immutable 0.0.27 wheel still dynamically loads `cublas64_12.dll`. Install
 CUDA 12.8 side-by-side when using that release on a CUDA 13-only machine, or use
 a source build until the next wheel release removes the dependency.
 
-New wheels contain native code for compute capabilities 7.5, 8.0, 8.6, and 8.9,
-plus compute-8.9 PTX for forward JIT on newer GPUs. Diagnose an installation
-before running a scene:
+New wheels contain native code for compute capabilities 7.5, 8.0, 8.6, 8.9,
+and 12.0, plus compute-8.9 PTX for forward JIT on other newer GPUs. The doctor
+distinguishes a selected native SASS image from the PTX path and applies the
+matching driver floor. Diagnose an installation before running a scene:
 
 ```bash
 python -m uipc doctor

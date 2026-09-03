@@ -179,7 +179,7 @@ namespace sym::al_simplex_contact
         edge_edge_tan_rel_dx(dEa0, dEa1, dEb0, dEb1, basis, gamma, tan_rel_dx);
 
         Matrix<Float, 2, 12> J;
-        point_triangle_jacobi(basis, gamma, J);
+        edge_edge_jacobi(basis, gamma, J);
 
         Vector2 G2;
         friction_gradient(G2, mu, normal_force, eps_vh, tan_rel_dx);

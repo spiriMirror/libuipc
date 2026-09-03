@@ -47,25 +47,13 @@ set_target_properties(cuda PROPERTIES
     # needs a manual object cleanup to take effect!)
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    # Quote the list: an unquoted multi-arch list expands into separate
-    # arguments and silently truncates the property to its first entry.
-    CUDA_ARCHITECTURES "${UIPC_CUDA_ARCHITECTURES}"
     CUDA_STANDARD_REQUIRED ON
     CUDA_STANDARD 20
 )
 
-# Fast fail: an unquoted list here used to ship release wheels with only the
-# first architecture and no PTX, and nothing downstream noticed until the
-# binary hit an unlisted GPU. Read the property back so a regression is a
-# configure error instead of a silently narrowed wheel.
-get_target_property(_uipc_applied_cuda_archs cuda CUDA_ARCHITECTURES)
-if(NOT "${_uipc_applied_cuda_archs}" STREQUAL "${UIPC_CUDA_ARCHITECTURES}")
-    message(FATAL_ERROR
-        "CUDA_ARCHITECTURES on target 'cuda' is "
-        "'${_uipc_applied_cuda_archs}' but UIPC_CUDA_ARCHITECTURES requested "
-        "'${UIPC_CUDA_ARCHITECTURES}'. A multi-architecture list must be "
-        "quoted wherever it is passed to set_target_properties.")
-endif()
+# Use the checked single-property helper for every CUDA target. This prevents
+# semicolon-list expansion from silently narrowing a release wheel.
+uipc_set_target_cuda_architectures(cuda "${UIPC_CUDA_ARCHITECTURES}")
 
 # CMake's Visual Studio generator does not schedule the RDC device-link when a
 # target receives CUDA exclusively through OBJECT-library expressions. Give the

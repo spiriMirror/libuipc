@@ -57,6 +57,30 @@ class ReleasePolicyTests(unittest.TestCase):
             errors = check_policy(root)
             self.assertTrue(any("CUDA matrix" in error for error in errors))
 
+    def test_detects_missing_ptx_driver_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative_path in (
+                "pyproject.toml",
+                "python/pyproject.toml",
+                "python/src/uipc/compatibility.json",
+                ".github/workflows/python-wheels.yml",
+            ):
+                source = ROOT / relative_path
+                destination = root / relative_path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(source.read_bytes())
+
+            policy_path = root / "python/src/uipc/compatibility.json"
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            del policy["wheel"]["minimum_ptx_jit_driver"]
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+            errors = check_policy(root)
+            self.assertTrue(
+                any("minimum_ptx_jit_driver" in error for error in errors)
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

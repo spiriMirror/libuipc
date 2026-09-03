@@ -25,7 +25,7 @@ namespace
 
         auto vI = PHs(idx);
         auto mu = mu_v(vI);
-        auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto c  = max(cnt(idx), 0);
         Es(idx) =
             half_plane_penalty_energy(pow(decay, c) * mu, d0(idx), d_grad(idx), x(vI));
     }
@@ -51,7 +51,7 @@ namespace
         auto      mu = mu_v(vI);
         Vector3   G;
         Matrix3x3 H;
-        auto      c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+        auto      c = max(cnt(idx), 0);
         half_plane_penalty_gradient_hessian(
             pow(decay, c) * mu, d0(idx), d_grad(idx), x(vI), G, H);
 

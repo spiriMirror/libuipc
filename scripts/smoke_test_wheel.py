@@ -30,6 +30,15 @@ def main() -> int:
     if not policy_path.is_file():
         raise RuntimeError(f"compatibility policy is missing: {policy_path}")
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    wheel_policy = policy["wheel"]
+    for field in ("minimum_driver", "minimum_ptx_jit_driver"):
+        floors = wheel_policy.get(field)
+        if not isinstance(floors, dict) or not all(
+            floors.get(driver_platform) for driver_platform in ("linux", "windows")
+        ):
+            raise RuntimeError(
+                f"wheel compatibility policy has incomplete {field!r}: {floors!r}"
+            )
 
     build_info = dict(uipc.build_info())
     expected_abi = f"cp{sys.version_info.major}{sys.version_info.minor}"
@@ -40,14 +49,14 @@ def main() -> int:
     if not build_info["cuda_backend"]:
         raise RuntimeError("published wheel was built without the CUDA backend")
     actual_architectures = str(build_info["cuda_architectures"]).split(",")
-    expected_architectures = policy["wheel"]["cuda_architectures"]
+    expected_architectures = wheel_policy["cuda_architectures"]
     if actual_architectures != expected_architectures:
         raise RuntimeError(
             f"wheel CUDA architectures {actual_architectures!r} do not match "
             f"release policy {expected_architectures!r}"
         )
     if not str(build_info["cuda_toolkit_version"]).startswith(
-        str(policy["wheel"]["cuda_toolkit"])
+        str(wheel_policy["cuda_toolkit"])
     ):
         raise RuntimeError(
             f"wheel CUDA toolkit {build_info['cuda_toolkit_version']!r} does not match "

@@ -2,6 +2,8 @@
 #include <type_define.h>
 namespace uipc::backend::cuda::distance
 {
+inline constexpr Float EEMollifierDisabledThreshold = -1.0;
+
 template <typename T>
 UIPC_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
                                                 const Eigen::Vector<T, 3>& ea1_rest,

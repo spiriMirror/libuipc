@@ -39,6 +39,31 @@ macro(uipc_error content)
 endmacro()
 
 # -----------------------------------------------------------------------------------------
+# Set and verify a target's CUDA architecture list without allowing CMake list expansion to
+# corrupt a set_target_properties() key/value sequence.
+# -----------------------------------------------------------------------------------------
+function(uipc_set_target_cuda_architectures target architectures)
+    if(NOT TARGET ${target})
+        uipc_error("Cannot set CUDA architectures on unknown target '${target}'.")
+    endif()
+    if(NOT ARGC EQUAL 2)
+        message(FATAL_ERROR
+            "[libuipc] "
+            "uipc_set_target_cuda_architectures(${target} ...) received ${ARGC} arguments. "
+            "Pass the architecture list as one quoted argument.")
+    endif()
+
+    set_property(TARGET ${target} PROPERTY CUDA_ARCHITECTURES "${architectures}")
+    get_target_property(_uipc_applied_cuda_architectures ${target} CUDA_ARCHITECTURES)
+    if(NOT "${_uipc_applied_cuda_architectures}" STREQUAL "${architectures}")
+        message(FATAL_ERROR
+            "[libuipc] "
+            "CUDA_ARCHITECTURES on target '${target}' is "
+            "'${_uipc_applied_cuda_architectures}', but '${architectures}' was requested.")
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
 # Print the options of the project
 # -----------------------------------------------------------------------------------------
 function(uipc_show_options)

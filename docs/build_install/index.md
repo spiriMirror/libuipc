@@ -21,12 +21,13 @@ Limitations:
 - Only supports Windows/Ubuntu22.04
 - Wheels built from the current source use CUDA 12.8 at build time but carry
   the runtime code they need. Users do not need a local CUDA Toolkit; they need
-  an NVIDIA driver >=525.60.13 on Linux or >=528.33 on Windows. A CUDA 13.x
-  driver is backward compatible with the CUDA 12.x application binary; see
+  a compatible NVIDIA driver. For GPUs served by packaged SASS, the floor is
+  >=525.60.13 on Linux or >=528.33 on Windows. A CUDA 13.x driver is backward
+  compatible with the CUDA 12.x application binary; see
   NVIDIA's [minor-version compatibility table](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html).
-  These are the CUDA 12.x minor-compatibility floors. Hardware that uses the
-  forward-JIT PTX image instead of one of the packaged native images can need a
-  newer driver.
+  These are the CUDA 12.x minor-compatibility floors for packaged SASS.
+  Hardware that uses the forward-JIT CUDA 12.8 PTX image instead requires
+  driver >=570.124.06 on Linux or >=572.61 on Windows.
 - The immutable 0.0.27 wheel predates that change and still dynamically loads
   `cublas64_12.dll` on Windows (and the corresponding CUDA 12 library on
   Linux). Install CUDA 12.8 side-by-side for 0.0.27, build from current source,
@@ -36,9 +37,11 @@ Limitations:
   where feasible.
 - The release pipeline and release 0.0.27 support CPython 3.10-3.14.
 - New wheels contain native CUDA code for compute capabilities 7.5, 8.0, 8.6,
-  and 8.9, plus compute-8.9 PTX for forward JIT on newer GPUs. Older wheels
-  compiled only for 8.9 and can fail with `no kernel image is available` on an
-  Ampere GPU even when the CUDA runtime is installed correctly.
+  8.9, and 12.0, plus compute-8.9 PTX for forward JIT on other newer GPUs.
+  `python -m uipc doctor` reports which code path applies and checks its driver
+  floor. Older wheels compiled only for 8.9 and can fail with
+  `no kernel image is available` on an Ampere GPU even when the CUDA runtime is
+  installed correctly.
 
 ```bash
 pip install pyuipc

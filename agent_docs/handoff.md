@@ -6,6 +6,65 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **AL-IPC sample 88 trajectory correction (2026-09-03, `refactor-main`)**:
+> the severe early trajectory split was traced to AL ignoring the configured
+> `K_min=6`, an EE friction derivative assembled with the PT Jacobian, and the
+> uniform `diag_norm` penalty being unsuitable as the default for mixed
+> cloth/volumetric masses. AL now delays cumulative safe-path attenuation until
+> `K_min`, uses the correct EE Jacobian, and defaults to mass-based `per_vertex`
+> scaling while keeping `diag_norm` experimental. Exhausted line search restores its recorded start
+> point rather than accepting the last energy-increasing trial. PT/EE/plane
+> finite-difference tests pass, as does the AL `K_min` simulation assertion.
+> In matched 60-frame sample 88 runs, upper/lower centroid error versus IPC fell
+> from 0.2963/0.0807 to 0.0115/0.0045. A full corrected 250-frame run completed
+> with all 250 frames converged and no line-search limit, Newton limit, or
+> runtime error. See the durable evidence and
+> regression boundary in
+> [`2026-09-03-al-ipc-case88-correction.md`](performance/2026-09-03-al-ipc-case88-correction.md).
+> **Parallel-EE policy (2026-09-03, `refactor-main`)**: standard IPC retains
+> normal `need_mollify()` detection with coefficient `1e-3` and its complete
+> mollified normal energy/gradient/Hessian; standard IPC friction skips the
+> detected parallel pairs. AL-IPC uses the shared negative disabled threshold
+> for both normal and frictional contact, so all AL pairs follow ordinary EE
+> paths. The CUDA regression checks both threshold behaviors with exactly
+> parallel edges.
+> Final validation passed CMake/Core 36 cases / 1040 assertions, CUDA backend
+> 22 / 335, the single-process simulation suite 95 / 14213, Python portable
+> tests 80 passed / 1 skipped, repository contracts 43/43, fast CTest 3/3,
+> the complete Doxygen/MkDoxy/MkDocs build, and the XMake production CUDA
+> target. XMake's aggregate CUDA test target still encounters the already
+> documented CUDA 13.2/fmt 12 character-literal incompatibility; the CMake
+> build compiled and executed every new CUDA test.
+
+> **AL-IPC `AL-release` integration audit (2026-09-02, `refactor-main`)**:
+> the six fork-only commits were reviewed against current libuipc and the
+> AL-IPC paper rather than cherry-picked across 188 intervening local commits.
+> The useful core is reimplemented in current `cuda_tool`: per-vertex
+> earliest-TOI candidate filtering (excluding existing pairs), decay-derived
+> active-pair lifetime, stable preservation of old pair state, configurable
+> Hessian-diagonal penalty initialization, AL-specific CCD safety margin, and
+> the full-step boundary between inner Newton work and outer multiplier/CCD
+> updates. Scratch is persistent and amortized. Important fork defects were
+> not copied: its 32-bit `__float_as_int` atomic corrupts this project's
+> double-precision `Float`; its fixed 25-update lifetime disagrees with the
+> documented `gamma < 0.01` rule; it includes existing pairs in the candidate
+> minima; and its raw displacement convergence test discards the current
+> `NewtonToleranceManager`. The fork's global CCD-margin edit was scoped to
+> AL-IPC so normal IPC retains its established margin. Large benchmark assets,
+> screenshots, and unrelated example/README edits were intentionally omitted.
+> At this audit revision AL kept its pre-existing `K_min = 1`
+> cumulative-safe-path termination; the 2026-09-03 correction above supersedes
+> that limitation with the configured multi-state `K_min > 1` rule. On
+> CUDA 13.2 / RTX 5090, CMake and XMake production builds passed, as did the
+> focused AL math test (17 assertions after final review), Core (36 cases /
+> 1040 assertions), CUDA backend (17 / 291), all 19 AL sections, and the full
+> single-process simulation suite (95 / 14212). Repository contracts passed
+> 43/43, the current native Python schema reports 48 keys, and the full
+> Doxygen/MkDoxy/MkDocs site built. In mixed ABD/FEM case 18, maximum active
+> pairs fell from 81 to 42 and total PCG iterations from 1125 to 700; outer
+> solves rose from 114 to 135, so future performance claims must still use the
+> canonical large scenes.
+
 > **cuBLAS-free CUDA runtime boundary (2026-09-02)**: published wheels through
 > 0.0.27 directly import CUDA 12 cuBLAS, but current source no longer uses or
 > links cuBLAS. `LinearSystemContext` dot/norm now use named block-partial
@@ -16,7 +75,9 @@
 > lightweight `linear_system.h`/`cuda_tool.h` path does not transitively pull in
 > all CUB algorithms. CMake and XMake links are synchronized. A wheel CI audit
 > rejects dynamic Toolkit libraries via dumpbin/readelf; compatibility policy
-> now requires only driver >=525.60.13 (Linux) or >=528.33 (Windows). Final
+> requires driver >=525.60.13 (Linux) or >=528.33 (Windows) when a packaged
+> SASS image applies, and >=570.124.06 / >=572.61 when the CUDA 12.8 Update 1
+> PTX image must be JIT compiled. Final
 > CUDA 13.2/RTX 5090 validation passed the CMake and XMake backend builds, the
 > 12-assertion focused reduction test, all 274 CUDA-backend assertions, all
 > 14,212 assertions in the 95-case simulation suite, four representative
@@ -1212,7 +1273,7 @@ regression).
   `scripts/check_release_policy.py` stays green. Note this grows wheel size
   and CI compile time by one full architecture.
 - Verification: configured with the full list and confirmed all 199 CUDA
-  translation units in `compile_commands.json` now carry five
+  translation units in `compile_commands.json` now carry six
   `arch=compute_*,code=*` entries including `code=[compute_89]`; before the
   fix only `sm_75` was emitted. Reference build with `native` on the 5090
   (`sm_120`) runs `hello_affine_body` and the Python `0_check_libuipc` sample
@@ -1231,3 +1292,16 @@ regression).
   normalizes the cache entry in place. A `get_target_property` fast fail on the
   `cuda` target guards the truncation case; configure was checked with the full
   six-entry list, the comma form, and `native`.
+- Post-merge hardening on `refactor-main` replaces all three raw property sites
+  with `uipc_set_target_cuda_architectures`, which sets and reads back the
+  property for the final library, every component OBJECT target, and the CUDA
+  test target. A repository contract prevents any target kind from bypassing
+  the helper. Wheel compatibility now distinguishes the CUDA 12.x SASS driver
+  floor from the CUDA 12.8 PTX-JIT floor; `uipc doctor` reports the selected
+  code path and no longer labels an old-driver PTX-only GPU compatible.
+  Validation configured the comma-form release matrix and found all 214 CUDA
+  translation units in the test-enabled build carrying all six codegen flags,
+  then restored `native`. CMake and XMake production builds, fast CTest 3/3,
+  repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
+  real Python 3.14 CUDA doctor probe, and the complete documentation build all
+  passed.

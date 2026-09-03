@@ -69,8 +69,11 @@ void SimplexTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
-    m_impl.global_contact_manager  = require<GlobalContactManager>();
-    m_impl.global_body_manager     = require<GlobalBodyManager>();
+    m_impl.global_contact_manager = require<GlobalContactManager>();
+    m_impl.global_body_manager    = require<GlobalBodyManager>();
+    const auto constitution =
+        world().scene().config().find<std::string>("contact/constitution")->view()[0];
+    m_impl.toi_safety_margin       = constitution == "al-ipc" ? 0.001 : 0.1;
     auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
 
     BuildInfo info;
@@ -179,6 +182,11 @@ void SimplexTrajectoryFilter::do_label_active_vertices(GlobalTrajectoryFilter::L
 Float SimplexTrajectoryFilter::BaseInfo::d_hat() const noexcept
 {
     return m_impl->global_contact_manager->d_hat();
+}
+
+Float SimplexTrajectoryFilter::BaseInfo::toi_safety_margin() const noexcept
+{
+    return m_impl->toi_safety_margin;
 }
 
 cuda_tool::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::d_hats() const noexcept

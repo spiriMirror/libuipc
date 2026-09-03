@@ -9,6 +9,7 @@
 #include <pipeline/al_ipc_pipeline_flag.h>
 #include <uipc/common/log.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
+#include <active_set_system/al_active_set_math.h>
 #include <cuda_tool/cub.h>
 
 namespace uipc::backend::cuda
@@ -24,25 +25,200 @@ namespace
             cnt(i) = large_cnt;
     }
 
+    __device__ uint64_t active_pair_key(const Vector2i& pair)
+    {
+        return (static_cast<uint64_t>(static_cast<uint32_t>(pair(0))) << 32)
+               | static_cast<uint32_t>(pair(1));
+    }
+
+    __device__ bool contains_active_pair(cuda_tool::CBufferView<Vector2i> active_pairs,
+                                         const Vector2i& candidate)
+    {
+        const uint64_t key   = active_pair_key(candidate);
+        size_t         first = 0;
+        size_t         last  = active_pairs.size();
+        while(first < last)
+        {
+            const size_t middle     = first + (last - first) / 2;
+            const auto   middle_key = active_pair_key(active_pairs(middle));
+            if(middle_key < key)
+                first = middle + 1;
+            else
+                last = middle;
+        }
+        return first < active_pairs.size() && active_pair_key(active_pairs(first)) == key;
+    }
+
+    __global__ void init_vertex_min_candidate_toi_kernel(cuda_tool::BufferView<Float> tois, int n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        tois(i) = 2.0;
+    }
+
+    __global__ void accumulate_PH_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<Vector2i> active_pairs,
+        cuda_tool::BufferView<Float>     vertex_min_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Float toi = candidate_tois(i);
+        if(!details::al_candidate_has_collision(toi))
+            return;
+        const Vector2i pair = candidates(i);
+        if(contains_active_pair(active_pairs, pair))
+            return;
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(pair(0)), toi);
+    }
+
+    __global__ void accumulate_PT_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<Vector2i> active_pairs,
+        cuda_tool::CBufferView<IndexT>   surface_vertices,
+        cuda_tool::CBufferView<Vector3i> surface_triangles,
+        cuda_tool::BufferView<Float>     vertex_min_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Float toi = candidate_tois(i);
+        if(!details::al_candidate_has_collision(toi))
+            return;
+        const Vector2i pair = candidates(i);
+        if(contains_active_pair(active_pairs, pair))
+            return;
+
+        const Vector3i tri = surface_triangles(pair(1));
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(surface_vertices(pair(0))), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(tri(0)), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(tri(1)), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(tri(2)), toi);
+    }
+
+    __global__ void accumulate_EE_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<Vector2i> active_pairs,
+        cuda_tool::CBufferView<Vector2i> surface_edges,
+        cuda_tool::BufferView<Float>     vertex_min_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const Float toi = candidate_tois(i);
+        if(!details::al_candidate_has_collision(toi))
+            return;
+        const Vector2i pair = candidates(i);
+        if(contains_active_pair(active_pairs, pair))
+            return;
+
+        const Vector2i lhs = surface_edges(pair(0));
+        const Vector2i rhs = surface_edges(pair(1));
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(lhs(0)), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(lhs(1)), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(rhs(0)), toi);
+        details::al_atomic_min_candidate_toi(&vertex_min_tois(rhs(1)), toi);
+    }
+
+    __global__ void gather_PH_max_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<Float>    vertex_min_tois,
+        cuda_tool::BufferView<Float>     candidate_max_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(!details::al_candidate_has_collision(candidate_tois(i)))
+        {
+            candidate_max_tois(i) = -1.0;
+            return;
+        }
+        candidate_max_tois(i) = vertex_min_tois(candidates(i)(0));
+    }
+
+    __global__ void gather_PT_max_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<IndexT>   surface_vertices,
+        cuda_tool::CBufferView<Vector3i> surface_triangles,
+        cuda_tool::CBufferView<Float>    vertex_min_tois,
+        cuda_tool::BufferView<Float>     candidate_max_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(!details::al_candidate_has_collision(candidate_tois(i)))
+        {
+            candidate_max_tois(i) = -1.0;
+            return;
+        }
+        const Vector2i pair   = candidates(i);
+        const Vector3i tri    = surface_triangles(pair(1));
+        Float          value  = vertex_min_tois(surface_vertices(pair(0)));
+        value                 = max(value, vertex_min_tois(tri(0)));
+        value                 = max(value, vertex_min_tois(tri(1)));
+        value                 = max(value, vertex_min_tois(tri(2)));
+        candidate_max_tois(i) = value;
+    }
+
+    __global__ void gather_EE_max_vertex_min_candidate_toi_kernel(
+        cuda_tool::CBufferView<Vector2i> candidates,
+        cuda_tool::CBufferView<Float>    candidate_tois,
+        cuda_tool::CBufferView<Vector2i> surface_edges,
+        cuda_tool::CBufferView<Float>    vertex_min_tois,
+        cuda_tool::BufferView<Float>     candidate_max_tois,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        if(!details::al_candidate_has_collision(candidate_tois(i)))
+        {
+            candidate_max_tois(i) = -1.0;
+            return;
+        }
+        const Vector2i pair = candidates(i);
+        const Vector2i lhs  = surface_edges(pair(0));
+        const Vector2i rhs  = surface_edges(pair(1));
+        Float value = max(vertex_min_tois(lhs(0)), vertex_min_tois(lhs(1)));
+        value       = max(value, vertex_min_tois(rhs(0)));
+        value       = max(value, vertex_min_tois(rhs(1)));
+        candidate_max_tois(i) = value;
+    }
+
     __global__ void update_active_set_k1_kernel(size_t N0,
                                                 cuda_tool::CBufferView<Vector2i> idx0,
                                                 cuda_tool::CBufferView<Vector2i> idx1,
                                                 cuda_tool::CBufferView<Float> tois,
+                                                cuda_tool::CBufferView<Float> candidate_max_vertex_min_toi,
                                                 cuda_tool::CBufferView<int> cnt,
                                                 cuda_tool::BufferView<int64_t> ij_hash,
                                                 cuda_tool::BufferView<int> sort_idx,
-                                                int threshold,
+                                                int inactive_count_limit,
                                                 int n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        if(i < N0 && abs(cnt(i)) <= threshold)
+        if(i < N0 && cnt(i) <= inactive_count_limit)
         {
             ij_hash(i) = (static_cast<int64_t>(idx0(i)(0)) << 32)
                          + static_cast<int64_t>(idx0(i)(1));
         }
-        else if(i >= N0 && tois(i - N0) < 1 - 1e-6)
+        else if(i >= N0 && !contains_active_pair(idx0, idx1(i - N0))
+                && details::al_keep_new_candidate(tois(i - N0),
+                                                  candidate_max_vertex_min_toi(i - N0)))
         {
             ij_hash(i) = (static_cast<int64_t>(idx1(i - N0)(0)) << 32)
                          + static_cast<int64_t>(idx1(i - N0)(1));
@@ -56,8 +232,7 @@ namespace
 
     __global__ void update_active_set_k2_kernel(cuda_tool::CBufferView<int64_t> ij_hash,
                                                 cuda_tool::BufferView<int> flag,
-                                                cuda_tool::BufferView<int> sort_idx,
-                                                int n)
+                                                int                        n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
@@ -65,8 +240,6 @@ namespace
         if(i >= 1 && ij_hash(i) == ij_hash(i - 1) && ij_hash(i) >= 0)
         {
             flag(i) = 0;
-            if(sort_idx(i) < sort_idx(i - 1))
-                sort_idx(i - 1) = sort_idx(i);
         }
         else
         {
@@ -233,7 +406,8 @@ namespace
         const auto& E3 = x(EE(3));
 
         Float eps_x;
-        distance::edge_edge_mollifier_threshold(E0, E1, E2, E3, 1e-6, eps_x);
+        distance::edge_edge_mollifier_threshold(
+            E0, E1, E2, E3, distance::EEMollifierDisabledThreshold, eps_x);
         if(distance::need_mollify(E0, E1, E2, E3, eps_x))
         {
             cnt(idx)    = large_cnt;
@@ -373,18 +547,12 @@ namespace
         if(d + d_shift - lambda / mu > 0)
         {
             lambda = 0;
-            if(cnt >= 0)
-                cnt++;
-            else
-                cnt--;
+            ++cnt;
         }
         else
         {
             lambda -= (d + d_shift) * mu;
-            if(cnt == 0 || cnt > 5)
-                cnt = 0;
-            else
-                cnt = -1;
+            cnt = 0;
         }
     }
 
@@ -415,18 +583,12 @@ namespace
         if(d + d_shift - lambda / mu > 0)
         {
             lambda = 0;
-            if(cnt >= 0)
-                cnt++;
-            else
-                cnt--;
+            ++cnt;
         }
         else
         {
             lambda -= (d + d_shift) * mu;
-            if(cnt == 0 || cnt > 5)
-                cnt = 0;
-            else
-                cnt = -1;
+            cnt = 0;
         }
     }
 
@@ -457,18 +619,12 @@ namespace
         if(d + d_shift - lambda / mu > 0)
         {
             lambda = 0;
-            if(cnt >= 0)
-                cnt++;
-            else
-                cnt--;
+            ++cnt;
         }
         else
         {
             lambda -= (d + d_shift) * mu;
-            if(cnt == 0 || cnt > 5)
-                cnt = 0;
-            else
-                cnt = -1;
+            cnt = 0;
         }
     }
 
@@ -507,7 +663,7 @@ void GlobalActiveSetManager::do_build()
 
 void GlobalActiveSetManager::Impl::init_mu()
 {
-    mu_vertices.resize(global_vertex_manager->positions().size());
+    loose_resize(mu_vertices, global_vertex_manager->positions().size());
     mu_vertices.view().fill(0.0);
 
     StiffnessEstimateInfo info{this};
@@ -515,6 +671,13 @@ void GlobalActiveSetManager::Impl::init_mu()
     {
         R->estimate_mu(info);
     }
+}
+
+void GlobalActiveSetManager::Impl::init_mu_from_scalar(Float mu)
+{
+    UIPC_ASSERT(std::isfinite(mu) && mu > 0.0, "AL penalty must be finite and positive, got {}.", mu);
+    loose_resize(mu_vertices, global_vertex_manager->positions().size());
+    mu_vertices.view().fill(mu);
 }
 
 void GlobalActiveSetManager::Impl::filter_active()
@@ -528,19 +691,160 @@ void GlobalActiveSetManager::Impl::filter_active()
                 cnt.view(), 1 << 30, n);
     };
 
+    filter(PH_cnt);
     filter(PT_cnt);
     filter(EE_cnt);
+}
+
+void GlobalActiveSetManager::Impl::filter_new_candidates()
+{
+    PH_max_vertex_min_toi.resize_discard(0);
+    PT_max_vertex_min_toi.resize_discard(0);
+    EE_max_vertex_min_toi.resize_discard(0);
+
+    const SizeT ph_count =
+        vertex_half_plane_trajectory_filter ?
+            vertex_half_plane_trajectory_filter->candidate_PHs().size() :
+            0;
+    const SizeT pt_count = simplex_trajectory_filter ?
+                               simplex_trajectory_filter->candidate_PTs().size() :
+                               0;
+    const SizeT ee_count = simplex_trajectory_filter ?
+                               simplex_trajectory_filter->candidate_EEs().size() :
+                               0;
+    if(ph_count == 0 && pt_count == 0 && ee_count == 0)
+        return;
+
+    const auto surface_vertices = global_simplicial_surface_manager->surf_vertices();
+    const auto surface_edges = global_simplicial_surface_manager->surf_edges();
+    const auto surface_triangles = global_simplicial_surface_manager->surf_triangles();
+
+    loose_resize(vertex_min_candidate_toi, global_vertex_manager->positions().size());
+    int vertex_count = static_cast<int>(vertex_min_candidate_toi.size());
+    if(vertex_count > 0)
+    {
+        auto k = init_vertex_min_candidate_toi_kernel;
+        k<<<cuda_tool::best_grid_dim(vertex_count, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            vertex_min_candidate_toi.view(), vertex_count);
+    }
+
+    if(vertex_half_plane_trajectory_filter)
+    {
+        const auto candidates = vertex_half_plane_trajectory_filter->candidate_PHs();
+        const auto tois  = vertex_half_plane_trajectory_filter->toi_PHs();
+        const int  count = static_cast<int>(candidates.size());
+        loose_resize(PH_max_vertex_min_toi, candidates.size());
+        if(count > 0)
+        {
+            auto accumulate = accumulate_PH_vertex_min_candidate_toi_kernel;
+            accumulate<<<cuda_tool::best_grid_dim(count, accumulate), cuda_tool::best_block_dim(accumulate), 0, nullptr>>>(
+                candidates, tois, PH_idx.cview(), vertex_min_candidate_toi.view(), count);
+        }
+    }
+
+    if(simplex_trajectory_filter)
+    {
+        {
+            const auto candidates = simplex_trajectory_filter->candidate_PTs();
+            const auto tois       = simplex_trajectory_filter->toi_PTs();
+            const int  count      = static_cast<int>(candidates.size());
+            loose_resize(PT_max_vertex_min_toi, candidates.size());
+            if(count > 0)
+            {
+                auto accumulate = accumulate_PT_vertex_min_candidate_toi_kernel;
+                accumulate<<<cuda_tool::best_grid_dim(count, accumulate), cuda_tool::best_block_dim(accumulate), 0, nullptr>>>(
+                    candidates,
+                    tois,
+                    PT_idx.cview(),
+                    surface_vertices,
+                    surface_triangles,
+                    vertex_min_candidate_toi.view(),
+                    count);
+            }
+        }
+        {
+            const auto candidates = simplex_trajectory_filter->candidate_EEs();
+            const auto tois       = simplex_trajectory_filter->toi_EEs();
+            const int  count      = static_cast<int>(candidates.size());
+            loose_resize(EE_max_vertex_min_toi, candidates.size());
+            if(count > 0)
+            {
+                auto accumulate = accumulate_EE_vertex_min_candidate_toi_kernel;
+                accumulate<<<cuda_tool::best_grid_dim(count, accumulate), cuda_tool::best_block_dim(accumulate), 0, nullptr>>>(
+                    candidates,
+                    tois,
+                    EE_idx.cview(),
+                    surface_edges,
+                    vertex_min_candidate_toi.view(),
+                    count);
+            }
+        }
+    }
+
+    if(vertex_half_plane_trajectory_filter)
+    {
+        const auto candidates = vertex_half_plane_trajectory_filter->candidate_PHs();
+        const int count = static_cast<int>(candidates.size());
+        if(count > 0)
+        {
+            auto gather = gather_PH_max_vertex_min_candidate_toi_kernel;
+            gather<<<cuda_tool::best_grid_dim(count, gather), cuda_tool::best_block_dim(gather), 0, nullptr>>>(
+                candidates,
+                vertex_half_plane_trajectory_filter->toi_PHs(),
+                vertex_min_candidate_toi.cview(),
+                PH_max_vertex_min_toi.view(),
+                count);
+        }
+    }
+
+    if(simplex_trajectory_filter)
+    {
+        {
+            const auto candidates = simplex_trajectory_filter->candidate_PTs();
+            const int  count      = static_cast<int>(candidates.size());
+            if(count > 0)
+            {
+                auto gather = gather_PT_max_vertex_min_candidate_toi_kernel;
+                gather<<<cuda_tool::best_grid_dim(count, gather), cuda_tool::best_block_dim(gather), 0, nullptr>>>(
+                    candidates,
+                    simplex_trajectory_filter->toi_PTs(),
+                    surface_vertices,
+                    surface_triangles,
+                    vertex_min_candidate_toi.cview(),
+                    PT_max_vertex_min_toi.view(),
+                    count);
+            }
+        }
+        {
+            const auto candidates = simplex_trajectory_filter->candidate_EEs();
+            const int  count      = static_cast<int>(candidates.size());
+            if(count > 0)
+            {
+                auto gather = gather_EE_max_vertex_min_candidate_toi_kernel;
+                gather<<<cuda_tool::best_grid_dim(count, gather), cuda_tool::best_block_dim(gather), 0, nullptr>>>(
+                    candidates,
+                    simplex_trajectory_filter->toi_EEs(),
+                    surface_edges,
+                    vertex_min_candidate_toi.cview(),
+                    EE_max_vertex_min_toi.view(),
+                    count);
+            }
+        }
+    }
 }
 
 void GlobalActiveSetManager::Impl::update_active_set()
 {
     using namespace cuda_tool;
 
+    filter_new_candidates();
+
     auto merge = [&](DeviceBuffer<Vector2i>&      idx,
                      DeviceBuffer<Float>&         lambda,
                      DeviceBuffer<int>&           cnt,
                      const CBufferView<Vector2i>& new_idx,
-                     const CBufferView<Float>&    tois)
+                     const CBufferView<Float>&    tois,
+                     const CBufferView<Float>&    candidate_max_vertex_min_toi)
     {
         const auto N0 = idx.size(), N = idx.size() + new_idx.size();
         loose_resize(ij_hash_input, N);
@@ -557,12 +861,16 @@ void GlobalActiveSetManager::Impl::update_active_set()
                 idx.cview(),
                 new_idx,
                 tois,
+                candidate_max_vertex_min_toi,
                 cnt.cview(),
                 ij_hash_input.view(),
                 sort_index_input.view(),
-                25,
+                inactive_count_limit,
                 n);
 
+        // CUB radix sort is stable. Existing pairs are placed before newly
+        // detected duplicates in the input, so the first key retains lambda
+        // and decay state without a racy cross-thread value rewrite.
         DeviceRadixSort().SortPairs(ij_hash_input.data(),
                                     ij_hash.data(),
                                     sort_index_input.data(),
@@ -571,7 +879,7 @@ void GlobalActiveSetManager::Impl::update_active_set()
 
         if(n > 0)
             update_active_set_k2_kernel<<<cuda_tool::best_grid_dim(n, update_active_set_k2_kernel), cuda_tool::best_block_dim(update_active_set_k2_kernel), 0, nullptr>>>(
-                ij_hash.cview(), unique_flag.view(), sort_index.view(), n);
+                ij_hash.cview(), unique_flag.view(), n);
 
         DeviceScan().ExclusiveSum(unique_flag.data(), offset.data(), N);
 
@@ -620,7 +928,8 @@ void GlobalActiveSetManager::Impl::update_active_set()
               PH_lambda,
               PH_cnt,
               vertex_half_plane_trajectory_filter->candidate_PHs(),
-              vertex_half_plane_trajectory_filter->toi_PHs());
+              vertex_half_plane_trajectory_filter->toi_PHs(),
+              PH_max_vertex_min_toi.cview());
     }
 
     if(simplex_trajectory_filter)
@@ -629,13 +938,15 @@ void GlobalActiveSetManager::Impl::update_active_set()
               PT_lambda,
               PT_cnt,
               simplex_trajectory_filter->candidate_PTs(),
-              simplex_trajectory_filter->toi_PTs());
+              simplex_trajectory_filter->toi_PTs(),
+              PT_max_vertex_min_toi.cview());
 
         merge(EE_idx,
               EE_lambda,
               EE_cnt,
               simplex_trajectory_filter->candidate_EEs(),
-              simplex_trajectory_filter->toi_EEs());
+              simplex_trajectory_filter->toi_EEs(),
+              EE_max_vertex_min_toi.cview());
     }
 
     logger::info("Active set update: {} + {} + {} -> {} + {} + {}",
@@ -1013,6 +1324,16 @@ Float GlobalActiveSetManager::alpha_lower_bound() const
     return m_impl.alpha_lower_bound;
 }
 
+const std::string& GlobalActiveSetManager::mu_scale_mode() const noexcept
+{
+    return m_impl.mu_scale_mode;
+}
+
+Float GlobalActiveSetManager::mu_scale_diag_norm() const noexcept
+{
+    return m_impl.mu_scale_diag_norm;
+}
+
 GlobalActiveSetManager::NonPenetratePositionInfo::NonPenetratePositionInfo(Impl* impl,
                                                                            SizeT offset,
                                                                            SizeT count) noexcept
@@ -1049,9 +1370,13 @@ void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
     dt_attr     = config.find<Float>("dt");
     UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
+    inactive_count_limit = details::al_inactive_count_limit(decay_factor);
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
     alpha_lower_bound =
         config.find<Float>("contact/al-ipc/alpha_lower_bound")->view()[0];
+    mu_scale_mode = config.find<std::string>("contact/al-ipc/mu_scale_mode")->view()[0];
+    mu_scale_diag_norm =
+        config.find<Float>("contact/al-ipc/mu_scale_diag_norm")->view()[0];
     energy_enabled = true;
 }
 
@@ -1063,6 +1388,11 @@ void GlobalActiveSetManager::init()
 void GlobalActiveSetManager::init_mu()
 {
     m_impl.init_mu();
+}
+
+void GlobalActiveSetManager::init_mu_from_scalar(Float mu)
+{
+    m_impl.init_mu_from_scalar(mu);
 }
 
 void GlobalActiveSetManager::filter_active()

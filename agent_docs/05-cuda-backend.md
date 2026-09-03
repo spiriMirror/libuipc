@@ -162,6 +162,53 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
+AL-IPC follows a nested solve boundary that must not be collapsed into the IPC
+line search. The unconstrained/penalty iterate may penetrate, so its energy line
+search starts at one without the IPC CFL clamp. A backtracked step continues the
+same fixed-multiplier inner solve. Only a full step updates the multipliers,
+runs CCD from the last collision-free state to the iterate, and advances that
+safe state by a finite step clamped to `[0, 1]`.
+
+AL's cumulative safe-path check consumes
+`newton/semi_implicit/{enable,K_min}`. The initial-state weight remains one
+through the first `K_min - 1` completed outer updates, is attenuated by each
+later `(1 - CCD alpha)`, and is compared with
+`contact/al-ipc/toi_threshold`. `beta_tol` remains IPC-only;
+`newton/min_iter` is the separate hard floor on both paths. A failed AL line
+search restores both vertex and reporter state to the recorded start point;
+never allow the final rejected trial to become the next frame's state.
+
+`GlobalActiveSetManager` implements the per-vertex earliest-TOI filter from
+AL-IPC Algorithm 3. Existing active pairs are excluded when computing each
+vertex minimum. PT and EE candidates are mapped through the global surface
+topology, then retained when their TOI matches at least one incident minimum.
+`Float` is double in this project; never port the fork's `int*`/
+`__float_as_int` atomic minimum. The implementation uses a 64-bit CAS minimum
+and persistent 1.5x-grown scratch buffers. CUB radix sort is stable, so old
+pairs precede duplicate new pairs and keep their lambda/decay state; do not
+restore the old cross-thread `sort_idx(i-1)` rewrite.
+
+Inactive constraints increment a non-negative decay count, active constraints
+reset it to zero, and a pair is removed at the first count for which
+`pow(decay_factor, count) < 0.01`. The removal limit is derived from the scene
+factor instead of the historical hard-coded 25. The default
+`mu_scale_mode="per_vertex"` uses the FEM/ABD mass-based estimators. The
+experimental `"diag_norm"` mode assembles the non-contact system and fills all
+vertex penalties with `mu_scale_diag_norm * max_i(abs(H_E(i,i)))`; this
+uniform scale produced repeated non-descent steps in the mixed cloth/FEM case
+88 and must remain opt-in until a heterogeneous conditioning strategy is
+validated.
+
+AL simplex friction uses PT and EE-specific tangent Jacobians. Keep the EE
+energy, gradient, and Hessian on `edge_edge_jacobi`; substituting
+`point_triangle_jacobi` gives a finite but physically wrong direction.
+Standard IPC evaluates parallel EE normally with the positive `1e-3`
+mollifier coefficient; its normal path implements the mollified energy,
+gradient, and Hessian, while its friction path skips detected parallel pairs.
+AL-IPC passes the shared negative disabled threshold in both normal and
+frictional contact. Its `need_mollify()` result is therefore always false, and
+every AL pair follows the corresponding ordinary EE path.
+
 ## Current cross-domain performance reference
 
 The current absolute reference is the

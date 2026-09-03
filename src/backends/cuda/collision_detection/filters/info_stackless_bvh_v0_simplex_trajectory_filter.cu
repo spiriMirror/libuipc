@@ -18,8 +18,6 @@ constexpr bool PrintKernelZeroDistance = false;
 
 namespace
 {
-    constexpr Float eta = 0.1;
-
     constexpr SizeT max_iter = 1000;
 
     constexpr Float large_enough_toi = 1.1;
@@ -927,6 +925,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  positions,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -974,6 +973,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -1025,6 +1025,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -1078,6 +1079,7 @@ namespace
         cuda_tool::CBufferView<Vector3>  Ps,
         cuda_tool::CBufferView<Vector3>  dxs,
         cuda_tool::CBufferView<Float>    d_hats,
+        Float                            eta,
         Float                            alpha,
         int                              n)
     {
@@ -1649,6 +1651,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1669,6 +1672,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1689,6 +1693,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }
@@ -1708,6 +1713,7 @@ void InfoStacklessBVHV0SimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& 
                 info.positions(),
                 info.displacements(),
                 info.d_hats(),
+                info.toi_safety_margin(),
                 info.alpha(),
                 n);
         }

@@ -41,10 +41,11 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     if(contact_constitution == "al-ipc")
     {
         config["contact"]["d_hat"] = 0.001;
-        // mu_scale was split into fem/abd keys; set both to the intended value
-        config["contact"]["al-ipc"]["mu_scale_fem"] = 1e4;
-        config["contact"]["al-ipc"]["mu_scale_abd"] = 1e4;
-        config["newton"]["min_iter"]                = 5;
+        // Preserve this scene's legacy mass-scaled AL penalty calibration.
+        config["contact"]["al-ipc"]["mu_scale_mode"] = "per_vertex";
+        config["contact"]["al-ipc"]["mu_scale_fem"]  = 1e4;
+        config["contact"]["al-ipc"]["mu_scale_abd"]  = 1e4;
+        config["newton"]["min_iter"]                 = 5;
     }
 
     test::Scene::dump_config(config, this_output_path);
