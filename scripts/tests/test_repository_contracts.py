@@ -206,6 +206,56 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("* (2 * thickness)", stretch)
         self.assertIn("Float full_thickness = 2 * thickness;", bending)
 
+    def test_metis_is_embedded_without_legacy_external_or_license_fragments(
+        self,
+    ) -> None:
+        self.assertFalse((ROOT / "external").exists())
+
+        root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+        root_xmake = (ROOT / "xmake.lua").read_text(encoding="utf-8")
+        geometry_cmake = (ROOT / "src/geometry/CMakeLists.txt").read_text(
+            encoding="utf-8"
+        )
+        geometry_xmake = (ROOT / "src/geometry/xmake.lua").read_text(
+            encoding="utf-8"
+        )
+        embedded = ROOT / "src/geometry/metis"
+
+        self.assertNotIn("add_subdirectory(external)", root_cmake)
+        self.assertNotIn("external/GKlib", root_xmake)
+        self.assertNotIn("external/METIS", root_xmake)
+        self.assertIn("add_subdirectory(metis)", geometry_cmake)
+        self.assertIn("uipc_metis", geometry_cmake)
+        self.assertIn('includes("metis")', geometry_xmake)
+        self.assertIn('add_deps("uipc_core", "uipc_metis")', geometry_xmake)
+        self.assertTrue((embedded / "LICENSE-METIS").is_file())
+        self.assertTrue((embedded / "LICENSE-GKlib").is_file())
+
+        source_files = [
+            path
+            for path in sorted(embedded.rglob("*"))
+            if path.suffix in {".h", ".cpp"}
+        ]
+        for path in source_files:
+            notice = path.read_text(encoding="utf-8")[:512].lower()
+            self.assertIn("adapted", notice, path.relative_to(ROOT).as_posix())
+
+        source = "\n".join(
+            path.read_text(encoding="utf-8") for path in source_files
+        )
+        for forbidden in (
+            "GK_MKQSORT",
+            "USE_GKRAND",
+            "gk_getopt",
+            "GNU C Library",
+            "LESSER GENERAL PUBLIC LICENSE",
+            "Mersenne Twister",
+            "std::qsort",
+            "std::sort",
+        ):
+            self.assertNotIn(forbidden, source)
+        self.assertIn("deterministic_partition_sort", source)
+
     def test_qr_svd_uses_explicit_t_precision_sign(self) -> None:
         qr_svd = (
             ROOT / "src/backends/cuda/algorithm/qr_svd.hpp"

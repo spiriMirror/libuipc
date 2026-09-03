@@ -3,9 +3,11 @@
 -- v2.5 keeps the flat octree.h + adaptor.eigen.h layout this code expects
 add_requires("libigl", "octree v2.5", "tbb")
 
+includes("metis")
+
 target("uipc_geometry")
     add_rules("component")
-    add_files("**.cpp")
+    add_files("**.cpp|metis/**.cpp")
     add_includedirs(os.scriptdir())
     add_headerfiles(
         path.join(os.projectdir(), "include/uipc/geometry/**.h"),
@@ -13,7 +15,7 @@ target("uipc_geometry")
         "**.hpp"
     )
     add_defines()
-    add_deps("uipc_core", "metis")
+    add_deps("uipc_core", "uipc_metis")
     if has_config("vdb") then
         add_deps("uipc_vdb")
     end

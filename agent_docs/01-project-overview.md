@@ -17,12 +17,11 @@ Recent important changes (README News):
 
 | Directory | Contents |
 |---|---|
-| `src/` | Core implementation: `core/` (engine, compiled as `libuipc_core`), `geometry/` (geometry algorithms), `constitution/` (constitutions), `backends/` (`common/`+`cuda/`+`none/`), `io/`, `pybind/`, `sanity_check/`, `usd/`, `vdb/` |
+| `src/` | Core implementation: `core/` (engine, compiled as `libuipc_core`), `geometry/` (geometry algorithms plus the private C++ METIS implementation under `geometry/metis/`), `constitution/` (constitutions), `backends/` (`common/`+`cuda/`+`none/`), `io/`, `pybind/`, `sanity_check/`, `usd/`, `vdb/` |
 | `include/uipc/` | Public headers, organized by module: `core/ geometry/ constitution/ io/ backend/ builtin/ common/ diff_sim/ usd/ vdb/`; umbrella headers `uipc.h / core.h / geometry.h / io.h` |
 | `apps/` | `tests/` (Catch2 tests), `examples/` (3 C++ examples), `benchmarks/`, `app/` (test utility library) |
 | `python/` | Python package source `python/src/uipc/`, tests, examples, and a standalone development `pyproject.toml` |
 | `docs/` | mkdocs documentation source: `tutorial/ specification/ development/ build_install/ media/`, etc. |
-| `external/` | Third-party in-tree sources: `GKlib/` + `METIS/` only (muda was fully removed; the CUDA backend now uses the in-house `src/backends/cuda/cuda_tool/`) |
 | `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
 | `benchmarks/` | Versioned four-scene end-to-end benchmark manifest and reproducibility contract; implementations/assets remain in `libuipc-samples/` |

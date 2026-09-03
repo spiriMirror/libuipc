@@ -21,7 +21,7 @@ library (C++20 + optional Python/pybind11).
 | Layer | Path | Role |
 |-------|------|------|
 | Core | `src/core/`, `include/uipc/` | Engine lifecycle, Scene/World, geometry attribute ECS |
-| Geometry | `src/geometry/` | Mesh algorithms; libigl, TBB, Octree, METIS |
+| Geometry | `src/geometry/` | Mesh algorithms; libigl, TBB, Octree, embedded C++ METIS |
 | Constitution | `src/constitution/` | Material / constraint implementations |
 | I/O | `src/io/` | Scene + mesh serialisation |
 | Sanity check | `src/sanity_check/` | Pre-sim scene validation |

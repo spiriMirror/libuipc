@@ -60,6 +60,11 @@ record it here in the same commit.**
    not re-introduce it (or similar compiler-cache layers) without an
    explicit request.
 
+- **Use only the embedded C++ METIS target.** Mesh partitioning must use
+  `src/geometry/metis/` through `uipc_metis`; do not restore separate
+  `external/METIS` or `external/GKlib` source trees or targets. Keep the CMake
+  and XMake source boundary equivalent. (Set 2026-09-03.)
+
 ## CUDA backend
 
 9. **Raw kernels only**: business GPU code is written as named

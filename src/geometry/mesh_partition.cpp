@@ -7,6 +7,7 @@
 #include <metis.h>
 #include <set>
 #include <algorithm>
+#include <limits>
 #include <numeric>
 
 namespace uipc::geometry
@@ -64,16 +65,29 @@ static void build_adjacency(vector<idx_t>&           xadj,
     {
         for(auto n : neighbors[i])
             adjncy.push_back(n);
+        UIPC_ASSERT_THROW(
+            adjncy.size() <= static_cast<SizeT>(std::numeric_limits<idx_t>::max()),
+            "mesh_partition: adjacency index count {} exceeds METIS idx_t capacity {}.",
+            adjncy.size(),
+            std::numeric_limits<idx_t>::max());
         xadj[i + 1] = static_cast<idx_t>(adjncy.size());
     }
 }
 
 void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
 {
+    UIPC_ASSERT_THROW(part_max_size > 0,
+                      "mesh_partition: part_max_size must be greater than zero.");
+
     SizeT vert_count = sc.vertices().size();
 
     if(vert_count == 0)
         return;
+
+    UIPC_ASSERT_THROW(vert_count <= static_cast<SizeT>(std::numeric_limits<idx_t>::max()),
+                      "mesh_partition: vertex count {} exceeds METIS idx_t capacity {}.",
+                      vert_count,
+                      std::numeric_limits<idx_t>::max());
 
     auto part_attr = sc.vertices().create<IndexT>(metis_part, -1);
     auto part_view = view(*part_attr);
@@ -92,7 +106,7 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     }
 
     SizeT block_size = part_max_size;
-    idx_t n_parts = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
+    idx_t n_parts    = static_cast<idx_t>(1 + (vert_count - 1) / block_size);
 
     if(n_parts <= 1)
     {
@@ -145,7 +159,14 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         // Verify partition sizes
         vector<idx_t> part_sizes(n_parts, 0);
         for(SizeT i = 0; i < vert_count; ++i)
+        {
+            UIPC_ASSERT_THROW(metis_result[i] >= 0 && metis_result[i] < n_parts,
+                              "mesh_partition: METIS returned invalid partition ID {} for vertex {}; expected [0, {}).",
+                              metis_result[i],
+                              i,
+                              n_parts);
             part_sizes[metis_result[i]]++;
+        }
 
         idx_t max_size = *std::ranges::max_element(part_sizes);
         if(max_size <= static_cast<idx_t>(part_max_size))
@@ -154,8 +175,10 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
             break;
         }
 
+        if(block_size == 1)
+            break;
         --block_size;
-        n_parts = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
+        n_parts = static_cast<idx_t>(1 + (vert_count - 1) / block_size);
     }
 
     // Sequential fallback
@@ -175,9 +198,9 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         for(SizeT i = 0; i < vert_count; ++i)
         {
             UIPC_ASSERT_THROW(part_view[i] >= 0,
-                        "mesh_partition: vertex {} has invalid partition ID {}.",
-                        i,
-                        part_view[i]);
+                              "mesh_partition: vertex {} has invalid partition ID {}.",
+                              i,
+                              part_view[i]);
         }
 
         // 2. No partition exceeds part_max_size
@@ -189,19 +212,19 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         for(IndexT p = 0; p <= max_id; ++p)
         {
             UIPC_ASSERT_THROW(sizes[p] <= part_max_size,
-                        "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
-                        p,
-                        sizes[p],
-                        part_max_size);
+                              "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
+                              p,
+                              sizes[p],
+                              part_max_size);
         }
 
         // 3. No empty partitions (IDs should be contiguous 0..max)
         for(IndexT p = 0; p <= max_id; ++p)
         {
             UIPC_ASSERT_THROW(sizes[p] > 0,
-                        "mesh_partition: partition {} is empty. "
-                        "Partition IDs should be contiguous from 0.",
-                        p);
+                              "mesh_partition: partition {} is empty. "
+                              "Partition IDs should be contiguous from 0.",
+                              p);
         }
     }
 }

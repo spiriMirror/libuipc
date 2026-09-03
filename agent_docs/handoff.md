@@ -6,6 +6,26 @@
 > experiments belong in `agent_docs/performance/`. Add a short handoff pointer
 > instead of growing this file as the only source of truth.
 
+> **Embedded C++ METIS migration (2026-09-03, `refactor-main`)**: geometry now
+> links the private `uipc_metis` target from `src/geometry/metis/`; the separate
+> `external/METIS` and `external/GKlib` source trees and build targets were
+> removed. CMake and XMake keep METIS independently compilable and exclude its
+> sources from direct `uipc_geometry` compilation. The C++ port was made
+> const-correct for diagnostic strings and self-contained for modern MSVC.
+> Unused glibc getopt/regex/qsort and optional MT19937-64 sources were removed;
+> required sorting now uses a clean in-tree deterministic C++
+> partition/insertion implementation that preserves the former equal-key
+> ordering, so only the METIS/GKlib Apache notices remain. A deterministic
+> public `mesh_partition` regression covers the linked
+> API; zero-sized partitions, 32-bit capacity overflow, and invalid returned
+> partition IDs are rejected before division or indexing. Portable CPU/wall
+> timers and out-of-core temporary-file removal replace incomplete port stubs.
+> Before removal, three synthetic graph families and two full
+> `fluffy_ball.msh` configurations on both Windows/MSVC and Linux/GCC produced
+> identical return codes, edge cuts, and every partition ID against the former
+> C implementation on the same platform. See
+> [`ADR 0007`](adr/0007-embedded-cpp-metis.md) for exact hashes and boundaries.
+
 > **AL-IPC sample 88 trajectory correction (2026-09-03, `refactor-main`)**:
 > the severe early trajectory split was traced to AL ignoring the configured
 > `K_min=6`, an EE friction derivative assembled with the PT Jacobian, and the
