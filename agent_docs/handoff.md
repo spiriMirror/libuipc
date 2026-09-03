@@ -1223,3 +1223,11 @@ regression).
   multi-arch list, so it has neither the quoting defect nor a release matrix
   to mirror. XMake does not build the published wheel; the PyPI path is
   scikit-build-core plus CMake.
+- Follow-up in the same area: the option's documented comma form
+  (`-DUIPC_CUDA_ARCHITECTURES=75,89`) was normalized into
+  `CMAKE_CUDA_ARCHITECTURES` only, while the backend targets read the option
+  itself, so the comma reached nvcc and the first `.cu` failed with
+  `'89' is not in 'keyword=value' format`. The root `CMakeLists.txt` now
+  normalizes the cache entry in place. A `get_target_property` fast fail on the
+  `cuda` target guards the truncation case; configure was checked with the full
+  six-entry list, the comma form, and `native`.

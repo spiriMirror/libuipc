@@ -54,6 +54,19 @@ set_target_properties(cuda PROPERTIES
     CUDA_STANDARD 20
 )
 
+# Fast fail: an unquoted list here used to ship release wheels with only the
+# first architecture and no PTX, and nothing downstream noticed until the
+# binary hit an unlisted GPU. Read the property back so a regression is a
+# configure error instead of a silently narrowed wheel.
+get_target_property(_uipc_applied_cuda_archs cuda CUDA_ARCHITECTURES)
+if(NOT "${_uipc_applied_cuda_archs}" STREQUAL "${UIPC_CUDA_ARCHITECTURES}")
+    message(FATAL_ERROR
+        "CUDA_ARCHITECTURES on target 'cuda' is "
+        "'${_uipc_applied_cuda_archs}' but UIPC_CUDA_ARCHITECTURES requested "
+        "'${UIPC_CUDA_ARCHITECTURES}'. A multi-architecture list must be "
+        "quoted wherever it is passed to set_target_properties.")
+endif()
+
 # CMake's Visual Studio generator does not schedule the RDC device-link when a
 # target receives CUDA exclusively through OBJECT-library expressions. Give the
 # final backend target a generated CUDA-language source so every generator sees

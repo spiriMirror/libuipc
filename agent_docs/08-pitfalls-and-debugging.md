@@ -30,6 +30,13 @@ touching that area; several of these have bitten us more than once.
   `cuobjdump -all --list-elf <so> | grep -oP 'sm_\d+' | sort -u` for SASS and
   `cuobjdump -all -ptx <so> | grep -c '^\s*\.target'` for PTX;
   `--list-ptx` reports nothing even for libraries that do embed PTX.
+- **The comma form of `UIPC_CUDA_ARCHITECTURES` only works because the root
+  `CMakeLists.txt` normalizes the option in place.** The backend targets read
+  the option directly into their `CUDA_ARCHITECTURES` property, so normalizing
+  `CMAKE_CUDA_ARCHITECTURES` alone is not enough: a comma list survives
+  configure and then fails the first `.cu` compile with
+  `nvcc fatal : '89' is not in 'keyword=value' format`. Keep the in-place
+  `set(... CACHE STRING ... FORCE)` if that block is ever refactored.
 - **Changing `IEngine` virtuals requires every backend's most-derived vtable to
   be rebuilt.** Do not trust a core-only relink: explicitly rebuild `none` and
   `cuda`, then run the Python post-build sync above. A mixed old/new vtable can
