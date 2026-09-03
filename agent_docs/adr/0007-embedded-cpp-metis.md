@@ -114,3 +114,11 @@ does not remove that obligation from the remaining derived core.
   2,174,400 unique edges.
 - A Linux/GCC run of the 13,328-part case under AddressSanitizer and
   UndefinedBehaviorSanitizer completed without diagnostics.
+- A dedicated old/new sorting harness exercised all ten retained wrappers,
+  including the currently unused `ikvsortii`, over six adversarial data
+  patterns and 24 lengths from zero through 16,384. The 1,440 calls cover empty
+  and singleton arrays, the 7/8/9 partition cutoff, power-of-two boundaries,
+  random duplicate keys, all-equal keys, ascending/descending input, and
+  integer extremes. Windows/MSVC and Linux/GCC both produced the same
+  11,374,128-byte result with SHA-256
+  `90B861E306F4482BB5CE268E4B97C1B5599FB628D9FB2BF6FDFB44F41381ADD8`.
