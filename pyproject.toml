@@ -108,7 +108,7 @@ build-type = "Release"
 source-dir = "."
 
 [tool.scikit-build.cmake.define]
-UIPC_CUDA_ARCHITECTURES = "75-real;80-real;86-real;89-real;89-virtual"
+UIPC_CUDA_ARCHITECTURES = "75-real;80-real;86-real;89-real;120-real;89-virtual"
 UIPC_BUILD_PYBIND = "ON"
 UIPC_BUILD_EXAMPLES = "OFF"
 UIPC_BUILD_TESTS = "OFF"

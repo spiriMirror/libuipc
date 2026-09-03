@@ -47,7 +47,9 @@ set_target_properties(cuda PROPERTIES
     # needs a manual object cleanup to take effect!)
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}
+    # Quote the list: an unquoted multi-arch list expands into separate
+    # arguments and silently truncates the property to its first entry.
+    CUDA_ARCHITECTURES "${UIPC_CUDA_ARCHITECTURES}"
     CUDA_STANDARD_REQUIRED ON
     CUDA_STANDARD 20
 )

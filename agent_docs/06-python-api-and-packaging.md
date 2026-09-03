@@ -42,7 +42,7 @@ torch/warp adapters still require their own optional frameworks.
 - `python/src/uipc/compatibility.json` is the canonical release support policy.
   `scripts/check_release_policy.py` verifies both pyprojects, classifiers, the
   workflow ABI/toolkit matrix, and the CMake wheel architecture list against it.
-- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada native code plus a forward-compatible PTX path instead of the 0.0.26 wheel's Ada-only target.
+- `wheel.packages = ["python/src/uipc"]`; CMake defines `UIPC_BUILD_PYBIND/WHEEL=ON`, targets `75-real;80-real;86-real;89-real;120-real;89-virtual`, and disables tests/examples/benchmarks. This gives Turing/Ampere/Ada/Blackwell-consumer native code plus a forward-compatible PTX path. The list only reaches nvcc if every `set_target_properties(... CUDA_ARCHITECTURES ...)` site quotes the variable — see the Build & CI pitfall; 0.0.27 and earlier shipped Turing-only SASS with no PTX because of that.
 - When `if(DEFINED SKBUILD)`, `UIPC_INSTALL_DIR = uipc/_native`: the pyuipc extension + vcpkg runtime DLLs are all installed into `_native/` inside the package; `.pyi` stubs are installed to the package root.
 - cibuildwheel: on Linux, auditwheel defensively excludes CUDA Toolkit
   libraries. The current backend has no dynamic Toolkit dependency; a

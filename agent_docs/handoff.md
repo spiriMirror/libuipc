@@ -1190,3 +1190,36 @@ regression).
   in-range / negative marker) behaves exactly per spec; full sim suite
   95/14214 + 6 fast binaries green. Note the built-in default stiffness
   effectively changes 1e9 -> 1e8 for scenes that never set the default model.
+
+## Wheel CUDA architecture list never reached nvcc (2026-09-03)
+
+- Symptom: `pyuipc` 0.0.27 wheels (cp312 and cp313 manylinux both checked)
+  contain `sm_75` SASS only and zero PTX, although `pyproject.toml` and
+  `compatibility.json` declared `75/80/86/89-real` plus `89-virtual`. On an
+  RTX 5090 (`sm_120`) `world.init(scene)` throws CUDA error 500
+  `named symbol not found` from `cuda_tool/launch.h`.
+- Root cause: `set_target_properties(... PROPERTIES ... CUDA_ARCHITECTURES
+  ${UIPC_CUDA_ARCHITECTURES} ...)` did not quote the variable. An unquoted
+  multi-element list expands into separate arguments and destroys the
+  key/value pairing, so the property kept `75-real` and the remaining entries
+  became bogus property names (`80-real` ended up as a property whose value
+  was `86-real`). The `89-virtual` PTX entry was lost the same way.
+- Fixed by quoting three sites: `src/backends/cuda/CMakeLists.txt`,
+  `src/backends/cuda/components.cmake`,
+  `apps/tests/backends/cuda/CMakeLists.txt`.
+- Release matrix now also carries `120-real` for consumer Blackwell, mirrored
+  in `python/src/uipc/compatibility.json` so
+  `scripts/check_release_policy.py` stays green. Note this grows wheel size
+  and CI compile time by one full architecture.
+- Verification: configured with the full list and confirmed all 199 CUDA
+  translation units in `compile_commands.json` now carry five
+  `arch=compute_*,code=*` entries including `code=[compute_89]`; before the
+  fix only `sm_75` was emitted. Reference build with `native` on the 5090
+  (`sm_120`) runs `hello_affine_body` and the Python `0_check_libuipc` sample
+  to completion.
+- XMake was deliberately left alone (rule 7 reviewed): its CUDA arch surface
+  is `add_cugencodes("sm_89")` under `github_actions` and
+  `add_cugencodes("native")` otherwise, passed as single values with no
+  multi-arch list, so it has neither the quoting defect nor a release matrix
+  to mirror. XMake does not build the published wheel; the PyPI path is
+  scikit-build-core plus CMake.
