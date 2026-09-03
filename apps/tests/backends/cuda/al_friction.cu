@@ -187,18 +187,23 @@ __global__ void ph_energy_gradient_fd_kernel(Vector3 previous,
     }
 }
 
-__global__ void disabled_ee_mollifier_kernel(cuda_tool::BufferView<Float> result)
+__global__ void ee_mollifier_policy_kernel(cuda_tool::BufferView<Float> result)
 {
     const Vector3 ea0{-1.0, 0.0, 0.0};
     const Vector3 ea1{1.0, 0.0, 0.0};
     const Vector3 eb0{-1.0, 0.0, 0.2};
     const Vector3 eb1{1.0, 0.0, 0.2};
 
-    Float eps_x;
+    Float ipc_eps_x;
+    distance::edge_edge_mollifier_threshold(ea0, ea1, eb0, eb1, static_cast<Float>(1e-3), ipc_eps_x);
+    result(0) = ipc_eps_x;
+    result(1) = distance::need_mollify(ea0, ea1, eb0, eb1, ipc_eps_x);
+
+    Float al_eps_x;
     distance::edge_edge_mollifier_threshold(
-        ea0, ea1, eb0, eb1, sym::al_simplex_contact::EE_FRICTION_MOLLIFIER_DISABLED, eps_x);
-    result(0) = eps_x;
-    result(1) = distance::need_mollify(ea0, ea1, eb0, eb1, eps_x);
+        ea0, ea1, eb0, eb1, distance::EEMollifierDisabledThreshold, al_eps_x);
+    result(2) = al_eps_x;
+    result(3) = distance::need_mollify(ea0, ea1, eb0, eb1, al_eps_x);
 }
 }  // namespace al_friction_test
 
@@ -282,17 +287,20 @@ TEST_CASE("AL point-half-plane friction gradient matches its energy", "[cuda][al
     }
 }
 
-TEST_CASE("AL parallel-edge friction mollifier remains disabled", "[cuda][al-ipc][friction]")
+TEST_CASE("parallel-edge classifier distinguishes standard IPC and AL-IPC",
+          "[cuda][distance][ee][mollifier][ipc][al-ipc]")
 {
     using namespace uipc;
     namespace cuda_tool = uipc::backend::cuda_tool;
 
-    cuda_tool::DeviceVector<Float> result(2);
-    al_friction_test::disabled_ee_mollifier_kernel<<<1, 1>>>(result.view());
+    cuda_tool::DeviceVector<Float> result(4);
+    al_friction_test::ee_mollifier_policy_kernel<<<1, 1>>>(result.view());
     CUDA_TOOL_CHECK(cudaGetLastError());
 
     std::vector<Float> host;
     result.copy_to(host);
-    CHECK(host[0] < 0.0);
-    CHECK(host[1] == 0.0);
+    CHECK(host[0] > 0.0);
+    CHECK(host[1] == 1.0);
+    CHECK(host[2] < 0.0);
+    CHECK(host[3] == 0.0);
 }

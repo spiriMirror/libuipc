@@ -213,6 +213,12 @@ internal method constant, not a scene parameter. See
 [the AL-IPC method paper](https://arxiv.org/abs/2512.12151) and the
 [`AL-release` fork that motivated this integration](https://github.com/wiso-enoji/libuipc/tree/AL-release).
 
+Standard IPC detects parallel EE pairs with mollifier coefficient `1e-3`; its
+normal-contact implementation includes the matching mollified energy,
+gradient, and Hessian, while standard IPC friction skips detected parallel
+pairs. AL-IPC uses a negative disabled threshold for both normal and
+frictional contact, treating all of its edge-edge pairs as ordinary EE terms.
+
 The default AL penalty mode is `per_vertex`: FEM and ABD estimators scale the
 penalty with their local mass and timestep. `diag_norm` is available as an
 experimental uniform-penalty mode. It can be useful for controlled

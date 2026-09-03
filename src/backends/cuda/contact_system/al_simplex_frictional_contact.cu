@@ -181,12 +181,11 @@ namespace
         const Vector3& Eb0 = x(EE[2]);
         const Vector3& Eb1 = x(EE[3]);
 
-        // AL-IPC intentionally disables the IPC parallel-EE friction
-        // mollifier. The cross-norm squared is non-negative, while this
-        // coefficient makes eps_x negative, so need_mollify() stays false.
+        // AL-IPC never classifies parallel EE pairs. The negative threshold
+        // keeps need_mollify() false, so every pair uses ordinary EE friction.
         Float eps_x;
         distance::edge_edge_mollifier_threshold(
-            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, EE_FRICTION_MOLLIFIER_DISABLED, eps_x);
+            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, distance::EEMollifierDisabledThreshold, eps_x);
         if(!distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x))
         {
             Vector12    G;

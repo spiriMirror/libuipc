@@ -94,12 +94,14 @@ record it here in the same commit.**
     `gradient_only` is preferred when it removes dead work without serializing
     stencil families. (Set 2026-08-30.)
 
-15. **Keep AL-IPC's parallel-EE friction mollifier predicate disabled.** Pass
-    the established negative coefficient (`-1.0`) to its threshold calculation
-    so the non-negative EE cross-norm squared can never satisfy
-    `need_mollify()`. Do not replace it with standard IPC's positive threshold;
-    AL-IPC treats every such active pair as an ordinary EE friction pair. (Set
-    2026-09-03.)
+15. **Use pipeline-specific parallel-EE handling.** AL-IPC never classifies
+    parallel EE pairs: both normal and frictional contact use the shared
+    negative disabled threshold, making `need_mollify()` false and routing all
+    AL pairs through their ordinary EE paths. Standard IPC uses the positive
+    `1e-3` coefficient. Its normal-contact path evaluates the complete
+    mollified energy, gradient, and Hessian for detected parallel pairs; its
+    friction path skips detected parallel pairs. Do not make `need_mollify()`
+    globally constant. (Set 2026-09-03; refined 2026-09-03.)
 
 ## Task-scoped (recorded for context, not general policy)
 

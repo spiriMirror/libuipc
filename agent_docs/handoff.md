@@ -11,8 +11,7 @@
 > `K_min=6`, an EE friction derivative assembled with the PT Jacobian, and the
 > uniform `diag_norm` penalty being unsuitable as the default for mixed
 > cloth/volumetric masses. AL now delays cumulative safe-path attenuation until
-> `K_min`, uses the correct EE Jacobian, preserves the intentionally disabled
-> AL parallel-edge mollifier sentinel, and defaults to mass-based `per_vertex`
+> `K_min`, uses the correct EE Jacobian, and defaults to mass-based `per_vertex`
 > scaling while keeping `diag_norm` experimental. Exhausted line search restores its recorded start
 > point rather than accepting the last energy-increasing trial. PT/EE/plane
 > finite-difference tests pass, as does the AL `K_min` simulation assertion.
@@ -22,6 +21,13 @@
 > runtime error. See the durable evidence and
 > regression boundary in
 > [`2026-09-03-al-ipc-case88-correction.md`](performance/2026-09-03-al-ipc-case88-correction.md).
+> **Parallel-EE policy (2026-09-03, `refactor-main`)**: standard IPC retains
+> normal `need_mollify()` detection with coefficient `1e-3` and its complete
+> mollified normal energy/gradient/Hessian; standard IPC friction skips the
+> detected parallel pairs. AL-IPC uses the shared negative disabled threshold
+> for both normal and frictional contact, so all AL pairs follow ordinary EE
+> paths. The CUDA regression checks both threshold behaviors with exactly
+> parallel edges.
 > Final validation passed CMake/Core 36 cases / 1040 assertions, CUDA backend
 > 22 / 335, the single-process simulation suite 95 / 14213, Python portable
 > tests 80 passed / 1 skipped, repository contracts 43/43, fast CTest 3/3,

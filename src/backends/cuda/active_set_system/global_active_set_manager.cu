@@ -406,7 +406,8 @@ namespace
         const auto& E3 = x(EE(3));
 
         Float eps_x;
-        distance::edge_edge_mollifier_threshold(E0, E1, E2, E3, 1e-6, eps_x);
+        distance::edge_edge_mollifier_threshold(
+            E0, E1, E2, E3, distance::EEMollifierDisabledThreshold, eps_x);
         if(distance::need_mollify(E0, E1, E2, E3, eps_x))
         {
             cnt(idx)    = large_cnt;

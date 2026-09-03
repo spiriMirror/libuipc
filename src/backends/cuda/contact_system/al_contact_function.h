@@ -7,8 +7,6 @@ namespace uipc::backend::cuda
 {
 namespace sym::al_simplex_contact
 {
-    inline constexpr Float EE_FRICTION_MOLLIFIER_DISABLED = -1.0;
-
     inline UIPC_GENERIC Float penalty_energy(Float           scale,
                                              Float           d0,
                                              const Vector12& d_grad,

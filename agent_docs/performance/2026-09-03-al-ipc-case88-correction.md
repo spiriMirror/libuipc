@@ -40,10 +40,11 @@ energy to approximately `4.1e15` and failed in the following CCD query.
   `K_min - 1` completed outer updates and starts `(1 - alpha)` attenuation at
   update `K_min`. `beta_tol` remains standard-IPC-only; AL uses
   `contact/al-ipc/toi_threshold`.
-- EE friction uses `edge_edge_jacobi`. AL's existing negative threshold
-  coefficient remains unchanged, intentionally making its parallel-EE
-  mollifier predicate always false; standard IPC's positive threshold must not
-  be copied into this path.
+- EE friction uses `edge_edge_jacobi`. At the time of this measurement, AL's
+  negative threshold made its parallel-EE predicate false. The finalized owner
+  policy applies the same disabled threshold to AL normal contact. Standard
+  IPC retains positive `1e-3` detection, using mollified normal derivatives and
+  skipping detected parallel friction pairs.
 - `per_vertex` mass-based scaling is again the default. `diag_norm` remains an
   explicit experimental comparison mode.
 - Line search checks its final permitted trial, rejects non-finite energy, and
@@ -73,7 +74,7 @@ The penalty-mode isolation after the friction fixes was decisive:
 | uniform `diag_norm` | 965.20 | 44 | 44 |
 | mass-based `per_vertex` | 152.28 | 0 | 0 |
 
-The final corrected default, with AL's parallel-edge mollifier still disabled,
+The final corrected default, with AL's parallel-edge mollifier disabled,
 completed all 250 frames in 153.96 ms/frame mean. Every frame converged with no
 line-search limit, Newton limit, or runtime error. Final upper/lower centroids
 were `(-0.6552, -0.8712, 0.0871)` and
@@ -86,7 +87,7 @@ Keep the following checks together when changing AL friction, penalty scaling,
 or solve boundaries:
 
 - finite-difference PT, EE, and half-plane friction gradients;
-- the negative AL parallel-EE sentinel and its always-false predicate;
+- positive-threshold standard IPC detection and negative-threshold AL rejection;
 - AL cumulative-progress unit tests at `K_min=1` and `K_min=6`;
 - a simulation assertion that an AL contact frame honors configured `K_min`;
 - sample 88 with cloth enabled, inspecting structured `frame_stats()` for line
