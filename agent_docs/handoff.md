@@ -20,10 +20,10 @@
 > API; zero-sized partitions, 32-bit capacity overflow, and invalid returned
 > partition IDs are rejected before division or indexing. Portable CPU/wall
 > timers and out-of-core temporary-file removal replace incomplete port stubs.
-> Before removal, three synthetic graph families and two full
-> `fluffy_ball.msh` configurations on both Windows/MSVC and Linux/GCC produced
-> identical return codes, edge cuts, and every partition ID against the former
-> C implementation on the same platform. See
+> Against preserved pre-removal C binaries, three synthetic graph families,
+> four full `fluffy_ball.msh` configurations, and two `animal_well.msh`
+> configurations on both Windows/MSVC and Linux/GCC produced identical return
+> codes, edge cuts, and every per-vertex partition ID on the same platform. See
 > [`ADR 0007`](adr/0007-embedded-cpp-metis.md) for exact hashes and boundaries.
 
 > **AL-IPC sample 88 trajectory correction (2026-09-03, `refactor-main`)**:

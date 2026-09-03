@@ -90,5 +90,27 @@ does not remove that obligation from the remaining derived core.
   `191B2B8A38EDC0ADFBC30BA8DCD46B90E5410790877055767A9ED1B24CC1861D`.
   Cross-platform IDs are not expected to match because the retained default
   RNG path uses each platform's C runtime; parity is exact within each platform.
+- Extended comparisons covered maximum sizes 8 and 4 on both
+  `fluffy_ball.msh` and the larger animal-wall mesh `animal_well.msh`. The
+  comparison decoded the result arrays in original vertex order and counted
+  differing partition IDs; it did not infer equivalence from aggregate
+  partition counts. Every row below has zero differing vertices. The SHA-256
+  covers the return code, edge cut, part count, and the full per-vertex ID
+  array.
+
+  | Platform | Mesh | Max size | Final block | Parts | Edge cut | Vertex mismatches | SHA-256 |
+  | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+  | Windows/MSVC | `fluffy_ball.msh` | 8 | 6 | 28,878 | 455,924 | 0 | `281E3F71068345FCD7C8A35CF372ED457A31C23DD343B4C38487B5A104AA3D8B` |
+  | Windows/MSVC | `fluffy_ball.msh` | 4 | 3 | 57,755 | 623,436 | 0 | `A9CD70D6BFC91F9145A79B71862DF7929C75123FE162BFFFC552AAA4B7FAFB62` |
+  | Windows/MSVC | `animal_well.msh` | 8 | 6 | 72,075 | 1,306,205 | 0 | `65D7CC5BD515F12F3E8469234C8665D71FEA4E34354A70BD356954EC50F13902` |
+  | Windows/MSVC | `animal_well.msh` | 4 | 3 | 144,150 | 1,691,928 | 0 | `18BCC55B25DBDE3A62976AC124A253E7F24BB35C5DD33E34DF1CC1E52545CCF2` |
+  | Linux/GCC | `fluffy_ball.msh` | 8 | 6 | 28,878 | 455,919 | 0 | `9151C9EF90BB2F8463E821A6C9A348D09279CD13542FB0E542945F13574BBD57` |
+  | Linux/GCC | `fluffy_ball.msh` | 4 | 3 | 57,755 | 623,480 | 0 | `473DCC303B0F33A3A47EDFF386F6B84E541EE03D94703EC56AF68EAD50EA30A6` |
+  | Linux/GCC | `animal_well.msh` | 8 | 6 | 72,075 | 1,269,585 | 0 | `DA0EAB85097502138E670A8FD570765F814E3A2249D83B8D69B48EDDB4042A17` |
+  | Linux/GCC | `animal_well.msh` | 4 | 3 | 144,150 | 1,694,400 | 0 | `6BB55CBC5830981D1D5CB13D91CFDAF7C48994F51DE41D4649AA2771357FAB26` |
+
+  `fluffy_ball.msh` contains 173,263 vertices and 782,647 unique edges;
+  `animal_well.msh` contains 432,450 vertices, 1,341,150 tetrahedra, and
+  2,174,400 unique edges.
 - A Linux/GCC run of the 13,328-part case under AddressSanitizer and
   UndefinedBehaviorSanitizer completed without diagnostics.
