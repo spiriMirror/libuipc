@@ -23,6 +23,9 @@ license obligations despite not being required by the configured partitioner.
 
 - Build `src/geometry/metis/*.cpp` as the private static `uipc_metis` target in
   both CMake and XMake, with PIC on Unix-like toolchains.
+  CMake uses `POSITION_INDEPENDENT_CODE`; XMake applies a forced C++ `-fPIC`
+  flag without compiler-name filtering. XMake's C++ driver identifier does not
+  reliably match `gcc`/`clang` filters, which can silently drop the flag.
 - Link `uipc_geometry` privately to `uipc_metis`; do not compile the same source
   files directly into `uipc_geometry`.
 - Remove the root `external/` source tree and the old `GKlib`/`metis` targets.
@@ -122,3 +125,13 @@ does not remove that obligation from the remaining derived core.
   integer extremes. Windows/MSVC and Linux/GCC both produced the same
   11,374,128-byte result with SHA-256
   `90B861E306F4482BB5CE268E4B97C1B5599FB628D9FB2BF6FDFB44F41381ADD8`.
+- PR #492 exposed an XMake-only Linux integration failure: its initial
+  compiler-name-filtered `-fPIC` setting was not applied to the C++ objects, so
+  the linker rejected the thread-local GKlib state with an
+  `R_X86_64_TPOFF32` relocation. The unfiltered forced C++ flag fixes the
+  target. An isolated shared-library consumer built with the CI's exact XMake
+  3.0.5 emitted `-fPIC` for every METIS object and linked successfully; a GCC
+  whole-archive probe also confirms that no local-exec TLS relocation remains.
+  The same CI log exposed an ignored GNU `strerror_r` return value; the adapter
+  now handles both GNU pointer-returning and POSIX integer-returning signatures,
+  and a Linux `ENOENT` probe returns a non-empty diagnostic without warnings.
