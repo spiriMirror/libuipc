@@ -25,6 +25,13 @@
 > configurations on both Windows/MSVC and Linux/GCC produced identical return
 > codes, edge cuts, and every per-vertex partition ID on the same platform. See
 > [`ADR 0007`](adr/0007-embedded-cpp-metis.md) for exact hashes and boundaries.
+> PR #492's first Linux XMake run caught a compiler-filtered `-fPIC` flag being
+> silently omitted from `uipc_metis`; the target now applies the C++ flag
+> without a tool-name filter while retaining XMake's support probe, matching
+> CMake's PIC property and allowing its
+> thread-local GKlib state to link into `libuipc_geometry.so`. The adjacent
+> GNU/POSIX `strerror_r` portability warning was fixed at the same time so Linux
+> error paths return the correct diagnostic string.
 
 > **AL-IPC sample 88 trajectory correction (2026-09-03, `refactor-main`)**:
 > the severe early trajectory split was traced to AL ignoring the configured

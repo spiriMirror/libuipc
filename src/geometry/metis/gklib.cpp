@@ -10,8 +10,10 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <ctime>
 #include <mutex>
+#include <type_traits>
 
 /************************ blas.c ************************/
 /*!
@@ -243,9 +245,25 @@ char* gk_strerror(int errnum)
 #ifndef SUNOS
     static __thread char buf[1024];
 
-    strerror_r(errnum, buf, 1024);
+    const auto normalize_result = [errnum](auto result, char* buffer, size_t size)
+    {
+        using Result = decltype(result);
+        if constexpr(std::is_pointer_v<Result>)
+        {
+            if(result == nullptr)
+                std::snprintf(buffer, size, "Unknown error %d", errnum);
+            else if(result != buffer)
+                std::snprintf(buffer, size, "%s", result);
+        }
+        else if(result != 0)
+        {
+            std::snprintf(buffer, size, "Unknown error %d", errnum);
+        }
+    };
 
-    buf[1023] = '\0';
+    normalize_result(strerror_r(errnum, buf, sizeof(buf)), buf, sizeof(buf));
+
+    buf[sizeof(buf) - 1] = '\0';
     return buf;
 #else
     return strerror(errnum);
