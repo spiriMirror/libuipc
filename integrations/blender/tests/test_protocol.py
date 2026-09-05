@@ -135,6 +135,31 @@ class ProtocolTests(unittest.TestCase):
         body["material"]["fixed"] = True
         self.assertIsNone(protocol.cache_fingerprint(request, {}, [body]))
 
+    def test_robot_drive_invalidates_legacy_cache_and_motion_hash(self):
+        body = {"name": "mesh", "material": {"role": "RIGID"},
+                "vertices": self.vertices, "triangles": self.faces, "matrix": np.eye(4),
+                "pins": np.array([], dtype=np.int32)}
+        old = protocol.fingerprint({}, [body], schema_version=2)
+        request = {"schema_version": 2, "objects": [{"material": {"role": "RIGID"}}]}
+        self.assertEqual(protocol.cache_fingerprint(request, {}, [body]), old)
+        body["material"]["drive"] = {"signature": "authored-control-curves"}
+        self.assertNotEqual(protocol.cache_fingerprint(request, {}, [body]), old)
+        request["schema_version"] = 1
+        self.assertIsNone(protocol.cache_fingerprint(request, {}, [body]))
+        motion = np.repeat(np.eye(4)[None], 3, axis=0)
+        original = protocol.motion_hash(motion)
+        motion[1, 2, 3] = 0.01
+        self.assertNotEqual(original, protocol.motion_hash(motion))
+
+    def test_driven_compound_requires_closed_components(self):
+        vertices = np.concatenate((self.vertices, self.vertices + [2, 0, 0]))
+        faces = np.concatenate((self.faces, self.faces + 4))
+        with self.assertRaisesRegex(ValueError, "connected"):
+            protocol.validate_mesh(vertices, faces, "RIGID", "assembly")
+        protocol.validate_mesh(vertices, faces, "RIGID", "assembly", allow_components=True)
+        with self.assertRaisesRegex(ValueError, "closed"):
+            protocol.validate_mesh(vertices, faces[:-1], "RIGID", "open assembly", allow_components=True)
+
 
 if __name__ == "__main__":
     unittest.main()

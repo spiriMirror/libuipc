@@ -15,13 +15,15 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--filename", default="white_table_setting.blend")
+    parser.add_argument("--expected-caches", type=int, default=22)
     parser.add_argument("--render", action="store_true")
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1 :])
     root = args.directory.resolve()
     assert not hasattr(
         bpy.types.Scene, "uipc_settings"
     ), "Run with --factory-startup and no addon"
-    bpy.ops.wm.open_mainfile(filepath=str(root / "white_table_setting.blend"))
+    bpy.ops.wm.open_mainfile(filepath=str(root / args.filename))
     scene = bpy.context.scene
     assert (
         scene.frame_current == scene.frame_end
@@ -51,7 +53,7 @@ def main():
             else:
                 disabled.append((mod, mod.show_viewport))
                 mod.show_viewport = False
-    assert len(caches) == 22, "Expected 17 physical bodies and 5 derived stems"
+    assert len(caches) == args.expected_caches, "Unexpected native cache count"
     maximum = 0.0
     sampled = (1, (scene.frame_end + 1) // 2, scene.frame_end)
     try:

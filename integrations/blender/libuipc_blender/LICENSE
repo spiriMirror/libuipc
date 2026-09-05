@@ -4,10 +4,11 @@ Copyright (C) 2026 spiriMirror
 License scope
 -------------
 
-The Blender-specific files __init__.py, bridge.py, runtime.py, and demo.py are
+The Blender-specific files __init__.py, bridge.py, runtime.py, demo.py, motion.py,
+and robot_ui.py are
 licensed under GPL-3.0-or-later. Full terms are in LICENSE-GPL-3.0.txt.
 
-The independently usable worker.py and protocol.py are licensed under
+The independently usable worker.py, protocol.py, and robot_model.py are licensed under
 Apache-2.0. Full terms are in LICENSE-APACHE-2.0.txt. Their individual source
 license remains Apache-2.0 when included in this GPLv3-compatible extension.
 

@@ -4,10 +4,13 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.2 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
+Version 0.3 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
+URDF import creates keyframeable root/joint controllers and soft-driven ABD links.
+Animated targets are sampled at every solver substep; robot/environment contact
+and friction stay coupled to the cloth and other rigid bodies.
 The UI lives in **3D Viewport > Sidebar (N) > libuipc**. The CUDA solver runs in
 a separate Python process. Blender itself never imports the native `uipc` module.
 
@@ -19,7 +22,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.2.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.3.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -70,8 +73,17 @@ installed in the external Python; PyPI 0.0.28 does not contain the new mesher.
 - Native Mesh Cache playback continues after the extension is disabled and
   requires neither Python nor a GPU solver once the bake is complete.
 - This is an offline bake integration, not a real-time solver guarantee.
-- Rods, animated collision targets/pins, and joints are not exposed in version 0.2.0.
+- URDF mesh links with fixed/revolute joints and animated ABD targets are exposed
+  in 0.3. The joint hierarchy specifies target poses, as in sample 87; it is not
+  a torque-controlled articulation solver. Rods and animated cloth/FEM pins remain unsupported.
 - Blender-specific adapter code is GPL-3.0-or-later; the independently usable
-  `worker.py` and `protocol.py` retain Apache-2.0. Copyright: spiriMirror.
+  `worker.py`, `protocol.py` and `robot_model.py` retain Apache-2.0. Copyright: spiriMirror.
   Separately installed libuipc remains Apache-2.0. See the extension's `LICENSE`
   for the per-file boundary. The ZIP contains no third-party native binaries.
+
+`tests/blender_motion.py` checks a 50-frame hold, substep target motion and
+keyframe-driven cache invalidation using the actual CUDA worker.
+`examples/robot_pick_place.py` adds sample 87's hand to an existing dining scene,
+bakes a three-finger grasp/transfer/release, checks every frame for enabled
+inter-object crossings, and verifies grasp contact, final support and playback.
+See [the robot example](examples/ROBOT_PICK_PLACE.md) for its controls and results.

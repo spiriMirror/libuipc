@@ -81,7 +81,7 @@ class UIPCBodySettings(bpy.types.PropertyGroup):
     tet_report: StringProperty(options={"HIDDEN"})
     density: FloatProperty(name="Density (kg/m^3)", default=200, min=1e-6, soft_max=10000, update=changed)
     thickness: FloatProperty(name="Thickness Radius r (m)", default=0.001, min=1e-7, soft_max=0.05,
-        precision=6, update=changed, description="One-sided collision offset r; cloth material thickness is 2*r")
+        precision=6, update=changed, description="Cloth/FEM contact radius; cloth material thickness is 2*r. Native 3D ABD uses its surface with zero radius")
     stretch: FloatProperty(name="Stretch E (Pa)", default=5e4, min=1e-6, soft_max=1e8, update=changed)
     shear: FloatProperty(name="Shear E Parameter", default=10, min=1e-6, soft_max=1e6, update=changed,
         description="Effective shear coefficient = E / (2*(1+nu)); not multiplied by thickness")
@@ -94,6 +94,15 @@ class UIPCBodySettings(bpy.types.PropertyGroup):
     pin_group: StringProperty(name="Pin Vertex Group", update=changed,
         description="Vertices meeting the weight threshold are fixed in world space")
     pin_threshold: FloatProperty(name="Pin Weight Threshold", default=0.5, min=0.0001, max=1, update=changed)
+    driven: BoolProperty(name="Drive from Target", default=False, update=changed,
+        description="Drive this ABD body through a soft transform constraint sampled from an animated controller")
+    drive_target: PointerProperty(name="Motion Target", type=bpy.types.Object, update=changed,
+        description="Controller object; animate its transforms or its parent hierarchy")
+    drive_translation_strength: FloatProperty(name="Translation Strength Ratio", default=1e4, min=0, update=changed)
+    drive_rotation_strength: FloatProperty(name="Rotation Strength Ratio", default=1e4, min=0, update=changed)
+    drive_group: StringProperty(name="Robot Collision Group", default="", update=changed,
+        description="Disable contact only within this nonempty robot assembly group")
+    drive_friction: FloatProperty(name="Robot Contact Friction", default=0.8, min=0, soft_max=2, update=changed)
 
 
 class UIPCPreferences(bpy.types.AddonPreferences):
@@ -143,6 +152,53 @@ class UIPC_OT_bake(bpy.types.Operator):
                     bpy.app.timers.register(_poll_timer, first_interval=0.2)
         except Exception as error:
             context.scene.uipc_settings.status = str(error)
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+class UIPC_OT_import_robot(bpy.types.Operator, ImportHelper):
+    bl_idname = "uipc.import_robot"
+    bl_label = "Import URDF Robot"
+    bl_description = "Import native URDF collision links with keyframeable controllers and soft target drives"
+    filename_ext = ".urdf"
+    filter_glob: StringProperty(default="*.urdf", options={"HIDDEN"})
+    blocking: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
+
+    @classmethod
+    def poll(cls, context):
+        return not runtime.is_running()
+
+    def execute(self, context):
+        try:
+            if self.blocking or bpy.app.background:
+                runtime.bake_blocking(context.scene, robot_file=self.filepath)
+            else:
+                runtime.start(context.scene, robot_file=self.filepath)
+                if not bpy.app.timers.is_registered(_poll_timer):
+                    bpy.app.timers.register(_poll_timer, first_interval=.2)
+        except Exception as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+class UIPC_OT_robot_initial_pose(bpy.types.Operator):
+    bl_idname = "uipc.robot_initial_pose"
+    bl_label = "Preview Robot Initial Pose"
+    bl_description = "Align imported robot links to their controllers at the scene start; bake to update animation"
+
+    @classmethod
+    def poll(cls, context):
+        return not runtime.is_running()
+
+    def execute(self, context):
+        from .motion import align_robot_initial
+        try:
+            align_robot_initial(context.scene)
+            invalidate(context.scene, "Robot initial pose updated; bake again")
+            context.scene.frame_set(context.scene.frame_start)
+        except Exception as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
         return {"FINISHED"}
@@ -343,6 +399,9 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.operator("uipc.detach_cache")
         layout.operator("uipc.create_demo")
         layout.operator("uipc.import_volume")
+        layout.operator("uipc.import_robot")
+        if any(obj.get("uipc_robot_source") for obj in context.scene.objects):
+            layout.operator("uipc.robot_initial_pose")
 
 
 class UIPC_PT_body(bpy.types.Panel):
@@ -370,6 +429,13 @@ class UIPC_PT_body(bpy.types.Panel):
             layout.prop(body, "density")
         if body.role == "RIGID":
             layout.prop(body, "rigidity")
+            layout.prop(body, "driven")
+            if body.driven:
+                layout.prop(body, "drive_target")
+                layout.prop(body, "drive_translation_strength")
+                layout.prop(body, "drive_rotation_strength")
+                layout.prop(body, "drive_group")
+                layout.prop(body, "drive_friction")
         if body.role == "CLOTH":
             layout.label(text="Material thickness = 2 * r")
             for name in ("stretch", "shear", "bending", "poisson", "strain_rate", "self_collision"):
@@ -447,7 +513,8 @@ def _load_post(_):
 
 CLASSES = (UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
-           UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface,
+           UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
+           UIPC_OT_robot_initial_pose,
            UIPC_PT_scene, UIPC_PT_body)
 
 

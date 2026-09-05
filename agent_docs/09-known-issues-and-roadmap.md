@@ -12,6 +12,12 @@ Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
 internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
 conservative construction contract. This does not change the simulation solver.
 
+Version 0.3 adds URDF mesh-link import and keyframed ABD target drives. Sample 87's
+hand now completes the dining-scene apple pick/place through Blender with coupled
+contact. Torque-driven articulations, rods, animated cloth/FEM pins and controller
+NLA/drivers/constraints remain outside this interface; see the robot section of
+`13-blender-integration.md` for exact supported controls and validation.
+
 The procedural dining-scene reconstruction now has a complete gravity bake,
 render and independently reopened portable cache. It is an assumed-material
 visual/physical example, not a calibrated fabric benchmark: its 1/60 vs 1/120 s

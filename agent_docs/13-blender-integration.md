@@ -19,7 +19,9 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.2.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.3.0; Windows/Linux; Blender >=4.2 API target |
+| `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
+| `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
 
 ## Invariants
@@ -45,8 +47,8 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 - Native generation requires a current pyuipc source build (not PyPI 0.0.28).
   Blender float32 conversion is validated before installing the volume. Original
   local vertices are copied verbatim so transform round trips cannot move them.
-- Requests use schema v2 and include tetrahedral topology plus the fixed/material
-  fields in signatures. Legacy v1 cloth/ABD caches remain valid while new features
+- Requests use schema v3 and include tetrahedral topology, fixed/material fields
+  and opt-in authored motion signatures. Legacy v1/v2 caches remain valid while new features
   are unused. Never ignore a newly enabled Fixed flag in legacy validation.
 - Role enum IDs are explicit and persistent: NONE=0, CLOTH=1, RIGID=2,
   STATIC=3, FEM=4. Inserting FEM into the displayed list must not reinterpret
@@ -117,8 +119,63 @@ Version 0.2 adds native volume generation/import and whole-object fixing. The
 surface/internal pins, fixed ABD/FEM/cloth, contact, all-node MDD checks and source
 restoration. It passed in Blender 4.5.3 with a Python 3.14 source-built CUDA 13.2
 runtime; cached-node playback error was zero in the checked frames.
-Rods, joints, animated colliders/pins, shape keys, and topology-changing simulation
-are still outside this plugin version.
+Version 0.3 adds the URDF/controller workflow below. Rods, torque-driven
+articulations, animated cloth/FEM pins, shape keys and topology-changing
+simulation remain outside this plugin version.
+
+## Robot targets (0.3)
+
+Import URDF Robot runs native `UrdfIO` in the worker, then builds an object-parent
+controller hierarchy in Blender. Link vertices already include each collision
+origin. Undo the URDF-to-UIPC basis for the exported controller poses so Blender's
+Z-up targets use native URDF frames; explicitly set the native root pose to zero
+before export. Validate a nonzero joint pose against the native controller (the
+sample 87 import measured maximum matrix error 1.64e-7).
+
+Separate controllers can animate ABD bodies through `SoftTransformConstraint`.
+For ordinary driven bodies, the first target pose defines the offset:
+`T_aim(t) = T_target(t) * inverse(T_target(t0)) * T_body(t0)`, after translating
+positions to meters. Imported robots automatically align their base meshes to
+their first-frame target poses before export. Sample at every solver substep,
+including frame zero; keep first-frame output unadvanced. Insert an animator
+callback per driven object so the backend consumes the current aim transforms.
+Use `is_dynamic=0` for the sample's quasi-static servos, with `is_fixed=0`.
+
+Drive metadata is opt-in; do not add default drive fields to legacy materials.
+Protocol v3 hashes controller hierarchy transforms, authored F-curves/handles,
+interpolation and strength/group/friction parameters. Ignore the current value
+of animated transform channels in that signature: playback must not invalidate
+it. Sampled target matrices have a separate SHA256 in the request and are checked
+for shape, finite values and proper rigid motion in the worker. Pose sampling
+restores the caller's frame. Old v1/v2 caches remain readable when their new
+features are unused; never silently ignore a newly enabled drive on a v1 cache.
+
+Support only keyframed object transforms and object-parent hierarchies here.
+Reject drivers, NLA, constraints, bone parenting, F-curve modifiers, variable
+scale/shear and URDF joint-limit violations. A nonempty robot contact group
+disables internal assembly contact only; contacts against the environment remain
+enabled. Ordinary rigid inputs stay connected; driven assemblies may consist of
+several closed components. The importer removes isolated zero-volume components
+and fills open boundaries before final rigid validation. Roll back newly created
+Blender data and restore existing cache visibility if attachment fails.
+
+The native ABD vertex reporter inherits zero thickness and dimension 3 from the
+global vertex manager; cloth/FEM thickness offsets do not add a separate skin to
+ABD surfaces. The robot addition preserves that backend behavior.
+
+The dining pick/place example uses an unconstrained apple and 17 driven links.
+All 500 cached frames passed enabled inter-object crossing checks; the hand
+remained still through frame 50, lifted the apple about 22 cm, moved it about
+48 cm, and released it onto the cloth. Final apple RMS speed was 3.2e-5 m/s,
+hand separation 0.260 m, and native all-vertex playback error 0 in checked frames.
+See `integrations/blender/examples/ROBOT_PICK_PLACE.md` and
+`tests/blender_motion.py` for reproduction and validation scope.
+
+The installed 0.3 extension also passed the motion regression, basic coupled
+bake and FEM suite. A real UI window reopened the 500-frame hand file, validated
+seven action frames and exposed the target controls. The portable bundle was
+extracted elsewhere and factory Blender (without the addon) replayed all 39
+physical/decorative caches at frames 1/250/500 with zero vertex error.
 
 ## Procedural dining-scene workflow
 

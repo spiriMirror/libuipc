@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Blender robot hand (2026-09-06)**: extension 0.3 adds native URDF import,
+> keyframeable root/joint controllers and per-substep soft ABD target drives,
+> with protocol-v3 motion integrity and legacy-cache support. Sample 87's hand
+> holds through frame 50, physically grasps the upper apple, lifts/transfers it
+> and releases it onto the dining cloth. The full 500-frame coupled bake passes
+> contact and playback checks. See `integrations/blender/examples/ROBOT_PICK_PLACE.md`
+> and `13-blender-integration.md`; core C++/CUDA algorithms are unchanged.
+>
 > **Blender dining reconstruction (2026-09-05)**: added reproducible procedural
 > scene, full compound fixed-furniture contact, one continuous gravity bake,
 > Cycles render, verification and portable-cache packaging under

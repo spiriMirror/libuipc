@@ -15,13 +15,17 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
     "poisson", "strain_rate", "rigidity", "young_modulus", "fixed",
     "self_collision", "pin_group", "pin_threshold",
 )
+
+
+def motion_hash(array):
+    return hashlib.sha256(np.ascontiguousarray(array, dtype="<f8").tobytes()).hexdigest()
 
 
 def atomic_json(path, data):
@@ -71,12 +75,12 @@ def cache_fingerprint(request, settings, bodies):
         if len(bodies) != len(request["objects"]):
             return None
         for body, old in zip(bodies, request["objects"]):
-            if body["material"].get("fixed", False) or body["material"]["role"] == "FEM":
+            if body["material"].get("fixed", False) or body["material"]["role"] == "FEM" or "drive" in body["material"]:
                 return None
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema != SCHEMA_VERSION:
+    if schema not in (2, SCHEMA_VERSION):
         return None
     return fingerprint(settings, bodies)
 
@@ -86,7 +90,7 @@ def positive(value, name, allow_zero=False):
         raise ValueError(f"{name} must be finite and {'non-negative' if allow_zero else 'positive'}")
 
 
-def validate_mesh(vertices, triangles, role, name):
+def validate_mesh(vertices, triangles, role, name, allow_components=False):
     """Validate input before any native call; preserve the original vertex indexing."""
     vertices = np.asarray(vertices, dtype=np.float64)
     triangles = np.asarray(triangles, dtype=np.int32)
@@ -133,7 +137,7 @@ def validate_mesh(vertices, triangles, role, name):
             if face not in seen:
                 seen.add(face)
                 pending.extend(adjacency[face])
-        if len(seen) != len(triangles):
+        if len(seen) != len(triangles) and not allow_components:
             raise ValueError(prefix + "use one connected closed surface per ABD body")
         # Center before integrating to avoid cancellation for translated meshes.
         centered = vertices - vertices.mean(axis=0)

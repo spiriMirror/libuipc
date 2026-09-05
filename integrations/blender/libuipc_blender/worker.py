@@ -12,7 +12,7 @@ import traceback
 import numpy as np
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
-                      positive, read_json, validate_mesh, validate_tetmesh)
+                      positive, read_json, validate_mesh, validate_tetmesh, motion_hash)
 
 
 class ParentProcess:
@@ -59,7 +59,7 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] != SCHEMA_VERSION:
+    if request["schema_version"] not in (2, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
@@ -75,6 +75,10 @@ def load_request(directory):
         # Paths are derived from indices, never from object names or input paths.
         with np.load(directory / f"input_{index:04d}.npz", allow_pickle=False) as data:
             body = {key: data[key].copy() for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
+            if "drive" in entry["material"]:
+                body["drive_targets"] = data["drive_targets"].copy()
+                if motion_hash(body["drive_targets"]) != entry.get("drive_targets_sha256"):
+                    raise ValueError(f"{entry['name']}: corrupted motion samples")
         body.update(name=entry["name"], material=entry["material"])
         bodies.append(body)
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
@@ -92,7 +96,7 @@ def simulate(directory, parent):
     from uipc.geometry import trimesh, tetmesh, label_surface, label_triangle_orient
     from uipc.constitution import (AffineBodyConstitution, DiscreteShellBending,
                                   ElasticModuli2D, StrainLimitingBaraffWitkinShell,
-                                  ElasticModuli, StableNeoHookean)
+                                  ElasticModuli, StableNeoHookean, SoftTransformConstraint)
 
     uipc.Logger.set_level(uipc.Logger.Level.Warn)
     config = uipc.Scene.default_config()
@@ -111,9 +115,30 @@ def simulate(directory, parent):
     outputs = []
     has_dynamic = False
     frame_count = settings["frame_end"] - settings["frame_start"] + 1
+    motion_step = [0]
+    groups = {}
+    for body in bodies:
+        drive = body["material"].get("drive")
+        if drive is None:
+            continue
+        group_name = drive["group"] or ("body:" + body["name"])
+        if group_name in groups:
+            if groups[group_name][1] != drive["friction"]:
+                raise ValueError("Bodies in a robot collision group must share its friction")
+            continue
+        positive(drive["friction"], "robot friction", allow_zero=True)
+        tabular = scene.contact_tabular()
+        group = tabular.create("robot:" + group_name)
+        if drive["group"]:
+            tabular.insert(group, group, 0.0, 0.0, False)
+        tabular.insert(group, tabular.default_element(), drive["friction"], settings["resistance"], True)
+        groups[group_name] = (group, drive["friction"])
     for index, body in enumerate(bodies):
         material = body["material"]
         role = material["role"]
+        drive = material.get("drive")
+        if drive is not None and (role != "RIGID" or material["fixed"]):
+            raise ValueError("Motion targets require an unfixed ABD body")
         if role not in ("CLOTH", "RIGID", "STATIC", "FEM"):
             raise ValueError(f"{body['name']}: unsupported simulation role")
         for key in ("density", "thickness", "stretch", "shear", "rigidity", "strain_rate"):
@@ -132,7 +157,8 @@ def simulate(directory, parent):
             world_positions, cells, _boundary, _owners = validate_tetmesh(
                 world_positions, body["tetrahedra"], body["name"])
         else:
-            world_positions, triangles = validate_mesh(world_positions, body["triangles"], role, body["name"])
+            world_positions, triangles = validate_mesh(world_positions, body["triangles"], role, body["name"],
+                                                       allow_components=drive is not None)
         pins = np.asarray(body["pins"], dtype=np.int32)
         if pins.ndim != 1 or (len(pins) and (pins.min() < 0 or pins.max() >= len(world_positions))):
             raise ValueError(f"{body['name']}: invalid pinned vertex indices")
@@ -175,6 +201,30 @@ def simulate(directory, parent):
             view(mesh.meta().find(builtin.self_collision))[:] = int(role in ("CLOTH", "FEM") and material["self_collision"])
         obj = scene.objects().create(body["name"])
         current, _rest = obj.geometries().create(mesh)
+        if drive is not None:
+            geometry = current.geometry()
+            for key in ("translation_strength", "rotation_strength"):
+                positive(drive[key], key, allow_zero=True)
+            SoftTransformConstraint().apply_to(geometry, np.array([drive["translation_strength"],drive["rotation_strength"]]))
+            view(geometry.instances().find(builtin.is_constrained))[:] = 1
+            # Match sample 87's servo-controlled, quasi-static links.
+            view(geometry.instances().find(builtin.is_dynamic))[:] = 0
+            group_name = drive["group"] or ("body:" + body["name"])
+            groups[group_name][0].apply_to(geometry)
+            targets = np.asarray(body["drive_targets"], dtype=np.float64).copy()
+            if (targets.shape != ((frame_count-1)*settings["substeps"]+1,4,4)
+                    or not np.isfinite(targets).all() or not np.allclose(targets[:,3,:],[0,0,0,1])):
+                raise ValueError(f"{body['name']}: invalid target motion shape/values")
+            targets[:,:3,3] *= settings["unit_scale"]
+            delta = targets @ np.linalg.inv(targets[0])
+            rotations = delta[:,:3,:3]
+            if (not np.allclose(rotations @ np.transpose(rotations,(0,2,1)), np.eye(3), atol=2e-5)
+                    or not np.allclose(np.linalg.det(rotations),1,atol=2e-5)):
+                raise ValueError("Robot targets must preserve rigid shape")
+            aims = delta @ transform
+            def update_target(info, slot=current, values=aims):
+                view(slot.geometry().instances().find(builtin.aim_transform))[0] = values[motion_step[0]]
+            scene.animator().insert(obj, update_target)
         if role != "STATIC":
             outputs.append({"index": index, "slot": current, "role": role,
                             "inverse": inverse, "vertices": len(world_positions)})
@@ -201,6 +251,7 @@ def simulate(directory, parent):
                     if not parent.alive() or (directory / "cancel").exists():
                         atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
                         return
+                    motion_step[0] += 1
                     world.advance()
                     if not world.is_valid():
                         raise RuntimeError(f"Simulation failed at output frame {frame}")
@@ -221,7 +272,7 @@ def simulate(directory, parent):
         for writer in writers:
             writer.close(commit=True)
         atomic_json(directory / "result.json", {
-            "schema_version": SCHEMA_VERSION, "fingerprint": request["fingerprint"],
+            "schema_version": request["schema_version"], "fingerprint": request["fingerprint"],
             "build_info": uipc.build_info(), "frames": frame_count,
             "elapsed_seconds": time.monotonic() - started,
             "objects": [{"index": o["index"], "vertices": o["vertices"]} for o in outputs],
@@ -298,7 +349,14 @@ def main():
     try:
         parent = ParentProcess(args.parent_pid)
         operation = read_json(directory / "request.json").get("operation", "bake")
-        if operation in ("generate_volume", "import_volume"):
+        if operation == "import_robot":
+            from robot_model import export_robot
+            request = read_json(directory / "request.json")
+            model = export_robot(request["source"], directory)
+            atomic_json(directory / "result.json", {"schema_version": SCHEMA_VERSION,
+                "fingerprint": request["fingerprint"], "links": len(model["links"]), "build_info": model["build_info"]})
+            atomic_json(directory / "status.json", {"state": "complete", "frame": 1, "total": 1})
+        elif operation in ("generate_volume", "import_volume"):
             prepare_volume(directory, parent)
         else:
             simulate(directory, parent)

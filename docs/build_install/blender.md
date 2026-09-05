@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.2.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.3.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.2.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.3.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -143,6 +143,53 @@ search; **Cancel Operation** remains available. The mesher requires a valid
 closed, embedded surface. See [native tetrahedralization](../specification/tetrahedralization.md)
 for its construction, quality metrics, and C++/Python APIs.
 
+## URDF robots and animated rigid targets
+
+Version 0.3 adds **Import URDF Robot**. Choose a mesh-based URDF with fixed or
+revolute joints. The native libuipc `UrdfIO` loads the collision meshes; Blender
+creates `Robot root - ...`, `Joint angle ...` controllers and driven link meshes.
+The importer checks Blender's forward kinematics against a native controller pose.
+
+1. Select the robot root to position the hand and keyframe its Location/Rotation.
+2. Select a `Joint angle ...` object and keyframe the angle component of its
+   Axis-Angle rotation. The axis and origin come from the URDF; angles are radians.
+   Authored trajectories must stay inside the imported joint limits.
+3. Use **Preview Robot Initial Pose** to align the visible links to the first-frame
+   controls. Baking also performs this alignment automatically.
+4. Click **Bake Simulation**. Controllers are sampled at every solver substep.
+   The resulting link motion and coupled object motion play through native MDD.
+
+For any other ABD body, enable **Drive from Target** and choose a separate object
+as its **Motion Target**. Its motion relative to the target's first-frame pose
+drives the body's initial pose. The target may have a keyframed object-parent
+hierarchy. The physical mesh itself remains unparented and unanimated; the cache
+contains its solved motion. Shape-changing target motion, constraints, NLA,
+drivers, F-curve modifiers and bone parenting are currently rejected.
+
+| Drive setting | Default | Meaning |
+|---|---:|---|
+| Drive from Target | False | Requires an unfixed ABD body |
+| Motion Target | None | Separate transform controller |
+| Translation Strength Ratio | 10000 | Nonnegative, mass-weighted center-of-mass servo strength |
+| Rotation Strength Ratio | 10000 | Nonnegative, mass-weighted rotation/deformation servo strength |
+| Robot Collision Group | Empty | A nonempty shared group disables only contact internal to that assembly |
+| Robot Contact Friction | 0.8 | Nonnegative Coulomb coefficient against ordinary scene objects |
+
+Drives use `SoftTransformConstraint` and quasi-static links (`is_dynamic=0`),
+matching sample 87. Collision response may produce a small difference between
+commanded and solved poses. The URDF joint tree supplies target kinematics;
+joint torques and actuator dynamics are not modeled by this interface.
+Internal robot collision can be disabled for assembled links, while collisions
+with the table, cloth, bowl and grasped object remain enabled.
+
+The imported collision meshes retain their closed solid components. Isolated
+zero-volume export fragments are removed, and open boundary loops are capped
+with Blender's mesh operations before rigid validation. Repair counts are stored
+on imported link objects and in the import report. The native 3D ABD reporter
+uses zero contact radius on its boundary surface; the cloth/FEM thickness setting
+does not add a separate collision skin to ABD links. Contact activation distance
+still applies.
+
 ## Scene parameters
 
 | Setting | Default | Valid range and meaning |
@@ -200,7 +247,8 @@ Poisson's ratio, and `r` is the one-sided offset. The shear convention is an
 independently calibrated effective coefficient, not a second multiplication by
 thickness. Refer to [cloth modeling](../tutorial/cloth.md) for the full model.
 
-ABD bodies require one closed, connected surface with consistent face winding.
+Ordinary ABD bodies require one closed, connected surface with consistent face winding.
+Driven assemblies may contain several closed components in one rigid link.
 Inward global winding is normalized on export without changing vertex order.
 Fixed colliders may be open triangle surfaces and use fixed FEM vertices.
 Duplicate/degenerate triangles, non-manifold edges, loose vertices, invalid
@@ -225,17 +273,19 @@ coordinates, singular transforms, and invalid pin groups are rejected.
   Blender's native MDD modifier supports fractional-frame interpolation, seeking,
   saving/reopening, and rendering without extension callbacks or a running solver.
   Do not change vertex count/order after baking.
-- Version 0.2 rejects shape keys, animation/drivers/constraints on participants
+- Version 0.3 rejects shape keys, animation/drivers/constraints on physical participants
   or their parents, and Blender Bullet rigid bodies on the same hierarchy.
-  Animated colliders/pins, rods, joints, and topology-changing
-  simulation are future extensions, not supported controls hidden in this version.
+  It supports separate animated ABD targets as described above. Animated cloth/FEM
+  pins, rods, torque-driven articulations and topology-changing simulation remain unsupported.
 - One bake runs at a time. Loading another file or disabling the extension stops
   its worker. The worker notices a closed parent Blender process between substeps.
 - `worker.log`, `request.json`, input NPZ files, `status.json`, and `result.json`
   stay in each bake directory for diagnosis. MDD data is written one frame at a
   time, with no frames-times-vertices allocation in RAM.
 - Version 0.1 cloth/ABD caches remain valid when the new fixed/FEM features are
-  unused. New bakes use protocol v2, which also fingerprints tetrahedral topology.
+  unused. Version 0.2 caches also remain readable. New bakes use protocol v3,
+  fingerprinting authored control curves and parents, with separately hashed
+  per-substep target matrices in the exported NPZ files.
 
 ## Developer validation
 

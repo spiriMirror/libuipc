@@ -26,7 +26,12 @@ def cache_root(scene):
 
 
 def object_material(obj):
-    return {name: getattr(obj.uipc_body, name) for name in OBJECT_FIELDS}
+    from .motion import drive_material
+    result = {name: getattr(obj.uipc_body, name) for name in OBJECT_FIELDS}
+    drive = drive_material(obj)
+    if drive is not None:
+        result["drive"] = drive
+    return result
 
 
 def collect_scene(scene):
@@ -97,7 +102,8 @@ def collect_scene(scene):
                 raise ValueError(f"{obj.name}: visible faces no longer match the tetrahedral boundary; regenerate the volume")
             triangles = boundary
         else:
-            _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name)
+            _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name,
+                                         allow_components=obj.uipc_body.driven)
         pins = []
         if obj.uipc_body.role in ("CLOTH", "FEM") and obj.uipc_body.pin_group and not obj.uipc_body.fixed:
             group = obj.vertex_groups.get(obj.uipc_body.pin_group)
@@ -118,7 +124,10 @@ def collect_scene(scene):
 
 
 def export_job(scene):
+    from .motion import sample_targets, sample_hash, align_robot_initial
+    align_robot_initial(scene)
     settings, bodies = collect_scene(scene)
+    targets = sample_targets(scene, bodies)
     root = cache_root(scene)
     root.mkdir(parents=True, exist_ok=True)
     directory = root / ("bake_" + uuid.uuid4().hex)
@@ -127,8 +136,23 @@ def export_job(scene):
                "fingerprint": fingerprint(settings, bodies),
                "objects": [{"name": b["name"], "material": b["material"]} for b in bodies]}
     for index, body in enumerate(bodies):
-        np.savez(directory / f"input_{index:04d}.npz",
-                 **{key: body[key] for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")})
+        arrays = {key: body[key] for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
+        if "drive" in body["material"]:
+            arrays["drive_targets"] = targets[body["material"]["drive"]["target"]]
+            request["objects"][index]["drive_targets_sha256"] = sample_hash(arrays["drive_targets"])
+        np.savez(directory / f"input_{index:04d}.npz", **arrays)
+    atomic_json(directory / "request.json", request)
+    return directory, request
+
+
+def export_robot_job(scene, filename):
+    source = Path(bpy.path.abspath(filename)).resolve()
+    if not source.is_file() or source.suffix.lower() != ".urdf":
+        raise ValueError("Choose a URDF file")
+    directory = cache_root(scene) / ("robot_" + uuid.uuid4().hex)
+    directory.mkdir(parents=True)
+    request = {"schema_version": SCHEMA_VERSION, "operation": "import_robot",
+               "source": str(source), "name": source.stem, "fingerprint": uuid.uuid4().hex}
     atomic_json(directory / "request.json", request)
     return directory, request
 
@@ -137,7 +161,7 @@ def attach_cache(scene, directory, request):
     result = read_json(directory / "result.json")
     current_settings, bodies = collect_scene(scene)
     expected = request["fingerprint"]
-    if result["schema_version"] != SCHEMA_VERSION or result["fingerprint"] != expected:
+    if result["schema_version"] != request["schema_version"] or result["fingerprint"] != expected:
         raise ValueError("Bake result does not match the exported scene")
     if fingerprint(current_settings, bodies) != expected:
         raise ValueError("Scene changed during baking; result was preserved on disk. Bake again")
