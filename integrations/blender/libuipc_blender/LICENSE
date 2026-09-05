@@ -1,0 +1,30 @@
+libuipc Physics Blender extension
+Copyright (C) 2026 spiriMirror
+
+License scope
+-------------
+
+The Blender-specific files __init__.py, bridge.py, runtime.py, and demo.py are
+licensed under GPL-3.0-or-later. Full terms are in LICENSE-GPL-3.0.txt.
+
+The independently usable worker.py and protocol.py are licensed under
+Apache-2.0. Full terms are in LICENSE-APACHE-2.0.txt. Their individual source
+license remains Apache-2.0 when included in this GPLv3-compatible extension.
+
+The separately installed libuipc/pyuipc library retains Apache-2.0 and its
+third-party notices. The extension does not change that library's license,
+include Blender code in libuipc, or bundle libuipc native binaries.
+
+Blender-specific code notice
+---------------------------
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+The GNU General Public License version 3 is also available at:
+https://www.gnu.org/licenses/gpl-3.0.txt

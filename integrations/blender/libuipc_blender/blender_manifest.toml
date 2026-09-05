@@ -1,0 +1,19 @@
+schema_version = "1.0.0"
+id = "libuipc_blender"
+version = "0.1.0"
+name = "libuipc Physics"
+tagline = "Bake coupled cloth and rigid body contact with libuipc"
+maintainer = "spiriMirror"
+type = "add-on"
+website = "https://github.com/spiriMirror/libuipc"
+tags = ["Physics"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 spiriMirror"]
+platforms = ["windows-x64", "linux-x64"]
+
+[permissions]
+files = "Export scenes, run the Python solver, and read/write bake caches"
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "*.pyc", ".*", "tests/"]

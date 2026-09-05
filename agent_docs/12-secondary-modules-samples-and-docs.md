@@ -4,6 +4,10 @@ This guide covers public surfaces that sit outside the main
 Engine/Scene/constitution/CUDA path, plus the repository's user-documentation
 pipeline and the sample corpus used as executable API evidence.
 
+The independently packaged Blender integration is documented in
+[`13-blender-integration.md`](13-blender-integration.md): external Python/CUDA
+worker, cloth/ABD/fixed contact, and native MDD playback with real Blender tests.
+
 ## Backend Feature Collection
 
 `Engine::features()` is a runtime registry, not a compile-time promise. The common

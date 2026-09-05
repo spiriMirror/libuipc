@@ -110,6 +110,9 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- Blender integration: use `spiriMirror` for the new extension's copyright
+  attribution and maintainer. (Set 2026-09-05.)
+
 - During the Stiff-GIPC performance-alignment work: "when a design choice
   is uncertain, follow Stiff-GIPC's algorithm design" — that applied to
   that effort (and its evidence lives in `handoff.md`), not to unrelated

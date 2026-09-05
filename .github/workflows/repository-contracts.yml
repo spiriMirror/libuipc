@@ -35,3 +35,9 @@ jobs:
           python scripts/check_constitution_api.py
           python scripts/check_workflow_pins.py
           python -m unittest discover -s scripts/tests -p 'test_*.py'
+
+      - name: Check Blender bridge protocol and packaging
+        run: |
+          python -m pip install numpy
+          python -m unittest discover -s integrations/blender/tests -p 'test_protocol.py' -v
+          python scripts/build_blender_addon.py

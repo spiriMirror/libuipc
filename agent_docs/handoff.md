@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Blender integration (2026-09-05, `refactor-main`)**: added an independently
+> packaged Blender extension for cloth/ABD/fixed contact, friction and pins,
+> with a separate Python CUDA worker and native MDD Mesh Cache playback.
+> Real Blender 4.5.3 + official pyuipc 0.0.28 + RTX 5090 tests cover every cached
+> vertex, backward/fractional playback, .blend reopening/rendering, scale/units,
+> friction, cancellation, invalidation, rebake and detach. Export uses evaluated
+> matrices after reproducing stale original transforms; Windows atomic status
+> replacement retries reader-sharing conflicts. Source, packaging commands,
+> integration tests and remaining scope are in
+> [`13-blender-integration.md`](13-blender-integration.md).
+
 > **Routing note (2026-08-30)**: this file is the chronological audit trail and
 > may retain detailed commands/incidents. New durable architecture rationale
 > belongs in `agent_docs/adr/`; reusable performance conclusions and rejected

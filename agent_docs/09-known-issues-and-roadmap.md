@@ -4,6 +4,12 @@ Status as of 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
+Blender integration v0.1 was added on 2026-09-05. Cloth/ABD/fixed contact and
+native cache playback have actual Windows Blender 4.5.3/RTX 5090 verification;
+see [the integration guide](13-blender-integration.md). Linux/other Blender
+versions, tetrahedral FEM, rods, joints and animated collision targets remain
+follow-up work. This integration does not change the native simulation backend.
+
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner
 solve boundary. Its multi-state `K_min > 1` cumulative termination rule is now

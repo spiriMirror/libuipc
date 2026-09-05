@@ -21,6 +21,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | `10-code-navigation-and-extension-map.md` | Public API → implementation → backend → binding → test map; coordinated change recipes and verification matrix |
 | `11-scene-data-lifecycle-and-serialization.md` | Scene ownership, current/rest geometry, pending mutations, Animator, contact/subscene semantics, snapshots, full persistence, and baseline-relative commit contracts |
 | `12-secondary-modules-samples-and-docs.md` | Features, sanity checking, DiffSim, USD/VDB, Python helpers, samples index, MkDocs/API generation, deployment and release boundaries |
+| `13-blender-integration.md` | Blender extension packaging, separate-process solver, geometry/units, MDD cache lifecycle, and real Blender verification |
 | `adr/` | Accepted architecture decisions, consequences, alternatives, and validation; consult before changing owned boundaries |
 | `performance/` | Durable benchmark evidence, interpretation policy, rejected experiments, and evidence template |
 | `handoff.md` | Chronological session history and transient operational detail; durable decisions/evidence route to `adr/` and `performance/` |
