@@ -1,5 +1,15 @@
 # Handoff — Current State of the Repo
 
+> **Blender dining reconstruction (2026-09-05)**: added reproducible procedural
+> scene, full compound fixed-furniture contact, one continuous gravity bake,
+> Cycles render, verification and portable-cache packaging under
+> `integrations/blender/examples/`. Ground is z=0; cloth is unpinned. The delivered
+> 961-frame result passes all cached surface crossings and final visible-thickness
+> checks, including the table legs (a tabletop-only proxy was rejected). Relocated
+> playback without the addon matches every checked vertex and renders correctly.
+> Time-step comparison records substantial pointwise fold sensitivity, not a
+> convergence claim. See the example README and `13-blender-integration.md`.
+>
 > **Native tetrahedralization and Blender FEM/Fixed (2026-09-05)**: implemented
 > original Apache-2.0 geometry code under `src/geometry/tetrahedralization`, with
 > exact protected boundary or optional surface refinement. Conservative volume

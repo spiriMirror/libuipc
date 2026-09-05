@@ -12,6 +12,12 @@ Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
 internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
 conservative construction contract. This does not change the simulation solver.
 
+The procedural dining-scene reconstruction now has a complete gravity bake,
+render and independently reopened portable cache. It is an assumed-material
+visual/physical example, not a calibrated fabric benchmark: its 1/60 vs 1/120 s
+comparison still shows pointwise fold sensitivity (27.8 mm RMS at t=16 s).
+See `integrations/blender/examples/README.md` for the full validation boundary.
+
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner
 solve boundary. Its multi-state `K_min > 1` cumulative termination rule is now

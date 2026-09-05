@@ -119,6 +119,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- Dining-scene reconstruction: ground is `z = 0`; tabletop objects may begin
+  separated and suspended, with final stacking and tablecloth drape obtained
+  through libuipc gravity/contact simulation, not manually posed final geometry.
+  (Set 2026-09-05.)
+
 - Blender integration: use `spiriMirror` for the new extension's copyright
   attribution and maintainer. (Set 2026-09-05.)
 

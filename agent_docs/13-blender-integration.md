@@ -119,3 +119,47 @@ restoration. It passed in Blender 4.5.3 with a Python 3.14 source-built CUDA 13.
 runtime; cached-node playback error was zero in the checked frames.
 Rods, joints, animated colliders/pins, shape keys, and topology-changing simulation
 are still outside this plugin version.
+
+## Procedural dining-scene workflow
+
+`integrations/blender/examples/white_table_setting.py` builds an asset-free white
+table/chair/cloth/ceramics/apple scene, runs the existing external worker, checks
+native playback/contact, and renders in Cycles. Its README records dimensions,
+material formulas, limitations, and reproduction/packaging commands. This is an
+example integration workflow, not a solver or extension-default change.
+
+The cloth/placemats, hollow ceramic material shells, apples and cutlery all fall
+from separated initial states in one continuous World. There are no cloth pins
+and no rest-shape reset. Ground is z=0. The table, chair and upholstered cushion
+are fixed fixtures. Combine their actual evaluated meshes with the ground as one
+STATIC environment: internal fixed-fixed joints have no response, but every
+part remains collidable by dynamic objects. A tabletop-only proxy was rejected
+after the rendered-surface check caught a cloth hem crossing a table leg.
+Avoid bevel widths that consume the entire thin seat thickness: Blender can
+emit collapsed zero-area side triangles, rejected by the bridge validator.
+
+Validation examines all cached frames for inter-object surface crossings,
+nonadjacent cloth self-intersections at the final frame, initial
+clearance including thickness (per-triangle bounds for the compound environment),
+the final sampled support graph, ABD stretches,
+motion residuals, and every vertex in initial/middle/final Blender playback.
+The final check also includes visible Solidify thickness and fixed furniture.
+`compare_table_steps.py` validates identical initial meshes/parameters and reports
+time-step sensitivity at a common physical time; differing frictional folds must
+not be described as pointwise convergence merely because centroids agree.
+
+Keep caches next to the .blend or distribute the generated ZIP. Decorative apple
+stems receive MDD motion derived from the same solved affine transforms at every
+frame. Revalidate the full input fingerprint and explicitly reactivate matching
+caches before rendering: assigning even NONE to a new decorative object's physics
+role invokes the extension's broad invalidation callback. Do not silently render
+the initial rest pose. Changing fixed visual fixture geometry requires rebuilding
+its combined collider as well as a new bake.
+
+Checked delivery: 961 frames / 32 s, 9,919 cloth nodes, dt=1/120 s, all cached
+inter-object surface checks and final visible-furniture/thickness checks passed.
+Final cloth RMS speed was 0.356 mm/s, maximum 4.63 mm/s. Relocated ZIP playback
+without registering the addon checked 22 caches at frames 1/481/961 with zero
+vertex error, then rendered in factory Blender. The 1/60 vs 1/120 s comparison
+at t=16 s found cloth pointwise RMS/max differences 27.8/177 mm despite a 0.761 mm
+centroid difference: record this sensitivity, not a false convergence claim.
