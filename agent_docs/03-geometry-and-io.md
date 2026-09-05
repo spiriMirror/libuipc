@@ -17,6 +17,11 @@ Common base classes of the attribute system: `IAttribute` / `IAttributeSlot` (`i
 ## Geometry Factory Functions (`include/uipc/geometry/utils/factory.h`)
 
 - `tetmesh(Vs, Ts)`, `trimesh(Vs, Fs)`, `linemesh(Vs, Es)`, `pointcloud(Vs)` construct from arrays.
+- `tetrahedralize(surface, config)` generates a volume and returns `(mesh, report)`;
+  it is distinct from the `tetmesh` array constructor. The original implementation
+  is under `src/geometry/tetrahedralization/`, with a strict original-boundary
+  contract and conservative construction before quality work. See
+  [ADR 0008](adr/0008-native-tetrahedralization.md).
 - `merge(span<SimplicialComplex*>)` merges multiple meshes.
 - Implicit geometry: `ground(height)` (HalfPlane), etc.; see `docs/specification/implicit_geometry_uid.md`.
 
@@ -36,7 +41,7 @@ Common functions (most declarations are under `include/uipc/geometry/utils/`):
 ## Built-in Attribute Names (`include/uipc/builtin/`)
 
 The `builtin::` namespace centrally defines conventional attribute names, avoiding scattered string literals:
-- `builtin::is_fixed` (instance, whether fixed)
+- `builtin::is_fixed` (ABD instances, or FEM/cloth vertices, including internal volume nodes)
 - `builtin::is_surf` (vertex/edge/triangle, whether on the surface)
 - `builtin::parent_id`, `builtin::orient` (source tetrahedron and orientation of a surface triangle)
 - `builtin::is_constrained`, `aim_position`, `aim_transform` (animation constraints)

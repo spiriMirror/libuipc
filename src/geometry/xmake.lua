@@ -7,7 +7,12 @@ includes("metis")
 
 target("uipc_geometry")
     add_rules("component")
-    add_files("**.cpp|metis/**.cpp")
+    add_files("**.cpp|metis/**.cpp|tetrahedralization/**.cpp")
+    if is_plat("windows") then
+        add_files("tetrahedralization/**.cpp", {cxxflags = "/fp:strict"})
+    else
+        add_files("tetrahedralization/**.cpp", {cxxflags = {"-fno-fast-math", "-ffp-contract=off"}})
+    end
     add_includedirs(os.scriptdir())
     add_headerfiles(
         path.join(os.projectdir(), "include/uipc/geometry/**.h"),

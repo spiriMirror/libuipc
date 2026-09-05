@@ -31,6 +31,20 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
 
 PyUtils::PyUtils(py::module& m)
 {
+    m.def("tetrahedralization_default_config",
+          &tetrahedralization_default_config,
+          R"(Return native tetrahedralization options. Strict surface preservation is enabled by default.)");
+    m.def("tetrahedralize",
+          &tetrahedralize,
+          py::arg("surface"),
+          py::arg("config") = tetrahedralization_default_config(),
+          py::call_guard<py::gil_scoped_release>(),
+          R"(Build a tetrahedral solid and return (mesh, report).
+preserve_surface=True locks the original vertex coordinates/indices and every
+boundary triangle. Interior Steiner points are permitted. A conservative
+boundary-conforming mesh is built before quality optimization. Input must be a
+closed, embedded, consistently oriented triangle surface. Instance transforms
+are not applied. Quality budgets never turn off conservative construction.)");
     m.def("label_surface",
           &label_surface,
           py::arg("sc"),

@@ -18,6 +18,7 @@
     - [Animation](tutorial/animation.md)
     - [Profiling](tutorial/profiling.md)
 - [Specification](specification/index.md)
+    - [Native Tetrahedralization](specification/tetrahedralization.md)
     - Scene Configuration
         - [Full Reference](specification/scene_config.md)
         - [Newton & Linear Solvers](specification/scene_configs/newton.md)

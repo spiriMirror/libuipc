@@ -65,6 +65,15 @@ record it here in the same commit.**
   `external/METIS` or `external/GKlib` source trees or targets. Keep the CMake
   and XMake source boundary equivalent. (Set 2026-09-03.)
 
+## Geometry
+
+- **Native tetrahedralization belongs in `src/geometry/tetrahedralization/`.**
+  Provide strict surface preservation and quality-oriented modes. Strict mode
+  must keep original vertices, coordinates and triangle connectivity, with no
+  boundary subdivision. Construct/retain a conservative valid mesh when quality
+  optimization cannot improve it; do not return a changed boundary or fail merely
+  because optimization did not succeed. (Set and clarified 2026-09-05.)
+
 ## CUDA backend
 
 9. **Raw kernels only**: business GPU code is written as named
