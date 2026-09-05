@@ -10,7 +10,7 @@ import time
 
 import bpy
 
-from .bridge import attach_cache, export_job
+from .bridge import attach_cache, export_job, export_volume_job, attach_volume
 from .protocol import atomic_json, read_json
 
 _job = None
@@ -49,12 +49,15 @@ def is_running():
     return _job is not None
 
 
-def start(scene):
+def start(scene, volume_object=None, volume_file=None):
     global _job
     if _job is not None:
         raise RuntimeError("A libuipc job is already running")
     command = python_command(scene.uipc_settings.python_executable)
-    directory, request = export_job(scene)
+    if volume_object is not None or volume_file is not None:
+        directory, request = export_volume_job(scene, volume_object, volume_file)
+    else:
+        directory, request = export_job(scene)
     log = (directory / "worker.log").open("wb")
     try:
         process = launch(command + [str(Path(__file__).with_name("worker.py")), "--job", str(directory),
@@ -63,8 +66,8 @@ def start(scene):
         log.close()
         raise
     _job = {"scene": scene, "process": process, "log": log, "directory": directory,
-            "request": request, "cancelled_at": None}
-    scene.uipc_settings.status = "Initializing CUDA simulation"
+            "request": request, "cancelled_at": None, "object": volume_object}
+    scene.uipc_settings.status = "Preparing tetrahedral mesh" if request.get("operation") else "Initializing CUDA simulation"
     scene.uipc_settings.progress = 0.0
     return directory
 
@@ -90,7 +93,7 @@ def poll():
         state = {}  # Atomic replacement may transiently conflict with an OS reader.
     if state.get("state") == "running" and job["cancelled_at"] is None:
         scene.uipc_settings.progress = state["frame"] / state["total"]
-        scene.uipc_settings.status = f"Baking {state['frame']}/{state['total']} frames"
+        scene.uipc_settings.status = state.get("message", f"Baking {state['frame']}/{state['total']} frames")
     if job["cancelled_at"] is not None and time.monotonic() - job["cancelled_at"] > 3 and process.poll() is None:
         process.kill()
     if process.poll() is None:
@@ -104,6 +107,10 @@ def poll():
     if process.returncode != 0 or state.get("state") != "complete":
         message = state.get("message", f"Worker exited with code {process.returncode}")
         raise RuntimeError(f"{message}. Log: {job['directory'] / 'worker.log'}")
+    if job["request"].get("operation") in ("generate_volume", "import_volume"):
+        result = attach_volume(scene, job["object"], job["directory"], job["request"])
+        scene.uipc_settings.progress = 1.0
+        return result
     result = attach_cache(scene, job["directory"], job["request"])
     scene.uipc_settings.progress = 1.0
     scene.uipc_settings.status = f"Baked {result['frames']} frames with pyuipc {result['build_info']['version']}"
@@ -122,8 +129,8 @@ def stop():
         atomic_json(job["directory"] / "status.json", {"state": "cancelled"})
 
 
-def bake_blocking(scene, timeout=3600):
-    start(scene)
+def bake_blocking(scene, timeout=3600, volume_object=None, volume_file=None):
+    start(scene, volume_object, volume_file)
     started = time.monotonic()
     try:
         while True:

@@ -1,5 +1,15 @@
 # Handoff — Current State of the Repo
 
+> **Native tetrahedralization and Blender FEM/Fixed (2026-09-05)**: implemented
+> original Apache-2.0 geometry code under `src/geometry/tetrahedralization`, with
+> exact protected boundary or optional surface refinement. Conservative volume
+> construction precedes quality work and survives quality rollback. C++/Python
+> APIs expose mesh/report/source IDs; both build systems preserve FP predicates.
+> Blender 0.2 prepares native volumes or imports MSH, retains all internal nodes
+> for pin selection, and supports Fixed Entire Object for ABD/FEM/cloth. See
+> [ADR 0008](adr/0008-native-tetrahedralization.md), the native geometry tests,
+> and `integrations/blender/tests/blender_fem.py` for the checked contracts.
+
 > **Blender integration (2026-09-05, `refactor-main`)**: added an independently
 > packaged Blender extension for cloth/ABD/fixed contact, friction and pins,
 > with a separate Python CUDA worker and native MDD Mesh Cache playback.

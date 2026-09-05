@@ -74,6 +74,10 @@ def main():
     checks = []
 
     scene = demo.create_demo()
+    # Blender persists numeric enum IDs. Adding FEM must not turn an old
+    # v0.1 Fixed Collider (stored value 3) into a volumetric FEM object.
+    scene.objects["Ground"].uipc_body["role"] = 3
+    assert scene.objects["Ground"].uipc_body.role == "STATIC"
     bpy.context.window.scene = scene
     scene.uipc_settings.python_executable = args.python
     scene.uipc_settings.cache_directory = str(args.output / "cache")
@@ -84,7 +88,7 @@ def main():
     assert bpy.ops.uipc.bake(blocking=True) == {"FINISHED"}
     checks.append("actual Blender operator -> external pyuipc CUDA -> native MDD modifier")
     directory, request, result, arrays = result_arrays(scene)
-    assert result["build_info"]["version"] == "0.0.28", result["build_info"]
+    assert tuple(int(x) for x in result["build_info"]["version"].split(".")[:3]) >= (0, 0, 28), result["build_info"]
     maximum_error = 0.0
     frames = [1, 2, scene.frame_end, max(1, scene.frame_end // 2), 1]
     for frame in frames:

@@ -112,6 +112,29 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(calls, 3)
             self.assertEqual(protocol.read_json(path), {"state": "complete"})
 
+    def test_volume_boundary_and_orientation(self):
+        vertices, cells, boundary, owners = protocol.validate_tetmesh(
+            self.vertices, np.array([[0, 2, 1, 3]]), "tetrahedron")
+        self.assertEqual({tuple(sorted(f)) for f in boundary}, {tuple(sorted(f)) for f in self.faces})
+        p = vertices[cells[0]]
+        self.assertGreater(np.linalg.det(np.stack([p[1]-p[0], p[2]-p[0], p[3]-p[0]], axis=1)), 0)
+        np.testing.assert_array_equal(owners, np.zeros(4, dtype=np.int32))
+        with self.assertRaisesRegex(ValueError, "repeated"):
+            protocol.validate_tetmesh(self.vertices, np.array([[0, 1, 1, 3]]), "invalid")
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            protocol.validate_tetmesh(self.vertices, np.array([[0, 1, 2, 3], [0, 1, 2, 3]]), "invalid")
+
+    def test_new_fixed_flag_invalidates_legacy_cache(self):
+        body = {"name": "mesh", "material": {"role": "CLOTH"},
+                "vertices": self.vertices, "triangles": self.faces, "matrix": np.eye(4),
+                "pins": np.array([0], dtype=np.int32)}
+        request = {"schema_version": 1, "objects": [{"material": {"role": "CLOTH"}}]}
+        old = protocol.fingerprint({}, [body], schema_version=1)
+        body["material"].update(fixed=False, young_modulus=100000)
+        self.assertEqual(protocol.cache_fingerprint(request, {}, [body]), old)
+        body["material"]["fixed"] = True
+        self.assertIsNone(protocol.cache_fingerprint(request, {}, [body]))
+
 
 if __name__ == "__main__":
     unittest.main()

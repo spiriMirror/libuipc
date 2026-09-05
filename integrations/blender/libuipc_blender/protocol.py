@@ -15,12 +15,12 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
-    "poisson", "strain_rate", "rigidity", "self_collision", "pin_group",
-    "pin_threshold",
+    "poisson", "strain_rate", "rigidity", "young_modulus", "fixed",
+    "self_collision", "pin_group", "pin_threshold",
 )
 
 
@@ -44,7 +44,7 @@ def read_json(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def fingerprint(settings, bodies):
+def fingerprint(settings, bodies, schema_version=SCHEMA_VERSION):
     """Include vertex values/order, topology, pins, transforms, and all physics inputs."""
     digest = hashlib.sha256()
     digest.update(json.dumps(settings, sort_keys=True, allow_nan=False).encode())
@@ -52,11 +52,33 @@ def fingerprint(settings, bodies):
         digest.update(json.dumps(body["material"], sort_keys=True, allow_nan=False).encode())
         digest.update(body["name"].encode("utf-8"))
         for key, dtype in (("vertices", "<f8"), ("triangles", "<i4"),
-                           ("matrix", "<f8"), ("pins", "<i4")):
-            data = np.ascontiguousarray(body[key], dtype=dtype)
+                           ("tetrahedra", "<i4"), ("matrix", "<f8"),
+                           ("pins", "<i4")):
+            if schema_version == 1 and key == "tetrahedra":
+                continue
+            values = body.get(key, np.empty((0, 4), dtype=np.int32)) if key == "tetrahedra" else body[key]
+            data = np.ascontiguousarray(values, dtype=dtype)
             digest.update(str(data.shape).encode())
             digest.update(data.tobytes())
     return digest.hexdigest()
+
+
+def cache_fingerprint(request, settings, bodies):
+    """Keep v0.1 cloth/ABD bakes valid when the new fixed/FEM features are unused."""
+    schema = request.get("schema_version", 1)
+    if schema == 1:
+        legacy = []
+        if len(bodies) != len(request["objects"]):
+            return None
+        for body, old in zip(bodies, request["objects"]):
+            if body["material"].get("fixed", False) or body["material"]["role"] == "FEM":
+                return None
+            fields = old["material"].keys()
+            legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
+        return fingerprint(settings, legacy, schema_version=1)
+    if schema != SCHEMA_VERSION:
+        return None
+    return fingerprint(settings, bodies)
 
 
 def positive(value, name, allow_zero=False):
@@ -122,6 +144,72 @@ def validate_mesh(vertices, triangles, role, name):
         if volume < 0:
             triangles = triangles[:, [0, 2, 1]].copy()
     return np.ascontiguousarray(vertices), np.ascontiguousarray(triangles)
+
+
+def tetrahedral_surface(tetrahedra):
+    """Return consistently oriented boundary faces and their owning tetrahedra."""
+    records = {}
+    face_slots = ((1, 2, 3), (0, 3, 2), (0, 1, 3), (0, 2, 1))
+    for owner, tetrahedron in enumerate(np.asarray(tetrahedra)):
+        for slots in face_slots:
+            face = tuple(int(tetrahedron[i]) for i in slots)
+            key = tuple(sorted(face))
+            record = records.get(key)
+            if record is None:
+                records[key] = [face, owner, 1]
+            else:
+                record[2] += 1
+                if record[2] > 2:
+                    raise ValueError("non-manifold tetrahedral face shared by more than two cells")
+                start = record[0].index(face[0])
+                if record[0][(start + 1) % 3] == face[1]:
+                    raise ValueError("tetrahedra overlap or have inconsistent orientation across a shared face")
+    boundary = [(record[0], record[1]) for record in records.values() if record[2] == 1]
+    if not boundary:
+        raise ValueError("tetrahedral mesh has no boundary surface")
+    return (np.ascontiguousarray([item[0] for item in boundary], dtype=np.int32),
+            np.ascontiguousarray([item[1] for item in boundary], dtype=np.int32))
+
+
+def validate_tetmesh(vertices, tetrahedra, name):
+    """Validate/orient a volume mesh and return its exact boundary surface."""
+    vertices = np.asarray(vertices, dtype=np.float64)
+    tetrahedra = np.asarray(tetrahedra, dtype=np.int32)
+    prefix = f"{name}: "
+    if vertices.ndim != 2 or vertices.shape[1] != 3 or len(vertices) < 4:
+        raise ValueError(prefix + "expected at least four tetrahedral vertices")
+    if tetrahedra.ndim != 2 or tetrahedra.shape[1] != 4 or not len(tetrahedra):
+        raise ValueError(prefix + "expected tetrahedra with four vertex indices")
+    if not np.isfinite(vertices).all():
+        raise ValueError(prefix + "non-finite tetrahedral vertex coordinates")
+    if tetrahedra.min() < 0 or tetrahedra.max() >= len(vertices):
+        raise ValueError(prefix + "tetrahedron index out of range")
+    canonical = np.sort(tetrahedra, axis=1)
+    if np.any(np.diff(canonical, axis=1) == 0):
+        raise ValueError(prefix + "tetrahedron contains a repeated vertex")
+    if len(np.unique(canonical, axis=0)) != len(tetrahedra):
+        raise ValueError(prefix + "duplicate tetrahedra")
+    if len(np.unique(tetrahedra)) != len(vertices):
+        raise ValueError(prefix + "tetrahedral mesh contains unused vertices")
+    points = vertices[tetrahedra]
+    matrices = np.stack((points[:, 1] - points[:, 0],
+                         points[:, 2] - points[:, 0],
+                         points[:, 3] - points[:, 0]), axis=2)
+    determinants = np.linalg.det(matrices)
+    diagonal = float(np.linalg.norm(np.ptp(vertices, axis=0)))
+    tolerance = max(diagonal**3 * 1e-12, np.finfo(np.float64).tiny)
+    if diagonal <= 0 or np.any(np.abs(determinants) <= tolerance):
+        bad = int(np.argmin(np.abs(determinants)))
+        raise ValueError(prefix + f"degenerate tetrahedron {bad}; improve the volume mesh")
+    tetrahedra = tetrahedra.copy()
+    negative = determinants < 0
+    if np.any(negative):
+        old_two = tetrahedra[negative, 2].copy()
+        tetrahedra[negative, 2] = tetrahedra[negative, 3]
+        tetrahedra[negative, 3] = old_two
+    surface, owners = tetrahedral_surface(tetrahedra)
+    return (np.ascontiguousarray(vertices), np.ascontiguousarray(tetrahedra),
+            surface, owners)
 
 
 class MDDWriter:

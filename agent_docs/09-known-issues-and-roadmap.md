@@ -7,8 +7,10 @@ before planning new work.
 Blender integration v0.1 was added on 2026-09-05. Cloth/ABD/fixed contact and
 native cache playback have actual Windows Blender 4.5.3/RTX 5090 verification;
 see [the integration guide](13-blender-integration.md). Linux/other Blender
-versions, tetrahedral FEM, rods, joints and animated collision targets remain
-follow-up work. This integration does not change the native simulation backend.
+versions, rods, joints and animated collision targets remain follow-up work.
+Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
+internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
+conservative construction contract. This does not change the simulation solver.
 
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner

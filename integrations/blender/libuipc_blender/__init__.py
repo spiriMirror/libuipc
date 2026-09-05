@@ -3,12 +3,14 @@
 """libuipc Physics: Blender UI and native cache playback, external CUDA solver."""
 
 from pathlib import Path
+import json
 import subprocess
 import tempfile
 
 import bpy
 from bpy.app.handlers import persistent
 from bpy.props import BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty, IntProperty, PointerProperty, StringProperty
+from bpy_extras.io_utils import ImportHelper
 
 from . import bridge, runtime
 from .protocol import MODIFIER_NAME, read_json
@@ -57,11 +59,26 @@ class UIPCSceneSettings(bpy.types.PropertyGroup):
 
 class UIPCBodySettings(bpy.types.PropertyGroup):
     role: EnumProperty(name="Simulation Role", items=[
-        ("NONE", "Disabled", "Not part of the libuipc simulation"),
-        ("CLOTH", "Cloth", "Baraff-Witkin membrane with discrete shell bending"),
-        ("RIGID", "Rigid Body (ABD)", "One closed, connected, consistently oriented surface"),
-        ("STATIC", "Fixed Collider", "Fixed triangle surface; open surfaces are supported"),
+        ("NONE", "Disabled", "Not part of the libuipc simulation", 0, 0),
+        ("CLOTH", "Cloth", "Baraff-Witkin membrane with discrete shell bending", 0, 1),
+        ("RIGID", "Rigid Body (ABD)", "One closed, connected, consistently oriented surface", 0, 2),
+        ("FEM", "Volumetric FEM", "Tetrahedral solid with Stable Neo-Hookean elasticity", 0, 4),
+        ("STATIC", "Fixed Collider", "Fixed triangle surface; open surfaces are supported", 0, 3),
     ], default="NONE", update=changed)
+    fixed: BoolProperty(name="Fixed Entire Object", default=False, update=changed,
+        description="Fix the whole ABD instance or every FEM/cloth node, including internal nodes")
+    young_modulus: FloatProperty(name="Solid Young's Modulus (Pa)", default=1e5, min=1e-6,
+        soft_max=1e9, update=changed, description="3D Stable Neo-Hookean elastic modulus")
+    preserve_surface: BoolProperty(name="Preserve Original Surface", default=True,
+        description="Keep every original surface vertex, coordinate and triangle; only add internal nodes")
+    tet_edge_length: FloatProperty(name="Target Tet Edge (m)", default=0, min=0, precision=5,
+        description="Zero uses the median surface edge; controls interior resolution and optional surface refinement")
+    tet_quality_passes: IntProperty(name="Quality Passes", default=4, min=0, max=100,
+        description="Quality optimization passes; zero still returns a conservative, valid volume mesh")
+    source_mesh: PointerProperty(type=bpy.types.Mesh, options={"HIDDEN"})
+    source_groups: StringProperty(options={"HIDDEN"})
+    source_role: StringProperty(default="NONE", options={"HIDDEN"})
+    tet_report: StringProperty(options={"HIDDEN"})
     density: FloatProperty(name="Density (kg/m^3)", default=200, min=1e-6, soft_max=10000, update=changed)
     thickness: FloatProperty(name="Thickness Radius r (m)", default=0.001, min=1e-7, soft_max=0.05,
         precision=6, update=changed, description="One-sided collision offset r; cloth material thickness is 2*r")
@@ -96,7 +113,7 @@ def _poll_timer():
         runtime.poll()
     except Exception as error:
         for scene in bpy.data.scenes:
-            if scene.uipc_settings.status.startswith(("Baking", "Initializing", "Cancelling")):
+            if scene.uipc_settings.status.startswith(("Baking", "Initializing", "Cancelling", "Preparing")):
                 scene.uipc_settings.status = str(error)
         print(f"libuipc: {error}")
     for window in bpy.context.window_manager.windows:
@@ -133,7 +150,7 @@ class UIPC_OT_bake(bpy.types.Operator):
 
 class UIPC_OT_cancel(bpy.types.Operator):
     bl_idname = "uipc.cancel"
-    bl_label = "Cancel Bake"
+    bl_label = "Cancel Operation"
 
     def execute(self, context):
         runtime.request_cancel()
@@ -225,6 +242,73 @@ class UIPC_OT_demo(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class UIPC_OT_generate_volume(bpy.types.Operator):
+    bl_idname = "uipc.generate_volume"
+    bl_label = "Generate Tetrahedra"
+    bl_description = "Generate a volume mesh with libuipc's native boundary-conforming tetrahedralizer"
+    blocking: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
+
+    @classmethod
+    def poll(cls, context):
+        return not runtime.is_running() and context.object is not None and context.object.type == "MESH"
+
+    def execute(self, context):
+        try:
+            if self.blocking or bpy.app.background:
+                runtime.bake_blocking(context.scene, volume_object=context.object)
+            else:
+                runtime.start(context.scene, volume_object=context.object)
+                if not bpy.app.timers.is_registered(_poll_timer):
+                    bpy.app.timers.register(_poll_timer, first_interval=0.2)
+        except Exception as error:
+            context.scene.uipc_settings.status = str(error)
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+class UIPC_OT_import_volume(bpy.types.Operator, ImportHelper):
+    bl_idname = "uipc.import_volume"
+    bl_label = "Import FEM Mesh (.msh)"
+    filename_ext = ".msh"
+    filter_glob: StringProperty(default="*.msh", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        return not runtime.is_running()
+
+    def execute(self, context):
+        try:
+            if bpy.app.background:
+                runtime.bake_blocking(context.scene, volume_file=self.filepath)
+            else:
+                runtime.start(context.scene, volume_file=self.filepath)
+                if not bpy.app.timers.is_registered(_poll_timer):
+                    bpy.app.timers.register(_poll_timer, first_interval=0.2)
+        except Exception as error:
+            context.scene.uipc_settings.status = str(error)
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
+class UIPC_OT_restore_surface(bpy.types.Operator):
+    bl_idname = "uipc.restore_surface"
+    bl_label = "Restore Original Surface"
+    bl_description = "Restore the source mesh and its original vertex-group definitions"
+    bl_options = {"UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return (not runtime.is_running() and context.object is not None
+                and context.object.uipc_body.source_mesh is not None)
+
+    def execute(self, context):
+        bridge.restore_surface(context.object)
+        context.scene.uipc_settings.status = "Original surface restored"
+        return {"FINISHED"}
+
+
 class UIPC_PT_scene(bpy.types.Panel):
     bl_label = "libuipc Physics"
     bl_idname = "UIPC_PT_scene"
@@ -258,6 +342,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.operator("uipc.validate_cache")
         row.operator("uipc.detach_cache")
         layout.operator("uipc.create_demo")
+        layout.operator("uipc.import_volume")
 
 
 class UIPC_PT_body(bpy.types.Panel):
@@ -281,6 +366,7 @@ class UIPC_PT_body(bpy.types.Panel):
         layout.label(text="Simulation uses the base mesh")
         layout.prop(body, "thickness")
         if body.role != "STATIC":
+            layout.prop(body, "fixed")
             layout.prop(body, "density")
         if body.role == "RIGID":
             layout.prop(body, "rigidity")
@@ -288,9 +374,33 @@ class UIPC_PT_body(bpy.types.Panel):
             layout.label(text="Material thickness = 2 * r")
             for name in ("stretch", "shear", "bending", "poisson", "strain_rate", "self_collision"):
                 layout.prop(body, name)
-            layout.prop_search(body, "pin_group", context.object, "vertex_groups")
+        if body.role == "FEM":
+            cells = context.object.data.get("uipc_tetrahedra")
+            if cells is None:
+                layout.prop(body, "preserve_surface")
+                layout.prop(body, "tet_edge_length")
+                layout.prop(body, "tet_quality_passes")
+                layout.operator("uipc.generate_volume")
+            else:
+                layout.label(text=f"{len(context.object.data.vertices)} nodes, {len(cells)//4} tetrahedra")
+                try:
+                    report = json.loads(body.tet_report or "{}")
+                except ValueError:
+                    report = {}
+                if "min_quality" in report:
+                    layout.label(text=f"Minimum cell quality: {report['min_quality']:.3f}")
+                if report.get("preserve_surface"):
+                    layout.label(text="Original surface preserved")
+                layout.operator("uipc.restore_surface")
+            layout.prop(body, "young_modulus")
+            layout.prop(body, "poisson")
+            layout.prop(body, "self_collision")
+        if body.role in ("CLOTH", "FEM"):
+            pins = layout.column()
+            pins.enabled = not body.fixed
+            pins.prop_search(body, "pin_group", context.object, "vertex_groups")
             if body.pin_group:
-                layout.prop(body, "pin_threshold")
+                pins.prop(body, "pin_threshold")
 
 
 def _validate_pending():
@@ -337,6 +447,7 @@ def _load_post(_):
 
 CLASSES = (UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
+           UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface,
            UIPC_PT_scene, UIPC_PT_body)
 
 

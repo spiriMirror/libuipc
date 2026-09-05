@@ -16,13 +16,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--module", required=True)
 parser.add_argument("--python", required=True)
 parser.add_argument("--output", required=True, type=Path)
+parser.add_argument("--volume", action="store_true")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 args.output.mkdir(parents=True, exist_ok=True)
 (args.output / "temp").mkdir(exist_ok=True)
 bpy.context.preferences.filepaths.temporary_directory = str(args.output / "temp")
 addon = importlib.import_module(args.module)
 started = time.monotonic()
-state = {"stage": "begin", "heartbeats": 0, "success": False}
+state = {"stage": "begin", "heartbeats": 0, "success": False, "volume": args.volume}
 
 
 def tick():
@@ -36,11 +37,37 @@ def tick():
             scene = bpy.context.scene
             scene.uipc_settings.python_executable = args.python
             scene.uipc_settings.cache_directory = str(args.output / "cache")
+            if args.volume:
+                platform = scene.objects["Fixed Platform"]
+                platform.uipc_body.role = "RIGID"
+                platform.uipc_body.fixed = True
+                solid = scene.objects["Falling ABD"]
+                solid.name = "Falling FEM"
+                solid.uipc_body.role = "FEM"
+                solid.uipc_body.young_modulus = 20000
+                for obj in bpy.context.view_layer.objects:
+                    obj.select_set(False)
+                solid.select_set(True)
+                bpy.context.view_layer.objects.active = solid
+                assert bpy.ops.uipc.generate_volume() == {"FINISHED"}
+                assert addon.runtime.is_running()
+                state["stage"] = "meshing"
+                return 0.1
             assert bpy.ops.uipc.bake() == {"FINISHED"}
             assert addon.runtime.is_running()
             state["stage"] = "baking"
             return 0.1
         scene = bpy.context.scene
+        if state["stage"] == "meshing":
+            if addon.runtime.is_running():
+                return 0.1
+            solid = scene.objects["Falling FEM"]
+            assert solid.data.get("uipc_tetrahedra") is not None, scene.uipc_settings.status
+            state["tetrahedra"] = len(solid.data["uipc_tetrahedra"]) // 4
+            state["meshing_heartbeats"] = state["heartbeats"]
+            assert bpy.ops.uipc.bake() == {"FINISHED"}
+            state["stage"] = "baking"
+            return 0.1
         if state["stage"] == "baking":
             if addon.runtime.is_running():
                 return 0.1
@@ -61,7 +88,7 @@ def tick():
             scene.frame_set(61)
             for obj in bpy.context.view_layer.objects:
                 obj.select_set(False)
-            cloth = next(o for o in scene.objects if o.uipc_body.role == "CLOTH")
+            cloth = next(o for o in scene.objects if o.uipc_body.role == ("FEM" if args.volume else "CLOTH"))
             cloth.select_set(True)
             bpy.context.view_layer.objects.active = cloth
             for area in bpy.context.screen.areas:

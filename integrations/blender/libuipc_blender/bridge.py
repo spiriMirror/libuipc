@@ -3,13 +3,15 @@
 """Blender scene export and native, fixed-topology MDD playback."""
 
 from pathlib import Path
+import json
+import shutil
 import uuid
 
 import bpy
 import numpy as np
 
 from .protocol import (SCHEMA_VERSION, MODIFIER_NAME, OBJECT_FIELDS, atomic_json,
-                       fingerprint, inspect_mdd, read_json, validate_mesh)
+                       fingerprint, cache_fingerprint, inspect_mdd, read_json, validate_mesh, validate_tetmesh)
 
 
 def cache_root(scene):
@@ -83,9 +85,21 @@ def collect_scene(scene):
             raise ValueError(f"{obj.name}: singular/non-finite transform; check object scale")
         world_vertices = (vertices @ matrix[:3, :3].T + matrix[:3, 3]) * simulation["unit_scale"]
         # Normalize only winding; keep vertex IDs and base coordinates untouched.
-        _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name)
+        tetrahedra = np.empty((0, 4), dtype=np.int32)
+        if obj.uipc_body.role == "FEM":
+            stored = mesh.get("uipc_tetrahedra")
+            if stored is None or len(stored) % 4:
+                raise ValueError(f"{obj.name}: generate or import a tetrahedral mesh before baking FEM")
+            tetrahedra = np.asarray(stored, dtype=np.int32).reshape(-1, 4)
+            _, tetrahedra, boundary, _ = validate_tetmesh(world_vertices, tetrahedra, obj.name)
+            if (len(triangles) != len(boundary)
+                    or {tuple(sorted(t)) for t in triangles} != {tuple(sorted(t)) for t in boundary}):
+                raise ValueError(f"{obj.name}: visible faces no longer match the tetrahedral boundary; regenerate the volume")
+            triangles = boundary
+        else:
+            _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name)
         pins = []
-        if obj.uipc_body.role == "CLOTH" and obj.uipc_body.pin_group:
+        if obj.uipc_body.role in ("CLOTH", "FEM") and obj.uipc_body.pin_group and not obj.uipc_body.fixed:
             group = obj.vertex_groups.get(obj.uipc_body.pin_group)
             if group is None:
                 raise ValueError(f"{obj.name}: pin group '{obj.uipc_body.pin_group}' does not exist")
@@ -95,10 +109,11 @@ def collect_scene(scene):
             if not pins:
                 raise ValueError(f"{obj.name}: no vertices meet the pin weight threshold")
         bodies.append({"name": obj.name, "vertices": vertices, "triangles": triangles,
+                       "tetrahedra": tetrahedra,
                        "matrix": matrix, "pins": np.array(pins, dtype=np.int32),
                        "material": object_material(obj)})
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
-        raise ValueError("Assign at least one object as Cloth or Rigid Body")
+        raise ValueError("Assign at least one object as Cloth, Rigid Body, or Volumetric FEM")
     return simulation, bodies
 
 
@@ -113,7 +128,7 @@ def export_job(scene):
                "objects": [{"name": b["name"], "material": b["material"]} for b in bodies]}
     for index, body in enumerate(bodies):
         np.savez(directory / f"input_{index:04d}.npz",
-                 **{key: body[key] for key in ("vertices", "triangles", "matrix", "pins")})
+                 **{key: body[key] for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")})
     atomic_json(directory / "request.json", request)
     return directory, request
 
@@ -172,7 +187,7 @@ def check_cache(scene):
     directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
     request = read_json(directory / "request.json")
     settings, bodies = collect_scene(scene)
-    if fingerprint(settings, bodies) != request["fingerprint"]:
+    if cache_fingerprint(request, settings, bodies) != request["fingerprint"]:
         raise ValueError("Cache is stale: geometry, transforms, pins, materials, or scene settings changed")
     result = read_json(directory / "result.json")
     for output in result["objects"]:
@@ -196,3 +211,144 @@ def detach_cache(scene):
     scene.uipc_settings.last_bake = ""
     scene.uipc_settings.baked_fingerprint = ""
     scene.frame_set(scene.frame_current)
+
+
+def volume_input(scene, obj):
+    if obj is None or obj.type != "MESH" or obj.mode != "OBJECT":
+        raise ValueError("Select a surface mesh in Object Mode")
+    if obj.library or obj.data.library or obj.data.shape_keys:
+        raise ValueError("Make the mesh local and apply shape keys before generating a volume")
+    if obj.uipc_body.source_mesh is not None or obj.data.get("uipc_tetrahedra") is not None:
+        raise ValueError("Restore the source surface before generating another volume")
+    if any(m.show_viewport or m.show_render for m in obj.modifiers):
+        raise ValueError("Apply or disable modifiers before generating tetrahedra")
+    layer = scene.view_layers[0]
+    layer.update()
+    depsgraph = layer.depsgraph
+    depsgraph.update()
+    mesh = obj.data
+    vertices = np.empty(len(mesh.vertices) * 3, dtype=np.float64)
+    mesh.vertices.foreach_get("co", vertices)
+    mesh.calc_loop_triangles()
+    faces = np.empty(len(mesh.loop_triangles) * 3, dtype=np.int32)
+    mesh.loop_triangles.foreach_get("vertices", faces)
+    matrix = np.array(obj.evaluated_get(depsgraph).matrix_world, dtype=np.float64)
+    if not np.isfinite(matrix).all() or np.linalg.cond(matrix[:3, :3]) > 1e12:
+        raise ValueError("Object has a singular or non-finite transform")
+    groups = [{"name": group.name, "weights": []} for group in obj.vertex_groups]
+    for vertex in mesh.vertices:
+        for group in vertex.groups:
+            groups[group.group]["weights"].append([vertex.index, group.weight])
+    body = {"name": obj.name, "vertices": vertices.reshape(-1, 3),
+            "triangles": faces.reshape(-1, 3), "matrix": matrix,
+            "pins": np.empty(0, dtype=np.int32), "material": {"groups": groups}}
+    options = {"preserve_surface": obj.uipc_body.preserve_surface,
+               "target_edge_length": obj.uipc_body.tet_edge_length,
+               "quality_passes": obj.uipc_body.tet_quality_passes,
+               "refinement_budget": 256}
+    settings = {"unit_scale": scene.unit_settings.scale_length, "options": options}
+    return settings, body, fingerprint(settings, [body])
+
+
+def export_volume_job(scene, obj=None, filename=None):
+    root = cache_root(scene)
+    root.mkdir(parents=True, exist_ok=True)
+    directory = root / ("volume_" + uuid.uuid4().hex)
+    if filename:
+        source = Path(bpy.path.abspath(filename)).resolve()
+        if not source.is_file() or source.suffix.lower() != ".msh":
+            raise ValueError("Choose an existing tetrahedral .msh file")
+        directory.mkdir()
+        shutil.copyfile(source, directory / "input.msh")
+        request = {"schema_version": SCHEMA_VERSION, "operation": "import_volume",
+                   "name": source.stem, "fingerprint": uuid.uuid4().hex}
+    else:
+        settings, body, signature = volume_input(scene, obj)
+        directory.mkdir()
+        np.savez(directory / "surface.npz", **{k: body[k] for k in ("vertices", "triangles", "matrix")})
+        request = {"schema_version": SCHEMA_VERSION, "operation": "generate_volume",
+                   "name": obj.name, "fingerprint": signature, **settings,
+                   "groups": body["material"]["groups"]}
+    atomic_json(directory / "request.json", request)
+    return directory, request
+
+
+def attach_volume(scene, obj, directory, request):
+    result = read_json(directory / "result.json")
+    if result["schema_version"] != SCHEMA_VERSION or result["fingerprint"] != request["fingerprint"]:
+        raise ValueError("Prepared volume does not match the request")
+    source = None
+    if request["operation"] == "generate_volume":
+        if obj is None or obj.name not in scene.objects:
+            raise ValueError("Source object was removed while generating tetrahedra")
+        _, body, current = volume_input(scene, obj)
+        if current != request["fingerprint"]:
+            raise ValueError("Source geometry, groups, transforms, or meshing settings changed during preparation")
+        source = obj.data
+    with np.load(directory / "volume.npz", allow_pickle=False) as data:
+        points, cells, boundary, _ = validate_tetmesh(data["vertices"], data["tetrahedra"], request["name"])
+    strict = bool(source is not None and request["options"]["preserve_surface"])
+    if strict:
+        source_faces = {tuple(sorted(f)) for f in body["triangles"]}
+        actual_faces = {tuple(sorted(f)) for f in boundary}
+        if source_faces != actual_faces or not np.array_equal(points[:len(source.vertices)], body["vertices"]):
+            raise ValueError("Internal error: protected surface changed during volume generation")
+        mesh = source.copy()
+        mesh.name = source.name + " FEM"
+        mesh.vertices.add(len(points) - len(source.vertices))
+        mesh.vertices.foreach_set("co", points.ravel())
+        mesh.update()
+    else:
+        mesh = bpy.data.meshes.new(request["name"] + " FEM Mesh")
+        mesh.from_pydata(points.tolist(), [], boundary.tolist())
+        mesh.update()
+        if source is not None:
+            for material in source.materials:
+                mesh.materials.append(material)
+    mesh["uipc_tetrahedra"] = cells.ravel().tolist()
+    mesh["uipc_volume_schema"] = 1
+    if obj is None:
+        obj = bpy.data.objects.new(request["name"] + " FEM", mesh)
+        scene.collection.objects.link(obj)
+        obj.uipc_body.density = 1000
+    else:
+        # Keep a private snapshot even when the original mesh was linked to
+        # another object, so later edits cannot change the restore baseline.
+        obj.uipc_body.source_mesh = source.copy()
+        obj.uipc_body.source_groups = json.dumps(request.get("groups", []))
+        obj.uipc_body.source_role = obj.uipc_body.role
+        obj.data = mesh
+        if not strict:
+            for group in request.get("groups", []):
+                target = obj.vertex_groups.get(group["name"])
+                if target is None:
+                    target = obj.vertex_groups.new(name=group["name"])
+                for vertex, weight in group["weights"]:
+                    target.add([vertex], weight, "REPLACE")
+    obj.uipc_body.role = "FEM"
+    obj.uipc_body.tet_report = json.dumps(result["report"])
+    scene.uipc_settings.status = f"FEM volume ready: {len(points)} nodes, {len(cells)} tetrahedra"
+    for layer in scene.view_layers:
+        layer.objects.active = obj
+    obj.select_set(True)
+    return result
+
+
+def restore_surface(obj):
+    source = obj.uipc_body.source_mesh
+    if source is None:
+        raise ValueError("This object has no saved source surface")
+    modifier = obj.modifiers.get(MODIFIER_NAME)
+    if modifier and modifier.type == "MESH_CACHE":
+        obj.modifiers.remove(modifier)
+    groups = json.loads(obj.uipc_body.source_groups or "[]")
+    obj.data = source
+    obj.vertex_groups.clear()
+    for group in groups:
+        target = obj.vertex_groups.new(name=group["name"])
+        for vertex, weight in group["weights"]:
+            target.add([vertex], weight, "REPLACE")
+    obj.uipc_body.role = obj.uipc_body.source_role
+    obj.uipc_body.source_mesh = None
+    obj.uipc_body.source_groups = ""
+    obj.uipc_body.tet_report = ""

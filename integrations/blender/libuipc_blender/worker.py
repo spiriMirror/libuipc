@@ -12,7 +12,7 @@ import traceback
 import numpy as np
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
-                      positive, read_json, validate_mesh)
+                      positive, read_json, validate_mesh, validate_tetmesh)
 
 
 class ParentProcess:
@@ -74,11 +74,11 @@ def load_request(directory):
     for index, entry in enumerate(request["objects"]):
         # Paths are derived from indices, never from object names or input paths.
         with np.load(directory / f"input_{index:04d}.npz", allow_pickle=False) as data:
-            body = {key: data[key].copy() for key in ("vertices", "triangles", "matrix", "pins")}
+            body = {key: data[key].copy() for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
         body.update(name=entry["name"], material=entry["material"])
         bodies.append(body)
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
-        raise ValueError("Include at least one cloth or rigid body")
+        raise ValueError("Include at least one cloth, rigid body, or volumetric FEM object")
     if fingerprint(settings, bodies) != request["fingerprint"]:
         raise ValueError("Simulation input fingerprint mismatch")
     return request, bodies
@@ -89,9 +89,10 @@ def simulate(directory, parent):
     settings = request["settings"]
     uipc = load_runtime()
     from uipc import builtin, view
-    from uipc.geometry import trimesh, label_surface
+    from uipc.geometry import trimesh, tetmesh, label_surface, label_triangle_orient
     from uipc.constitution import (AffineBodyConstitution, DiscreteShellBending,
-                                  ElasticModuli2D, StrainLimitingBaraffWitkinShell)
+                                  ElasticModuli2D, StrainLimitingBaraffWitkinShell,
+                                  ElasticModuli, StableNeoHookean)
 
     uipc.Logger.set_level(uipc.Logger.Level.Warn)
     config = uipc.Scene.default_config()
@@ -106,12 +107,14 @@ def simulate(directory, parent):
     shell = StrainLimitingBaraffWitkinShell()
     bending = DiscreteShellBending()
     abd = AffineBodyConstitution()
+    solid = StableNeoHookean()
     outputs = []
+    has_dynamic = False
     frame_count = settings["frame_end"] - settings["frame_start"] + 1
     for index, body in enumerate(bodies):
         material = body["material"]
         role = material["role"]
-        if role not in ("CLOTH", "RIGID", "STATIC"):
+        if role not in ("CLOTH", "RIGID", "STATIC", "FEM"):
             raise ValueError(f"{body['name']}: unsupported simulation role")
         for key in ("density", "thickness", "stretch", "shear", "rigidity", "strain_rate"):
             positive(material[key], f"{body['name']}: {key}")
@@ -125,22 +128,35 @@ def simulate(directory, parent):
             raise ValueError(f"{body['name']}: singular or invalid object transform")
         inverse = np.linalg.inv(matrix)
         world_positions = (body["vertices"] @ matrix[:3, :3].T + matrix[:3, 3]) * settings["unit_scale"]
-        world_positions, triangles = validate_mesh(world_positions, body["triangles"], role, body["name"])
+        if role == "FEM":
+            world_positions, cells, _boundary, _owners = validate_tetmesh(
+                world_positions, body["tetrahedra"], body["name"])
+        else:
+            world_positions, triangles = validate_mesh(world_positions, body["triangles"], role, body["name"])
         pins = np.asarray(body["pins"], dtype=np.int32)
         if pins.ndim != 1 or (len(pins) and (pins.min() < 0 or pins.max() >= len(world_positions))):
             raise ValueError(f"{body['name']}: invalid pinned vertex indices")
         center = world_positions.mean(axis=0) if role == "RIGID" else np.zeros(3)
-        mesh = trimesh(world_positions - center, triangles)
+        mesh = tetmesh(world_positions, cells) if role == "FEM" else trimesh(world_positions - center, triangles)
         label_surface(mesh)
+        if role == "FEM":
+            label_triangle_orient(mesh)
         if role == "RIGID":
             abd.apply_to(mesh, material["rigidity"], material["density"])
             transform = np.eye(4)
             transform[:3, 3] = center
             view(mesh.transforms())[0] = transform
+            view(mesh.instances().find(builtin.is_fixed))[:] = int(material["fixed"])
+            has_dynamic |= not material["fixed"]
             thickness = mesh.vertices().find(builtin.thickness)
             if thickness is None:
                 thickness = mesh.vertices().create(builtin.thickness, float(material["thickness"]))
             view(thickness)[:] = material["thickness"]
+        elif role == "FEM":
+            positive(material["young_modulus"], "solid Young's modulus")
+            solid.apply_to(mesh, ElasticModuli.youngs_poisson(material["young_modulus"], material["poisson"]),
+                           mass_density=material["density"])
+            view(mesh.vertices().find(builtin.thickness))[:] = material["thickness"]
         else:
             moduli = lambda young: ElasticModuli2D.youngs_poisson(young, material["poisson"])
             shell.apply_to(mesh, stretch_moduli=moduli(material["stretch"]),
@@ -149,12 +165,14 @@ def simulate(directory, parent):
                            strain_rate=material["strain_rate"])
             if role == "CLOTH" and material["bending"] > 0:
                 bending.apply_to(mesh, material["bending"], material["poisson"])
+        if role != "RIGID":
             fixed = view(mesh.vertices().find(builtin.is_fixed)).reshape(-1)
-            if role == "STATIC":
+            if role == "STATIC" or material["fixed"]:
                 fixed[:] = 1
             else:
                 fixed[pins] = 1
-            view(mesh.meta().find(builtin.self_collision))[:] = int(role == "CLOTH" and material["self_collision"])
+            has_dynamic |= bool(np.any(fixed == 0))
+            view(mesh.meta().find(builtin.self_collision))[:] = int(role in ("CLOTH", "FEM") and material["self_collision"])
         obj = scene.objects().create(body["name"])
         current, _rest = obj.geometries().create(mesh)
         if role != "STATIC":
@@ -178,7 +196,7 @@ def simulate(directory, parent):
             if not parent.alive() or (directory / "cancel").exists():
                 atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
                 return
-            if frame:
+            if frame and has_dynamic:
                 for _ in range(settings["substeps"]):
                     if not parent.alive() or (directory / "cancel").exists():
                         atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
@@ -214,6 +232,53 @@ def simulate(directory, parent):
             writer.close()
 
 
+def prepare_volume(directory, parent):
+    """Generate/import once before pin selection; Blender displays actual FEM nodes."""
+    request = read_json(directory / "request.json")
+    if request["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("Unsupported volume preparation schema")
+    uipc = load_runtime()
+    from uipc.geometry import SimplicialComplexIO, trimesh
+    atomic_json(directory / "status.json", {"state": "running", "frame": 0, "total": 1,
+                                           "message": "Preparing tetrahedral mesh"})
+    if request["operation"] == "import_volume":
+        mesh = SimplicialComplexIO().read(str(directory / "input.msh"))
+        if mesh.dim() != 3:
+            raise ValueError("The selected MSH file does not contain tetrahedral volume cells")
+        points = np.array(mesh.positions().view()).reshape(-1, 3)
+        cells = np.array(mesh.tetrahedra().topo().view()).reshape(-1, 4)
+        report = {"method": "msh_import", "preserve_surface": False}
+    else:
+        from uipc import geometry
+        if not hasattr(geometry, "tetrahedralize"):
+            raise RuntimeError("This Python runtime needs the updated libuipc native tetrahedralization API; install the current source build")
+        with np.load(directory / "surface.npz", allow_pickle=False) as source:
+            original = source["vertices"].copy()
+            matrix = source["matrix"].copy()
+            triangles = source["triangles"].copy()
+        scale = request["unit_scale"]
+        world = (original @ matrix[:3, :3].T + matrix[:3, 3]) * scale
+        # Native geometry owns validation and the protected-boundary construction.
+        mesh, report = geometry.tetrahedralize(trimesh(world, triangles), request["options"])
+        points = np.array(mesh.positions().view()).reshape(-1, 3) / scale
+        inverse = np.linalg.inv(matrix)
+        points = points @ inverse[:3, :3].T + inverse[:3, 3]
+        # Blender stores float32 coordinates. Preserve the original values exactly,
+        # including under nonuniform scale and translated world-space preparation.
+        points[:len(original)] = original
+        cells = np.array(mesh.tetrahedra().topo().view()).reshape(-1, 4)
+    points = points.astype(np.float32).astype(np.float64)
+    points, cells, boundary, _ = validate_tetmesh(points, cells, "Prepared FEM volume")
+    if not parent.alive() or (directory / "cancel").exists():
+        atomic_json(directory / "status.json", {"state": "cancelled"})
+        return
+    np.savez(directory / "volume.npz", vertices=points, tetrahedra=cells, triangles=boundary)
+    report.update(vertices=len(points), tetrahedra=len(cells), boundary_triangles=len(boundary))
+    atomic_json(directory / "result.json", {"schema_version": SCHEMA_VERSION,
+        "fingerprint": request["fingerprint"], "report": report, "build_info": uipc.build_info()})
+    atomic_json(directory / "status.json", {"state": "complete", "frame": 1, "total": 1})
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--job", type=Path)
@@ -232,7 +297,11 @@ def main():
     parent = None
     try:
         parent = ParentProcess(args.parent_pid)
-        simulate(directory, parent)
+        operation = read_json(directory / "request.json").get("operation", "bake")
+        if operation in ("generate_volume", "import_volume"):
+            prepare_volume(directory, parent)
+        else:
+            simulate(directory, parent)
     except Exception as error:
         traceback.print_exc()
         atomic_json(directory / "status.json", {"state": "error", "message": str(error)})

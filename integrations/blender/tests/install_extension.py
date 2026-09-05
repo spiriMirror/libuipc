@@ -22,6 +22,7 @@ def main():
     parser.add_argument("--test", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--quick", action="store_true")
+    parser.add_argument("--volume", action="store_true", help="Exercise volume generation in the GUI test")
     args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
     repo = next(r for r in bpy.context.preferences.extensions.repos if r.module == "user_default")
     assert bpy.ops.extensions.package_install_files(filepath=str(args.zip.resolve()),
@@ -39,6 +40,8 @@ def main():
                     "--output", str(args.output.resolve())]
         if args.quick:
             sys.argv.append("--quick")
+        if args.volume:
+            sys.argv.append("--volume")
         runpy.run_path(str(args.test.resolve()), run_name="__main__")
 
 
