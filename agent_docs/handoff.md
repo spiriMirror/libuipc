@@ -14,6 +14,11 @@
 > Cycles 48 samples, saved action camera). All frame names/sizes/PNGs passed
 > integrity checks; the source and all 39 caches remained unchanged. See the
 > adjacent `sequence_validation.json` for per-image hashes and provenance.
+> A subsequent wide View 01 delivery keeps the former orbit-start azimuth but
+> pulls the camera back to include the complete table, chair, cloth, place
+> settings and hand. Its 500 PNGs are under
+> `output/robot-hand-apple/run_02/render_view_01_wide_0001_0500/`; all-frame
+> scene/robot framing, PNG CRCs and unchanged source/39-cache hashes pass.
 > A subsequent three-view delivery is under
 > `output/robot-hand-apple/run_02/render_three_views_0001_0500/`: the prior
 > dining-orbit start azimuth (raised/refitted for robot visibility), a right-side
