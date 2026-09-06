@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.3.1.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.3.2.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.3.1.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.3.2.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -197,7 +197,7 @@ still applies.
 | Frame range | Blender scene start/end | End >= start; start is the unadvanced rest frame |
 | Frame rate | Blender FPS / FPS Base | Positive frames/second |
 | Substeps | 2 | Integer 1–1000; `dt = FPS Base / (FPS * substeps)` seconds |
-| Solver Accuracy | Library Default | `DEFAULT`: inherit native settings; `CONVERGED`: tighter linear/Newton solves, no semi-implicit early exit |
+| Solver Accuracy | Library Default | `DEFAULT`: inherit native settings; `CONVERGED`: tighter linear/Newton solves; `CUSTOM`: editable numerical settings |
 | Gravity | (0, 0, -9.81) | Finite acceleration components, m/s², Blender world axes |
 | Contact Distance | 0.001 m | >= 1e-7 m; activation distance beyond thickness offsets |
 | Friction | 0.5 | >= 0; global Coulomb coefficient |
@@ -224,6 +224,38 @@ semi-implicit early termination. The bake result records effective solver
 settings. With runtimes exposing `Engine.frame_stats()`, `solver_steps.jsonl`
 also records each substep's iteration counts, convergence and line-search limits.
 No new collision or buffer-allocation code is introduced.
+
+### Custom solver accuracy
+
+In the 3D Viewport sidebar, open **libuipc → libuipc Physics → Solver Accuracy →
+Custom**. Numerical tolerances are text fields accepting scientific notation
+(for example, `1e-8`); they are parsed as finite numbers before export. This avoids
+rounding tiny displayed tolerances to zero. They are not Python expressions.
+The initial custom values below provide a high-accuracy starting point; they
+are independent of **Library Default** and remain saved in the `.blend`.
+
+| Custom control | Initial value | Range / native setting |
+|---|---:|---|
+| PCG Relative Tolerance | `1e-6` | `(0, 1)`; `linear_system/tol_rate`, global `abs(rᵀz) / abs(r₀ᵀz₀)` threshold, not per-object position error |
+| Newton Velocity Tol | `1e-3` m/s | Positive; `newton/velocity_tol`; maximum per-axis Newton displacement threshold is this value times `dt` |
+| Relative Velocity Tol | `0` 1/s | Nonnegative; positive overrides absolute tolerance with this value times the rest-scene diagonal in meters |
+| ABD Transform-Rate Tol | `0.1` | Positive; `newton/transrate_tol` |
+| Semi-Implicit Early Exit | Off | `newton/semi_implicit/enable`; additional approximate termination criterion |
+| K_min | `6` | Integer 0–100000; beta accumulation starting iteration, **not** a hard Newton iteration floor |
+| Semi-Implicit Beta Tol | `1e-3` | `[0, 1]`; `newton/semi_implicit/beta_tol`; `1` can terminate immediately when semi-implicit is enabled |
+| Maximum Newton Iterations | `1024` | Integer 1–100000; `newton/max_iter` |
+| Minimum Newton Iterations | `0` | Integer 0–maximum; `newton/min_iter`, zero disables the hard floor |
+| Maximum Line Search Trials | `32` | Integer 1–128; `line_search/max_iter` |
+
+K_min and beta controls are grayed out when semi-implicit is off. Inconsistent
+iteration limits, NaN/Infinity and invalid text are rejected before baking.
+Normalized numerical values participate in the cache fingerprint: changing a
+tolerance requires a new bake, while equivalent forms such as `1e-6` and
+`0.000001` describe the same physics input. Preset modes ignore custom values.
+After reverting edited settings to the baked values, **Validate Cache** checks
+the fingerprint/files and restores the verified cache's viewport/render visibility.
+Smaller tolerances and larger iteration limits can substantially increase bake
+time; check the effective settings and substep statistics in the bake directory.
 
 ## Object parameters
 

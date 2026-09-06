@@ -19,7 +19,7 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.3.1; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.3.2; Windows/Linux; Blender >=4.2 API target |
 | `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
 | `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
@@ -77,6 +77,19 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
   parameters or native defaults. `result.json` records effective settings;
   `solver_steps.jsonl` records per-substep statistics where the runtime supports
   `Engine.frame_stats()` (older supported runtimes may not expose it).
+- Version 0.3.2 exposes `CUSTOM` solver accuracy in the sidebar. `SOLVER_FIELDS`
+  and `validate_solver_settings()` in the portable protocol normalize scientific-
+  notation text, validate finite values/ranges and min/max iteration ordering,
+  and feed the same normalized dictionary to fingerprinting and the worker.
+  All custom tolerances, the semi-implicit enable/K_min/beta values, Newton
+  min/max and line-search limits reach native config explicitly. Custom fields
+  are omitted from requests unless selected; preset modes cannot silently consume
+  a custom override dictionary. The enum's persisted IDs stay DEFAULT=0,
+  CONVERGED=1, CUSTOM=2. See the user guide for initial values and UI limits.
+- `check_cache()` is read-only. The explicit Validate Cache operator calls
+  `activate_cache()` after verification to restore only the validated objects'
+  viewport/render flags. Reverting an edited tolerance must not leave a valid
+  cache silently hidden. Failed validation still disables stale playback.
 - MDD files stream one frame at a time, use big-endian float32, and become final
   only after all frames are written. Finite checks happen before conversion.
   Full input fingerprints and MDD header/size checks precede any attachment.
@@ -189,6 +202,16 @@ motion bakes check native-default preservation, the precise profile's effective
 settings, cache invalidation/restoration on profile changes, and preservation of
 the previous bake. The first 50 hold frames remain within 2.8e-7 m and the driven
 body moves the requested 0.20 m.
+
+Custom controls (0.3.2): 18 portable tests plus three real Blender/CUDA bakes
+exercise Default, Converged and Custom profiles. A custom `1e-8` PCG tolerance,
+0.002 m/s Newton tolerance, 64/1 Newton limits and 16 line-search trials match
+the effective worker settings. Invalid input is rejected, numeric edits stale
+the previous cache, and save/reopen preserves the selected profile and text.
+The installed extension's real UI also validated the saved custom file at frames
+1/50/81, displayed `1e-8` without numeric rounding, and replayed the correct 0.20 m
+translation after explicit cache reactivation. Local GUI evidence is under
+`output/blender-custom-gui-verified/`.
 
 The original three-finger dining delivery passed crossings/playback tests but
 the user reported cloth kicks during carrying. Its third non-thumb chain was

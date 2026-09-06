@@ -12,6 +12,7 @@ import numpy as np
 
 from .protocol import (SCHEMA_VERSION, MODIFIER_NAME, OBJECT_FIELDS, atomic_json,
                        fingerprint, cache_fingerprint, inspect_mdd, read_json, validate_mesh, validate_tetmesh)
+from .protocol import SOLVER_FIELDS, validate_solver_settings
 
 
 def cache_root(scene):
@@ -53,6 +54,9 @@ def collect_scene(scene):
     # Omit DEFAULT to preserve the fingerprints of existing v1-v3 bakes.
     if settings.solver_accuracy != "DEFAULT":
         simulation["solver_accuracy"] = settings.solver_accuracy
+    if settings.solver_accuracy == "CUSTOM":
+        simulation["solver_settings"] = validate_solver_settings({
+            name: getattr(settings, "solver_" + name) for name in SOLVER_FIELDS})
     if scene.frame_end < scene.frame_start:
         raise ValueError("End frame precedes start frame")
     bodies = []
@@ -227,6 +231,20 @@ def check_cache(scene):
         if Path(bpy.path.abspath(modifier.filepath)).resolve() != expected_path.resolve():
             raise ValueError("Cache modifier path has changed")
         inspect_mdd(expected_path, result["frames"], output["vertices"])
+    return result
+
+
+def activate_cache(scene):
+    """Explicit validation can restore a cache after its inputs were reverted."""
+    result = check_cache(scene)
+    request = read_json(Path(bpy.path.abspath(scene.uipc_settings.last_bake)) / "request.json")
+    # Only restore modifiers whose input signature, path and file were checked.
+    for output in result["objects"]:
+        obj = scene.objects[request["objects"][output["index"]]["name"]]
+        modifier = obj.modifiers[MODIFIER_NAME]
+        modifier.show_viewport = True
+        modifier.show_render = True
+    scene.frame_set(scene.frame_current)
     return result
 
 

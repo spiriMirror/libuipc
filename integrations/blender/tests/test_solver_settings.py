@@ -9,6 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "libuipc_blender"))
 import worker
+from protocol import validate_solver_settings
 
 
 class SolverSettingsTests(unittest.TestCase):
@@ -46,6 +47,64 @@ class SolverSettingsTests(unittest.TestCase):
     def test_unknown_profile_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unsupported solver accuracy"):
             worker.apply_solver_accuracy(self.config, "TYPO")
+
+    def custom(self):
+        return {
+            "linear_tolerance": "1e-8",
+            "velocity_tolerance": "0.002",
+            "relative_velocity_tolerance": "2e-4",
+            "transrate_tolerance": "0.2",
+            "semi_implicit": True,
+            "k_min": 12,
+            "beta_tolerance": "5e-4",
+            "newton_max_iter": 99,
+            "newton_min_iter": 4,
+            "line_search_max_iter": 16,
+        }
+
+    def test_custom_values_reach_all_native_keys(self):
+        worker.apply_solver_accuracy(self.config, "CUSTOM", self.custom())
+        self.assertEqual(self.config["linear_system"]["tol_rate"], 1e-8)
+        newton = self.config["newton"]
+        self.assertEqual(newton["velocity_tol"], 0.002)
+        self.assertEqual(newton["velocity_tol_relative"], 2e-4)
+        self.assertEqual(newton["transrate_tol"], 0.2)
+        self.assertEqual(
+            newton["semi_implicit"], {"enable": 1, "K_min": 12, "beta_tol": 5e-4}
+        )
+        self.assertEqual((newton["min_iter"], newton["max_iter"]), (4, 99))
+        self.assertEqual(self.config["line_search"]["max_iter"], 16)
+
+    def test_text_notation_does_not_change_physics_fingerprint_inputs(self):
+        a = self.custom()
+        b = {**a, "linear_tolerance": "0.00000001"}
+        self.assertEqual(validate_solver_settings(a), validate_solver_settings(b))
+
+    def test_custom_invalid_values_and_inconsistent_limits_rejected(self):
+        for key, value in (
+            ("linear_tolerance", "nan"),
+            ("linear_tolerance", "1"),
+            ("linear_tolerance", "0"),
+            ("velocity_tolerance", "bad"),
+            ("relative_velocity_tolerance", "-1"),
+            ("beta_tolerance", "1.1"),
+            ("transrate_tolerance", "inf"),
+            ("semi_implicit", 1),
+            ("k_min", -1),
+            ("newton_max_iter", 2.5),
+            ("newton_min_iter", 100),
+            ("line_search_max_iter", 129),
+        ):
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                validate_solver_settings({**self.custom(), key: value})
+
+    def test_custom_cannot_be_missing_or_silently_ignored(self):
+        with self.assertRaises(ValueError):
+            worker.apply_solver_accuracy(self.config, "CUSTOM")
+        with self.assertRaises(ValueError):
+            worker.apply_solver_accuracy(self.config, "DEFAULT", self.custom())
+        with self.assertRaises(ValueError):
+            validate_solver_settings({**self.custom(), "typo": 1})
 
 
 if __name__ == "__main__":

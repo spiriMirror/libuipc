@@ -26,6 +26,7 @@ bpy.context.preferences.filepaths.temporary_directory = str(args.output / "temp"
 addon = importlib.import_module(args.module)
 state = {"stage": "open", "frames": {}, "ticks": 0}
 started = time.monotonic()
+solver_only = bool(os.environ.get("UIPC_SOLVER_GUI_SCENE"))
 
 
 def center(obj, scene):
@@ -47,9 +48,15 @@ def tick():
             raise TimeoutError("Robot GUI validation timed out")
         if state["stage"] == "open":
             assert not bpy.app.background
-            bpy.ops.wm.open_mainfile(filepath=os.environ["UIPC_ROBOT_GUI_SCENE"])
+            bpy.ops.wm.open_mainfile(
+                filepath=os.environ[
+                    "UIPC_SOLVER_GUI_SCENE" if solver_only else "UIPC_ROBOT_GUI_SCENE"
+                ]
+            )
             state["stage"] = "frames"
-            state["pending"] = [1, 50, 195, 250, 325, 420, 500]
+            state["pending"] = (
+                [1, 50, 81] if solver_only else [1, 50, 195, 250, 325, 420, 500]
+            )
             return 0.5
         scene = bpy.context.scene
         if state["stage"] == "frames":
@@ -57,25 +64,42 @@ def tick():
             scene.frame_set(frame)
             assert bpy.ops.uipc.validate_cache() == {"FINISHED"}
             state["frames"][str(frame)] = center(
-                scene.objects["06 Apple 5"], scene
+                scene.objects["Servo body" if solver_only else "06 Apple 5"], scene
             ).tolist()
             if state["pending"]:
                 return 0.2
-            assert state["frames"]["250"][2] > 1.0
-            assert abs(state["frames"]["500"][1]) < 0.04
-            assert 0.78 < state["frames"]["500"][2] < 0.82
-            scene.frame_set(250)
-            selected = scene.objects["Robot link fingertip"]
+            if solver_only:
+                assert scene.uipc_settings.solver_accuracy == "CUSTOM"
+                assert scene.uipc_settings.solver_linear_tolerance == "1e-8"
+                assert (
+                    abs(state["frames"]["81"][2] - state["frames"]["1"][2] - 0.2) < 2e-5
+                )
+                settings, _bodies = addon.bridge.collect_scene(scene)
+                state["custom_solver_settings"] = settings["solver_settings"]
+                selected = scene.objects["Servo body"]
+            else:
+                assert state["frames"]["250"][2] > 1.0
+                assert abs(state["frames"]["500"][1]) < 0.04
+                assert 0.78 < state["frames"]["500"][2] < 0.82
+                scene.frame_set(250)
+                selected = scene.objects["Robot link fingertip"]
             for obj in scene.objects:
                 obj.select_set(obj == selected)
             scene.view_layers[0].objects.active = selected
             assert selected.uipc_body.driven and selected.uipc_body.drive_target
             for area in bpy.context.screen.areas:
                 if area.type == "VIEW_3D":
-                    area.spaces.active.region_3d.view_perspective = "CAMERA"
+                    area.spaces.active.region_3d.view_perspective = (
+                        "PERSP" if solver_only else "CAMERA"
+                    )
+                    if solver_only:
+                        area.spaces.active.region_3d.view_location = (0, 0, 0.3)
+                        area.spaces.active.region_3d.view_distance = 1.2
                     area.spaces.active.show_region_ui = True
                     area.spaces.active.overlay.show_extras = False
-                    area.spaces.active.shading.type = "MATERIAL"
+                    area.spaces.active.shading.type = (
+                        "SOLID" if solver_only else "MATERIAL"
+                    )
                     area.tag_redraw()
             state["stage"] = "tab"
             state["attempt"] = 0
@@ -103,7 +127,14 @@ def tick():
             return 1.0
         if state["stage"] == "capture":
             assert bpy.ops.screen.screenshot(
-                filepath=str(args.output / "robot_blender_ui.png")
+                filepath=str(
+                    args.output
+                    / (
+                        "solver_blender_ui.png"
+                        if solver_only
+                        else "robot_blender_ui.png"
+                    )
+                )
             ) == {"FINISHED"}
             state.update(success=True, blender=bpy.app.version_string, stage="complete")
             (args.output / "gui_validation.json").write_text(

@@ -85,6 +85,58 @@ def main():
     assert result["effective_newton"]["velocity_tol"] == 0.001
     assert result["effective_linear_system"]["tol_rate"] == 1e-6
     addon.bridge.check_cache(scene)
+    scene.uipc_settings.solver_accuracy = "CUSTOM"
+    scene.uipc_settings.solver_linear_tolerance = "1e-8"
+    scene.uipc_settings.solver_velocity_tolerance = "2e-3"
+    scene.uipc_settings.solver_newton_max_iter = 64
+    scene.uipc_settings.solver_newton_min_iter = 1
+    scene.uipc_settings.solver_line_search_max_iter = 16
+    assert bpy.ops.uipc.bake(blocking=True) == {"FINISHED"}
+    custom = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
+    result = json.loads((custom / "result.json").read_text())
+    assert result["solver_accuracy"] == "CUSTOM"
+    assert result["effective_linear_system"]["tol_rate"] == 1e-8
+    assert result["effective_newton"]["velocity_tol"] == 0.002
+    assert result["effective_newton"]["max_iter"] == 64
+    assert result["effective_newton"]["min_iter"] == 1
+    assert result["effective_line_search"]["max_iter"] == 16
+    scene.uipc_settings.solver_linear_tolerance = "2e-8"
+    try:
+        addon.bridge.check_cache(scene)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Edited numerical tolerance did not invalidate cache")
+    scene.uipc_settings.solver_linear_tolerance = "nan"
+    try:
+        addon.bridge.collect_scene(scene)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Nonfinite custom tolerance was exported")
+    scene.uipc_settings.solver_linear_tolerance = "1e-8"
+    assert bpy.ops.uipc.validate_cache() == {"FINISHED"}
+    saved = args.output / "custom_solver.blend"
+    bpy.ops.wm.save_as_mainfile(filepath=str(saved))
+    bpy.ops.wm.open_mainfile(filepath=str(saved))
+    scene = bpy.context.scene
+    target = scene.objects["Controller"]
+    assert scene.uipc_settings.solver_accuracy == "CUSTOM"
+    assert scene.uipc_settings.solver_linear_tolerance == "1e-8"
+    addon.bridge.check_cache(scene)
+    scene.frame_set(81)
+    body = scene.objects["Servo body"]
+    modifier = body.modifiers[addon.protocol.MODIFIER_NAME]
+    assert modifier.show_viewport and modifier.show_render
+    deps = scene.view_layers[0].depsgraph
+    deps.update()
+    evaluated = body.evaluated_get(deps)
+    mesh = evaluated.to_mesh()
+    try:
+        center = np.mean([evaluated.matrix_world @ v.co for v in mesh.vertices], axis=0)
+        assert abs(center[2] - 0.4) < 2e-5, center
+    finally:
+        evaluated.to_mesh_clear()
     target.animation_data.action.fcurves[0].keyframe_points[2].co.y += 0.01
     try:
         addon.bridge.check_cache(scene)

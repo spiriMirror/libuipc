@@ -89,14 +89,30 @@ def load_request(directory):
     return request, bodies
 
 
-def apply_solver_accuracy(config, accuracy):
+def apply_solver_accuracy(config, accuracy, custom=None):
     """Explicit per-scene opt-in; DEFAULT leaves native solver defaults intact."""
+    if custom is not None and accuracy != "CUSTOM":
+        raise ValueError("Custom solver settings require the CUSTOM profile")
     if accuracy == "CONVERGED":
         config["newton"]["semi_implicit"]["enable"] = 0
         config["newton"]["velocity_tol"] = 0.001
         config["newton"]["velocity_tol_relative"] = 0.0
         config["linear_system"]["tol_rate"] = 1e-6
         config["line_search"]["max_iter"] = 32
+    elif accuracy == "CUSTOM":
+        from protocol import validate_solver_settings
+        values = validate_solver_settings(custom)
+        config["linear_system"]["tol_rate"] = values["linear_tolerance"]
+        newton = config["newton"]
+        newton["velocity_tol"] = values["velocity_tolerance"]
+        newton["velocity_tol_relative"] = values["relative_velocity_tolerance"]
+        newton["transrate_tol"] = values["transrate_tolerance"]
+        newton["semi_implicit"]["enable"] = int(values["semi_implicit"])
+        newton["semi_implicit"]["K_min"] = values["k_min"]
+        newton["semi_implicit"]["beta_tol"] = values["beta_tolerance"]
+        newton["max_iter"] = values["newton_max_iter"]
+        newton["min_iter"] = values["newton_min_iter"]
+        config["line_search"]["max_iter"] = values["line_search_max_iter"]
     elif accuracy != "DEFAULT":
         raise ValueError(f"Unsupported solver accuracy: {accuracy}")
 
@@ -120,7 +136,7 @@ def simulate(directory, parent):
     config["contact"]["constitution"] = "ipc"
     config["extras"]["strict_mode"]["enable"] = 1
     accuracy = settings.get("solver_accuracy", "DEFAULT")
-    apply_solver_accuracy(config, accuracy)
+    apply_solver_accuracy(config, accuracy, settings.get("solver_settings"))
     scene = uipc.Scene(config)
     scene.contact_tabular().default_model(settings["friction"], settings["resistance"])
     shell = StrainLimitingBaraffWitkinShell()

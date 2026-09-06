@@ -23,6 +23,42 @@ OBJECT_FIELDS = (
     "self_collision", "pin_group", "pin_threshold",
 )
 
+SOLVER_FIELDS = (
+    "linear_tolerance", "velocity_tolerance", "relative_velocity_tolerance",
+    "transrate_tolerance", "semi_implicit", "k_min", "beta_tolerance",
+    "newton_max_iter", "newton_min_iter", "line_search_max_iter",
+)
+
+
+def validate_solver_settings(values):
+    """Normalize scientific-notation UI text before hashing or native calls."""
+    if not isinstance(values, dict) or set(values) != set(SOLVER_FIELDS):
+        raise ValueError("Custom solver settings require: " + ", ".join(SOLVER_FIELDS))
+    result = dict(values)
+    for name in ("linear_tolerance", "velocity_tolerance", "relative_velocity_tolerance",
+                 "transrate_tolerance", "beta_tolerance"):
+        try:
+            if isinstance(values[name], bool):
+                raise ValueError()
+            value = float(values[name])
+        except (TypeError, ValueError):
+            raise ValueError(f"{name}: enter a number, e.g. 1e-6") from None
+        positive(value, name, allow_zero=name in ("relative_velocity_tolerance", "beta_tolerance"))
+        result[name] = value
+    if result["linear_tolerance"] >= 1:
+        raise ValueError("linear_tolerance must be in (0, 1)")
+    if result["beta_tolerance"] > 1:
+        raise ValueError("beta_tolerance must be in [0, 1]")
+    if type(values["semi_implicit"]) is not bool:
+        raise ValueError("semi_implicit must be a boolean")
+    for name, low, high in (("k_min", 0, 100000), ("newton_min_iter", 0, 100000),
+                            ("newton_max_iter", 1, 100000), ("line_search_max_iter", 1, 128)):
+        if type(values[name]) is not int or not low <= values[name] <= high:
+            raise ValueError(f"{name} must be an integer in [{low}, {high}]")
+    if values["newton_min_iter"] > values["newton_max_iter"]:
+        raise ValueError("Newton minimum iterations cannot exceed maximum iterations")
+    return result
+
 
 def motion_hash(array):
     return hashlib.sha256(np.ascontiguousarray(array, dtype="<f8").tobytes()).hexdigest()

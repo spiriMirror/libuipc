@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **Editable Blender solver precision (2026-09-06)**: extension 0.3.2 adds
+> Custom controls for PCG/Newton tolerances, semi-implicit enable/K_min/beta and
+> iteration limits. Scientific-notation text is validated/normalized before
+> fingerprinting and native calls. Eighteen portable tests and actual three-
+> profile Blender/CUDA bakes verify effective values, invalidation and saved
+> settings. The four-finger dining re-bake remains under validation below.
+
 > **Blender robot accuracy follow-up (2026-09-06, in progress)**: 0.3.1 adds an
 > explicit Converged solver profile and per-substep diagnostic statistics without
 > changing native defaults or invalidating old default-profile caches. Portable

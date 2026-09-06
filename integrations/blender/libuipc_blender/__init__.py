@@ -44,9 +44,29 @@ class UIPCSceneSettings(bpy.types.PropertyGroup):
     substeps: IntProperty(name="Substeps", default=2, min=1, max=1000, update=changed,
         description="Solver steps per Blender frame; dt = fps_base / (fps * substeps)")
     solver_accuracy: EnumProperty(name="Solver Accuracy", items=[
-        ("DEFAULT", "Library Default", "Inherit native semi-implicit and solver tolerances"),
-        ("CONVERGED", "Converged", "Disable semi-implicit early exit, tighten Newton and linear tolerances; slower but suitable for strong drives coupled to light cloth"),
+        ("DEFAULT", "Library Default", "Inherit native semi-implicit and solver tolerances", 0, 0),
+        ("CONVERGED", "Converged", "Disable semi-implicit early exit, tighten Newton and linear tolerances; slower but suitable for strong drives coupled to light cloth", 0, 1),
+        ("CUSTOM", "Custom", "Edit the numerical stopping criteria below; initially matches the Converged preset", 0, 2),
     ], default="DEFAULT", update=changed)
+    # Text preserves and displays small tolerances exactly, including 1e-8.
+    solver_linear_tolerance: StringProperty(name="PCG Relative Tolerance", default="1e-6", update=changed,
+        description="0 < value < 1; threshold on global |r^T z| / |r0^T z0|, not per-object displacement error. Scientific notation is supported")
+    solver_velocity_tolerance: StringProperty(name="Newton Velocity Tol (m/s)", default="1e-3", update=changed,
+        description="Positive absolute velocity tolerance; the displacement threshold is this value times dt")
+    solver_relative_velocity_tolerance: StringProperty(name="Relative Velocity Tol (1/s)", default="0", update=changed,
+        description="Zero uses absolute tolerance; a positive value overrides it with value times the rest-scene diagonal")
+    solver_transrate_tolerance: StringProperty(name="ABD Transform-Rate Tol", default="0.1", update=changed,
+        description="Positive affine-body transform-rate convergence tolerance")
+    solver_semi_implicit: BoolProperty(name="Semi-Implicit Early Exit", default=False, update=changed,
+        description="Allow the additional beta-based early exit; disabling it requires ordinary Newton convergence")
+    solver_k_min: IntProperty(name="K_min", default=6, min=0, max=100000, update=changed,
+        description="Iteration at which semi-implicit beta accumulation starts; this is not a hard Newton iteration floor")
+    solver_beta_tolerance: StringProperty(name="Semi-Implicit Beta Tol", default="1e-3", update=changed,
+        description="Beta early-exit threshold in [0, 1]; only used with semi-implicit enabled")
+    solver_newton_max_iter: IntProperty(name="Maximum Newton Iterations", default=1024, min=1, max=100000, update=changed)
+    solver_newton_min_iter: IntProperty(name="Minimum Newton Iterations", default=0, min=0, max=100000, update=changed,
+        description="Hard iteration floor; zero disables it. Must not exceed Maximum Newton Iterations")
+    solver_line_search_max_iter: IntProperty(name="Maximum Line Search Trials", default=32, min=1, max=128, update=changed)
     gravity: FloatVectorProperty(name="Gravity (m/s^2)", size=3, default=(0, 0, -9.81), update=changed,
         description="Acceleration in Blender world axes, in meters per second squared")
     d_hat: FloatProperty(name="Contact Distance (m)", default=0.001, min=1e-7, soft_max=0.1, precision=6,
@@ -223,7 +243,7 @@ class UIPC_OT_validate(bpy.types.Operator):
 
     def execute(self, context):
         try:
-            result = bridge.check_cache(context.scene)
+            result = bridge.activate_cache(context.scene)
             context.scene.uipc_settings.status = f"Cache valid: {result['frames']} frames"
             self.report({"INFO"}, context.scene.uipc_settings.status)
         except Exception as error:
@@ -390,6 +410,19 @@ class UIPC_PT_scene(bpy.types.Panel):
         column.label(text=f"{context.scene.render.fps / context.scene.render.fps_base:g} FPS; {context.scene.unit_settings.scale_length:g} m / unit")
         column.prop(settings, "substeps")
         column.prop(settings, "solver_accuracy")
+        if settings.solver_accuracy == "CUSTOM":
+            box = column.box()
+            box.label(text="Tolerances accept scientific notation")
+            for name in ("linear_tolerance", "velocity_tolerance", "relative_velocity_tolerance",
+                         "transrate_tolerance", "newton_max_iter", "newton_min_iter", "line_search_max_iter",
+                         "semi_implicit"):
+                box.prop(settings, "solver_" + name)
+            semi = box.column()
+            semi.enabled = settings.solver_semi_implicit
+            semi.prop(settings, "solver_k_min")
+            semi.prop(settings, "solver_beta_tolerance")
+        elif settings.solver_accuracy == "CONVERGED":
+            column.label(text="PCG: 1e-6; Newton: 1e-3 m/s; semi: off")
         column.prop(settings, "gravity")
         column.prop(settings, "d_hat")
         column.prop(settings, "friction")
