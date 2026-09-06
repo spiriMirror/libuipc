@@ -14,6 +14,13 @@
 > Cycles 48 samples, saved action camera). All frame names/sizes/PNGs passed
 > integrity checks; the source and all 39 caches remained unchanged. See the
 > adjacent `sequence_validation.json` for per-image hashes and provenance.
+> A subsequent three-view delivery is under
+> `output/robot-hand-apple/run_02/render_three_views_0001_0500/`: the prior
+> dining-orbit start azimuth (raised/refitted for robot visibility), a right-side
+> view, and a high left-side view each contain frames 1-500. All 1,500 PNGs are
+> 1280x1000 / Cycles 48 samples. Per-frame projected robot bounds guarantee the
+> hand remains inside the safe image area with at least 14.4% frame span; PNG
+> CRCs, names, dimensions, source hash, and all 39 cache hashes passed.
 
 > **Editable Blender solver precision (2026-09-06)**: extension 0.3.2 adds
 > Custom controls for PCG/Newton tolerances, semi-implicit enable/K_min/beta and
