@@ -8,8 +8,12 @@
 > playback pass. See `integrations/blender/examples/ROBOT_PICK_PLACE.md` for
 > controlled replay evidence and `13-blender-integration.md` for plugin controls.
 > Local delivery: `output/robot-hand-apple/run_02/robot_pick_place.blend` and its
-> portable ZIP; original source/old renders are retained. Key stages were rendered;
-> the previous 500-image sequence was not overwritten or rerendered in this fix.
+> portable ZIP; original source/old renders are retained. Subsequently, at the
+> owner's request, all 500 corrected frames were rendered to
+> `output/robot-hand-apple/run_02/render_0001_0500/frames/` (1280x1000 PNG,
+> Cycles 48 samples, saved action camera). All frame names/sizes/PNGs passed
+> integrity checks; the source and all 39 caches remained unchanged. See the
+> adjacent `sequence_validation.json` for per-image hashes and provenance.
 
 > **Editable Blender solver precision (2026-09-06)**: extension 0.3.2 adds
 > Custom controls for PCG/Newton tolerances, semi-implicit enable/K_min/beta and
