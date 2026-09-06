@@ -65,10 +65,11 @@ def main():
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--pose", type=Path)
     parser.add_argument("--solve", type=Path)
+    parser.add_argument("--fingers", type=int, choices=(3, 4), default=4)
     args = parser.parse_args()
     hand = Hand(args.model)
     if args.solve:
-        result = solve_grasp(hand)
+        result = solve_grasp(hand, args.fingers)
         args.solve.write_text(json.dumps(result, indent=2), encoding="utf-8")
         print(json.dumps(result, indent=2))
         return
@@ -93,9 +94,17 @@ def main():
         )
 
 
-def solve_grasp(hand):
-    active = ["0", "1", "2", "3", "4", "5", "6", "7", "12", "13", "14", "15"]
-    tips = ["fingertip", "fingertip_2", "thumb_fingertip"]
+def solve_grasp(hand, fingers=4):
+    active = (
+        [str(i) for i in range(16)]
+        if fingers == 4
+        else ["0", "1", "2", "3", "4", "5", "6", "7", "12", "13", "14", "15"]
+    )
+    tips = (
+        ["fingertip", "fingertip_2"]
+        + (["fingertip_3"] if fingers == 4 else [])
+        + ["thumb_fingertip"]
+    )
     zeros = hand.fk({})
     world0 = hand.points({})
     pads = {}
@@ -110,11 +119,40 @@ def solve_grasp(hand):
         vertex = np.argmin(np.linalg.norm(world0[name] - wanted, axis=1))
         pads[name] = hand.links[name]["vertices"][vertex]
         normals[name] = zeros[name][:3, :3].T @ normal
-    directions = np.array([[0.85, 0.52, -0.05], [0.85, -0.52, -0.05], [-1, 0, -0.08]])
+    directions = (
+        np.array(
+            [[0.50, 0.866, -0.05], [1, 0, -0.05], [0.50, -0.866, -0.05], [-1, 0, -0.08]]
+        )
+        if fingers == 4
+        else np.array([[0.85, 0.52, -0.05], [0.85, -0.52, -0.05], [-1, 0, -0.08]])
+    )
     directions /= np.linalg.norm(directions, axis=1)[:, None]
     low = np.array([hand.joints[name]["limits"][0] for name in active])
     high = np.array([hand.joints[name]["limits"][1] for name in active])
-    initial = np.array([0.0, 0.9, 0.7, 0.3, 0.0, 0.9, 0.7, 0.3, 1.25, 0.9, 0.3, 0.4])
+    initial = (
+        np.array(
+            [
+                0.5,
+                1.5,
+                -0.4,
+                0.6,
+                0.25,
+                1.3,
+                0.3,
+                0.1,
+                -0.1,
+                1.5,
+                -0.4,
+                0.6,
+                2.0,
+                -0.1,
+                0.1,
+                -0.3,
+            ]
+        )
+        if fingers == 4
+        else np.array([0.0, 0.9, 0.7, 0.3, 0.0, 0.9, 0.7, 0.3, 1.25, 0.9, 0.3, 0.4])
+    )
     sampled = {
         name: link["vertices"][:: max(1, len(link["vertices"]) // 40)]
         for name, link in hand.links.items()
@@ -134,13 +172,25 @@ def solve_grasp(hand):
                 normal = pose[:3, :3] @ normals[name]
                 errors.extend((pad - point - directions[i] * radius) * 200)
                 errors.extend((normal + directions[i]) * 0.35)
+            tip_centers = [
+                poses[name][:3, :3] @ hand.links[name]["vertices"].mean(axis=0)
+                + poses[name][:3, 3]
+                for name in tips
+            ]
+            for i, left in enumerate(tip_centers):
+                for right in tip_centers[i + 1 :]:
+                    errors.append(min(np.linalg.norm(left - right) - 0.034, 0) * 120)
             for name, vertices in sampled.items():
                 pose = poses[name]
                 positions = vertices @ pose[:3, :3].T + pose[:3, 3]
                 # Avoid the apple interior except a small commanded preload at
                 # the pad. Real IPC contact resolves the commanded overlap.
                 errors.extend(
-                    np.minimum(np.linalg.norm(positions - point, axis=1) - 0.037, 0)
+                    np.minimum(
+                        np.linalg.norm(positions - point, axis=1)
+                        - (0.037 if radius < 0.04 else 0.044),
+                        0,
+                    )
                     * 120
                 )
                 if name in tips:
@@ -152,8 +202,16 @@ def solve_grasp(hand):
             errors.extend((values[: len(active)] - initial) * 0.004)
             return np.array(errors)
 
-        lower = np.r_[low, [-0.06, -0.05, -0.16]] if free else low
-        upper = np.r_[high, [0.015, 0.025, -0.075]] if free else high
+        lower = (
+            np.r_[low, [-0.06, -0.055 if fingers == 4 else -0.05, -0.16]]
+            if free
+            else low
+        )
+        upper = (
+            np.r_[high, [0.015, -0.025 if fingers == 4 else 0.025, -0.075]]
+            if free
+            else high
+        )
         answer = least_squares(
             residual,
             seed,
@@ -165,7 +223,7 @@ def solve_grasp(hand):
         )
         return answer
 
-    closed = fit(np.r_[initial, [-0.025, -0.021, -0.115]], 0.038)
+    closed = fit(np.r_[initial, [-0.030, -0.040, -0.125]], 0.038)
     center = closed.x[-3:]
     opened = fit(closed.x[: len(active)], 0.064, center)
     closed_angles = {name: 0.0 for name in hand.joints}
@@ -187,7 +245,8 @@ def solve_grasp(hand):
         "pad_world": pad_world,
         "closed_cost": float(closed.cost),
         "open_cost": float(opened.cost),
-        "model": "sample 87 URDF collision geometry; three-pad opposition, free middle/third unused joints remain zero",
+        "finger_count": fingers,
+        "model": f"sample 87 URDF collision geometry; {fingers}-pad opposition",
     }
 
 

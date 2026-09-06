@@ -183,7 +183,7 @@ The native ABD vertex reporter inherits zero thickness and dimension 3 from the
 global vertex manager; cloth/FEM thickness offsets do not add a separate skin to
 ABD surfaces. The robot addition preserves that backend behavior.
 
-The dining pick/place example uses an unconstrained apple and 17 driven links.
+The initial three-finger dining delivery used an unconstrained apple and 17 driven links.
 All 500 cached frames passed enabled inter-object crossing checks; the hand
 remained still through frame 50, lifted the apple about 22 cm, moved it about
 48 cm, and released it onto the cloth. Final apple RMS speed was 3.2e-5 m/s,
@@ -214,12 +214,34 @@ translation after explicit cache reactivation. Local GUI evidence is under
 `output/blender-custom-gui-verified/`.
 
 The original three-finger dining delivery passed crossings/playback tests but
-the user reported cloth kicks during carrying. Its third non-thumb chain was
-intentionally parked at zero. A temporal audit found a remote hem vertex moving
-about 8 cm in one output frame (frame 293), reaching 2.45 m/s. Crossing tests do
-not establish temporal stability. Four-finger replanning, tighter-solve and
-stationary/far-away robot controls are being validated; do not describe the old
-bake as a temporally stable four-finger result.
+had cloth kicks during carrying. Its third non-thumb chain was intentionally
+parked at zero. A temporal audit found a remote hem vertex moving about 8 cm in
+one output frame (frame 293), reaching 2.45 m/s. Crossing tests do not establish
+temporal stability.
+
+The corrected 500-frame four-finger bake selects Converged accuracy and smooth
+stage-boundary target velocities, without changing cloth materials, rest shape,
+pins or damping. Every fingertip moves 16-24 mm while closing and remains within
+0.85-6.43 micrometers of the apple at the checked carrying frames. All 500
+enabled inter-object crossing checks, additional distinct-fingertip checks,
+temporal cloth bounds and native vertex playback pass. Carrying-stage cloth
+maximum speed/acceleration are 0.244 m/s and 2.48 m/s²; supported tabletop maximum
+speed is 0.706 mm/s. Final apple speed is 4.52e-5 m/s with about 0.242 m hand
+clearance. The installed UI validated seven stages, and the relocated 39-cache
+bundle replayed every vertex at frames 1/250/500 without an addon (error 0).
+
+Controlled old-motion replays isolate a convergence-setting problem in the
+strong loaded-drive/light-cloth system: tightening only PCG reduces, but does
+not remove, sharp acceleration peaks; the Converged profile reduces the old
+carrying peak from 2.451/70.38 to 0.224/2.44 (m/s and m/s²). Only disabling
+semi-implicit mode aborts at output frame 205 on the original eight-trial line
+search limit. Held/far-away robot controls are calm; the far-away test also
+changes the scene-diagonal-dependent kappa clamp and is only qualitative.
+See `integrations/blender/examples/ROBOT_PICK_PLACE.md` for exact controls and
+`integrations/blender/examples/replay_robot_bake.py` for a fresh-directory
+diagnostic runner. It records native child-process failures, not just a
+potentially stale last-progress status. Native defaults remain unchanged;
+these are accuracy comparisons, not isolated throughput benchmarks.
 
 ## Procedural dining-scene workflow
 

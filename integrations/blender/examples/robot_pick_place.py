@@ -36,11 +36,19 @@ def world_points(obj, local):
     return local @ matrix[:3, :3].T + matrix[:3, 3]
 
 
-def linear_keys(obj):
+def smooth_keys(obj):
     if obj.animation_data and obj.animation_data.action:
         for curve in obj.animation_data.action.fcurves:
-            for key in curve.keyframe_points:
-                key.interpolation = "LINEAR"
+            keys = curve.keyframe_points
+            for i, key in enumerate(keys):
+                # Monotone cubic segments with zero velocity at each stage.
+                # These are physical servo targets, never filters on solved motion.
+                previous = keys[max(i - 1, 0)].co.x
+                following = keys[min(i + 1, len(keys) - 1)].co.x
+                key.interpolation = "BEZIER"
+                key.handle_left_type = key.handle_right_type = "FREE"
+                key.handle_left = (key.co.x - (key.co.x - previous) / 3, key.co.y)
+                key.handle_right = (key.co.x + (following - key.co.x) / 3, key.co.y)
 
 
 def build(args, addon):
@@ -57,6 +65,7 @@ def build(args, addon):
     scene.frame_start, scene.frame_end = 1, args.frames
     scene.uipc_settings.python_executable = args.python
     scene.uipc_settings.cache_directory = str(args.output / "cache")
+    scene.uipc_settings.solver_accuracy = args.solver_accuracy
     scene.frame_set(1)
     bpy.ops.wm.save_as_mainfile(filepath=str(args.output / "robot_pick_place.blend"))
     assert bpy.ops.uipc.import_robot(filepath=str(args.urdf), blocking=True) == {
@@ -105,9 +114,9 @@ def build(args, addon):
             control.keyframe_insert(
                 data_path="rotation_axis_angle", index=0, frame=frame
             )
-    linear_keys(root)
+    smooth_keys(root)
     for control in joints.values():
-        linear_keys(control)
+        smooth_keys(control)
     scene.frame_set(1)
     deps = scene.view_layers[0].depsgraph
     deps.update()
@@ -201,6 +210,49 @@ def inspect_result(scene, addon, args):
     return arrays, output
 
 
+def cloth_motion_report(scene, arrays):
+    """Temporal validation: no-intersection checks cannot detect numerical kicks."""
+    name = "01 White linen tablecloth"
+    points = arrays[name]
+    rest = world_points(
+        scene.objects[name],
+        np.array([v.co[:] for v in scene.objects[name].data.vertices]),
+    )
+    # Exclude the contact rim when examining the supported tabletop interior.
+    top = (abs(rest[:, 0] + 0.22) < 0.57) & (abs(rest[:, 1] - 0.27) < 0.39)
+    fps = scene.render.fps / scene.render.fps_base
+    speed = np.linalg.norm(np.diff(points, axis=0) * fps, axis=2)
+    acceleration = np.linalg.norm(np.diff(points, n=2, axis=0) * fps**2, axis=2)
+    report = {}
+    for region, mask in (
+        ("all", np.ones(len(rest), dtype=bool)),
+        ("tabletop", top),
+        ("hem", ~top),
+    ):
+        report[region] = {}
+        for lo, hi in (
+            (151, 195),
+            (196, 250),
+            (251, 325),
+            (326, 380),
+            (381, 420),
+            (421, 500),
+        ):
+            if hi > len(points):
+                continue
+            v = speed[lo - 2 : hi - 1, mask]
+            a = acceleration[lo - 3 : hi - 2, mask]
+            frame, vertex = np.unravel_index(np.argmax(v), v.shape)
+            report[region][f"{lo}-{hi}"] = {
+                "rms_speed_m_s": float(np.sqrt(np.mean(v**2))),
+                "max_speed_m_s": float(v.max()),
+                "max_acceleration_m_s2": float(a.max()),
+                "peak_speed_frame": int(lo + frame),
+                "peak_speed_vertex": int(np.flatnonzero(mask)[vertex]),
+            }
+    return report
+
+
 def validate_pick_place(scene, addon, args, arrays, report):
     directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
     request = json.loads((directory / "request.json").read_text())
@@ -217,6 +269,10 @@ def validate_pick_place(scene, addon, args, arrays, report):
                     data["vertices"] @ data["matrix"][:3, :3].T + data["matrix"][:3, 3]
                 )
     names = list(materials)
+    fingertip_names = [
+        "Robot link " + n
+        for n in ("fingertip", "fingertip_2", "fingertip_3", "thumb_fingertip")
+    ]
     static_trees = {
         n: BVHTree.FromPolygons(
             [Vector(p) for p in v], triangles[n].tolist(), all_triangles=True
@@ -235,8 +291,14 @@ def validate_pick_place(scene, addon, args, arrays, report):
             ga = materials[a].get("drive", {}).get("group")
             for b in names[i + 1 :]:
                 gb = materials[b].get("drive", {}).get("group")
-                if ga and ga == gb:
-                    continue  # Same explicit robot-internal mask as sample 87.
+                if (
+                    ga
+                    and ga == gb
+                    and not (a in fingertip_names and b in fingertip_names)
+                ):
+                    # Adjacent assembly links may overlap as in sample 87;
+                    # separately verify the four distinct fingertip surfaces.
+                    continue
                 hits = trees[a].overlap(trees[b])
                 if hits:
                     raise AssertionError(
@@ -282,13 +344,26 @@ def validate_pick_place(scene, addon, args, arrays, report):
 
     contacts = {}
     robot = [n for n in arrays if n.startswith("Robot link ")]
+    finger_closing_motion = {
+        name: float(
+            np.linalg.norm(
+                arrays[name][194].mean(axis=0) - arrays[name][149].mean(axis=0)
+            )
+        )
+        for name in fingertip_names
+    }
+    assert all(
+        distance > 0.008 for distance in finger_closing_motion.values()
+    ), f"A finger did not participate in closing: {finger_closing_motion}"
     for frame in (250, 325):
         contacts[str(frame)] = {
             name: distance(target, apple[frame - 1], name, arrays[name][frame - 1])
             for name in robot
         }
-        close = [name for name, value in contacts[str(frame)].items() if value < 0.0015]
-        assert len(close) >= 2, f"No multipoint robotic grasp at frame {frame}"
+        assert all(contacts[str(frame)][name] < 0.0015 for name in fingertip_names), (
+            f"Not all four fingertips participate at frame {frame}: "
+            f"{ {n: contacts[str(frame)][n] for n in fingertip_names} }"
+        )
     release = min(distance(target, apple[-1], name, arrays[name][-1]) for name in robot)
     cloth_gap = distance(
         target,
@@ -330,15 +405,32 @@ def validate_pick_place(scene, addon, args, arrays, report):
         for modifier, visible in flags:
             modifier.show_viewport = visible
     assert maximum < 2e-6, "Blender playback does not match the solved state"
+    cloth_motion = cloth_motion_report(scene, arrays)
+    (args.output / "cloth_motion.json").write_text(
+        json.dumps(cloth_motion, indent=2), encoding="utf-8"
+    )
+    for phase in ("196-250", "251-325"):
+        assert (
+            cloth_motion["all"][phase]["max_speed_m_s"] < 0.7
+        ), "Cloth received an abnormal carrying-stage velocity kick"
+        assert (
+            cloth_motion["all"][phase]["max_acceleration_m_s2"] < 12
+        ), "Cloth received an abnormal carrying-stage acceleration kick"
+        assert (
+            cloth_motion["tabletop"][phase]["max_speed_m_s"] < 0.01
+        ), "Supported cloth jitters during transport"
     report.update(
         success=True,
         checked_inter_object_frames=scene.frame_end,
-        internal_robot_contact="disabled as in sample 87; all robot/environment and apple contact enabled",
+        internal_robot_contact="disabled as in sample 87; distinct fingertips additionally checked for crossings; all robot/environment and apple contact enabled",
         grasp_surface_distances_m=contacts,
         final_apple_robot_distance_m=release,
         final_apple_cloth_distance_m=cloth_gap,
         all_vertex_playback_error_m=maximum,
         other_four_apples_remain_in_bowl=True,
+        four_fingertip_grasp=True,
+        fingertip_closing_displacement_m=finger_closing_motion,
+        cloth_motion=cloth_motion,
     )
     (args.output / "pick_place_validation.json").write_text(
         json.dumps(report, indent=2), encoding="utf-8"
@@ -391,6 +483,7 @@ def package_result(scene, addon, args):
         args.output / "pick_place_validation.json",
         args.output / "pick_place_diagnostics.json",
         args.output / "trajectory_summary.npz",
+        args.output / "cloth_motion.json",
     }
     members.update(args.output.glob("pick_place_*.png"))
     members.update(args.output.glob("standalone_playback_validation.json"))
@@ -403,7 +496,7 @@ def package_result(scene, addon, args):
     members.update(
         path
         for path in directory.iterdir()
-        if path.is_file() and path.suffix in (".json", ".npz", ".log")
+        if path.is_file() and path.suffix in (".json", ".jsonl", ".npz", ".log")
     )
     destination = args.output / "robot_pick_place_bundle.zip"
     with zipfile.ZipFile(
@@ -421,7 +514,8 @@ def package_result(scene, addon, args):
             "Frame 1 starts the simulation; frames 1-50 hold the hand.\n"
             "Frame 250 shows the grasped apple in the air; frame 500 shows placement.\n"
             "Spacebar plays the baked motion. Keep cache/ and the stem MDD files beside the blend.\n"
-            "Playback works without an addon or CUDA. Install libuipc Physics 0.3 to edit controls/re-bake.\n"
+            "All four fingertips participate. The scene selects the Converged solver profile.\n"
+            "Playback works without an addon or CUDA. Install libuipc Physics 0.3.2 to edit solver controls/re-bake.\n"
             "The library's current source Python/CUDA runtime is required only for re-baking.\n",
         )
     print("ROBOT_BUNDLE", destination, flush=True)
@@ -437,6 +531,9 @@ def main():
     )
     parser.add_argument("--python", required=True)
     parser.add_argument("--frames", type=int, default=500)
+    parser.add_argument(
+        "--solver-accuracy", choices=("DEFAULT", "CONVERGED"), default="CONVERGED"
+    )
     parser.add_argument(
         "--mode",
         choices=("all", "build", "bake", "inspect", "shots", "package"),

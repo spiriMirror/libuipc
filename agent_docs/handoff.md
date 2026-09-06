@@ -1,19 +1,30 @@
 # Handoff — Current State of the Repo
 
+> **Four-finger dining correction complete (2026-09-06)**: the new 500-frame
+> bake grasps/carries/releases with all four fingertips. Its Converged profile
+> and smooth target velocities eliminate the original large cloth kicks without
+> editing cloth material/rest/pins/damping. All-frame crossings, four-finger
+> contact/motion, temporal cloth bounds, installed UI and relocated native-cache
+> playback pass. See `integrations/blender/examples/ROBOT_PICK_PLACE.md` for
+> controlled replay evidence and `13-blender-integration.md` for plugin controls.
+> Local delivery: `output/robot-hand-apple/run_02/robot_pick_place.blend` and its
+> portable ZIP; original source/old renders are retained. Key stages were rendered;
+> the previous 500-image sequence was not overwritten or rerendered in this fix.
+
 > **Editable Blender solver precision (2026-09-06)**: extension 0.3.2 adds
 > Custom controls for PCG/Newton tolerances, semi-implicit enable/K_min/beta and
 > iteration limits. Scientific-notation text is validated/normalized before
 > fingerprinting and native calls. Eighteen portable tests and actual three-
 > profile Blender/CUDA bakes verify effective values, invalidation and saved
-> settings. The four-finger dining re-bake remains under validation below.
+> settings. The four-finger dining re-bake is complete as recorded above.
 
-> **Blender robot accuracy follow-up (2026-09-06, in progress)**: 0.3.1 adds an
+> **Blender robot accuracy follow-up (2026-09-06, resolved above)**: 0.3.1 adds an
 > explicit Converged solver profile and per-substep diagnostic statistics without
 > changing native defaults or invalidating old default-profile caches. Portable
 > tests and real Blender/CUDA profile-switch/rebake tests pass. The earlier
 > three-finger scene has a user-reported carrying-stage cloth kick (confirmed in
 > raw MDD positions, not a render artifact); four-finger planning and controlled
-> solver comparisons are under validation. See `13-blender-integration.md`.
+> solver comparisons were completed in the correction above. See `13-blender-integration.md`.
 
 > **Blender robot hand (2026-09-06)**: extension 0.3 adds native URDF import,
 > keyframeable root/joint controllers and per-substep soft ABD target drives,

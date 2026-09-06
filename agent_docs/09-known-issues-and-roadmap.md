@@ -18,10 +18,13 @@ contact. Torque-driven articulations, rods, animated cloth/FEM pins and controll
 NLA/drivers/constraints remain outside this interface; see the robot section of
 `13-blender-integration.md` for exact supported controls and validation.
 
-The original dining robot bake has a confirmed carrying-stage cloth velocity
-kick despite passing surface-crossing and playback checks, and uses only three
-active fingertips. Version 0.3.1 exposes a Converged accuracy profile and solver
-statistics; controlled replay and four-finger revalidation are in progress.
+The original dining robot's cloth kicks and parked fourth finger are corrected
+in a revalidated 500-frame bake. It uses the Converged profile and four active
+fingertips; the 0.3.2 UI also exposes Custom tolerances and iteration limits.
+Controlled replay shows default mixed-system under-convergence; native defaults
+are deliberately unchanged. Per-domain convergence/automatic accuracy selection
+would be future solver work, not a feature of this scene-specific correction.
+See `13-blender-integration.md` for results and validation limits.
 
 The procedural dining-scene reconstruction now has a complete gravity bake,
 render and independently reopened portable cache. It is an assumed-material
