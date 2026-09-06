@@ -4,6 +4,7 @@
 
 import argparse
 import importlib
+import json
 from pathlib import Path
 import struct
 import sys
@@ -61,6 +62,28 @@ def main():
     assert held < 1e-5, held
     np.testing.assert_allclose(displacement, [0, 0, 0.2], atol=2e-5)
     scene.frame_set(60)
+    addon.bridge.check_cache(scene)
+    original_request = json.loads((directory / "request.json").read_text())
+    assert "solver_accuracy" not in original_request["settings"]
+    scene.uipc_settings.solver_accuracy = "CONVERGED"
+    try:
+        addon.bridge.check_cache(scene)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Changed accuracy did not invalidate the old cache")
+    scene.uipc_settings.solver_accuracy = "DEFAULT"
+    addon.bridge.check_cache(scene)
+    scene.uipc_settings.solver_accuracy = "CONVERGED"
+    assert bpy.ops.uipc.bake(blocking=True) == {"FINISHED"}
+    precise = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
+    assert precise != directory and (directory / "result.json").exists()
+    request = json.loads((precise / "request.json").read_text())
+    result = json.loads((precise / "result.json").read_text())
+    assert request["settings"]["solver_accuracy"] == "CONVERGED"
+    assert result["effective_newton"]["semi_implicit"]["enable"] == 0
+    assert result["effective_newton"]["velocity_tol"] == 0.001
+    assert result["effective_linear_system"]["tol_rate"] == 1e-6
     addon.bridge.check_cache(scene)
     target.animation_data.action.fcurves[0].keyframe_points[2].co.y += 0.01
     try:

@@ -18,6 +18,11 @@ contact. Torque-driven articulations, rods, animated cloth/FEM pins and controll
 NLA/drivers/constraints remain outside this interface; see the robot section of
 `13-blender-integration.md` for exact supported controls and validation.
 
+The original dining robot bake has a confirmed carrying-stage cloth velocity
+kick despite passing surface-crossing and playback checks, and uses only three
+active fingertips. Version 0.3.1 exposes a Converged accuracy profile and solver
+statistics; controlled replay and four-finger revalidation are in progress.
+
 The procedural dining-scene reconstruction now has a complete gravity bake,
 render and independently reopened portable cache. It is an assumed-material
 visual/physical example, not a calibrated fabric benchmark: its 1/60 vs 1/120 s

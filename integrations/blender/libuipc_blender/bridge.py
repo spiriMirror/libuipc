@@ -50,6 +50,9 @@ def collect_scene(scene):
         "d_hat": settings.d_hat, "friction": settings.friction,
         "resistance": settings.resistance,
     }
+    # Omit DEFAULT to preserve the fingerprints of existing v1-v3 bakes.
+    if settings.solver_accuracy != "DEFAULT":
+        simulation["solver_accuracy"] = settings.solver_accuracy
     if scene.frame_end < scene.frame_start:
         raise ValueError("End frame precedes start frame")
     bodies = []

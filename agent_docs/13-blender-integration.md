@@ -19,7 +19,7 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.3.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.3.1; Windows/Linux; Blender >=4.2 API target |
 | `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
 | `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
@@ -70,6 +70,13 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
   `2r`. Shear keeps the library's independently calibrated effective coefficient.
 - First output frame is rest state. Subsequent frames each advance `substeps`,
   with `dt = fps_base / (fps * substeps)`. Sanity and strict solver checks remain on.
+- `solver_accuracy` is opt-in: omit `DEFAULT` from serialized settings to retain
+  legacy fingerprints. `CONVERGED` disables semi-implicit early exit, uses
+  0.001 m/s absolute Newton tolerance, zero relative Newton tolerance, linear
+  `tol_rate=1e-6` and up to 32 line-search trials. It changes no material/contact
+  parameters or native defaults. `result.json` records effective settings;
+  `solver_steps.jsonl` records per-substep statistics where the runtime supports
+  `Engine.frame_stats()` (older supported runtimes may not expose it).
 - MDD files stream one frame at a time, use big-endian float32, and become final
   only after all frames are written. Finite checks happen before conversion.
   Full input fingerprints and MDD header/size checks precede any attachment.
@@ -176,6 +183,20 @@ bake and FEM suite. A real UI window reopened the 500-frame hand file, validated
 seven action frames and exposed the target controls. The portable bundle was
 extracted elsewhere and factory Blender (without the addon) replayed all 39
 physical/decorative caches at frames 1/250/500 with zero vertex error.
+
+Accuracy-profile regression (0.3.1): 14 portable tests and actual Blender/CUDA
+motion bakes check native-default preservation, the precise profile's effective
+settings, cache invalidation/restoration on profile changes, and preservation of
+the previous bake. The first 50 hold frames remain within 2.8e-7 m and the driven
+body moves the requested 0.20 m.
+
+The original three-finger dining delivery passed crossings/playback tests but
+the user reported cloth kicks during carrying. Its third non-thumb chain was
+intentionally parked at zero. A temporal audit found a remote hem vertex moving
+about 8 cm in one output frame (frame 293), reaching 2.45 m/s. Crossing tests do
+not establish temporal stability. Four-finger replanning, tighter-solve and
+stationary/far-away robot controls are being validated; do not describe the old
+bake as a temporally stable four-finger result.
 
 ## Procedural dining-scene workflow
 

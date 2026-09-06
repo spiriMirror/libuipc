@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.3.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.3.1.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.3.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.3.1.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -197,6 +197,7 @@ still applies.
 | Frame range | Blender scene start/end | End >= start; start is the unadvanced rest frame |
 | Frame rate | Blender FPS / FPS Base | Positive frames/second |
 | Substeps | 2 | Integer 1–1000; `dt = FPS Base / (FPS * substeps)` seconds |
+| Solver Accuracy | Library Default | `DEFAULT`: inherit native settings; `CONVERGED`: tighter linear/Newton solves, no semi-implicit early exit |
 | Gravity | (0, 0, -9.81) | Finite acceleration components, m/s², Blender world axes |
 | Contact Distance | 0.001 m | >= 1e-7 m; activation distance beyond thickness offsets |
 | Friction | 0.5 | >= 0; global Coulomb coefficient |
@@ -208,10 +209,21 @@ values; they are not multiplied a second time. Object translation, rotation,
 nonuniform scale, and negative scale are included using Blender's evaluated
 world matrix. Output is transformed back to the original object-local frame.
 
-The worker uses standard IPC and inherits libuipc's semi-implicit termination
-and `K_min` defaults. Sanity checks are enabled. Strict solver mode is enabled so
-nonlinear/line-search limit failures are reported instead of silently baking
-unconverged frames. No new collision or buffer-allocation code is introduced.
+The worker uses standard IPC. **Library Default** inherits libuipc's
+semi-implicit termination and `K_min` defaults. **Converged** is an explicit
+per-scene accuracy option for difficult mixed systems such as strong robot
+position drives coupled to light cloth. It sets `newton/semi_implicit/enable=0`,
+`newton/velocity_tol=0.001` m/s, `newton/velocity_tol_relative=0`,
+`linear_system/tol_rate=1e-6`, and `line_search/max_iter=32`. It does not alter
+time steps, materials, contact, pins or damping, and can be substantially slower.
+Changing the profile invalidates the bake; old default-profile caches remain valid.
+
+Sanity and strict solver checks are enabled. Strict mode reports iteration-limit
+failures, but is not itself a tighter convergence tolerance and does not disable
+semi-implicit early termination. The bake result records effective solver
+settings. With runtimes exposing `Engine.frame_stats()`, `solver_steps.jsonl`
+also records each substep's iteration counts, convergence and line-search limits.
+No new collision or buffer-allocation code is introduced.
 
 ## Object parameters
 

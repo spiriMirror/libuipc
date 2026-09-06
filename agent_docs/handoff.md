@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Blender robot accuracy follow-up (2026-09-06, in progress)**: 0.3.1 adds an
+> explicit Converged solver profile and per-substep diagnostic statistics without
+> changing native defaults or invalidating old default-profile caches. Portable
+> tests and real Blender/CUDA profile-switch/rebake tests pass. The earlier
+> three-finger scene has a user-reported carrying-stage cloth kick (confirmed in
+> raw MDD positions, not a render artifact); four-finger planning and controlled
+> solver comparisons are under validation. See `13-blender-integration.md`.
+
 > **Blender robot hand (2026-09-06)**: extension 0.3 adds native URDF import,
 > keyframeable root/joint controllers and per-substep soft ABD target drives,
 > with protocol-v3 motion integrity and legacy-cache support. Sample 87's hand

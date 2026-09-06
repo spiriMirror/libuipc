@@ -3,6 +3,7 @@
 """External solver entry point. Invoke with a Python containing pyuipc >= 0.0.28."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 import sys
@@ -88,6 +89,18 @@ def load_request(directory):
     return request, bodies
 
 
+def apply_solver_accuracy(config, accuracy):
+    """Explicit per-scene opt-in; DEFAULT leaves native solver defaults intact."""
+    if accuracy == "CONVERGED":
+        config["newton"]["semi_implicit"]["enable"] = 0
+        config["newton"]["velocity_tol"] = 0.001
+        config["newton"]["velocity_tol_relative"] = 0.0
+        config["linear_system"]["tol_rate"] = 1e-6
+        config["line_search"]["max_iter"] = 32
+    elif accuracy != "DEFAULT":
+        raise ValueError(f"Unsupported solver accuracy: {accuracy}")
+
+
 def simulate(directory, parent):
     request, bodies = load_request(directory)
     settings = request["settings"]
@@ -106,6 +119,8 @@ def simulate(directory, parent):
     # Start with standard IPC; inherit the library's semi-implicit/K_min defaults.
     config["contact"]["constitution"] = "ipc"
     config["extras"]["strict_mode"]["enable"] = 1
+    accuracy = settings.get("solver_accuracy", "DEFAULT")
+    apply_solver_accuracy(config, accuracy)
     scene = uipc.Scene(config)
     scene.contact_tabular().default_model(settings["friction"], settings["resistance"])
     shell = StrainLimitingBaraffWitkinShell()
@@ -238,6 +253,8 @@ def simulate(directory, parent):
         raise RuntimeError("Scene initialization failed; inspect worker.log for mesh/contact diagnostics")
     world.retrieve()
     writers = []
+    statistics = (directory / "solver_steps.jsonl").open("w", encoding="utf-8")
+    frame_stats = getattr(engine, "frame_stats", None)
     try:
         for output in outputs:
             writers.append(MDDWriter(directory / f"object_{output['index']:04d}.mdd",
@@ -253,9 +270,15 @@ def simulate(directory, parent):
                         return
                     motion_step[0] += 1
                     world.advance()
+                    if frame_stats is not None:
+                        statistics.write(json.dumps({
+                            "output_frame": frame + settings["frame_start"],
+                            "substep": motion_step[0], **dict(frame_stats()),
+                        }) + "\n")
                     if not world.is_valid():
                         raise RuntimeError(f"Simulation failed at output frame {frame}")
                 world.retrieve()
+                statistics.flush()
             for output, writer in zip(outputs, writers):
                 geometry = output["slot"].geometry()
                 points = np.asarray(geometry.positions().view()).reshape(-1, 3)
@@ -275,10 +298,15 @@ def simulate(directory, parent):
             "schema_version": request["schema_version"], "fingerprint": request["fingerprint"],
             "build_info": uipc.build_info(), "frames": frame_count,
             "elapsed_seconds": time.monotonic() - started,
+            "solver_accuracy": accuracy, "effective_newton": config["newton"],
+            "effective_linear_system": config["linear_system"],
+            "effective_line_search": config["line_search"],
+            "solver_statistics_available": frame_stats is not None,
             "objects": [{"index": o["index"], "vertices": o["vertices"]} for o in outputs],
         })
         atomic_json(directory / "status.json", {"state": "complete", "frame": frame_count, "total": frame_count})
     finally:
+        statistics.close()
         for writer in writers:
             writer.close()
 

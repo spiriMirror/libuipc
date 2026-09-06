@@ -43,6 +43,10 @@ class UIPCSceneSettings(bpy.types.PropertyGroup):
         description="Blank uses <blend name>_uipc_cache beside the saved .blend")
     substeps: IntProperty(name="Substeps", default=2, min=1, max=1000, update=changed,
         description="Solver steps per Blender frame; dt = fps_base / (fps * substeps)")
+    solver_accuracy: EnumProperty(name="Solver Accuracy", items=[
+        ("DEFAULT", "Library Default", "Inherit native semi-implicit and solver tolerances"),
+        ("CONVERGED", "Converged", "Disable semi-implicit early exit, tighten Newton and linear tolerances; slower but suitable for strong drives coupled to light cloth"),
+    ], default="DEFAULT", update=changed)
     gravity: FloatVectorProperty(name="Gravity (m/s^2)", size=3, default=(0, 0, -9.81), update=changed,
         description="Acceleration in Blender world axes, in meters per second squared")
     d_hat: FloatProperty(name="Contact Distance (m)", default=0.001, min=1e-7, soft_max=0.1, precision=6,
@@ -385,6 +389,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.prop(context.scene, "frame_end", text="End")
         column.label(text=f"{context.scene.render.fps / context.scene.render.fps_base:g} FPS; {context.scene.unit_settings.scale_length:g} m / unit")
         column.prop(settings, "substeps")
+        column.prop(settings, "solver_accuracy")
         column.prop(settings, "gravity")
         column.prop(settings, "d_hat")
         column.prop(settings, "friction")
