@@ -24,6 +24,10 @@ record it here in the same commit.**
    structure, workflow, conventions, build, or behavior must update the
    matching doc (and `handoff.md` / `09-known-issues-and-roadmap.md` when
    it closes or opens work) **in the same commit**.
+5. **Commit sample changes directly to `libuipc-samples/main`.** Do not use an
+   intermediate samples branch unless the owner explicitly requests one. When
+   the shared submodule worktree contains unrelated local edits, use a clean
+   worktree to update `main` and never include those edits. (Set 2026-09-07.)
 
 ## Language
 

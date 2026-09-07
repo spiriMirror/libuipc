@@ -9,8 +9,11 @@
 > fingertip surfaces at frames 250/325, and settles to 5.83e-11 m/s RMS center
 > speed. GUI startup and key-frame OBJ export also pass. The owner's unrelated
 > local edits in samples 88/93 remain uncommitted and were not included. The
-> samples branch `benchmark-baseline` is pushed through `ecad2ca`; partial
-> headless checks use suffixed reports and cannot replace the full validation.
+> two 94 commits were cherry-picked directly onto `libuipc-samples/main` as
+> `90607b9` and `a7ca63f`; unrelated benchmark-only commits were not included.
+> Partial headless checks use suffixed reports and cannot replace the full
+> validation. By owner rule, future samples changes go directly to samples
+> `main` unless another branch is explicitly requested.
 
 > **Four-finger dining correction complete (2026-09-06)**: the new 500-frame
 > bake grasps/carries/releases with all four fingertips. Its Converged profile
