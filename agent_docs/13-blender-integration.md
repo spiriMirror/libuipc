@@ -243,6 +243,12 @@ diagnostic runner. It records native child-process failures, not just a
 potentially stale last-progress status. Native defaults remain unchanged;
 these are accuracy comparisons, not isolated throughput benchmarks.
 
+The verified joint plan was also extracted into standalone sample
+`libuipc-samples/examples/94_robot_hand_grasp_apple/`. Unlike the Blender scene,
+the focused Y-up sample uses only the hand, a procedural free ABD apple and a
+fixed table plane. It retains all four contact checks and a 500-output-frame
+headless validation without depending on Blender or MDD playback.
+
 ## Procedural dining-scene workflow
 
 `integrations/blender/examples/white_table_setting.py` builds an asset-free white

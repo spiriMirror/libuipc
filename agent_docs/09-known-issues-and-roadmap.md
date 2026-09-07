@@ -371,7 +371,7 @@ assertions).
 ## Samples submodule state (spiriMirror/libuipc-samples)
 
 The root repository tracks this repository as the `libuipc-samples/` submodule.
-It currently has 52 example directories; numbering is non-contiguous and two
+It currently has 53 example directories; numbering is non-contiguous and two
 directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
 reference.
 
@@ -382,6 +382,12 @@ reference.
   (urdf `filename=` refs rewritten; link/joint names unchanged because the
   pose jsons key on them). The scripted auto-grasp was removed at the
   user's request (manual posing instead).
+- `94_robot_hand_grasp_apple` — focused scripted counterpart to 87. The same
+  17-link hand uses smooth per-substep soft-transform targets to grasp, lift,
+  move and release a free procedural ABD apple with all four fingers. Its
+  500-output-frame headless mode validates each carrying fingertip, lift,
+  transport, table support and final velocity. It does not reintroduce automatic
+  motion into the deliberately manual sample 87.
 - `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.

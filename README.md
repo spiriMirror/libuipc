@@ -70,6 +70,7 @@ reference are documented in [Testing and Benchmarks](https://spirimirror.github.
 ### Robotics
 
 - [87: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/87_robot_hand)
+- [94: four-finger robot hand grasps and places a free ABD apple](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/94_robot_hand_grasp_apple)
 
 ### FEM & Cloth
 

@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **Sample 94 four-finger grasp (2026-09-07)**: added
+> `libuipc-samples/examples/94_robot_hand_grasp_apple/` as a focused scripted
+> companion to manual sample 87. It directly constructs a libuipc World, drives
+> all 17 URDF links with per-substep soft-transform targets and leaves the
+> symmetric procedural ABD apple unconstrained. The final 500-output-frame run
+> (1,996 solver steps) lifts 0.2180 m, transports 0.4495 m, verifies all four
+> fingertip surfaces at frames 250/325, and settles to 5.83e-11 m/s RMS center
+> speed. GUI startup and key-frame OBJ export also pass. The owner's unrelated
+> local edits in samples 88/93 remain uncommitted and were not included. The
+> samples branch `benchmark-baseline` is pushed through `ecad2ca`; partial
+> headless checks use suffixed reports and cannot replace the full validation.
+
 > **Four-finger dining correction complete (2026-09-06)**: the new 500-frame
 > bake grasps/carries/releases with all four fingertips. Its Converged profile
 > and smooth target velocities eliminate the original large cloth kicks without

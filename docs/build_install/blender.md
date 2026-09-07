@@ -182,6 +182,12 @@ joint torques and actuator dynamics are not modeled by this interface.
 Internal robot collision can be disabled for assembled links, while collisions
 with the table, cloth, bowl and grasped object remain enabled.
 
+For the same four-finger grasp as a focused standalone pyuipc program without
+Blender or baked caches, see
+[`94_robot_hand_grasp_apple`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/94_robot_hand_grasp_apple).
+It directly constructs the World, drives the sample-87 URDF links at every
+solver substep, and numerically verifies the free apple's carry and release.
+
 The imported collision meshes retain their closed solid components. Isolated
 zero-volume export fragments are removed, and open boundary loops are capped
 with Blender's mesh operations before rigid validation. Repair counts are stored

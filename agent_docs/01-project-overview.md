@@ -27,7 +27,7 @@ Recent important changes (README News):
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
 | `benchmarks/` | Versioned four-scene end-to-end benchmark manifest and reproducibility contract; implementations/assets remain in `libuipc-samples/` |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
-| `libuipc-samples/` | Tracked git submodule containing the Python sample library (52 current example directories plus benchmarks/assets) |
+| `libuipc-samples/` | Tracked git submodule containing the Python sample library (53 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
 | `agent_docs/` | Agent guide, including durable `adr/` decisions, `performance/` evidence, and chronological `handoff.md` history |
