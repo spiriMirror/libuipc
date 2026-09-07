@@ -82,8 +82,6 @@ touching that area; several of these have bitten us more than once.
   grep on a running step returns nothing. Use `gh run view --job <id>` for
   step status instead.
 - clang-format matching CI (v18): `output/venv_clangfmt/Scripts/clang-format.exe`.
-- `gh` CLI on this machine: `"C:/Program Files/GitHub CLI/gh.exe"` (not on
-  PATH), logged in as KemengHuang.
 
 ## Test suite (apps/tests)
 
