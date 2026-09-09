@@ -3,9 +3,10 @@ import sys
 import shutil
 import argparse as ap
 import pathlib
-import pybind11_stubgen as stubgen
 import subprocess as sp
 import optional_import # help stubgen to detect optional modules' api
+
+from pyuipc_stubgen import generate_uipc_stubs
 
 def is_option_on(option: str):
     # convert the option to uppercase
@@ -96,31 +97,12 @@ def copy_shared_libs(config:str, binary_dir:pathlib.Path, pyuipc_lib:pathlib.Pat
 
     return target_dir
 
-def generate_uipc_stubs(binary_dir):
+def generate_build_stubs(binary_dir):
     optional_import.EnabledModules.report()
-    PACKAGE_NAME = 'uipc'
-
     typings_dir = binary_dir / 'python' / 'src'
-    
-    # clear the .pyi files in the typings directory
-    typings_folder = typings_dir / PACKAGE_NAME
-    for file in typings_folder.rglob('*.pyi'):
-        print(f'Clear {file}')
-        os.remove(file)
-
-    # generate the stubs
     print(f'Try generating stubs to {typings_dir}')
-    sys.path.append(str(typings_dir))
-    
     flush_info()
-    
-    args = ['-o', str(typings_dir), PACKAGE_NAME, "--ignore-unresolved-names","json"]
-
-    try:
-        stubgen.main(args)
-    except Exception as e:
-        print(f'Error generating stubs: {e}')
-        sys.exit(1)
+    generate_uipc_stubs(typings_dir, typings_dir)
 
 def uninstall_package():
     # check if the package is installed
@@ -174,7 +156,7 @@ if __name__ == '__main__':
     flush_info()
 
     print(f'Generating stubs:')
-    generate_uipc_stubs(binary_dir)
+    generate_build_stubs(binary_dir)
     flush_info()
     
     if not is_option_on(args.build_wheel):

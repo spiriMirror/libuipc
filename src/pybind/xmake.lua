@@ -100,6 +100,23 @@ target("pyuipc")
                 bindir = "",
             })
             os.rm(path.join(modules_target_dir, "*.lib"))
+
+            import("lib.detect.find_tool")
+            local python = assert(find_tool("python3", {envs = target:pkgenvs()}), "python not found!")
+            local stubs_script = path.join(project_dir, "scripts", "pyuipc_stubgen.py")
+            local dependencies_ok = try { function()
+                os.vrunv(python.program, {"-c", "import pybind11_stubgen, numpy, typing_extensions"})
+                return true
+            end }
+            assert(dependencies_ok,
+                   "editable stub generation requires pybind11-stubgen, numpy, and typing_extensions")
+            print("Generating stubs in " .. python_source_dir .. "/src")
+            os.vrunv(python.program, {
+                stubs_script,
+                "--source_dir=" .. path.join(python_source_dir, "src"),
+                "--output_dir=" .. path.join(python_source_dir, "src"),
+                "--build_type=" .. (get_config("mode") or "release"),
+            })
             return
         end
 

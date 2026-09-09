@@ -117,8 +117,11 @@ pip install -e . --config-settings=builder=xmake
   shared `build/`, but are only reused when the modes agree — the backend
   defaults to `release`, so a `releasedbg` checkout recompiles all ~200 CUDA TUs
   unless given `xmake-args="-m releasedbg"`.
-- This path does not run `scripts/stubgen.py`; `.pyi` stubs come from
-  `xmake pack` only.
+- The editable after-build hook and `xmake pack` both call the shared
+  `scripts/pyuipc_stubgen.py`; editable installs therefore refresh the `.pyi`
+  tree in `python/src/uipc` alongside the native libraries. The generator
+  exits nonzero on a stub-generation failure, so packaging cannot silently
+  publish a stale tree.
 - `uv pip install -e .` does not work here: uv misreads `backend-path` as a
   project directory and fails with "packaging does not appear to be a Python
   project". Use `pip` / `python -m pip`.
