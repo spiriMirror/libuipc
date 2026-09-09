@@ -2,6 +2,10 @@
 
 ## Prerequisites
 
+For `pip install -e .`, see [editable Python development with CMake or
+XMake](./dev_in_uv.md) for environment setup, dependencies, installation,
+and verification commands.
+
 The following dependencies are required to build the project.
 
 | Name                                                | Version      | Usage           | Import         |

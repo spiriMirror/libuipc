@@ -77,6 +77,32 @@ target("pyuipc")
     after_build(function (target)
         local project_dir = os.projectdir()
         local python_source_dir = path.join(project_dir, "python")
+
+        if get_config("python_editable") then
+            -- An editable install imports from the source tree, so the mirror
+            -- under build/python would never be picked up.  Install straight
+            -- into the package instead, and go through the install action the
+            -- way xmake/pack.lua does: a plain copy of targetdir misses the
+            -- shared libraries of dependency packages (spdlog, fmt, ...) that
+            -- the extension resolves through its $ORIGIN rpath.
+            import("target.action.install", {alias = "_do_install_target"})
+
+            local modules_target_dir = path.join(python_source_dir, "src", "uipc", "_native")
+            print("Editable mode: installing modules into " .. modules_target_dir)
+            os.mkdir(modules_target_dir)
+            _do_install_target(target, {
+                headers = false,
+                binaries = false,
+                libraries = true,
+                packages = true,
+                installdir = modules_target_dir,
+                libdir = "",
+                bindir = "",
+            })
+            os.rm(path.join(modules_target_dir, "*.lib"))
+            return
+        end
+
         local build_dir = path.join(project_dir, "build")
         local python_build_dir = path.join(build_dir, "python")
         local modules_target_dir = path.join(python_build_dir, "src", "uipc", "_native")

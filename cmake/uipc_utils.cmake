@@ -281,53 +281,31 @@ function(uipc_init_submodule target)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Require pip module, if not found, try to install it
-# -----------------------------------------------------------------------------------------
-function(uipc_require_pip_ensure python_dir)
-    execute_process(COMMAND ${python_dir}
-        "-c" "import pip"
-        RESULT_VARIABLE CMD_RESULT
-        OUTPUT_QUIET
-    )
-
-    if (NOT CMD_RESULT EQUAL 0)
-        uipc_info("pip not available, trying ensurepip...")
-        execute_process(COMMAND ${python_dir} "-m" "ensurepip" "--upgrade"
-            RESULT_VARIABLE ENSUREPIP_RESULT)
-        if (NOT ENSUREPIP_RESULT EQUAL 0)
-            uipc_error("Python [${python_dir}] failed to bootstrap pip. Please install pip manually.")
-        endif()
-    endif()
-endfunction()
-
-
-
-
-# -----------------------------------------------------------------------------------------
-# Require a python module, if not found, try to install it with pip
+# Require a Python module supplied by the build environment.
+#
+# Do not bootstrap pip or install into the selected interpreter here.  During
+# a PEP 517 isolated build, that interpreter intentionally cannot see its
+# normal site-packages; mutating it with ensurepip would also overwrite the
+# user's pip installation.  Build-time modules belong in
+# [build-system].requires in the root pyproject.toml.
 # -----------------------------------------------------------------------------------------
 function(uipc_require_python_module python_dir module_name)
-    uipc_require_pip_ensure(${python_dir})
-
     file(TO_CMAKE_PATH "${python_dir}" python_dir)
     uipc_info("Check python module [${module_name}] with [${python_dir}]")
 
     # check if the module is installed
-    execute_process(COMMAND ${python_dir}
+    execute_process(COMMAND "${python_dir}"
         "-c" "import ${module_name}"
         RESULT_VARIABLE CMD_RESULT
         OUTPUT_QUIET
     )
     
     if (NOT CMD_RESULT EQUAL 0)
-        uipc_info("${module_name} not found, try installing ${module_name}...")
-        execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
-            RESULT_VARIABLE INSTALL_RESULT)
-        if (NOT INSTALL_RESULT EQUAL 0)
-            uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
-        else()
-            uipc_info("[${module_name}] installed successfully with [${python_dir}].")
-        endif()
+        message(FATAL_ERROR
+            "[libuipc] Python module [${module_name}] is unavailable in [${python_dir}]. "
+            "CMake does not install Python packages. Use the root pip build with isolation, "
+            "or install the build requirements in this interpreter before configuring. "
+            "See docs/build_install/dev_in_uv.md.")
     else()
         uipc_info("[${module_name}] found with [${python_dir}].")
     endif()

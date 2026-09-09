@@ -280,6 +280,18 @@ assertions).
 
 ## Open issues
 
+- **`uv pip install -e .` is incompatible with the PEP 517 `backend-path`**: uv
+  treats `packaging` (the `backend-path` entry pointing at
+  `packaging/uipc_build.py`) as a project directory and aborts with "packaging
+  does not appear to be a Python project, as neither `pyproject.toml` nor
+  `setup.py` are present". `pip` / `python -m pip` handle the same declaration
+  correctly, so all editable installs must use pip until uv is fixed or the shim
+  is relocated into an installed distribution. Observed with uv 0.12.5 against
+  scikit-build-core 1.0.3 on 2026-09-03. The alternative, hand-driven route
+  (`xmake f --python_editable=true` then `uv pip install -e python`) works under
+  uv, because `python/pyproject.toml` declares a plain setuptools backend with no
+  `backend-path`.
+
 - **Published wheels through 0.0.27 need the CUDA 12 cuBLAS runtime; current
   source removes it**: package
   installation and `import uipc` succeed, but `Engine("cuda", ...)` fails on
