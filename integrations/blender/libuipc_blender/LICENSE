@@ -5,7 +5,7 @@ License scope
 -------------
 
 The Blender-specific files __init__.py, bridge.py, runtime.py, demo.py, motion.py,
-and robot_ui.py are
+robot_ui.py and material_ui.py are
 licensed under GPL-3.0-or-later. Full terms are in LICENSE-GPL-3.0.txt.
 
 The independently usable worker.py, protocol.py, materials.py, and robot_model.py are licensed under

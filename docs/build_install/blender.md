@@ -310,6 +310,34 @@ coordinates, singular transforms, and invalid pin groups are rejected.
 
 ## Modifiers, caches, and limitations
 
+### Contact material pairs and physical presets
+
+1. Assign **Contact Material** names to participating objects, including fixed
+   colliders. Blank and `Default` use the default material. Names are case-sensitive
+   and trimmed; this label is independent of Blender's visual shader material.
+2. Add rows under **Contact Material Pairs**. A/B order is interchangeable.
+   Friction is finite and >= 0 (new rows copy global friction, initially 0.5),
+   resistance is finite and >= 1 Pa (initially 1e9 Pa), and Contact Enabled
+   defaults to true. Unknown/unassigned names and duplicate unordered pairs fail
+   validation instead of being silently ignored. Disable Contact to deliberately
+   permit passage between that material pair. Global activation distance remains
+   shared; this UI does not implement per-pair `d_hat`.
+3. Named pair overrides take precedence over global/robot external-contact
+   friction. A nonempty robot assembly group still disables internal assembly
+   contact, even if a material pair requests contact. With no overrides, ordinary
+   and robot/environment behavior remains unchanged. `result.json` records the
+   complete effective contact plan for inspection.
+4. Enter a **Physical Preset** name and choose **Save / Replace**. Presets are
+   stored in the .blend. **Apply to Selected** requires all selected objects to
+   share the preset's Cloth/ABD/FEM role and copies only constitutive parameters.
+   It never changes pins, whole-object fixing, contact labels or robot targets.
+   Cloth presets include all three independent E/Poisson pairs. Presets are
+   explicit value copies, not live links; modifying a preset does not alter objects
+   until Apply is used. No shader settings are modified.
+
+The default empty contact table and unused presets do not invalidate legacy
+caches. Editing effective contact/physical parameters requires a new bake.
+
 Version 0.4 checks the complete result object list/provenance and every managed
 Mesh Cache playback setting (time mapping, factor, axes, vertex group and stack
 position). Explicit **Validate Cache** also verifies SHA-256 checksums recorded

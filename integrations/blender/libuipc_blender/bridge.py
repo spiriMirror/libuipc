@@ -60,6 +60,10 @@ def cache_root(scene):
 def object_material(obj):
     from .motion import drive_material
     result = {name: getattr(obj.uipc_body, name) for name in OBJECT_FIELDS}
+    from .materials import contact_label
+    label = contact_label(obj.uipc_body.contact_material)
+    if label != "Default":
+        result["contact_material"] = label
     if obj.uipc_body.role == "CLOTH":
         from .materials import CLOTH_POISSON_FIELDS
         result.update({name: getattr(obj.uipc_body, name) for name in CLOTH_POISSON_FIELDS})
@@ -161,6 +165,12 @@ def collect_scene(scene):
                        "material": object_material(obj)})
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
         raise ValueError("Assign at least one object as Cloth, Rigid Body, or Volumetric FEM")
+    if settings.contact_pairs:
+        from .materials import normalize_contact_pairs
+        pairs = [{key: getattr(pair, key) for key in ("material_a", "material_b", "friction", "resistance", "enabled")}
+                 for pair in settings.contact_pairs]
+        labels = {b["material"].get("contact_material", "Default") for b in bodies}
+        simulation["contact_pairs"] = normalize_contact_pairs(pairs, labels)
     return simulation, bodies
 
 

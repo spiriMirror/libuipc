@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Blender contact materials (2026-09-10)**: named symmetric contact-pair
+> overrides and scene-local batch physical presets are implemented. Assembly
+> exclusions and legacy robot friction remain intact. Twenty-eight portable
+> tests and Blender save/reopen pass. Real pair-friction bakes with unchanged
+> global friction slide 1.2708 m (mu=0) versus 0.00244 m (mu=1); disabling the
+> pair allows passage through the floor. The 81-frame robot/solver regression
+> still holds within 2.72e-7 m and follows its 0.20 m target.
+
 > **Blender cache reliability (2026-09-10)**: complete result/provenance checks,
 > streamed MDD checksums, playback-parameter validation and transactional attachment
 > rollback are implemented. Guarded render operators validate before dispatch;

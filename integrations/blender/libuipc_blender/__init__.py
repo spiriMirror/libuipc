@@ -9,11 +9,13 @@ import tempfile
 
 import bpy
 from bpy.app.handlers import persistent
-from bpy.props import BoolProperty, EnumProperty, FloatProperty, FloatVectorProperty, IntProperty, PointerProperty, StringProperty
+from bpy.props import BoolProperty, CollectionProperty, EnumProperty, FloatProperty, FloatVectorProperty, IntProperty, PointerProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
 from . import bridge, runtime
 from .protocol import MODIFIER_NAME, read_json
+from .material_ui import (MATERIAL_CLASSES, UIPCContactPair, UIPCPhysicalPreset,
+                          draw_contact_pairs, draw_material_preset)
 
 _pending_validation = set()
 
@@ -37,6 +39,8 @@ def changed(self, context):
 
 
 class UIPCSceneSettings(bpy.types.PropertyGroup):
+    contact_pairs: CollectionProperty(type=UIPCContactPair)
+    material_presets: CollectionProperty(type=UIPCPhysicalPreset)
     python_executable: StringProperty(name="External Python", subtype="FILE_PATH",
         description="Python with pyuipc >= 0.0.28; blank uses addon preferences, then PATH")
     cache_directory: StringProperty(name="Cache Directory", subtype="DIR_PATH",
@@ -91,6 +95,9 @@ def cloth_poisson_set(name):
 
 
 class UIPCBodySettings(bpy.types.PropertyGroup):
+    contact_material: StringProperty(name="Contact Material", default="", update=changed,
+        description="Pair-table label; blank or Default uses the global contact material")
+    preset_name: StringProperty(name="Physical Preset")
     role: EnumProperty(name="Simulation Role", items=[
         ("NONE", "Disabled", "Not part of the libuipc simulation", 0, 0),
         ("CLOTH", "Cloth", "Baraff-Witkin membrane with discrete shell bending", 0, 1),
@@ -463,6 +470,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         column.prop(settings, "d_hat")
         column.prop(settings, "friction")
         column.prop(settings, "resistance")
+        draw_contact_pairs(column, settings)
         layout.operator("uipc.cancel" if runtime.is_running() else "uipc.bake")
         layout.label(text=settings.status[:90])
         if runtime.is_running():
@@ -500,10 +508,12 @@ class UIPC_PT_body(bpy.types.Panel):
         if body.role == "NONE":
             return
         layout.label(text="Simulation uses the base mesh")
+        layout.prop(body, "contact_material")
         layout.prop(body, "thickness")
         if body.role != "STATIC":
             layout.prop(body, "fixed")
             layout.prop(body, "density")
+            draw_material_preset(layout, context.scene, body)
         if body.role == "RIGID":
             layout.prop(body, "rigidity")
             layout.prop(body, "driven")
@@ -596,7 +606,7 @@ def _load_post(_):
         bpy.app.timers.register(_validate_pending, first_interval=0.1)
 
 
-CLASSES = (UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
+CLASSES = (*MATERIAL_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,

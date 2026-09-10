@@ -11,7 +11,7 @@ import time
 import traceback
 
 import numpy as np
-from materials import cloth_moduli, cloth_stiffness
+from materials import cloth_moduli, cloth_stiffness, build_contact_plan
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
                       positive, read_json, validate_mesh, validate_tetmesh, motion_hash)
@@ -128,6 +128,19 @@ def apply_cloth_material(mesh, material, shell, bending, moduli_type):
         bending.apply_to(mesh, *values["bending"])
 
 
+def configure_contacts(scene, settings, bodies):
+    plan = build_contact_plan(settings, bodies)
+    tabular = scene.contact_tabular()
+    tabular.default_model(settings["friction"], settings["resistance"])
+    groups = [tabular.default_element()]
+    for index, group in enumerate(plan["groups"][1:], 1):
+        groups.append(tabular.create(f"blender:{index}:{group['material']}"))
+    for model in plan["models"]:
+        tabular.insert(groups[model["a"]], groups[model["b"]], model["friction"],
+                       model["resistance"], model["enabled"])
+    return groups, plan
+
+
 def simulate(directory, parent):
     request, bodies = load_request(directory)
     settings = request["settings"]
@@ -149,7 +162,7 @@ def simulate(directory, parent):
     accuracy = settings.get("solver_accuracy", "DEFAULT")
     apply_solver_accuracy(config, accuracy, settings.get("solver_settings"))
     scene = uipc.Scene(config)
-    scene.contact_tabular().default_model(settings["friction"], settings["resistance"])
+    contact_groups, contact_plan = configure_contacts(scene, settings, bodies)
     shell = StrainLimitingBaraffWitkinShell()
     bending = DiscreteShellBending()
     abd = AffineBodyConstitution()
@@ -158,23 +171,6 @@ def simulate(directory, parent):
     has_dynamic = False
     frame_count = settings["frame_end"] - settings["frame_start"] + 1
     motion_step = [0]
-    groups = {}
-    for body in bodies:
-        drive = body["material"].get("drive")
-        if drive is None:
-            continue
-        group_name = drive["group"] or ("body:" + body["name"])
-        if group_name in groups:
-            if groups[group_name][1] != drive["friction"]:
-                raise ValueError("Bodies in a robot collision group must share its friction")
-            continue
-        positive(drive["friction"], "robot friction", allow_zero=True)
-        tabular = scene.contact_tabular()
-        group = tabular.create("robot:" + group_name)
-        if drive["group"]:
-            tabular.insert(group, group, 0.0, 0.0, False)
-        tabular.insert(group, tabular.default_element(), drive["friction"], settings["resistance"], True)
-        groups[group_name] = (group, drive["friction"])
     for index, body in enumerate(bodies):
         material = body["material"]
         role = material["role"]
@@ -237,6 +233,7 @@ def simulate(directory, parent):
             view(mesh.meta().find(builtin.self_collision))[:] = int(role in ("CLOTH", "FEM") and material["self_collision"])
         obj = scene.objects().create(body["name"])
         current, _rest = obj.geometries().create(mesh)
+        contact_groups[contact_plan["assignments"][index]].apply_to(current.geometry())
         if drive is not None:
             geometry = current.geometry()
             for key in ("translation_strength", "rotation_strength"):
@@ -245,8 +242,6 @@ def simulate(directory, parent):
             view(geometry.instances().find(builtin.is_constrained))[:] = 1
             # Match sample 87's servo-controlled, quasi-static links.
             view(geometry.instances().find(builtin.is_dynamic))[:] = 0
-            group_name = drive["group"] or ("body:" + body["name"])
-            groups[group_name][0].apply_to(geometry)
             targets = np.asarray(body["drive_targets"], dtype=np.float64).copy()
             if (targets.shape != ((frame_count-1)*settings["substeps"]+1,4,4)
                     or not np.isfinite(targets).all() or not np.allclose(targets[:,3,:],[0,0,0,1])):
@@ -326,6 +321,7 @@ def simulate(directory, parent):
             "cloth_stiffness": {b["name"]: cloth_stiffness(b["material"])
                                 for b in bodies if b["material"]["role"] == "CLOTH"},
             "cache_integrity": 1,
+            "effective_contacts": contact_plan,
             "objects": [{"index": o["index"], "vertices": o["vertices"],
                          "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })

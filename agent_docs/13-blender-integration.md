@@ -26,6 +26,17 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Invariants
 
+- Named contact material pairs are canonicalized/validated in `materials.py`;
+  UI lives in `material_ui.py`. Empty labels map to Default. An explicit unordered
+  material pair wins over global/robot external friction, but same nonempty robot
+  assembly exclusion wins over everything. `build_contact_plan()` assigns every
+  geometry, including fixed colliders, and records the complete native pair plan.
+  No new labels/rows are serialized when unused, preserving old cache signatures.
+- Physical material presets are scene-local .blend data, restricted by role and
+  a validated field allowlist. Batch apply prevalidates all targets and restores
+  values on a failed write. Never copy pins, fixing, targets, contact labels or
+  shaders through a material preset. Independent cloth E/nu values are copied.
+
 - Cache attachment is transactional across objects: save every touched modifier
   and the scene references, restore them on failure. `validate_result()` is shared
   by attachment and later cache checks; do not trust result-provided counts.
