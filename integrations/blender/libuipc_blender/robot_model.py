@@ -93,6 +93,7 @@ def export_robot(source, directory):
                     if limits is not None
                     else None
                 ),
+                "velocity": float(limits.get("velocity")) if limits is not None and limits.get("velocity") is not None else None,
             }
         )
     names = {link.get("name") for link in document.findall("link")}

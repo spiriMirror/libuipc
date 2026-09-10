@@ -13,6 +13,7 @@ import bpy
 parser = argparse.ArgumentParser()
 parser.add_argument("--python", required=True)
 parser.add_argument("--output", type=Path, required=True)
+parser.add_argument("--test-gpu-render", action="store_true")
 args = parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
 args.output = args.output.resolve()
 args.output.mkdir(parents=True, exist_ok=True)
@@ -81,5 +82,18 @@ try:
         raise AssertionError("Changed cache dependency was accepted")
 finally:
     dependency.write_bytes(data)
+if args.test_gpu_render:
+    preferences = bpy.context.preferences.addons["cycles"].preferences
+    preferences.compute_device_type = "OPTIX"
+    preferences.get_devices()
+    for device in preferences.devices:
+        device.use = device.type == "OPTIX"
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "GPU"
+    scene.cycles.samples = 1
+    settings.render_cameras.clear()
+    settings.render_first = settings.render_last = 2
+    result = queue.run_blocking(scene, timeout=120)
+    assert result["rendered"] == 1
 addon.unregister()
 print("PASS: multi-view subset, frozen snapshot, source preservation, receipts, repair and cancellation")

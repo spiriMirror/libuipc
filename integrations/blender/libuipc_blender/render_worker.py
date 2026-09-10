@@ -12,12 +12,18 @@ import bpy
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from protocol import atomic_json, file_sha256
-from render_protocol import validate_job, frame_paths, completed_frame, png_info, replace_with_retry
+from render_protocol import validate_job, frame_paths, completed_frame, png_info, replace_with_retry, dependency_stamps
 from worker import ParentProcess
 
 
 def render(directory, parent):
-    job, signature = validate_job(directory)
+    job, signature = validate_job(directory, verify_files=False)
+    baseline = dependency_stamps(directory, job)
+    validate_job(directory)
+    def unchanged_inputs():
+        if dependency_stamps(directory, job) != baseline:
+            raise ValueError("Render inputs changed during execution; restore them or create a new queue")
+    unchanged_inputs()
     if bpy.app.version_string != job["blender_version"]:
         raise ValueError("Render job belongs to a different Blender version")
     bpy.ops.wm.open_mainfile(filepath=str(directory / "scene.blend"))
@@ -47,6 +53,7 @@ def render(directory, parent):
             if not parent.alive() or (directory / "render_cancel").exists():
                 atomic_json(directory / "render_status.json", {"state": "cancelled", "done": done, "total": total})
                 return
+            unchanged_inputs()
             if completed_frame(directory, camera_index, frame, signature, job["resolution"]):
                 skipped += 1
             else:
@@ -62,9 +69,10 @@ def render(directory, parent):
                     raise RuntimeError(f"Render was cancelled at camera {camera_index}, frame {frame}")
                 if png_info(temporary) != tuple(job["resolution"]):
                     raise ValueError("Rendered PNG dimensions differ from the snapshot")
+                unchanged_inputs()
                 replace_with_retry(temporary, final)
                 atomic_json(receipt, {"job_signature": signature, "camera_index": camera_index,
-                                      "frame": frame, "sha256": file_sha256(final)})
+                                      "frame": frame, "sha256": file_sha256(final), "input_guard": True})
                 rendered += 1
             done += 1
             atomic_json(directory / "render_status.json", {"state": "rendering", "done": done, "total": total,

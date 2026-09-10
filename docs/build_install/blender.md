@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.4.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.5.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.4.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.5.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -338,6 +338,42 @@ caches. Editing effective contact/physical parameters requires a new bake.
 
 ## Quality report and viewport diagnostics
 
+### Robot joint controls (0.5)
+
+Use **Robot Joint Controls** to choose an imported root. Newly imported robots
+populate the joint list automatically; use **Refresh Joint List** for older
+scenes or renamed controls. Pointers remain valid across object renames. Fixed
+or unknown legacy joint types are read-only. Missing legacy type information is
+read from the original URDF when available; otherwise re-import to recover it.
+
+Joint sliders display **degrees**, while native controller values and saved pose
+payloads use **radians**. Sliders clamp to the URDF position limits. **Preview
+While Editing** defaults on and **Preview Current Pose** updates only link
+transforms, not mesh vertices or solved contact. This is a kinematic authoring
+preview that invalidates the old bake. Bake realigns links at the first simulated
+frame and runs the existing coupled soft-transform/IPC solver; there is no new
+torque controller or automatic grasp attachment.
+
+**Save / Replace Pose** stores all revolute angles in the robot root's .blend
+data. **Apply Pose** validates joint names/types/axes/limits before writing; it
+does not change the root transform. Create named Open/Grasp poses for your robot.
+Use **Key** or **Key All Joints** to commit edits to actual controller
+`rotation_axis_angle[0]` curves; proxy UI properties themselves are not animated.
+New/touched keys use Bezier Auto Clamped handles. Auto Key Joint Edits follows
+Blender's auto-key toggle. Without auto-key, edits to already animated controls
+must be keyed before changing frames/baking. **Key Root + Joints** additionally
+keys root translation/rotation, never scale.
+
+**Review Joint Trajectory** samples authored joint curves at the solver's substep
+times without moving the timeline. It reports position-limit violations and peak
+angular speed/acceleration. URDF velocity limits (rad/s) take precedence over the
+fallback review threshold (default 180 deg/s; zero disables the fallback). The
+acceleration review threshold defaults to 720 deg/s²; zero disables it. Both are
+diagnostic only. Reviews are snapshots: rerun after graph-editor edits or timing
+changes. They do not bound root/end-effector motion or all between-sample extrema.
+The review accepts at most 200000 sampled times. Current supported imported joint
+types remain fixed/revolute; prismatic, mimic and torque actuation are future work.
+
 Expand **Bake Quality and Physics Preview**. New bakes produce
 `quality_report.json` plus streaming `quality_frames.jsonl`, with SI world-space
 speed/acceleration observations and native iteration/line-search statistics.
@@ -390,6 +426,9 @@ Resume validates snapshot/dependency hashes and each PNG's dimensions, CRCs and
 checksum; missing, incomplete or changed images are rendered again. Complete
 images remain available after cancellation. Settings/camera changes require a
 new queue. The default output root is `<blend name>_renders` beside the project.
+Input file stamps are checked around every newly rendered frame before its
+receipt is published, so mid-render dependency edits cannot bless mixed-input
+frames as reusable. Receipts predating this guard are rendered again once.
 
 This first queue supports single-view full-frame PNGs. Render borders, external
 image sequences/movies, dirty unpacked images and compositor File Output nodes

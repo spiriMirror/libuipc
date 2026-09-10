@@ -3,8 +3,10 @@
 Blender 0.5 stable object/controller identities and relevant-input validation
 gates are implemented. Older cache schemas stay name-based until rebaked.
 Independent render ranges and a verified snapshot PNG queue are implemented.
-Richer robot controls are the active follow-up. Render queue asset/device and
-original-directory restrictions are documented; it is not simulation resume.
+Robot degree sliders, validated joint poses, keying and trajectory review are
+implemented. Render queue asset/device and original-directory restrictions are
+documented; it is not simulation resume. Prismatic/mimic/torque controls and true
+checkpoint resume remain follow-up work.
 
 Blender 0.4 (2026-09-10) separates all three cloth E/Poisson channels while
 preserving old shared-ratio scenes/caches. Cache integrity, playback validation,
@@ -14,7 +16,8 @@ material pairs and batch physical presets are implemented and validated with
 native friction/exclusion tests. Streaming quality reports, peak-frame navigation
 and selected-object mesh/pin/thickness previews are implemented. Position metrics
 are output-frame finite differences, not physical-error certificates. Compact ABD
-caches, richer joint-control UI and true stateful resume remain follow-up work.
+caches and true stateful resume remain follow-up work; the 0.5 joint-control UI
+now covers supported fixed/revolute controllers.
 
 Status as of 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first

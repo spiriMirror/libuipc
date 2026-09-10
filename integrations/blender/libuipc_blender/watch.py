@@ -58,8 +58,15 @@ def check(scene):
         files.append((str(directory / name), stat.st_size, stat.st_mtime_ns))
     token = (scene.uipc_settings.last_bake, fingerprint(settings, bodies), tuple(controls), tuple(files))
     key, previous = scene.as_pointer(), _states.get(scene.as_pointer())
-    if previous == token:
+    if previous is not None and previous["token"] == token:
+        if previous["error"]:
+            raise ValueError(previous["error"])
         return False
-    _states[key] = token
-    bridge.check_cache(scene, verify_data=previous is not None and previous[-1] != token[-1])
+    try:
+        bridge.check_cache(scene, verify_data=previous is None or bool(previous["error"])
+                           or previous["token"][-1] != token[-1])
+    except (OSError, ValueError) as error:
+        _states[key] = {"token": token, "error": str(error)}
+        raise
+    _states[key] = {"token": token, "error": None}
     return True

@@ -16,6 +16,9 @@ def main():
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[1] / "integrations/blender/libuipc_blender"
     manifest = tomllib.loads((source / "blender_manifest.toml").read_text(encoding="utf-8"))
+    for permission, explanation in manifest.get("permissions", {}).items():
+        if not isinstance(explanation, str) or not 1 <= len(explanation) <= 64:
+            raise ValueError(f"Blender permission '{permission}' needs a 1-64 character explanation")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output = args.output_dir / f"{manifest['id']}-{manifest['version']}.zip"
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:

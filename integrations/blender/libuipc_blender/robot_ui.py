@@ -20,6 +20,7 @@ def attach_robot(scene, directory, request):
         "collections": set(bpy.data.collections),
     }
     active = scene.view_layers[0].objects.active
+    active_robot = scene.uipc_settings.active_robot
     flags = [
         (modifier, modifier.show_viewport, modifier.show_render)
         for obj in scene.objects
@@ -36,6 +37,7 @@ def attach_robot(scene, directory, request):
             for value in set(owner) - original[key]:
                 owner.remove(value)
         scene.view_layers[0].objects.active = active
+        scene.uipc_settings.active_robot = active_robot
         for modifier, visible, rendered in flags:
             modifier.show_viewport, modifier.show_render = visible, rendered
         raise
@@ -77,6 +79,9 @@ def _attach_robot(scene, directory, request):
             axis /= np.linalg.norm(axis)
             control.rotation_axis_angle = (0, *axis)
             control["uipc_joint_name"] = joint["name"]
+            control["uipc_joint_type"] = joint["type"]
+            if joint.get("velocity") is not None:
+                control["uipc_joint_velocity_limit"] = joint["velocity"]
             if joint["limits"]:
                 control["uipc_joint_limits"] = joint["limits"]
             targets[joint["child"]] = control
@@ -166,6 +171,9 @@ def _attach_robot(scene, directory, request):
         {name: obj.name for name, obj in angles.items()}
     )
     root["uipc_native_fk_error"] = error
+    from .robot_controls import refresh_controls
+    refresh_controls(scene, root)
+    scene.uipc_settings.active_robot = root
     scene.view_layers[0].objects.active = root
     for obj in scene.objects:
         obj.select_set(obj == root)

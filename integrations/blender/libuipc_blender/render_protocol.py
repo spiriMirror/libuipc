@@ -59,11 +59,25 @@ def replace_with_retry(source, destination):
             time.sleep(.02)
 
 
+def dependency_paths(path):
+    pattern = path.replace("<UDIM>", "[0-9][0-9][0-9][0-9]")
+    return sorted(p for p in glob.glob(pattern) if Path(p).is_file()) if "<UDIM>" in path else ([path] if Path(path).is_file() else [])
+
+
 def dependency_record(path):
     path = str(Path(path).absolute())
-    pattern = path.replace("<UDIM>", "[0-9][0-9][0-9][0-9]")
-    files = sorted(p for p in glob.glob(pattern) if Path(p).is_file()) if "<UDIM>" in path else ([path] if Path(path).is_file() else [])
+    files = dependency_paths(path)
     return {"path": path, "files": [{"path": p, "sha256": file_sha256(p)} for p in files]}
+
+
+def dependency_stamps(directory, manifest):
+    def stamp(path):
+        info = Path(path).stat()
+        return path, info.st_size, info.st_mtime_ns
+    result = [stamp(str(Path(directory) / "scene.blend"))]
+    for record in manifest["dependencies"]:
+        result.append((record["path"], tuple(stamp(p) for p in dependency_paths(record["path"]))))
+    return tuple(result)
 
 
 def validate_job(directory, verify_files=True):
@@ -97,7 +111,7 @@ def completed_frame(directory, camera_index, frame, signature, resolution):
     image, receipt = frame_paths(directory, camera_index, frame)
     try:
         record = read_json(receipt)
-        return (record["job_signature"] == signature and record["camera_index"] == camera_index
+        return (record.get("input_guard") is True and record["job_signature"] == signature and record["camera_index"] == camera_index
                 and record["frame"] == frame and record["sha256"] == file_sha256(image)
                 and png_info(image) == tuple(resolution))
     except (OSError, ValueError, KeyError):

@@ -18,6 +18,7 @@ from .material_ui import (MATERIAL_CLASSES, UIPCContactPair, UIPCPhysicalPreset,
                           draw_contact_pairs, draw_material_preset)
 from .quality_ui import QUALITY_CLASSES
 from .render_ui import RENDER_CLASSES, UIPCRenderCamera
+from .robot_controls import ROBOT_CLASSES, UIPCRobotSettings
 from . import preview
 from . import watch
 
@@ -44,6 +45,8 @@ def changed(self, context):
 
 
 class UIPCSceneSettings(bpy.types.PropertyGroup):
+    active_robot: PointerProperty(name="Robot", type=bpy.types.Object,
+        poll=lambda self, obj: bool(obj.get("uipc_robot_source")))
     render_cameras: CollectionProperty(type=UIPCRenderCamera)
     render_directory: StringProperty(name="Render Output", subtype="DIR_PATH")
     last_render_job: StringProperty(name="Resume Render Job", subtype="DIR_PATH")
@@ -654,7 +657,7 @@ def _load_post(_):
         bpy.app.timers.register(_validate_pending, first_interval=0.1)
 
 
-CLASSES = (*MATERIAL_CLASSES, *RENDER_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
+CLASSES = (*MATERIAL_CLASSES, *RENDER_CLASSES, *ROBOT_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,
@@ -670,6 +673,7 @@ def register():
         _registered_classes.append(cls)
     bpy.types.Scene.uipc_settings = PointerProperty(type=UIPCSceneSettings)
     bpy.types.Object.uipc_body = PointerProperty(type=UIPCBodySettings)
+    bpy.types.Object.uipc_robot = PointerProperty(type=UIPCRobotSettings)
     bpy.app.handlers.load_pre.append(_load_pre)
     bpy.app.handlers.load_post.append(_load_post)
     bpy.app.handlers.depsgraph_update_post.append(_depsgraph_updated)
@@ -691,6 +695,8 @@ def unregister():
             handlers.remove(function)
     if hasattr(bpy.types.Object, "uipc_body"):
         del bpy.types.Object.uipc_body
+    if hasattr(bpy.types.Object, "uipc_robot"):
+        del bpy.types.Object.uipc_robot
     if hasattr(bpy.types.Scene, "uipc_settings"):
         del bpy.types.Scene.uipc_settings
     for cls in reversed(_registered_classes):

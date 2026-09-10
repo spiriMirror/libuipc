@@ -1,5 +1,28 @@
 # Handoff — Current State of the Repo
 
+> **Blender 0.5 workflow delivery (2026-09-11)**: the stable-ID/validation fast
+> path, independent multi-camera PNG queue and robot joint/pose panel are complete.
+> Forty-one portable tests cover identity, snapshots/receipts, manifest limits and
+> joint review in addition to the 0.4 suite. Real Blender/CUDA regressions cover
+> 61-frame mixed contact, 41-frame FEM and 81-frame target motion with zero checked
+> cache playback error and the unchanged 0.20 m motion result. EEVEE and OptiX queues
+> validate subset/multi-view output, resume/repair, cancellation, source preservation
+> and dependency guards. Sample 87 exercises 16 editable joints, fixed-row safety,
+> pose/key persistence and native hand baking. The installed GUI completes async
+> rendering, displays both new panels and exits with code 0. The user's profile
+> remains unchanged; install `output/blender-dist/libuipc_blender-0.5.0.zip` to update.
+> Existing 500-frame schema-3 caches remain valid at 1/250/500. Queue resume is
+> rendering only; compact ABD caches and true simulation checkpoint resume remain
+> future work. No C++/CUDA solver or Python environment rebuild was required.
+
+> **Blender 0.5 robot controls (2026-09-11)**: the panel exposes joint limits and
+> clamped degree sliders, robot-local Open/Grasp-style pose storage, native-curve
+> key insertion and sampled speed/acceleration review. Sample 87 validation covers
+> all 16 revolute controls, a fixed-control lock, pose/key persistence, controller
+> rename, non-mutating review and a native 17-link bake. Kinematic preview does
+> not replace coupled physics. Review snapshots/unsupported joint types are
+> documented. Installed UI/package regressions now pass as recorded above.
+
 > **Blender 0.5 render queue (2026-09-10)**: independent render range, multiple
 > cameras, immutable scene snapshots and per-frame PNG receipts are implemented.
 > Actual background-Blender tests render a two-camera subset, preserve the original

@@ -54,6 +54,9 @@ def controller_signature(target, stable_ids=False):
             delta_rotation_quaternion=list(target.delta_rotation_quaternion),
             delta_scale=list(target.delta_scale),
         )
+        if stable_ids and target.get("uipc_joint_type"):
+            state["joint"] = {"type": target["uipc_joint_type"],
+                              "limits": list(target.get("uipc_joint_limits", []))}
         animation = target.animation_data
         curves = []
         if animation:

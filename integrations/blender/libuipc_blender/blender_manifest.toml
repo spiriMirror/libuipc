@@ -13,7 +13,7 @@ copyright = ["2026 spiriMirror"]
 platforms = ["windows-x64", "linux-x64"]
 
 [permissions]
-files = "Export scenes, run the Python solver, and read/write bake caches"
+files = "Run solver/render jobs and store scenes, caches and PNGs"
 
 [build]
 paths_exclude_pattern = ["__pycache__/", "*.pyc", ".*", "tests/"]

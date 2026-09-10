@@ -4,6 +4,7 @@
 
 from pathlib import Path
 import struct
+import os
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "libuipc_blender"))
 from protocol import atomic_json, file_sha256
-from render_protocol import png_info, dependency_record, validate_job, completed_frame, frame_paths
+from render_protocol import png_info, dependency_record, validate_job, completed_frame, frame_paths, dependency_stamps
 
 
 def tiny_png():
@@ -28,7 +29,7 @@ class RenderProtocolTests(unittest.TestCase):
             image.parent.mkdir()
             image.write_bytes(tiny_png())
             self.assertEqual(png_info(image), (1, 1))
-            record = {"job_signature": "job", "camera_index": 0, "frame": 3, "sha256": file_sha256(image)}
+            record = {"job_signature": "job", "camera_index": 0, "frame": 3, "sha256": file_sha256(image), "input_guard": True}
             atomic_json(receipt, record)
             self.assertTrue(completed_frame(directory, 0, 3, "job", [1, 1]))
             self.assertFalse(completed_frame(directory, 0, 3, "other job", [1, 1]))
@@ -49,6 +50,11 @@ class RenderProtocolTests(unittest.TestCase):
                         "dependencies": [dependency_record(asset)]}
             atomic_json(directory / "render_manifest.json", manifest)
             validate_job(directory)
+            original = dependency_stamps(directory, manifest)
+            info = asset.stat()
+            os.utime(asset, ns=(info.st_atime_ns, info.st_mtime_ns + 1000000))
+            self.assertNotEqual(original, dependency_stamps(directory, manifest))
+            validate_job(directory)  # Same bytes, but an in-flight run detects the changed stamp.
             asset.write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "dependency"):
                 validate_job(directory)

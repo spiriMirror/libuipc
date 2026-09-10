@@ -4,7 +4,7 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.4 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
+Version 0.5 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
@@ -20,6 +20,11 @@ pairs, scene-local batch physical presets, complete cache/playback validation,
 transactional attachment, guarded render operators, streamed quality reports
 and selected-object simulation-mesh/pin/thickness previews.
 
+Version 0.5 adds rename-safe IDs for new bakes, relevant-input cache validation,
+an independent multi-camera PNG render queue with verified resume, and robot
+joint/pose/keying/trajectory-review controls. Render queues never resume physics;
+they use an immutable saved scene and existing MDD trajectories.
+
 See the [installation and parameter guide](../../docs/build_install/blender.md).
 
 ## Package
@@ -28,7 +33,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.4.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.5.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -73,6 +78,11 @@ blocked rendering), `blender_contacts.py` (real pair friction/exclusion),
 overlay drawing). `native_materials.py` checks the real triangle/edge stiffness
 attributes using the external Python. `blender_legacy_cache.py -- --blend <file>`
 validates existing completed caches without modifying the source .blend.
+
+The 0.5 suites add `test_identity.py`, `test_render_protocol.py` and
+`test_robot_controls.py`, plus real Blender tests `blender_identity.py`,
+`blender_render_queue.py` (optional `--test-gpu-render`),
+`blender_robot_controls.py` (requires a URDF) and `blender_workflow_gui.py`.
 
 `tests/blender_fem.py` additionally verifies native strict/relaxed meshing,
 original vertex IDs and groups, interior and surface pins, wholly fixed

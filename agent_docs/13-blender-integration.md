@@ -19,14 +19,26 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.4.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.5.0; Windows/Linux; Blender >=4.2 API target |
 | `materials.py` / `material_ui.py` | Portable independent cloth/pair rules and Blender contact/preset controls |
 | `quality.py` / `quality_ui.py` / `preview.py` | Streaming observations, verified report navigation and non-destructive selected-object GPU preview |
+| `identity.py` / `watch.py` | Persistent IDs, request-order binding and relevant/raw-input validation gates |
+| `render_protocol.py` / `render_queue.py` / `render_worker.py` / `render_ui.py` | Immutable PNG render snapshots, verified receipts, owned renderer and queue controls |
+| `robot_control_state.py` / `robot_controls.py` | Validated robot-local poses, joint proxies, keying and angular trajectory review |
 | `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
 | `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
 
 ## Invariants
+
+- `robot_controls.py` provides degree-valued, non-animatable UI proxies for native
+  radian joint transforms, root-local validated pose copies and explicit keying.
+  Fixed/unknown rows are read-only. Preview is kinematic authoring, never solved
+  grasp/contact; export still aligns every driven link to frame-start targets.
+  `robot_control_state.py` validates pose layout/limits and computes sampled
+  angular rates. Review evaluates allowed F-curves directly without timeline
+  mutation. New joint metadata includes type/velocity; stable controller hashes
+  include type/position limits but diagnostic review thresholds are not physics.
 
 - `render_queue.py` captures an immutable saved copy and hashes external inputs;
   `render_worker.py` runs background Blender, not the native solver. Render ranges
@@ -115,9 +127,9 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 - Native generation requires a current pyuipc source build (not PyPI 0.0.28).
   Blender float32 conversion is validated before installing the volume. Original
   local vertices are copied verbatim so transform round trips cannot move them.
-- Requests use schema v4 and include tetrahedral topology, independent cloth
+- Requests use schema v5 and include stable identities, tetrahedral topology, independent cloth
   channels, fixed/material fields and opt-in authored motion/contact pairs.
-  Legacy v1/v2/v3 caches remain valid while new features
+  Legacy v1/v2/v3/v4 caches remain valid while new features
   are unused. Never ignore a newly enabled Fixed flag in legacy validation.
 - Role enum IDs are explicit and persistent: NONE=0, CLOTH=1, RIGID=2,
   STATIC=3, FEM=4. Inserting FEM into the displayed list must not reinterpret
@@ -191,6 +203,15 @@ suites retain zero checked playback error; the existing 500-frame dining cache
 passes at 1/250/500. GUI validation installs the ZIP into isolated configuration,
 extension and temporary directories and checks clean disable/exit. Linux/other
 Blender versions still need equivalent runtime/UI validation.
+
+Version 0.5 adds identity/render/robot/manifest suites (41 portable tests total). Real
+tests cover renamed body/controller IDs, copied-ID rejection, failed-token
+handling, multi-view subset rendering and receipt repair, EEVEE/OptiX execution,
+joint pose/key persistence and non-mutating rate review. The installed GUI runs
+an asynchronous queue, draws the actual robot panel and disables cleanly.
+Render receipts are published only after input-file stamps remain unchanged
+around that frame. Failed watch checks never become trusted unchanged-input
+tokens. The ZIP builder checks Blender's 64-character permission-message limit.
 `tests/blender_integration.py` runs the actual Blender operators, CUDA worker,
 MDD modifier evaluation, backward/fractional frames, all-vertex comparison,
 fixed pins, contact, save/reopen, EEVEE rendering, unit/negative-scale round trips,

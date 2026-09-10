@@ -39,6 +39,21 @@ assert not addon.watch.relevant_update(scene, [SimpleNamespace(id=scene.camera)]
 assert addon.watch.check(scene)
 with patch.object(addon.bridge, "validate_mesh", side_effect=AssertionError("unnecessary full validation")):
     assert not addon.watch.check(scene)
+directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
+cache = directory / "object_0000.mdd"
+original_bytes = cache.read_bytes()
+cache.write_bytes(original_bytes[:-1] + bytes([original_bytes[-1] ^ 1]))
+try:
+    for attempt in range(2):
+        try:
+            addon.watch.check(scene)
+        except ValueError as error:
+            assert "checksum" in str(error)
+        else:
+            raise AssertionError("Failed validation became a trusted fast-path token")
+finally:
+    cache.write_bytes(original_bytes)
+assert addon.watch.check(scene)
 copy = body.copy()
 copy.data = body.data.copy()
 scene.collection.objects.link(copy)

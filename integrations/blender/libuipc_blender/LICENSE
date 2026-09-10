@@ -6,10 +6,11 @@ License scope
 
 The Blender-specific files __init__.py, bridge.py, runtime.py, demo.py, motion.py,
 robot_ui.py, material_ui.py, quality_ui.py, preview.py, identity.py, watch.py,
-render_ui.py, render_queue.py, render_worker.py and render_protocol.py are
+render_ui.py, render_queue.py, render_worker.py, render_protocol.py and robot_controls.py are
 licensed under GPL-3.0-or-later. Full terms are in LICENSE-GPL-3.0.txt.
 
-The independently usable worker.py, protocol.py, materials.py, quality.py, and robot_model.py are licensed under
+The independently usable worker.py, protocol.py, materials.py, quality.py,
+robot_control_state.py and robot_model.py are licensed under
 Apache-2.0. Full terms are in LICENSE-APACHE-2.0.txt. Their individual source
 license remains Apache-2.0 when included in this GPLv3-compatible extension.
 
