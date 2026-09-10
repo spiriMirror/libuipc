@@ -277,7 +277,8 @@ Select a mesh and use **Object Physics** in the same sidebar.
 | Stretch E | 5e4 Pa | >= 1e-6; membrane stretch parameter |
 | Shear E Parameter | 10 | >= 1e-6; independent effective 2D shear parameter |
 | Bending E | 3e4 Pa | >= 0; zero disables bending |
-| Poisson Ratio | 0.49 | UI range 0–0.499; constitutive domain 0 <= nu < 0.5 |
+| Stretch / Shear / Bending Poisson Ratio | 0.49 each | Independent cloth values; UI range 0–0.499, domain 0 <= nu < 0.5 |
+| Solid Poisson Ratio | 0.49 | Volume FEM only; UI range 0–0.499 |
 | Strain Amplification | 100 | >= 1e-6; over-stretch amplification rate |
 | ABD Rigidity | 1e8 Pa | >= 1; OrthoPotential ABD stiffness |
 | Self Collision | Enabled | Cloth only |
@@ -287,13 +288,16 @@ Select a mesh and use **Object Physics** in the same sidebar.
 The cloth coefficients preserve the library's existing conventions:
 
 $$
-k_s = \frac{E_s(2r)}{1-\nu^2},\qquad
-k_{\mathrm{shear}} = \frac{E_{\mathrm{shear}}}{2(1+\nu)},\qquad
-k_b = \frac{E_b(2r)^3}{12(1-\nu^2)}.
+k_s = \frac{E_s(2r)}{1-\nu_s^2},\qquad
+k_{\mathrm{shear}} = \frac{E_{\mathrm{shear}}}{2(1+\nu_{\mathrm{shear}})},\qquad
+k_b = \frac{E_b(2r)^3}{12(1-\nu_b^2)}.
 $$
 
-Here `E_s`, `E_shear`, and `E_b` are the three interface parameters, `nu` is
-Poisson's ratio, and `r` is the one-sided offset. The shear convention is an
+Each channel has its own Young's modulus and Poisson ratio; `r` is the one-sided
+offset. Version 0.4 inherits the saved shared Poisson ratio from older scenes
+until a channel is explicitly edited. Existing equal-ratio caches remain valid;
+an independent change requires a new bake. The UI and bake result report these
+coefficients before native triangle/edge geometric weights. The shear convention is an
 independently calibrated effective coefficient, not a second multiplication by
 thickness. Refer to [cloth modeling](../tutorial/cloth.md) for the full model.
 

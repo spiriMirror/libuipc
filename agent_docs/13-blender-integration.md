@@ -26,6 +26,16 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Invariants
 
+- Version 0.4/schema 4 separates cloth stretch/shear/bending Poisson ratios.
+  Existing E property IDs remain unchanged. Missing RNA values inherit the
+  old shared `poisson` without mutating saved scenes; setters store each channel
+  independently. Worker conversions and UI coefficients share `materials.py`.
+  Schema 1-3 cache comparison projects the fields away only when all three
+  equal the original shared value. Native 2r stretch/bending conventions stay.
+  `tests/test_materials.py` checks channel isolation and compatibility;
+  `tests/blender_materials.py` exercises real RNA save/reopen, and
+  `tests/native_materials.py` checks native triangle lambda/mu and edge bending.
+
 - Demo shader nodes are found by node type, not display name. Chinese Blender
   preferences translate default node names; an English-name lookup fails there.
 

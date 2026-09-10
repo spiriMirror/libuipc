@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
@@ -106,6 +106,17 @@ def fingerprint(settings, bodies, schema_version=SCHEMA_VERSION):
 def cache_fingerprint(request, settings, bodies):
     """Keep v0.1 cloth/ABD bakes valid when the new fixed/FEM features are unused."""
     schema = request.get("schema_version", 1)
+    if schema < 4:
+        legacy_bodies = []
+        for body in bodies:
+            material = dict(body["material"])
+            for name in ("stretch_poisson", "shear_poisson", "bending_poisson"):
+                if name in material:
+                    if material[name] != material.get("poisson"):
+                        return None
+                    material.pop(name)
+            legacy_bodies.append({**body, "material": material})
+        bodies = legacy_bodies
     if schema == 1:
         legacy = []
         if len(bodies) != len(request["objects"]):
@@ -116,7 +127,7 @@ def cache_fingerprint(request, settings, bodies):
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema not in (2, SCHEMA_VERSION):
+    if schema not in (2, 3, SCHEMA_VERSION):
         return None
     return fingerprint(settings, bodies)
 

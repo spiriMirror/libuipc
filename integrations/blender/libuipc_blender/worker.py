@@ -11,6 +11,7 @@ import time
 import traceback
 
 import numpy as np
+from materials import cloth_moduli, cloth_stiffness
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
                       positive, read_json, validate_mesh, validate_tetmesh, motion_hash)
@@ -60,7 +61,7 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] not in (2, SCHEMA_VERSION):
+    if request["schema_version"] not in (2, 3, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
@@ -115,6 +116,16 @@ def apply_solver_accuracy(config, accuracy, custom=None):
         config["line_search"]["max_iter"] = values["line_search_max_iter"]
     elif accuracy != "DEFAULT":
         raise ValueError(f"Unsupported solver accuracy: {accuracy}")
+
+
+def apply_cloth_material(mesh, material, shell, bending, moduli_type):
+    values = cloth_moduli(material)
+    shell.apply_to(mesh, stretch_moduli=moduli_type.youngs_poisson(*values["stretch"]),
+                   shear_moduli=moduli_type.youngs_poisson(*values["shear"]),
+                   mass_density=material["density"], thickness=material["thickness"],
+                   strain_rate=material["strain_rate"])
+    if material["role"] == "CLOTH" and values["bending"][0] > 0:
+        bending.apply_to(mesh, *values["bending"])
 
 
 def simulate(directory, parent):
@@ -215,13 +226,7 @@ def simulate(directory, parent):
                            mass_density=material["density"])
             view(mesh.vertices().find(builtin.thickness))[:] = material["thickness"]
         else:
-            moduli = lambda young: ElasticModuli2D.youngs_poisson(young, material["poisson"])
-            shell.apply_to(mesh, stretch_moduli=moduli(material["stretch"]),
-                           shear_moduli=moduli(material["shear"]),
-                           mass_density=material["density"], thickness=material["thickness"],
-                           strain_rate=material["strain_rate"])
-            if role == "CLOTH" and material["bending"] > 0:
-                bending.apply_to(mesh, material["bending"], material["poisson"])
+            apply_cloth_material(mesh, material, shell, bending, ElasticModuli2D)
         if role != "RIGID":
             fixed = view(mesh.vertices().find(builtin.is_fixed)).reshape(-1)
             if role == "STATIC" or material["fixed"]:
@@ -318,6 +323,8 @@ def simulate(directory, parent):
             "effective_linear_system": config["linear_system"],
             "effective_line_search": config["line_search"],
             "solver_statistics_available": frame_stats is not None,
+            "cloth_stiffness": {b["name"]: cloth_stiffness(b["material"])
+                                for b in bodies if b["material"]["role"] == "CLOTH"},
             "objects": [{"index": o["index"], "vertices": o["vertices"]} for o in outputs],
         })
         atomic_json(directory / "status.json", {"state": "complete", "frame": frame_count, "total": frame_count})

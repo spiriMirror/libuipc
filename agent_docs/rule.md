@@ -131,6 +131,12 @@ record it here in the same commit.**
 - Blender integration: use `spiriMirror` for the new extension's copyright
   attribution and maintainer. (Set 2026-09-05.)
 
+- Blender cloth parameters: stretch, shear and bending each have independent
+  Young's modulus and Poisson ratio controls. Preserve the previous shared
+  Poisson value when loading old scenes; changing one channel must not change
+  either of the others. Keep the existing full-thickness `2r` material formulas.
+  (Set 2026-09-10.)
+
 - During the Stiff-GIPC performance-alignment work: "when a design choice
   is uncertain, follow Stiff-GIPC's algorithm design" — that applied to
   that effort (and its evidence lives in `handoff.md`), not to unrelated

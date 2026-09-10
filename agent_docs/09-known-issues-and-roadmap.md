@@ -1,5 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Blender 0.4 (2026-09-10) separates all three cloth E/Poisson channels while
+preserving old shared-ratio scenes/caches. Cache/render verification, contact
+material pairs and quality-report UI are the current integration follow-up.
+
 Status as of 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.

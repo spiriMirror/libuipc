@@ -29,6 +29,9 @@ def cache_root(scene):
 def object_material(obj):
     from .motion import drive_material
     result = {name: getattr(obj.uipc_body, name) for name in OBJECT_FIELDS}
+    if obj.uipc_body.role == "CLOTH":
+        from .materials import CLOTH_POISSON_FIELDS
+        result.update({name: getattr(obj.uipc_body, name) for name in CLOTH_POISSON_FIELDS})
     drive = drive_material(obj)
     if drive is not None:
         result["drive"] = drive

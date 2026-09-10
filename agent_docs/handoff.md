@@ -1,5 +1,10 @@
 # Handoff — Current State of the Repo
 
+> **Blender independent cloth channels (2026-09-10)**: 0.4/schema 4 exposes
+> separate stretch/shear/bending Poisson ratios alongside existing independent
+> Young's moduli. Old scenes inherit the original shared ratio until edited;
+> equivalent legacy caches remain readable. Native material formulas are unchanged.
+
 > **Sample 94 four-finger grasp (2026-09-07)**: added
 > `libuipc-samples/examples/94_robot_hand_grasp_apple/` as a focused scripted
 > companion to manual sample 87. It directly constructs a libuipc World, drives

@@ -81,6 +81,15 @@ class UIPCSceneSettings(bpy.types.PropertyGroup):
     progress: FloatProperty(default=0, min=0, max=1, subtype="FACTOR", options={"SKIP_SAVE"})
 
 
+def cloth_poisson_get(name):
+    # A missing field in an old .blend inherits that file's original shared nu.
+    return lambda body: float(body.get(name, body.poisson))
+
+
+def cloth_poisson_set(name):
+    return lambda body, value: body.__setitem__(name, value)
+
+
 class UIPCBodySettings(bpy.types.PropertyGroup):
     role: EnumProperty(name="Simulation Role", items=[
         ("NONE", "Disabled", "Not part of the libuipc simulation", 0, 0),
@@ -112,6 +121,12 @@ class UIPCBodySettings(bpy.types.PropertyGroup):
     bending: FloatProperty(name="Bending E (Pa)", default=3e4, min=0, soft_max=1e8, update=changed,
         description="Bending = E*(2*r)^3 / (12*(1-nu^2)); zero disables bending")
     poisson: FloatProperty(name="Poisson Ratio", default=0.49, min=0, max=0.499, precision=3, update=changed)
+    stretch_poisson: FloatProperty(name="Stretch Poisson Ratio", min=0, max=0.499, precision=3,
+        get=cloth_poisson_get("stretch_poisson"), set=cloth_poisson_set("stretch_poisson"), update=changed)
+    shear_poisson: FloatProperty(name="Shear Poisson Ratio", min=0, max=0.499, precision=3,
+        get=cloth_poisson_get("shear_poisson"), set=cloth_poisson_set("shear_poisson"), update=changed)
+    bending_poisson: FloatProperty(name="Bending Poisson Ratio", min=0, max=0.499, precision=3,
+        get=cloth_poisson_get("bending_poisson"), set=cloth_poisson_set("bending_poisson"), update=changed)
     strain_rate: FloatProperty(name="Strain Amplification", default=100, min=1e-6, soft_max=1000, update=changed)
     rigidity: FloatProperty(name="ABD Rigidity (Pa)", default=1e8, min=1, soft_max=1e10, update=changed)
     self_collision: BoolProperty(name="Self Collision", default=True, update=changed)
@@ -476,7 +491,15 @@ class UIPC_PT_body(bpy.types.Panel):
                 layout.prop(body, "drive_friction")
         if body.role == "CLOTH":
             layout.label(text="Material thickness = 2 * r")
-            for name in ("stretch", "shear", "bending", "poisson", "strain_rate", "self_collision"):
+            for channel in ("stretch", "shear", "bending"):
+                row = layout.row(align=True)
+                row.prop(body, channel)
+                row.prop(body, channel + "_poisson", text="Poisson")
+            from .materials import cloth_stiffness
+            effective = cloth_stiffness(bridge.object_material(context.object))
+            layout.label(text=f"Stretch k: {effective['stretch']:.5g} N/m; shear k: {effective['shear']:.5g}")
+            layout.label(text=f"Bending k: {effective['bending']:.5g} N m (before edge weights)")
+            for name in ("strain_rate", "self_collision"):
                 layout.prop(body, name)
         if body.role == "FEM":
             cells = context.object.data.get("uipc_tetrahedra")
