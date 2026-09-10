@@ -19,12 +19,28 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.3.2; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.4.0; Windows/Linux; Blender >=4.2 API target |
+| `materials.py` / `material_ui.py` | Portable independent cloth/pair rules and Blender contact/preset controls |
+| `quality.py` / `quality_ui.py` / `preview.py` | Streaming observations, verified report navigation and non-destructive selected-object GPU preview |
 | `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
 | `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
 
 ## Invariants
+
+- Quality sampling is observational and uses SI world positions before MDD's
+  float32 conversion. Keep only the previous position/velocity per object, not
+  all frames. Copy native views before the next advance. Acceleration needs
+  three output samples; records distinguish output frame from native substep.
+  Final reports/series publish only after completion and never replace a failed
+  bake's previous cache. Review thresholds and display controls are not physics
+  inputs. Reports do not certify convergence or detect every substep event.
+- GPU preview uses explicit contiguous float32 vertex buffers. Passing a float64
+  NumPy buffer into GPUVertBuf's F32 fast path draws corrupt geometry. The preview
+  reads the simulation cache, not evaluated display subdivision. It draws selected
+  Object Mode meshes, fixed nodes and sampled +/-r normal guides (not an exact
+  offset surface). Remove draw callbacks on unregister. UI tests must close
+  popup-owned RNA widgets before unregistering their property types.
 
 - Named contact material pairs are canonicalized/validated in `materials.py`;
   UI lives in `material_ui.py`. Empty labels map to Default. An explicit unordered
@@ -81,8 +97,9 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 - Native generation requires a current pyuipc source build (not PyPI 0.0.28).
   Blender float32 conversion is validated before installing the volume. Original
   local vertices are copied verbatim so transform round trips cannot move them.
-- Requests use schema v3 and include tetrahedral topology, fixed/material fields
-  and opt-in authored motion signatures. Legacy v1/v2 caches remain valid while new features
+- Requests use schema v4 and include tetrahedral topology, independent cloth
+  channels, fixed/material fields and opt-in authored motion/contact pairs.
+  Legacy v1/v2/v3 caches remain valid while new features
   are unused. Never ignore a newly enabled Fixed flag in legacy validation.
 - Role enum IDs are explicit and persistent: NONE=0, CLOTH=1, RIGID=2,
   STATIC=3, FEM=4. Inserting FEM into the displayed list must not reinterpret
@@ -148,7 +165,14 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Validation and limits
 
-Run `python -m unittest discover -s integrations/blender/tests -p test_protocol.py`.
+Run `python -m unittest discover -s integrations/blender/tests -p 'test_*.py'`.
+Version 0.4 has 32 portable regressions and additional actual-Blender tests for
+material save/reopen, transactional cache faults, named contact response, quality
+reports, GPU previews and legacy caches. The 61-frame cloth/ABD and 41-frame FEM
+suites retain zero checked playback error; the existing 500-frame dining cache
+passes at 1/250/500. GUI validation installs the ZIP into isolated configuration,
+extension and temporary directories and checks clean disable/exit. Linux/other
+Blender versions still need equivalent runtime/UI validation.
 `tests/blender_integration.py` runs the actual Blender operators, CUDA worker,
 MDD modifier evaluation, backward/fractional frames, all-vertex comparison,
 fixed pins, contact, save/reopen, EEVEE rendering, unit/negative-scale round trips,

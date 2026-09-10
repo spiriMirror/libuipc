@@ -5,7 +5,10 @@ preserving old shared-ratio scenes/caches. Cache integrity, playback validation,
 transactional attachment and guarded render operators are implemented and tested.
 Ordinary F12/direct Blender rendering is intentionally not intercepted. Contact
 material pairs and batch physical presets are implemented and validated with
-native friction/exclusion tests. Quality-report UI is the current follow-up.
+native friction/exclusion tests. Streaming quality reports, peak-frame navigation
+and selected-object mesh/pin/thickness previews are implemented. Position metrics
+are output-frame finite differences, not physical-error certificates. Compact ABD
+caches, richer joint-control UI and true stateful resume remain follow-up work.
 
 Status as of 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first

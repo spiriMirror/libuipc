@@ -119,8 +119,17 @@ def poll():
         scene.uipc_settings.progress = 1.0
         return result
     result = attach_cache(scene, job["directory"], job["request"])
+    scene.uipc_settings.quality_summary = ""
+    scene.uipc_settings.quality_bake = ""
+    quality_warning = ""
+    if result.get("quality_report_sha256"):
+        from .quality_ui import load_report
+        try:
+            load_report(scene, validate=False)
+        except (OSError, ValueError, KeyError) as error:
+            quality_warning = f"; quality report unavailable: {error}"
     scene.uipc_settings.progress = 1.0
-    scene.uipc_settings.status = f"Baked {result['frames']} frames with pyuipc {result['build_info']['version']}"
+    scene.uipc_settings.status = f"Baked {result['frames']} frames with pyuipc {result['build_info']['version']}" + quality_warning
     return result
 
 

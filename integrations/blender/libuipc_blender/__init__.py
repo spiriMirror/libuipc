@@ -16,6 +16,8 @@ from . import bridge, runtime
 from .protocol import MODIFIER_NAME, read_json
 from .material_ui import (MATERIAL_CLASSES, UIPCContactPair, UIPCPhysicalPreset,
                           draw_contact_pairs, draw_material_preset)
+from .quality_ui import QUALITY_CLASSES
+from . import preview
 
 _pending_validation = set()
 
@@ -28,6 +30,7 @@ def invalidate(scene, message):
         if modifier and modifier.type == "MESH_CACHE":
             modifier.show_viewport = False
             modifier.show_render = False
+    scene.uipc_settings.quality_bake = ""
     scene.uipc_settings.status = message
 
 
@@ -39,6 +42,17 @@ def changed(self, context):
 
 
 class UIPCSceneSettings(bpy.types.PropertyGroup):
+    quality_summary: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+    quality_bake: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+    quality_vertex: IntProperty(default=-1, options={"HIDDEN", "SKIP_SAVE"})
+    quality_object: PointerProperty(type=bpy.types.Object, options={"HIDDEN", "SKIP_SAVE"})
+    quality_speed_limit: FloatProperty(name="Speed Review Threshold (m/s)", default=1, min=0,
+        description="Diagnostic warning only; zero disables. Does not change or invalidate the simulation")
+    quality_acceleration_limit: FloatProperty(name="Acceleration Review Threshold (m/s^2)", default=10, min=0,
+        description="Diagnostic warning only; zero disables. Legitimate contact can exceed this threshold")
+    show_physics_overlay: BoolProperty(name="Simulation Mesh", default=False)
+    show_pin_overlay: BoolProperty(name="Fixed Nodes", default=False)
+    show_thickness_overlay: BoolProperty(name="Thickness Guides", default=False)
     contact_pairs: CollectionProperty(type=UIPCContactPair)
     material_presets: CollectionProperty(type=UIPCPhysicalPreset)
     python_executable: StringProperty(name="External Python", subtype="FILE_PATH",
@@ -502,6 +516,7 @@ class UIPC_PT_body(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.ui_units_x = 26
         layout.enabled = not runtime.is_running()
         body = context.object.uipc_body
         layout.prop(body, "role")
@@ -526,13 +541,17 @@ class UIPC_PT_body(bpy.types.Panel):
         if body.role == "CLOTH":
             layout.label(text="Material thickness = 2 * r")
             for channel in ("stretch", "shear", "bending"):
-                row = layout.row(align=True)
-                row.prop(body, channel)
+                box = layout.box()
+                box.label(text=channel.title())
+                row = box.row(align=True)
+                row.prop(body, channel, text="E")
                 row.prop(body, channel + "_poisson", text="Poisson")
             from .materials import cloth_stiffness
             effective = cloth_stiffness(bridge.object_material(context.object))
-            layout.label(text=f"Stretch k: {effective['stretch']:.5g} N/m; shear k: {effective['shear']:.5g}")
-            layout.label(text=f"Bending k: {effective['bending']:.5g} N m (before edge weights)")
+            layout.label(text=f"Stretch k: {effective['stretch']:.5g} N/m")
+            layout.label(text=f"Shear k: {effective['shear']:.5g} (effective coefficient)")
+            layout.label(text=f"Bending k: {effective['bending']:.5g} N m")
+            layout.label(text="Coefficients before geometric weights")
             for name in ("strain_rate", "self_collision"):
                 layout.prop(body, name)
         if body.role == "FEM":
@@ -610,20 +629,26 @@ CLASSES = (*MATERIAL_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferenc
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,
-           UIPC_PT_scene, UIPC_PT_body)
+           UIPC_PT_scene, UIPC_PT_body, *QUALITY_CLASSES)
+_registered_classes = []
 
 
 def register():
+    if _registered_classes:
+        return
     for cls in CLASSES:
         bpy.utils.register_class(cls)
+        _registered_classes.append(cls)
     bpy.types.Scene.uipc_settings = PointerProperty(type=UIPCSceneSettings)
     bpy.types.Object.uipc_body = PointerProperty(type=UIPCBodySettings)
     bpy.app.handlers.load_pre.append(_load_pre)
     bpy.app.handlers.load_post.append(_load_post)
     bpy.app.handlers.depsgraph_update_post.append(_depsgraph_updated)
+    preview.register()
 
 
 def unregister():
+    preview.unregister()
     runtime.stop()
     _pending_validation.clear()
     for timer in (_poll_timer, _validate_pending):
@@ -634,7 +659,10 @@ def unregister():
                                (bpy.app.handlers.depsgraph_update_post, _depsgraph_updated)):
         if function in handlers:
             handlers.remove(function)
-    del bpy.types.Object.uipc_body
-    del bpy.types.Scene.uipc_settings
-    for cls in reversed(CLASSES):
+    if hasattr(bpy.types.Object, "uipc_body"):
+        del bpy.types.Object.uipc_body
+    if hasattr(bpy.types.Scene, "uipc_settings"):
+        del bpy.types.Scene.uipc_settings
+    for cls in reversed(_registered_classes):
         bpy.utils.unregister_class(cls)
+    _registered_classes.clear()

@@ -43,6 +43,12 @@ class MaterialTests(unittest.TestCase):
             for other in values.keys() - {channel}:
                 self.assertEqual(changed[other], values[other])
 
+    def test_explicit_channels_do_not_require_a_shared_ratio(self):
+        material = self.material()
+        expected = cloth_stiffness(material)
+        material.pop("poisson")
+        self.assertEqual(cloth_stiffness(material), expected)
+
     def test_legacy_defaults_and_invalid_parameters(self):
         old = {k: v for k, v in self.material().items() if not k.endswith("_poisson")}
         self.assertTrue(all(nu == old["poisson"] for e, nu in cloth_moduli(old).values()))

@@ -1,5 +1,22 @@
 # Handoff — Current State of the Repo
 
+> **Blender 0.4 integration improvements (2026-09-10)**: independent cloth E/nu,
+> named contact pairs and batch physical presets, transactional/verified caches,
+> guarded render operators, streaming quality reports and GPU physics previews
+> are complete. Thirty-two portable tests pass on Python 3.11/3.14; all Blender
+> contract, material persistence, contact-response, quality/navigation, 61-frame
+> mixed-scene and 41-frame FEM suites pass on Blender 4.5.3 with the Python 3.14
+> CUDA 13.2 worker. Verified native-cache playback error is zero in those suites.
+> The existing 500-frame dining hand cache validates at 1/250/500 without rebaking
+> or changing its .blend. Installed UI tests draw the actual GPU overlay and new
+> panels; float64-to-GPU buffer corruption was corrected by explicit F32 buffers.
+> The ZIP is `output/blender-dist/libuipc_blender-0.4.0.zip`; the user's active
+> addon profile is not replaced. Repository Contracts now discovers every portable
+> Blender `test_*.py`, not just the original protocol tests. Normal F12 is unguarded;
+> use the plugin's validated render operators. Quality peaks are review aids, not
+> accuracy certificates. Compact ABD caches, richer robot controls and true
+> stateful resume remain separate follow-up work.
+
 > **Blender contact materials (2026-09-10)**: named symmetric contact-pair
 > overrides and scene-local batch physical presets are implemented. Assembly
 > exclusions and legacy robot friction remain intact. Twenty-eight portable

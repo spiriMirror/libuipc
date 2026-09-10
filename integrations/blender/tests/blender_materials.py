@@ -52,4 +52,7 @@ with tempfile.TemporaryDirectory(prefix="uipc-materials-") as directory:
     assert len(bpy.context.scene.uipc_settings.material_presets) == 1
     assert bpy.context.scene.uipc_settings.contact_pairs[0].friction == .25
 addon.unregister()
+addon.unregister()
+addon.register()
+addon.unregister()
 print("PASS: legacy inheritance, independent edits, batch presets, contact pairs and save/reopen")

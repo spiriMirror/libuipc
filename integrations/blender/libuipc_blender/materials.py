@@ -19,7 +19,10 @@ def cloth_moduli(material):
     result = {}
     for channel in ("stretch", "shear", "bending"):
         young = float(material[channel])
-        poisson = float(material.get(channel + "_poisson", material["poisson"]))
+        value = material.get(channel + "_poisson", material.get("poisson"))
+        if value is None:
+            raise ValueError(f"{channel}: a Poisson ratio is required")
+        poisson = float(value)
         if not math.isfinite(young) or young < 0 or (channel != "bending" and young == 0):
             raise ValueError(f"{channel}: Young's modulus must be finite and positive (bending may be zero)")
         if not math.isfinite(poisson) or not 0 <= poisson < 0.5:

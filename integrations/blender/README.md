@@ -4,7 +4,7 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.3 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
+Version 0.4 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
@@ -14,6 +14,12 @@ and friction stay coupled to the cloth and other rigid bodies.
 The UI lives in **3D Viewport > Sidebar (N) > libuipc**. The CUDA solver runs in
 a separate Python process. Blender itself never imports the native `uipc` module.
 
+Cloth stretch, shear and bending each expose independent E/Poisson values, with
+legacy shared-ratio inheritance. Version 0.4 also adds named contact-material
+pairs, scene-local batch physical presets, complete cache/playback validation,
+transactional attachment, guarded render operators, streamed quality reports
+and selected-object simulation-mesh/pin/thickness previews.
+
 See the [installation and parameter guide](../../docs/build_install/blender.md).
 
 ## Package
@@ -22,7 +28,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.3.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.4.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -35,7 +41,7 @@ an equivalent extension.
 Portable regressions (only NumPy is needed):
 
 ```shell
-python -m unittest discover -s integrations/blender/tests -p test_protocol.py -v
+python -m unittest discover -s integrations/blender/tests -p 'test_*.py' -v
 ```
 
 Real Blender + NVIDIA GPU integration, including rendering and .blend reopening:
@@ -58,6 +64,15 @@ caches, cancellation, failed launches, rebakes, and restoration of source meshes
 extension operator and can invoke the same suite with `--test`. Use isolated
 `BLENDER_USER_CONFIG` and `BLENDER_USER_EXTENSIONS` directories for automated runs.
 Its `--persist` option intentionally installs into the chosen user profile.
+
+Additional 0.4 regressions: `blender_materials.py` (RNA/presets/save-reopen),
+`blender_cache_contract.py` (playback parameters, file corruption, rollback and
+blocked rendering), `blender_contacts.py` (real pair friction/exclusion),
+`blender_quality.py` (native diagnostics/navigation/preview) and
+`blender_quality_gui.py` (installed panels, asynchronous bake and actual GPU
+overlay drawing). `native_materials.py` checks the real triangle/edge stiffness
+attributes using the external Python. `blender_legacy_cache.py -- --blend <file>`
+validates existing completed caches without modifying the source .blend.
 
 `tests/blender_fem.py` additionally verifies native strict/relaxed meshing,
 original vertex IDs and groups, interior and surface pins, wholly fixed

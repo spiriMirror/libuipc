@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.3.2.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.4.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.3.2.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.4.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -308,9 +308,7 @@ Fixed colliders may be open triangle surfaces and use fixed FEM vertices.
 Duplicate/degenerate triangles, non-manifold edges, loose vertices, invalid
 coordinates, singular transforms, and invalid pin groups are rejected.
 
-## Modifiers, caches, and limitations
-
-### Contact material pairs and physical presets
+## Contact material pairs and physical presets
 
 1. Assign **Contact Material** names to participating objects, including fixed
    colliders. Blank and `Default` use the default material. Names are case-sensitive
@@ -338,6 +336,38 @@ coordinates, singular transforms, and invalid pin groups are rejected.
 The default empty contact table and unused presets do not invalidate legacy
 caches. Editing effective contact/physical parameters requires a new bake.
 
+## Quality report and viewport diagnostics
+
+Expand **Bake Quality and Physics Preview**. New bakes produce
+`quality_report.json` plus streaming `quality_frames.jsonl`, with SI world-space
+speed/acceleration observations and native iteration/line-search statistics.
+The result manifest authenticates the summary with SHA-256. Reports load after
+completion; **Load Quality Report** reloads one after reopening a .blend. Older
+bakes remain playable but need rebaking to produce a report.
+
+| Setting/action | Default | Behavior |
+|---|---:|---|
+| Speed Review Threshold | 1 m/s | Finite, >= 0; zero disables this warning |
+| Acceleration Review Threshold | 10 m/s² | Finite, >= 0; zero disables this warning |
+| Inspect Peak Frame | — | Jump to the reported output frame and select its object; show the peak vertex in magenta when Simulation Mesh is enabled |
+| Mark Review Frames | Explicit action | Add warning/solver-limit timeline markers; replace only markers prefixed `libuipc quality: ` |
+| Simulation Mesh | Off | Cyan edges of the selected object's base simulation topology and current cache positions, before display subdivision/solidify |
+| Fixed Nodes | Off | Red fixed nodes, including internal FEM nodes, visible through the surface |
+| Thickness Guides | Off | Up to 512 sampled vertex-normal segments from -r to +r, converted through Unit Scale; no ABD radius overlay |
+
+These controls are diagnostic/display-only: they do not change materials, solver
+settings or cache fingerprints. Speed is a finite difference between successive
+**output** frames; acceleration is the difference between those velocities, so
+it is unavailable until three position samples exist. Fast substep events may
+be missed. A threshold crossing is a request for review, not proof of a physical
+error; reported native convergence is not an independent accuracy certificate.
+Thickness lines illustrate material radius, not the exact rounded contact-offset
+surface. The preview never applies modifiers or edits vertices and is Object
+Mode/selected-object only. Native frame statistics may be unavailable on older
+supported runtimes; position diagnostics remain available.
+
+## Cache validation and guarded rendering
+
 Version 0.4 checks the complete result object list/provenance and every managed
 Mesh Cache playback setting (time mapping, factor, axes, vertex group and stack
 position). Explicit **Validate Cache** also verifies SHA-256 checksums recorded
@@ -353,6 +383,8 @@ Scripts can call `bpy.ops.uipc.render_validated(animation=True)`.
 Ordinary F12 and direct `bpy.ops.render.render` remain Blender's unguarded entry
 points: Python handler exceptions do not reliably cancel rendering, so the
 extension does not claim to intercept them. Playback without the addon is unchanged.
+
+## Modifiers and remaining limitations
 
 - Simulation uses the **base mesh**. The generated MDD modifier is first in the
   stack. For cloth/rigid bodies, Subdivision, Solidify, Bevel, and Weighted Normal

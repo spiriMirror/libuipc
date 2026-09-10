@@ -12,9 +12,10 @@ import traceback
 
 import numpy as np
 from materials import cloth_moduli, cloth_stiffness, build_contact_plan
+from quality import QualityRecorder
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
-                      positive, read_json, validate_mesh, validate_tetmesh, motion_hash)
+                      positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256)
 
 
 class ParentProcess:
@@ -182,7 +183,7 @@ def simulate(directory, parent):
         for key in ("density", "thickness", "stretch", "shear", "rigidity", "strain_rate"):
             positive(material[key], f"{body['name']}: {key}")
         positive(material["bending"], "bending", allow_zero=True)
-        if not 0 <= material["poisson"] < 0.5:
+        if role == "FEM" and not 0 <= material["poisson"] < 0.5:
             raise ValueError("Poisson ratio must be in [0, 0.5)")
         matrix = np.asarray(body["matrix"], dtype=np.float64)
         if (matrix.shape != (4, 4) or not np.isfinite(matrix).all()
@@ -270,6 +271,7 @@ def simulate(directory, parent):
     world.retrieve()
     writers = []
     statistics = (directory / "solver_steps.jsonl").open("w", encoding="utf-8")
+    quality = QualityRecorder(directory, request)
     frame_stats = getattr(engine, "frame_stats", None)
     try:
         for output in outputs:
@@ -287,10 +289,11 @@ def simulate(directory, parent):
                     motion_step[0] += 1
                     world.advance()
                     if frame_stats is not None:
+                        stats = dict(frame_stats())
                         statistics.write(json.dumps({
-                            "output_frame": frame + settings["frame_start"],
-                            "substep": motion_step[0], **dict(frame_stats()),
+                            "output_frame": frame + settings["frame_start"], "substep": motion_step[0], **stats,
                         }) + "\n")
+                        quality.record_solver(frame + settings["frame_start"], motion_step[0], stats)
                     if not world.is_valid():
                         raise RuntimeError(f"Simulation failed at output frame {frame}")
                 world.retrieve()
@@ -301,6 +304,7 @@ def simulate(directory, parent):
                 if output["role"] == "RIGID":
                     transform = np.asarray(geometry.transforms().view()).reshape(-1, 4, 4)[0]
                     points = points @ transform[:3, :3].T + transform[:3, 3]
+                quality.record_object(output["index"], frame + settings["frame_start"], points)
                 points = points / settings["unit_scale"]
                 inverse = output["inverse"]
                 writer.append(points @ inverse[:3, :3].T + inverse[:3, 3])
@@ -310,6 +314,7 @@ def simulate(directory, parent):
             })
         for writer in writers:
             writer.close(commit=True)
+        quality.finish()
         atomic_json(directory / "result.json", {
             "schema_version": request["schema_version"], "fingerprint": request["fingerprint"],
             "build_info": uipc.build_info(), "frames": frame_count,
@@ -322,12 +327,14 @@ def simulate(directory, parent):
                                 for b in bodies if b["material"]["role"] == "CLOTH"},
             "cache_integrity": 1,
             "effective_contacts": contact_plan,
+            "quality_report_sha256": file_sha256(directory / "quality_report.json"),
             "objects": [{"index": o["index"], "vertices": o["vertices"],
                          "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })
         atomic_json(directory / "status.json", {"state": "complete", "frame": frame_count, "total": frame_count})
     finally:
         statistics.close()
+        quality.close()
         for writer in writers:
             writer.close()
 
