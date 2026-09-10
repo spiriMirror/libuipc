@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Blender 0.5 identities (2026-09-10)**: schema-5 body/controller IDs decouple
+> names from physics fingerprints and result attachment. Older caches remain
+> name-based. Copied IDs are rejected with an explicit selected-object reset
+> operator. Relevant-update filtering and raw-input tokens avoid unnecessary
+> full topology checks. Multi-camera rendering and robot panel work follow.
+
 > **Blender 0.4 integration improvements (2026-09-10)**: independent cloth E/nu,
 > named contact pairs and batch physical presets, transactional/verified caches,
 > guarded render operators, streaming quality reports and GPU physics previews

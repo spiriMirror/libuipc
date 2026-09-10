@@ -10,6 +10,7 @@ import bpy
 import numpy as np
 
 from .protocol import motion_hash as sample_hash
+from .identity import object_id
 
 
 TRANSFORMS = (
@@ -21,7 +22,7 @@ TRANSFORMS = (
 )
 
 
-def controller_signature(target):
+def controller_signature(target, stable_ids=False):
     """Hash authored controls without including frame-dependent channel values.
 
     This makes cache checks cheap and independent of the playback frame. Target
@@ -45,7 +46,7 @@ def controller_signature(target):
             )
         state = {key: list(getattr(target, key)) for key in TRANSFORMS}
         state.update(
-            name=target.name,
+            name=object_id(target) if stable_ids else target.name,
             rotation_mode=target.rotation_mode,
             parent_inverse=[list(row) for row in target.matrix_parent_inverse],
             delta_location=list(target.delta_location),
@@ -107,7 +108,7 @@ def drive_material(obj):
     target = body.drive_target
     if target is None or target == obj:
         raise ValueError(f"{obj.name}: assign a separate motion controller")
-    return {
+    result = {
         "target": target.name,
         "signature": controller_signature(target),
         "translation_strength": body.drive_translation_strength,
@@ -115,6 +116,13 @@ def drive_material(obj):
         "group": body.drive_group,
         "friction": body.drive_friction,
     }
+    current, identified = target, True
+    while current:
+        identified &= object_id(current) is not None
+        current = current.parent
+    if identified:
+        result.update(target_id=object_id(target), stable_signature=controller_signature(target, stable_ids=True))
+    return result
 
 
 def sample_targets(scene, bodies):

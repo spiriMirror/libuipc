@@ -29,6 +29,9 @@ def load_report(scene, validate=True):
         raise ValueError("Quality report provenance mismatch")
     if [o["index"] for o in report["objects"]] != [o["index"] for o in result["objects"]]:
         raise ValueError("Quality report object list does not match the bake")
+    from .identity import resolve_object
+    for entry in report["objects"]:
+        entry["name"] = resolve_object(scene, request["objects"][entry["index"]], request["schema_version"]).name
     scene.uipc_settings.quality_summary = json.dumps(report, allow_nan=False)
     scene.uipc_settings.quality_bake = scene.uipc_settings.last_bake
     return report

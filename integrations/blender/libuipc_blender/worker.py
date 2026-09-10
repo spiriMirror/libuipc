@@ -62,7 +62,7 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] not in (2, 3, SCHEMA_VERSION):
+    if request["schema_version"] not in (2, 3, 4, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
@@ -83,10 +83,15 @@ def load_request(directory):
                 if motion_hash(body["drive_targets"]) != entry.get("drive_targets_sha256"):
                     raise ValueError(f"{entry['name']}: corrupted motion samples")
         body.update(name=entry["name"], material=entry["material"])
+        if request["schema_version"] >= 5:
+            body["id"] = entry["id"]
         bodies.append(body)
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
         raise ValueError("Include at least one cloth, rigid body, or volumetric FEM object")
-    if fingerprint(settings, bodies) != request["fingerprint"]:
+    if request["schema_version"] >= 5:
+        from protocol import match_bodies
+        match_bodies(request, bodies)
+    if fingerprint(settings, bodies, request["schema_version"]) != request["fingerprint"]:
         raise ValueError("Simulation input fingerprint mismatch")
     return request, bodies
 

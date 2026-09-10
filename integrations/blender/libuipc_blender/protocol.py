@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
@@ -88,9 +88,21 @@ def fingerprint(settings, bodies, schema_version=SCHEMA_VERSION):
     """Include vertex values/order, topology, pins, transforms, and all physics inputs."""
     digest = hashlib.sha256()
     digest.update(json.dumps(settings, sort_keys=True, allow_nan=False).encode())
+    if schema_version >= 5:
+        bodies = sorted(bodies, key=lambda b: b.get("id", b["name"]))
     for body in bodies:
-        digest.update(json.dumps(body["material"], sort_keys=True, allow_nan=False).encode())
-        digest.update(body["name"].encode("utf-8"))
+        material = dict(body["material"])
+        if "drive" in material:
+            drive = dict(material["drive"])
+            if schema_version >= 5 and "target_id" in drive:
+                drive["target"] = drive["target_id"]
+                drive["signature"] = drive["stable_signature"]
+            drive.pop("target_id", None)
+            drive.pop("stable_signature", None)
+            material["drive"] = drive
+        digest.update(json.dumps(material, sort_keys=True, allow_nan=False).encode())
+        identifier = body.get("id", body["name"]) if schema_version >= 5 else body["name"]
+        digest.update(identifier.encode("utf-8"))
         for key, dtype in (("vertices", "<f8"), ("triangles", "<i4"),
                            ("tetrahedra", "<i4"), ("matrix", "<f8"),
                            ("pins", "<i4")):
@@ -127,9 +139,22 @@ def cache_fingerprint(request, settings, bodies):
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema not in (2, 3, SCHEMA_VERSION):
+    if schema not in (2, 3, 4, SCHEMA_VERSION):
         return None
-    return fingerprint(settings, bodies)
+    return fingerprint(settings, bodies, schema_version=schema)
+
+
+def match_bodies(request, bodies):
+    """Return current bodies in immutable request order, not current name order."""
+    field = "id" if request["schema_version"] >= 5 else "name"
+    expected = [o.get(field) for o in request["objects"]]
+    actual = [b.get(field) for b in bodies]
+    if (any(not isinstance(k, str) or not k for k in expected + actual)
+            or len(set(expected)) != len(expected) or len(set(actual)) != len(actual)
+            or set(expected) != set(actual)):
+        raise ValueError(f"Cached object {field}s are missing, duplicated or changed; rebake after fixing identities")
+    lookup = dict(zip(actual, bodies))
+    return [lookup[key] for key in expected]
 
 
 def positive(value, name, allow_zero=False):

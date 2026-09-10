@@ -368,6 +368,20 @@ supported runtimes; position diagnostics remain available.
 
 ## Cache validation and guarded rendering
 
+New 0.5/schema-5 bakes use persistent object/controller IDs rather than display
+names. Renaming an object or reordering names therefore does not invalidate a
+new cache or change which mesh receives it. Older caches keep their original
+name-based contract until rebaked. IDs are assigned only on explicit export;
+validation never modifies them. Blender duplicates copy custom properties, so
+duplicate IDs are rejected: select the duplicate and use **Assign New Simulation
+ID**, then rebake. This prevents a duplicate from stealing the original cache.
+
+Automatic checks ignore unrelated camera/light updates and compare cheap raw
+input tokens before repeating topology validation. Cached playback with unchanged
+base geometry/controller curves avoids that repeated work. Explicit Validate and
+guarded renders still perform full validation; changed cache-file timestamps
+trigger byte-level checks when automatic validation runs.
+
 Version 0.4 checks the complete result object list/provenance and every managed
 Mesh Cache playback setting (time mapping, factor, axes, vertex group and stack
 position). Explicit **Validate Cache** also verifies SHA-256 checksums recorded

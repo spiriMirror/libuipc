@@ -1,5 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Blender 0.5 stable object/controller identities and relevant-input validation
+gates are implemented. Older cache schemas stay name-based until rebaked.
+Independent render ranges/queue and robot controls are the active follow-up.
+
 Blender 0.4 (2026-09-10) separates all three cloth E/Poisson channels while
 preserving old shared-ratio scenes/caches. Cache integrity, playback validation,
 transactional attachment and guarded render operators are implemented and tested.

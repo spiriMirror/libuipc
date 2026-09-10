@@ -14,6 +14,8 @@ from .protocol import (SCHEMA_VERSION, MODIFIER_NAME, OBJECT_FIELDS, atomic_json
                        fingerprint, cache_fingerprint, inspect_mdd, read_json, validate_mesh, validate_tetmesh)
 from .protocol import SOLVER_FIELDS, validate_solver_settings
 from .protocol import validate_result, file_sha256
+from .protocol import match_bodies
+from .identity import object_id, ensure_scene_ids, resolve_object
 
 
 CACHE_PROPERTIES = ("cache_format", "filepath", "time_mode", "play_mode", "frame_start",
@@ -73,7 +75,7 @@ def object_material(obj):
     return result
 
 
-def collect_scene(scene):
+def collect_scene(scene, validate_geometry=True):
     # New objects and script-driven transforms may not have reached matrix_world.
     # Read the final world matrices only after Blender updates its dependency graph.
     layer = scene.view_layers[0]
@@ -141,12 +143,13 @@ def collect_scene(scene):
             if stored is None or len(stored) % 4:
                 raise ValueError(f"{obj.name}: generate or import a tetrahedral mesh before baking FEM")
             tetrahedra = np.asarray(stored, dtype=np.int32).reshape(-1, 4)
-            _, tetrahedra, boundary, _ = validate_tetmesh(world_vertices, tetrahedra, obj.name)
-            if (len(triangles) != len(boundary)
-                    or {tuple(sorted(t)) for t in triangles} != {tuple(sorted(t)) for t in boundary}):
-                raise ValueError(f"{obj.name}: visible faces no longer match the tetrahedral boundary; regenerate the volume")
-            triangles = boundary
-        else:
+            if validate_geometry:
+                _, tetrahedra, boundary, _ = validate_tetmesh(world_vertices, tetrahedra, obj.name)
+                if (len(triangles) != len(boundary)
+                        or {tuple(sorted(t)) for t in triangles} != {tuple(sorted(t)) for t in boundary}):
+                    raise ValueError(f"{obj.name}: visible faces no longer match the tetrahedral boundary; regenerate the volume")
+                triangles = boundary
+        elif validate_geometry:
             _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name,
                                          allow_components=obj.uipc_body.driven)
         pins = []
@@ -163,6 +166,8 @@ def collect_scene(scene):
                        "tetrahedra": tetrahedra,
                        "matrix": matrix, "pins": np.array(pins, dtype=np.int32),
                        "material": object_material(obj)})
+        if object_id(obj):
+            bodies[-1]["id"] = object_id(obj)
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
         raise ValueError("Assign at least one object as Cloth, Rigid Body, or Volumetric FEM")
     if settings.contact_pairs:
@@ -177,6 +182,7 @@ def collect_scene(scene):
 def export_job(scene):
     from .motion import sample_targets, sample_hash, align_robot_initial
     align_robot_initial(scene)
+    ensure_scene_ids(scene)
     settings, bodies = collect_scene(scene)
     targets = sample_targets(scene, bodies)
     root = cache_root(scene)
@@ -185,7 +191,7 @@ def export_job(scene):
     directory.mkdir()
     request = {"schema_version": SCHEMA_VERSION, "settings": settings,
                "fingerprint": fingerprint(settings, bodies),
-               "objects": [{"name": b["name"], "material": b["material"]} for b in bodies]}
+               "objects": [{"id": b["id"], "name": b["name"], "material": b["material"]} for b in bodies]}
     for index, body in enumerate(bodies):
         arrays = {key: body[key] for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
         if "drive" in body["material"]:
@@ -211,6 +217,7 @@ def export_robot_job(scene, filename):
 def attach_cache(scene, directory, request):
     result = read_json(directory / "result.json")
     current_settings, bodies = collect_scene(scene)
+    bodies = match_bodies(request, bodies)
     expected = request["fingerprint"]
     if result["schema_version"] != request["schema_version"] or result["fingerprint"] != expected:
         raise ValueError("Bake result does not match the exported scene")
@@ -222,7 +229,7 @@ def attach_cache(scene, directory, request):
     try:
         for output in result["objects"]:
             index = output["index"]
-            obj = scene.objects[request["objects"][index]["name"]]
+            obj = resolve_object(scene, request["objects"][index], request["schema_version"])
             modifier = obj.modifiers.get(MODIFIER_NAME)
             snapshot = None
             if modifier is not None:
@@ -255,13 +262,14 @@ def check_cache(scene, verify_data=False):
     directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
     request = read_json(directory / "request.json")
     settings, bodies = collect_scene(scene)
+    bodies = match_bodies(request, bodies)
     if cache_fingerprint(request, settings, bodies) != request["fingerprint"]:
         raise ValueError("Cache is stale: geometry, transforms, pins, materials, or scene settings changed")
     result = read_json(directory / "result.json")
     validate_output_files(directory, request, result, bodies, verify_data)
     for output in result["objects"]:
         index = output["index"]
-        obj = scene.objects.get(request["objects"][index]["name"])
+        obj = resolve_object(scene, request["objects"][index], request["schema_version"])
         modifier = obj.modifiers.get(MODIFIER_NAME) if obj else None
         if not modifier or modifier.type != "MESH_CACHE":
             raise ValueError("A baked object's cache modifier is missing")
@@ -289,7 +297,7 @@ def validate_for_render(scene, animation=False):
     if not animation and not start <= scene.frame_current + scene.frame_subframe <= end:
         raise ValueError("Render frame is outside the simulated cache range")
     for output in result["objects"]:
-        obj = scene.objects[request["objects"][output["index"]]["name"]]
+        obj = resolve_object(scene, request["objects"][output["index"]], request["schema_version"])
         if not obj.modifiers[MODIFIER_NAME].show_render:
             raise ValueError(f"{obj.name}: cache is disabled for rendering; validate/reactivate it first")
     return result
@@ -301,7 +309,7 @@ def activate_cache(scene):
     request = read_json(Path(bpy.path.abspath(scene.uipc_settings.last_bake)) / "request.json")
     # Only restore modifiers whose input signature, path and file were checked.
     for output in result["objects"]:
-        obj = scene.objects[request["objects"][output["index"]]["name"]]
+        obj = resolve_object(scene, request["objects"][output["index"]], request["schema_version"])
         modifier = obj.modifiers[MODIFIER_NAME]
         modifier.show_viewport = True
         modifier.show_render = True

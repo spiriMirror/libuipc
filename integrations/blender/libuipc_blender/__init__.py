@@ -18,6 +18,7 @@ from .material_ui import (MATERIAL_CLASSES, UIPCContactPair, UIPCPhysicalPreset,
                           draw_contact_pairs, draw_material_preset)
 from .quality_ui import QUALITY_CLASSES
 from . import preview
+from . import watch
 
 _pending_validation = set()
 
@@ -326,6 +327,24 @@ class UIPC_OT_detach(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class UIPC_OT_new_identity(bpy.types.Operator):
+    bl_idname = "uipc.new_identity"
+    bl_label = "Assign New Simulation ID"
+    bl_description = "Give selected duplicates fresh identities; existing caches for these objects require rebaking"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        import uuid
+        from .identity import KEY
+        if runtime.is_running():
+            return {"CANCELLED"}
+        for obj in context.selected_objects:
+            if not obj.library:
+                obj[KEY] = uuid.uuid4().hex
+        invalidate(context.scene, "Object identities changed; bake again")
+        return {"FINISHED"}
+
+
 class UIPC_OT_probe(bpy.types.Operator):
     bl_idname = "uipc.check_runtime"
     bl_label = "Check Python / CUDA"
@@ -523,6 +542,7 @@ class UIPC_PT_body(bpy.types.Panel):
         if body.role == "NONE":
             return
         layout.label(text="Simulation uses the base mesh")
+        layout.operator("uipc.new_identity")
         layout.prop(body, "contact_material")
         layout.prop(body, "thickness")
         if body.role != "STATIC":
@@ -592,7 +612,7 @@ def _validate_pending():
         scene = bpy.data.scenes.get(name)
         if scene and scene.uipc_settings.last_bake:
             try:
-                bridge.check_cache(scene)
+                watch.check(scene)
             except Exception as error:
                 invalidate(scene, str(error))
     return None
@@ -602,18 +622,17 @@ def _validate_pending():
 def _depsgraph_updated(scene, depsgraph):
     if not scene.uipc_settings.last_bake or runtime.is_running():
         return
-    for update in depsgraph.updates:
-        if isinstance(update.id, bpy.types.Mesh) or (isinstance(update.id, bpy.types.Object) and update.is_updated_transform):
-            _pending_validation.add(scene.name)
-            if not bpy.app.timers.is_registered(_validate_pending):
-                bpy.app.timers.register(_validate_pending, first_interval=0.5)
-            break
+    if watch.relevant_update(scene, depsgraph.updates):
+        _pending_validation.add(scene.name)
+        if not bpy.app.timers.is_registered(_validate_pending):
+            bpy.app.timers.register(_validate_pending, first_interval=0.5)
 
 
 @persistent
 def _load_pre(_):
     runtime.stop()
     _pending_validation.clear()
+    watch.clear()
 
 
 @persistent
@@ -629,7 +648,7 @@ CLASSES = (*MATERIAL_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferenc
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,
-           UIPC_PT_scene, UIPC_PT_body, *QUALITY_CLASSES)
+           UIPC_PT_scene, UIPC_PT_body, UIPC_OT_new_identity, *QUALITY_CLASSES)
 _registered_classes = []
 
 
@@ -648,6 +667,7 @@ def register():
 
 
 def unregister():
+    watch.clear()
     preview.unregister()
     runtime.stop()
     _pending_validation.clear()

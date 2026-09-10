@@ -28,6 +28,15 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Invariants
 
+- Version 0.5/schema 5 assigns persistent IDs on explicit bake export, not during
+  validation. `identity.py` resolves request entries by ID and rejects copied or
+  missing identities. The fingerprint sorts identified bodies and canonicalizes
+  controller IDs/signatures; display names are metadata only. Legacy schemas 1-4
+  remain name-based and strip new controller signature fields when hashing.
+  All result/quality attachment must use request order/ID lookup, not current name
+  order. `watch.py` ignores unrelated updates and gates full validation using raw
+  source tokens; do not mistake an unchanged-token fast path for a deep file check.
+
 - Quality sampling is observational and uses SI world positions before MDD's
   float32 conversion. Keep only the previous position/velocity per object, not
   all frames. Copy native views before the next advance. Acceleration needs

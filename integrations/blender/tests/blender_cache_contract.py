@@ -33,7 +33,7 @@ def prepare():
             writer.append(body["vertices"] + [0, 0, frame * 0.01])
         writer.close(commit=True)
         outputs.append({"index": index, "vertices": 3, "sha256": writer.digest.hexdigest()})
-    result = {"schema_version": 4, "fingerprint": request["fingerprint"], "frames": 3,
+    result = {"schema_version": request["schema_version"], "fingerprint": request["fingerprint"], "frames": 3,
               "cache_integrity": 1, "objects": outputs}
     protocol.atomic_json(directory / "result.json", result)
     return directory, request
