@@ -46,12 +46,13 @@ def launch(command, log, cwd):
 
 
 def is_running():
-    return _job is not None
+    from . import render_queue
+    return _job is not None or render_queue.is_running()
 
 
 def start(scene, volume_object=None, volume_file=None, robot_file=None):
     global _job
-    if _job is not None:
+    if is_running():
         raise RuntimeError("A libuipc job is already running")
     command = python_command(scene.uipc_settings.python_executable)
     if robot_file is not None:
@@ -79,13 +80,17 @@ def request_cancel():
         (_job["directory"] / "cancel").touch()
         _job["cancelled_at"] = time.monotonic()
         _job["scene"].uipc_settings.status = "Cancelling simulation"
+    elif _job is None:
+        from . import render_queue
+        render_queue.request_cancel()
 
 
 def poll():
     """Return result on success, False while running, None if idle; raise on failure."""
     global _job
     if _job is None:
-        return None
+        from . import render_queue
+        return render_queue.poll()
     job = _job
     process, scene = job["process"], job["scene"]
     status_path = job["directory"] / "status.json"
@@ -136,6 +141,8 @@ def poll():
 def stop():
     """Only terminate our child; called before file loading or addon unregister."""
     global _job
+    from . import render_queue
+    render_queue.stop()
     if _job is not None:
         job, _job = _job, None
         if job["process"].poll() is None:

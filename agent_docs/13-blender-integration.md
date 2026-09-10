@@ -28,6 +28,15 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Invariants
 
+- `render_queue.py` captures an immutable saved copy and hashes external inputs;
+  `render_worker.py` runs background Blender, not the native solver. Render ranges
+  and camera-list properties are not simulation inputs. Render output/receipts use
+  numeric paths. Resume requires the same snapshot/inputs and validates PNG CRC,
+  dimensions, hash and receipt identity. Never skip a file just because it exists.
+  Jobs own their process/cancel sentinel and share the one-job exclusion with the
+  simulation worker. File load/unregister stops either owned job. Original-directory
+  resume and documented PNG/asset restrictions are intentional initial boundaries.
+
 - Version 0.5/schema 5 assigns persistent IDs on explicit bake export, not during
   validation. `identity.py` resolves request entries by ID and rejects copied or
   missing identities. The fingerprint sorts identified bodies and canonicalizes

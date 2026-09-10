@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **Blender 0.5 render queue (2026-09-10)**: independent render range, multiple
+> cameras, immutable scene snapshots and per-frame PNG receipts are implemented.
+> Actual background-Blender tests render a two-camera subset, preserve the original
+> .blend/timeline/camera/cache, skip four verified frames on resume, repair one
+> damaged frame, cancel safely and reject a changed cache dependency. GPU/backend
+> selection and file tracking are explicit; see the guide for supported inputs.
+
 > **Blender 0.5 identities (2026-09-10)**: schema-5 body/controller IDs decouple
 > names from physics fingerprints and result attachment. Older caches remain
 > name-based. Copied IDs are rejected with an explicit selected-object reset

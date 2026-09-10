@@ -368,6 +368,40 @@ supported runtimes; position diagnostics remain available.
 
 ## Cache validation and guarded rendering
 
+### Independent PNG render queue (0.5)
+
+The timeline **Bake Start/End** still defines the simulated range. **PNG Render
+Queue > Render Start/End** is a separate inclusive range, initially following the
+timeline until explicitly edited. Rendering frames 200-300 of a 1-500 bake does
+not modify its fingerprint, timeline or MDD files. An empty camera list uses the
+active camera; otherwise every enabled, distinct camera renders the selected
+range. Explicit shots override timeline camera-switch markers.
+
+**Validate & Queue Snapshot** verifies the cache and saves a copy of the current
+(including unsaved) scene into a fresh `render_<uuid>` directory. The source
+.blend, camera, frame and render filepath are not changed. Background Blender
+renders the snapshot without importing the native solver. The global Cancel
+Operation button cancels rendering as well as simulation; only one owned job
+runs at a time. **Resume Saved Snapshot** uses the previous snapshot, not current
+scene edits. Choose a job directory in **Resume Job** to resume an older job.
+
+Each PNG has a receipt binding it to the manifest, camera, frame and checksum.
+Resume validates snapshot/dependency hashes and each PNG's dimensions, CRCs and
+checksum; missing, incomplete or changed images are rendered again. Complete
+images remain available after cancellation. Settings/camera changes require a
+new queue. The default output root is `<blend name>_renders` beside the project.
+
+This first queue supports single-view full-frame PNGs. Render borders, external
+image sequences/movies, dirty unpacked images and compositor File Output nodes
+are rejected rather than incompletely tracked. Secondary live Blender physics
+and stateful Geometry Nodes must first become file-backed mesh caches. Assets are referenced and hashed,
+not copied/packed; keep them unchanged and available. Jobs currently resume from
+their original directory with the same Blender version and configured Cycles
+GPU devices. Python auto-execution is disabled in the background renderer.
+Use normal Blender rendering for workflows requiring unsupported scripted drivers
+or additional output files. Scripts may use
+`bpy.ops.uipc.render_queue(blocking=True, resume=False)`.
+
 New 0.5/schema-5 bakes use persistent object/controller IDs rather than display
 names. Renaming an object or reordering names therefore does not invalidate a
 new cache or change which mesh receives it. Older caches keep their original

@@ -12,16 +12,17 @@ import hashlib
 import importlib
 import json
 import math
-import os
 from pathlib import Path
 import struct
 import sys
 import time
-import zlib
 
 import bpy
 import numpy as np
 from mathutils import Matrix, Vector
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "libuipc_blender"))
+from render_protocol import png_info, replace_with_retry
 
 
 def sha256(path):
@@ -36,46 +37,6 @@ def write_json(path, data):
     temporary = path.with_suffix(".json.partial")
     temporary.write_text(json.dumps(data, indent=2), encoding="utf-8")
     temporary.replace(path)
-
-
-def replace_with_retry(source, destination):
-    """Antivirus/indexers can briefly hold a freshly encoded PNG on Windows."""
-    for attempt in range(100):
-        try:
-            os.replace(source, destination)
-            return
-        except PermissionError:
-            if attempt == 99:
-                raise
-            time.sleep(0.02)
-
-
-def png_info(path):
-    """Check PNG chunk CRCs and completion without decoding through Blender."""
-    with path.open("rb") as stream:
-        if stream.read(8) != b"\x89PNG\r\n\x1a\n":
-            raise ValueError(f"Invalid PNG signature: {path}")
-        dimensions = None
-        data_seen = False
-        while True:
-            header = stream.read(8)
-            if len(header) != 8:
-                raise ValueError(f"Incomplete PNG: {path}")
-            length, kind = struct.unpack(">I4s", header)
-            payload = stream.read(length)
-            crc = stream.read(4)
-            if len(payload) != length or len(crc) != 4:
-                raise ValueError(f"Truncated PNG chunk: {path}")
-            if zlib.crc32(payload, zlib.crc32(kind)) != struct.unpack(">I", crc)[0]:
-                raise ValueError(f"PNG CRC mismatch: {path}")
-            if kind == b"IHDR":
-                dimensions = struct.unpack(">II", payload[:8])
-            if kind == b"IDAT":
-                data_seen = True
-            if kind == b"IEND":
-                if not data_seen or dimensions is None or stream.read(1):
-                    raise ValueError(f"Invalid PNG ending: {path}")
-                return dimensions
 
 
 def gpu_settings(scene):

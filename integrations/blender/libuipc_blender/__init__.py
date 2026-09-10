@@ -17,6 +17,7 @@ from .protocol import MODIFIER_NAME, read_json
 from .material_ui import (MATERIAL_CLASSES, UIPCContactPair, UIPCPhysicalPreset,
                           draw_contact_pairs, draw_material_preset)
 from .quality_ui import QUALITY_CLASSES
+from .render_ui import RENDER_CLASSES, UIPCRenderCamera
 from . import preview
 from . import watch
 
@@ -43,6 +44,15 @@ def changed(self, context):
 
 
 class UIPCSceneSettings(bpy.types.PropertyGroup):
+    render_cameras: CollectionProperty(type=UIPCRenderCamera)
+    render_directory: StringProperty(name="Render Output", subtype="DIR_PATH")
+    last_render_job: StringProperty(name="Resume Render Job", subtype="DIR_PATH")
+    render_first: IntProperty(name="Render Start", min=-1048574, max=1048574,
+        get=lambda self: int(self.get("render_first", self.id_data.frame_start)),
+        set=lambda self, value: self.__setitem__("render_first", value))
+    render_last: IntProperty(name="Render End", min=-1048574, max=1048574,
+        get=lambda self: int(self.get("render_last", self.id_data.frame_end)),
+        set=lambda self, value: self.__setitem__("render_last", value))
     quality_summary: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
     quality_bake: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
     quality_vertex: IntProperty(default=-1, options={"HIDDEN", "SKIP_SAVE"})
@@ -183,7 +193,7 @@ def _poll_timer():
         runtime.poll()
     except Exception as error:
         for scene in bpy.data.scenes:
-            if scene.uipc_settings.status.startswith(("Baking", "Initializing", "Cancelling", "Preparing")):
+            if scene.uipc_settings.status.startswith(("Baking", "Initializing", "Cancelling", "Preparing", "Rendering")):
                 scene.uipc_settings.status = str(error)
         print(f"libuipc: {error}")
     for window in bpy.context.window_manager.windows:
@@ -481,8 +491,8 @@ class UIPC_PT_scene(bpy.types.Panel):
         column.operator("uipc.check_runtime")
         column.prop(settings, "cache_directory")
         row = column.row(align=True)
-        row.prop(context.scene, "frame_start", text="Start")
-        row.prop(context.scene, "frame_end", text="End")
+        row.prop(context.scene, "frame_start", text="Bake Start")
+        row.prop(context.scene, "frame_end", text="Bake End")
         column.label(text=f"{context.scene.render.fps / context.scene.render.fps_base:g} FPS; {context.scene.unit_settings.scale_length:g} m / unit")
         column.prop(settings, "substeps")
         column.prop(settings, "solver_accuracy")
@@ -514,7 +524,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.operator("uipc.detach_cache")
         row = layout.row(align=True)
         row.operator("uipc.render_validated", text="Validate & Render").animation = False
-        row.operator("uipc.render_validated", text="Render Animation").animation = True
+        row.operator("uipc.render_validated", text="Render Full Timeline").animation = True
         layout.operator("uipc.create_demo")
         layout.operator("uipc.import_volume")
         layout.operator("uipc.import_robot")
@@ -644,7 +654,7 @@ def _load_post(_):
         bpy.app.timers.register(_validate_pending, first_interval=0.1)
 
 
-CLASSES = (*MATERIAL_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
+CLASSES = (*MATERIAL_CLASSES, *RENDER_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,
