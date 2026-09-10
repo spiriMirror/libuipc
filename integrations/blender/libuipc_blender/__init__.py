@@ -268,6 +268,27 @@ class UIPC_OT_validate(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class UIPC_OT_render_validated(bpy.types.Operator):
+    bl_idname = "uipc.render_validated"
+    bl_label = "Validate and Render"
+    bl_description = "Verify physical inputs, cache checksums and playback settings before starting the render"
+    animation: BoolProperty(default=False)
+
+    @classmethod
+    def poll(cls, context):
+        return not runtime.is_running()
+
+    def execute(self, context):
+        try:
+            bridge.validate_for_render(context.scene, animation=self.animation)
+        except Exception as error:
+            context.scene.uipc_settings.status = f"Render blocked: {error}"
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        mode = "EXEC_DEFAULT" if bpy.app.background else "INVOKE_DEFAULT"
+        return bpy.ops.render.render(mode, animation=self.animation, write_still=not self.animation)
+
+
 class UIPC_OT_detach(bpy.types.Operator):
     bl_idname = "uipc.detach_cache"
     bl_label = "Detach Cache"
@@ -450,6 +471,9 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.enabled = not runtime.is_running()
         row.operator("uipc.validate_cache")
         row.operator("uipc.detach_cache")
+        row = layout.row(align=True)
+        row.operator("uipc.render_validated", text="Validate & Render").animation = False
+        row.operator("uipc.render_validated", text="Render Animation").animation = True
         layout.operator("uipc.create_demo")
         layout.operator("uipc.import_volume")
         layout.operator("uipc.import_robot")
@@ -573,7 +597,7 @@ def _load_post(_):
 
 
 CLASSES = (UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
-           UIPC_OT_validate, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
+           UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,
            UIPC_PT_scene, UIPC_PT_body)

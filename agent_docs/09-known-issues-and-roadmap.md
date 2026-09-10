@@ -1,7 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
 Blender 0.4 (2026-09-10) separates all three cloth E/Poisson channels while
-preserving old shared-ratio scenes/caches. Cache/render verification, contact
+preserving old shared-ratio scenes/caches. Cache integrity, playback validation,
+transactional attachment and guarded render operators are implemented and tested.
+Ordinary F12/direct Blender rendering is intentionally not intercepted. Contact
 material pairs and quality-report UI are the current integration follow-up.
 
 Status as of 2026-09-03. Completed performance work is

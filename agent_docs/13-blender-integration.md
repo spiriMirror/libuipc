@@ -26,6 +26,19 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Invariants
 
+- Cache attachment is transactional across objects: save every touched modifier
+  and the scene references, restore them on failure. `validate_result()` is shared
+  by attachment and later cache checks; do not trust result-provided counts.
+  New MDD writers compute SHA-256 while streaming; deep explicit/render checks
+  verify it. Debounced checks verify inputs, provenance, headers and all playback
+  settings without hashing every frame's bytes. Hidden modifiers may be validated
+  and explicitly reactivated; validated rendering rejects render-disabled caches.
+- `uipc.render_validated` is the guarded render entry point. Do not pretend a
+  render-handler exception cancels ordinary F12/direct Blender renders. Those
+  entry points remain unguarded. Factory-Blender contract tests inject a failure
+  on the second attachment and check rollback, modified playback controls,
+  same-size cache corruption, invalid result lists and pre-render rejection.
+
 - Version 0.4/schema 4 separates cloth stretch/shear/bending Poisson ratios.
   Existing E property IDs remain unchanged. Missing RNA values inherit the
   old shared `poisson` without mutating saved scenes; setters store each channel

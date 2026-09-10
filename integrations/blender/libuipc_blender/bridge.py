@@ -13,6 +13,37 @@ import numpy as np
 from .protocol import (SCHEMA_VERSION, MODIFIER_NAME, OBJECT_FIELDS, atomic_json,
                        fingerprint, cache_fingerprint, inspect_mdd, read_json, validate_mesh, validate_tetmesh)
 from .protocol import SOLVER_FIELDS, validate_solver_settings
+from .protocol import validate_result, file_sha256
+
+
+CACHE_PROPERTIES = ("cache_format", "filepath", "time_mode", "play_mode", "frame_start",
+                    "frame_scale", "deform_mode", "interpolation", "forward_axis", "up_axis",
+                    "flip_axis", "factor", "vertex_group", "invert_vertex_group",
+                    "show_viewport", "show_render")
+
+
+def cache_settings(request):
+    return {"cache_format": "MDD", "time_mode": "FRAME", "play_mode": "SCENE",
+            "frame_start": request["settings"]["frame_start"], "frame_scale": 1.0,
+            "deform_mode": "OVERWRITE", "interpolation": "LINEAR",
+            "forward_axis": "POS_Y", "up_axis": "POS_Z", "flip_axis": (False, False, False),
+            "factor": 1.0, "vertex_group": "", "invert_vertex_group": False}
+
+
+def configure_cache_modifier(modifier, path, request):
+    for key, value in cache_settings(request).items():
+        setattr(modifier, key, value)
+    modifier.filepath = bpy.path.relpath(str(path)) if bpy.data.filepath else str(path)
+    modifier.show_viewport = modifier.show_render = True
+
+
+def validate_output_files(directory, request, result, bodies, verify_data):
+    frames = validate_result(request, result, [len(b["vertices"]) for b in bodies])
+    for output in result["objects"]:
+        path = directory / f"object_{output['index']:04d}.mdd"
+        inspect_mdd(path, frames, output["vertices"])
+        if verify_data and output.get("sha256") and file_sha256(path) != output["sha256"]:
+            raise ValueError(f"Cache checksum mismatch: {path.name}; restore or rebake the cache")
 
 
 def cache_root(scene):
@@ -175,47 +206,40 @@ def attach_cache(scene, directory, request):
         raise ValueError("Bake result does not match the exported scene")
     if fingerprint(current_settings, bodies) != expected:
         raise ValueError("Scene changed during baking; result was preserved on disk. Bake again")
-    expected_outputs = [i for i, b in enumerate(bodies) if b["material"]["role"] != "STATIC"]
-    if [o["index"] for o in result["objects"]] != expected_outputs:
-        raise ValueError("Bake result has missing/duplicate objects")
-    frames = request["settings"]["frame_end"] - request["settings"]["frame_start"] + 1
-    if result["frames"] != frames:
-        raise ValueError("Bake result has the wrong frame count")
-    for output in result["objects"]:
-        index = output["index"]
-        vertices = len(bodies[index]["vertices"])
-        if output["vertices"] != vertices:
-            raise ValueError("Bake result has the wrong vertex count")
-        inspect_mdd(directory / f"object_{index:04d}.mdd", frames, vertices)
-    # Validate the entire result before replacing any previous cache attachment.
-    for output in result["objects"]:
-        index = output["index"]
-        obj = scene.objects[request["objects"][index]["name"]]
-        modifier = obj.modifiers.get(MODIFIER_NAME)
-        if modifier is None:
-            modifier = obj.modifiers.new(MODIFIER_NAME, "MESH_CACHE")
-        modifier.cache_format = "MDD"
-        modifier.filepath = bpy.path.relpath(str(directory / f"object_{index:04d}.mdd")) if bpy.data.filepath else str(directory / f"object_{index:04d}.mdd")
-        modifier.time_mode = "FRAME"
-        modifier.play_mode = "SCENE"
-        modifier.frame_start = request["settings"]["frame_start"]
-        modifier.frame_scale = 1.0
-        modifier.deform_mode = "OVERWRITE"
-        modifier.interpolation = "LINEAR"
-        modifier.forward_axis = "POS_Y"
-        modifier.up_axis = "POS_Z"
-        modifier.flip_axis = (False, False, False)
-        modifier.factor = 1.0
-        modifier.show_viewport = True
-        modifier.show_render = True
-        obj.modifiers.move(list(obj.modifiers).index(modifier), 0)
-    scene.uipc_settings.last_bake = bpy.path.relpath(str(directory)) if bpy.data.filepath else str(directory)
-    scene.uipc_settings.baked_fingerprint = expected
-    scene.frame_set(scene.frame_current)
+    validate_output_files(directory, request, result, bodies, True)
+    previous = (scene.uipc_settings.last_bake, scene.uipc_settings.baked_fingerprint)
+    changes = []
+    try:
+        for output in result["objects"]:
+            index = output["index"]
+            obj = scene.objects[request["objects"][index]["name"]]
+            modifier = obj.modifiers.get(MODIFIER_NAME)
+            snapshot = None
+            if modifier is not None:
+                snapshot = {key: tuple(getattr(modifier, key)) if key == "flip_axis" else getattr(modifier, key)
+                            for key in CACHE_PROPERTIES}
+            else:
+                modifier = obj.modifiers.new(MODIFIER_NAME, "MESH_CACHE")
+            changes.append((obj, modifier, snapshot, list(obj.modifiers).index(modifier)))
+            configure_cache_modifier(modifier, directory / f"object_{index:04d}.mdd", request)
+            obj.modifiers.move(list(obj.modifiers).index(modifier), 0)
+        scene.uipc_settings.last_bake = bpy.path.relpath(str(directory)) if bpy.data.filepath else str(directory)
+        scene.uipc_settings.baked_fingerprint = expected
+        scene.frame_set(scene.frame_current)
+    except Exception:
+        for obj, modifier, snapshot, position in reversed(changes):
+            if snapshot is None:
+                obj.modifiers.remove(modifier)
+            else:
+                for key, value in snapshot.items():
+                    setattr(modifier, key, value)
+                obj.modifiers.move(list(obj.modifiers).index(modifier), position)
+        scene.uipc_settings.last_bake, scene.uipc_settings.baked_fingerprint = previous
+        raise
     return result
 
 
-def check_cache(scene):
+def check_cache(scene, verify_data=False):
     if not scene.uipc_settings.last_bake:
         raise ValueError("No completed bake")
     directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
@@ -224,6 +248,7 @@ def check_cache(scene):
     if cache_fingerprint(request, settings, bodies) != request["fingerprint"]:
         raise ValueError("Cache is stale: geometry, transforms, pins, materials, or scene settings changed")
     result = read_json(directory / "result.json")
+    validate_output_files(directory, request, result, bodies, verify_data)
     for output in result["objects"]:
         index = output["index"]
         obj = scene.objects.get(request["objects"][index]["name"])
@@ -233,13 +258,36 @@ def check_cache(scene):
         expected_path = directory / f"object_{index:04d}.mdd"
         if Path(bpy.path.abspath(modifier.filepath)).resolve() != expected_path.resolve():
             raise ValueError("Cache modifier path has changed")
-        inspect_mdd(expected_path, result["frames"], output["vertices"])
+        if list(obj.modifiers).index(modifier) != 0:
+            raise ValueError(f"{obj.name}: cache modifier must be first in the stack")
+        for key, expected in cache_settings(request).items():
+            actual = tuple(getattr(modifier, key)) if key == "flip_axis" else getattr(modifier, key)
+            if actual != expected:
+                raise ValueError(f"{obj.name}: cache playback setting '{key}' changed; expected {expected}")
+    return result
+
+
+def validate_for_render(scene, animation=False):
+    if not scene.uipc_settings.last_bake:
+        if any(o.uipc_body.role != "NONE" for o in scene.objects):
+            raise ValueError("Bake the physical scene before validated rendering")
+        return None
+    result = check_cache(scene, verify_data=True)
+    directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))
+    request = read_json(directory / "request.json")
+    start, end = request["settings"]["frame_start"], request["settings"]["frame_end"]
+    if not animation and not start <= scene.frame_current + scene.frame_subframe <= end:
+        raise ValueError("Render frame is outside the simulated cache range")
+    for output in result["objects"]:
+        obj = scene.objects[request["objects"][output["index"]]["name"]]
+        if not obj.modifiers[MODIFIER_NAME].show_render:
+            raise ValueError(f"{obj.name}: cache is disabled for rendering; validate/reactivate it first")
     return result
 
 
 def activate_cache(scene):
     """Explicit validation can restore a cache after its inputs were reverted."""
-    result = check_cache(scene)
+    result = check_cache(scene, verify_data=True)
     request = read_json(Path(bpy.path.abspath(scene.uipc_settings.last_bake)) / "request.json")
     # Only restore modifiers whose input signature, path and file were checked.
     for output in result["objects"]:

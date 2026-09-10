@@ -325,7 +325,9 @@ def simulate(directory, parent):
             "solver_statistics_available": frame_stats is not None,
             "cloth_stiffness": {b["name"]: cloth_stiffness(b["material"])
                                 for b in bodies if b["material"]["role"] == "CLOTH"},
-            "objects": [{"index": o["index"], "vertices": o["vertices"]} for o in outputs],
+            "cache_integrity": 1,
+            "objects": [{"index": o["index"], "vertices": o["vertices"],
+                         "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })
         atomic_json(directory / "status.json", {"state": "complete", "frame": frame_count, "total": frame_count})
     finally:

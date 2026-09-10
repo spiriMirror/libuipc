@@ -310,6 +310,22 @@ coordinates, singular transforms, and invalid pin groups are rejected.
 
 ## Modifiers, caches, and limitations
 
+Version 0.4 checks the complete result object list/provenance and every managed
+Mesh Cache playback setting (time mapping, factor, axes, vertex group and stack
+position). Explicit **Validate Cache** also verifies SHA-256 checksums recorded
+by new bakes. Legacy caches without checksums retain structural/input validation;
+rebake to add byte-level integrity. Automatic/debounced checks avoid rereading
+all cache bytes. A failed attachment restores all previous modifier settings,
+ordering and scene cache references, including failures on later objects.
+
+Use **Validate & Render** or **Render Animation** in the libuipc panel to run
+full validation before dispatching Blender's renderer. Invalid/stale/disabled
+caches or out-of-range still frames block that operator before any rendering.
+Scripts can call `bpy.ops.uipc.render_validated(animation=True)`.
+Ordinary F12 and direct `bpy.ops.render.render` remain Blender's unguarded entry
+points: Python handler exceptions do not reliably cancel rendering, so the
+extension does not claim to intercept them. Playback without the addon is unchanged.
+
 - Simulation uses the **base mesh**. The generated MDD modifier is first in the
   stack. For cloth/rigid bodies, Subdivision, Solidify, Bevel, and Weighted Normal
   modifiers may follow as visual effects; their additional geometry does not

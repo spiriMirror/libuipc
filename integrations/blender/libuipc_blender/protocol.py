@@ -137,6 +137,40 @@ def positive(value, name, allow_zero=False):
         raise ValueError(f"{name} must be finite and {'non-negative' if allow_zero else 'positive'}")
 
 
+def validate_result(request, result, vertex_counts):
+    """Never trust result-provided counts, indices or provenance in isolation."""
+    frames = request["settings"]["frame_end"] - request["settings"]["frame_start"] + 1
+    if (result.get("schema_version") != request["schema_version"]
+            or result.get("fingerprint") != request["fingerprint"]):
+        raise ValueError("Bake result provenance does not match the request")
+    if type(result.get("frames")) is not int or result["frames"] != frames:
+        raise ValueError("Bake result has the wrong frame count")
+    outputs = result.get("objects")
+    expected = [i for i, entry in enumerate(request["objects"]) if entry["material"]["role"] != "STATIC"]
+    if not isinstance(outputs, list) or any(not isinstance(o, dict) for o in outputs):
+        raise ValueError("Bake result object list is invalid")
+    if [o.get("index") for o in outputs] != expected:
+        raise ValueError("Bake result has missing, duplicate or unexpected objects")
+    for output, index in zip(outputs, expected):
+        if (type(output["index"]) is not int or type(output.get("vertices")) is not int
+                or output["vertices"] != vertex_counts[index]):
+            raise ValueError("Bake result has an invalid object/vertex count")
+        digest = output.get("sha256")
+        if result.get("cache_integrity") == 1 and (
+                not isinstance(digest, str) or len(digest) != 64
+                or any(c not in "0123456789abcdef" for c in digest)):
+            raise ValueError("Bake result is missing a valid cache checksum")
+    return frames
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def validate_mesh(vertices, triangles, role, name, allow_components=False):
     """Validate input before any native call; preserve the original vertex indexing."""
     vertices = np.asarray(vertices, dtype=np.float64)
@@ -271,9 +305,14 @@ class MDDWriter:
         self.temporary = self.path.with_suffix(".mdd.partial")
         self.frame_count, self.vertex_count = frame_count, vertex_count
         self.written = 0
+        self.digest = hashlib.sha256()
         self.file = self.temporary.open("xb")
-        self.file.write(struct.pack(">ii", frame_count, vertex_count))
-        self.file.write((np.arange(frame_count, dtype=np.float64) / fps).astype(">f4").tobytes())
+        self._write(struct.pack(">ii", frame_count, vertex_count))
+        self._write((np.arange(frame_count, dtype=np.float64) / fps).astype(">f4").tobytes())
+
+    def _write(self, data):
+        self.file.write(data)
+        self.digest.update(data)
 
     def append(self, positions):
         positions = np.asarray(positions)
@@ -281,7 +320,7 @@ class MDDWriter:
             raise ValueError("Invalid or non-finite simulation output")
         with np.errstate(over="raise", invalid="raise"):
             data = positions.astype(">f4")
-        self.file.write(data.tobytes())
+        self._write(data.tobytes())
         self.written += 1
 
     def close(self, commit=False):

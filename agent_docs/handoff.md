@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Blender cache reliability (2026-09-10)**: complete result/provenance checks,
+> streamed MDD checksums, playback-parameter validation and transactional attachment
+> rollback are implemented. Guarded render operators validate before dispatch;
+> ordinary F12/direct render stays unguarded. Twenty-four portable tests, factory
+> Blender fault-injection tests and a fresh three-frame CUDA bake/playback pass.
+
 > **Blender independent cloth channels (2026-09-10)**: 0.4/schema 4 exposes
 > separate stretch/shear/bending Poisson ratios alongside existing independent
 > Young's moduli. Old scenes inherit the original shared ratio until edited;
