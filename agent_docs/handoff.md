@@ -1,5 +1,13 @@
 # Handoff — Current State of the Repo
 
+> **Blender performance stage 1 (2026-09-11)**: host phase timings and byte/call
+> accounting are integrated without added GPU synchronization or physics changes.
+> Export/attach/check timings do not mutate Scene RNA. Frozen-input benchmarks
+> cover cloth, ABD and a spatially separated sample-87 mixed workload; one warmup
+> plus three fresh-process trials. Preview baseline: 16,641 vertices, ~59.6 ms warm
+> CPU preparation median. 43 portable tests and Blender/CUDA quick contact pass.
+> Evidence: `output/blender-perf-06-*`. Preview and fixed-output optimization follow.
+
 > **Blender 0.5 workflow delivery (2026-09-11)**: the stable-ID/validation fast
 > path, independent multi-camera PNG queue and robot joint/pose panel are complete.
 > Forty-one portable tests cover identity, snapshots/receipts, manifest limits and

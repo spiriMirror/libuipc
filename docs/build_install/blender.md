@@ -1,5 +1,14 @@
 # Blender Extension
 
+### Performance reports
+
+New bakes include `result.json.performance`. **Load Quality Report** shows solve
+plus retrieval time, diagnostic time, cache I/O time, bytes, and the last frontend
+export/attach/validation timings. Values are host wall seconds with no added GPU
+synchronization, not isolated CUDA kernel times. Physics settings are unchanged.
+Historical caches without timings still load. Reproducible benchmark instructions
+are in the repository's `agent_docs/13-blender-integration.md`.
+
 The **libuipc Physics** extension connects Blender to the public `pyuipc` API.
 Blender exports meshes and physics settings, an external Python process runs
 the CUDA solver, and native Mesh Cache modifiers play the resulting MDD files.

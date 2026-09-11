@@ -1,5 +1,10 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Blender performance instrumentation and frozen-input baseline tooling are now
+implemented (2026-09-11). No added GPU synchronization or solver changes. Preview
+resource reuse and fixed-output compaction are the next accepted stages; moving
+ABD encoding must preserve full affine motion and addon-free playback.
+
 Blender 0.5 stable object/controller identities and relevant-input validation
 gates are implemented. Older cache schemas stay name-based until rebaked.
 Independent render ranges and a verified snapshot PNG queue are implemented.

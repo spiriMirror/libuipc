@@ -20,6 +20,7 @@ from .quality_ui import QUALITY_CLASSES
 from .render_ui import RENDER_CLASSES, UIPCRenderCamera
 from .robot_controls import ROBOT_CLASSES, UIPCRobotSettings
 from . import preview
+from . import performance
 from . import watch
 
 _pending_validation = set()
@@ -646,6 +647,7 @@ def _load_pre(_):
     runtime.stop()
     _pending_validation.clear()
     watch.clear()
+    performance.clear()
 
 
 @persistent
@@ -682,6 +684,7 @@ def register():
 
 def unregister():
     watch.clear()
+    performance.clear()
     preview.unregister()
     runtime.stop()
     _pending_validation.clear()

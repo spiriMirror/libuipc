@@ -16,6 +16,7 @@ from .protocol import SOLVER_FIELDS, validate_solver_settings
 from .protocol import validate_result, file_sha256
 from .protocol import match_bodies
 from .identity import object_id, ensure_scene_ids, resolve_object
+from .performance import frontend_phase
 
 
 CACHE_PROPERTIES = ("cache_format", "filepath", "time_mode", "play_mode", "frame_start",
@@ -179,6 +180,7 @@ def collect_scene(scene, validate_geometry=True):
     return simulation, bodies
 
 
+@frontend_phase("export")
 def export_job(scene):
     from .motion import sample_targets, sample_hash, align_robot_initial
     align_robot_initial(scene)
@@ -214,6 +216,7 @@ def export_robot_job(scene, filename):
     return directory, request
 
 
+@frontend_phase("attach")
 def attach_cache(scene, directory, request):
     result = read_json(directory / "result.json")
     current_settings, bodies = collect_scene(scene)
@@ -256,6 +259,7 @@ def attach_cache(scene, directory, request):
     return result
 
 
+@frontend_phase("validate")
 def check_cache(scene, verify_data=False):
     if not scene.uipc_settings.last_bake:
         raise ValueError("No completed bake")

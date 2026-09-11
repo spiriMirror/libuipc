@@ -13,6 +13,7 @@ import traceback
 import numpy as np
 from materials import cloth_moduli, cloth_stiffness, build_contact_plan
 from quality import QualityRecorder
+from performance import Timings
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
                       positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256)
@@ -148,9 +149,13 @@ def configure_contacts(scene, settings, bodies):
 
 
 def simulate(directory, parent):
-    request, bodies = load_request(directory)
+    timings = Timings()
+    with timings.measure("input_load_validate"):
+        request, bodies = load_request(directory)
     settings = request["settings"]
-    uipc = load_runtime()
+    with timings.measure("runtime_import"):
+        uipc = load_runtime()
+    setup_started = time.perf_counter()
     from uipc import builtin, view
     from uipc.geometry import trimesh, tetmesh, label_surface, label_triangle_orient
     from uipc.constitution import (AffineBodyConstitution, DiscreteShellBending,
@@ -269,19 +274,23 @@ def simulate(directory, parent):
     # Engine must outlive World and all native calls. One process owns one World.
     engine = uipc.Engine("cuda", str(directory / "solver") + os.sep)
     world = uipc.World(engine)
+    timings.add("scene_engine_setup", time.perf_counter() - setup_started)
     started = time.monotonic()
-    world.init(scene)
+    with timings.measure("world_init"):
+        world.init(scene)
     if not world.is_valid():
         raise RuntimeError("Scene initialization failed; inspect worker.log for mesh/contact diagnostics")
-    world.retrieve()
+    with timings.measure("retrieve"):
+        world.retrieve()
     writers = []
     statistics = (directory / "solver_steps.jsonl").open("w", encoding="utf-8")
     quality = QualityRecorder(directory, request)
     frame_stats = getattr(engine, "frame_stats", None)
     try:
         for output in outputs:
-            writers.append(MDDWriter(directory / f"object_{output['index']:04d}.mdd",
-                                     frame_count, output["vertices"], settings["fps"]))
+            with timings.measure("cache_write"):
+                writers.append(MDDWriter(directory / f"object_{output['index']:04d}.mdd",
+                                         frame_count, output["vertices"], settings["fps"]))
         for frame in range(frame_count):
             if not parent.alive() or (directory / "cancel").exists():
                 atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
@@ -292,38 +301,59 @@ def simulate(directory, parent):
                         atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
                         return
                     motion_step[0] += 1
-                    world.advance()
-                    if frame_stats is not None:
-                        stats = dict(frame_stats())
-                        statistics.write(json.dumps({
-                            "output_frame": frame + settings["frame_start"], "substep": motion_step[0], **stats,
-                        }) + "\n")
-                        quality.record_solver(frame + settings["frame_start"], motion_step[0], stats)
+                    with timings.measure("advance"):
+                        world.advance()
+                    with timings.measure("solver_diagnostics"):
+                        if frame_stats is not None:
+                            stats = dict(frame_stats())
+                            statistics.write(json.dumps({
+                                "output_frame": frame + settings["frame_start"], "substep": motion_step[0], **stats,
+                            }) + "\n")
+                            quality.record_solver(frame + settings["frame_start"], motion_step[0], stats)
                     if not world.is_valid():
                         raise RuntimeError(f"Simulation failed at output frame {frame}")
-                world.retrieve()
-                statistics.flush()
+                with timings.measure("retrieve"):
+                    world.retrieve()
+                with timings.measure("solver_diagnostics"):
+                    statistics.flush()
             for output, writer in zip(outputs, writers):
-                geometry = output["slot"].geometry()
-                points = np.asarray(geometry.positions().view()).reshape(-1, 3)
-                if output["role"] == "RIGID":
-                    transform = np.asarray(geometry.transforms().view()).reshape(-1, 4, 4)[0]
-                    points = points @ transform[:3, :3].T + transform[:3, 3]
-                quality.record_object(output["index"], frame + settings["frame_start"], points)
-                points = points / settings["unit_scale"]
-                inverse = output["inverse"]
-                writer.append(points @ inverse[:3, :3].T + inverse[:3, 3])
-            atomic_json(directory / "status.json", {
-                "state": "running", "frame": frame + 1, "total": frame_count,
-                "elapsed_seconds": time.monotonic() - started,
-            })
-        for writer in writers:
-            writer.close(commit=True)
-        quality.finish()
+                with timings.measure("output_transform"):
+                    geometry = output["slot"].geometry()
+                    points = np.asarray(geometry.positions().view()).reshape(-1, 3)
+                    if output["role"] == "RIGID":
+                        transform = np.asarray(geometry.transforms().view()).reshape(-1, 4, 4)[0]
+                        points = points @ transform[:3, :3].T + transform[:3, 3]
+                with timings.measure("motion_diagnostics"):
+                    quality.record_object(output["index"], frame + settings["frame_start"], points)
+                with timings.measure("output_transform"):
+                    points = points / settings["unit_scale"]
+                    inverse = output["inverse"]
+                    local_points = points @ inverse[:3, :3].T + inverse[:3, 3]
+                with timings.measure("cache_write"):
+                    writer.append(local_points)
+            with timings.measure("status_write"):
+                atomic_json(directory / "status.json", {
+                    "state": "running", "frame": frame + 1, "total": frame_count,
+                    "elapsed_seconds": time.monotonic() - started,
+                })
+        with timings.measure("cache_finalize"):
+            for writer in writers:
+                writer.close(commit=True)
+        with timings.measure("diagnostics_finalize"):
+            quality.finish()
+            statistics.flush()
+            quality_digest = file_sha256(directory / "quality_report.json")
+        performance = timings.report()
+        performance.update(output_frames=frame_count, native_steps=motion_step[0],
+                           output_vertices=sum(o["vertices"] for o in outputs),
+                           cache_bytes=sum(writer.path.stat().st_size for writer in writers),
+                           diagnostics_bytes=sum((directory / name).stat().st_size for name in
+                               ("solver_steps.jsonl", "quality_frames.jsonl", "quality_report.json")))
         atomic_json(directory / "result.json", {
             "schema_version": request["schema_version"], "fingerprint": request["fingerprint"],
             "build_info": uipc.build_info(), "frames": frame_count,
             "elapsed_seconds": time.monotonic() - started,
+            "performance": performance,
             "solver_accuracy": accuracy, "effective_newton": config["newton"],
             "effective_linear_system": config["linear_system"],
             "effective_line_search": config["line_search"],
@@ -332,7 +362,7 @@ def simulate(directory, parent):
                                 for b in bodies if b["material"]["role"] == "CLOTH"},
             "cache_integrity": 1,
             "effective_contacts": contact_plan,
-            "quality_report_sha256": file_sha256(directory / "quality_report.json"),
+            "quality_report_sha256": quality_digest,
             "objects": [{"index": o["index"], "vertices": o["vertices"],
                          "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })

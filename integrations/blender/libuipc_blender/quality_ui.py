@@ -32,6 +32,7 @@ def load_report(scene, validate=True):
     from .identity import resolve_object
     for entry in report["objects"]:
         entry["name"] = resolve_object(scene, request["objects"][entry["index"]], request["schema_version"]).name
+    report["performance"] = result.get("performance", {})
     scene.uipc_settings.quality_summary = json.dumps(report, allow_nan=False)
     scene.uipc_settings.quality_bake = scene.uipc_settings.last_bake
     return report
@@ -130,6 +131,19 @@ class UIPC_PT_quality(bpy.types.Panel):
         except ValueError:
             return
         solver = report["solver"]
+        performance = report.get("performance", {})
+        if performance:
+            phases = performance["phases"]
+            seconds = lambda names: sum(phases.get(n, {}).get("seconds", 0) for n in names)
+            box = layout.box()
+            box.label(text="Host wall time (no extra GPU synchronization)")
+            box.label(text=f"Solve + retrieve: {seconds(('advance', 'retrieve')):.3f} s")
+            box.label(text=f"Diagnostics: {seconds(('motion_diagnostics', 'solver_diagnostics', 'diagnostics_finalize')):.3f} s")
+            box.label(text=f"Cache I/O: {seconds(('cache_write', 'cache_finalize')):.3f} s")
+            box.label(text=f"Cache: {performance['cache_bytes'] / 1048576:.2f} MiB")
+            from .performance import frontend_report
+            for name, entry in frontend_report(context.scene).items():
+                box.label(text=f"Last {name}: {entry['last_seconds']:.3f} s")
         if solver["steps"]:
             layout.label(text=f"Peak iterations: Newton {solver['max_newton_iterations']}, PCG {solver['max_linear_solver_iterations']}")
             layout.label(text=f"Peak line-search trials: {solver['max_line_search_trials']}")

@@ -11,6 +11,37 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Source map
 
+`performance.py` records non-mutating frontend timings and worker host timings.
+
+## Performance baseline (2026-09-11)
+
+`result.json.performance` records host wall seconds/call counts for input loading,
+runtime import, scene/engine construction, initialization, advance, retrieve,
+coordinate conversion, diagnostics, cache I/O and status writes. It also records
+output frames/vertices, native steps and actual cache/diagnostic bytes. No CUDA
+synchronization is added: report advance + retrieve together; these are not kernel
+timings. `total_seconds` starts at worker input loading and excludes final result
+serialization/process exit. The existing `elapsed_seconds` still starts at world
+initialization. Frontend export/attach/check timings live in bounded process memory,
+not Scene RNA, and are cleared on load/unregister. Quality UI displays the summary.
+
+Reproduce the baseline with background Blender running
+`integrations/blender/tests/blender_performance.py` and arguments
+`-- --python <native-python> --output <inputs-dir> --urdf <sample-87 robot_hand.urdf>`.
+Then run the external Python on `integrations/blender/tests/benchmark_worker.py`
+with `--inputs <inputs-dir> --output <fresh-results-dir>`.
+The latter uses one warmup + three measured fresh-process trials per workload and
+hashes frozen NPZ inputs. Pure cloth, pure ABD (four falling/two fixed spheres),
+and mixed cloth/ABD/17 driven hand links run 31 frames, two substeps, CONVERGED.
+The hand is spatially separated: this is a workflow baseline, not a grasp benchmark.
+Keep the inputs, native build, device and solver settings identical for comparisons.
+The preview-only 129 x 129 grid measures repeated CPU preview preparation, not GPU
+draw duration. Reopen its saved source with `--measure <label>` for comparisons.
+Local initial evidence is in `output/blender-perf-06-*`; 43 portable tests and the
+real Blender/CUDA three-frame contact regression pass with instrumentation enabled.
+
+## Module ownership
+
 | File | Ownership |
 |---|---|
 | `__init__.py` | RNA properties, sidebar panels, operators, main-thread polling, stale-cache/load/unregister hooks |
