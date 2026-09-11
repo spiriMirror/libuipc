@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
+`4757859c`. This inspection updated documentation only. Open priorities include
+Python facade ownership, BDF2 history startup, unsafe post-build package/path
+handling, material validation, manual publishing, MeshDoctor, modified curve
+conversion and CUDA graph error propagation. The report distinguishes focused
+reproductions from source-confirmed paths and unverified risks. Passing current
+tests is not evidence that these uncovered contracts are correct.
+
 Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
 bending (no twist), edge/curve input, pinning/contact and native surface playback.
 Current limits: unbranched chains, straight-rest bending, no animated rod pins.
@@ -42,14 +50,15 @@ are output-frame finite differences, not physical-error certificates. True state
 resume remains follow-up work; the 0.5 joint-control UI
 now covers supported fixed/revolute controllers.
 
-Status as of 2026-09-03. Completed performance work is
+The historical ledger below starts from 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
 
 Blender integration v0.1 was added on 2026-09-05. Cloth/ABD/fixed contact and
 native cache playback have actual Windows Blender 4.5.3/RTX 5090 verification;
 see [the integration guide](13-blender-integration.md). Linux/other Blender
-versions, rods, joints and animated collision targets remain follow-up work.
+versions and the broader driver matrix were not validated in that initial stage;
+the subsequent rod/robot deliveries above supersede its feature limitations.
 Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
 internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
 conservative construction contract. This does not change the simulation solver.
@@ -405,10 +414,15 @@ assertions).
 
 ## Security advisories
 
-- pytest `< 9.0.3` tmpdir CVE → both metadata files require
-  `pytest>=9.0.3`; `python/uv.lock` resolves 9.1.1. Dev-only dependency.
-- usd-core `< 25.8` (critical) is marked fixed in the repo, but USD is a
-  local/optional dep — upgrade any local install to `usd-core >= 25.8`.
+- [CVE-2025-71176 / GHSA-6w46-j5rx-g56g](https://github.com/advisories/GHSA-6w46-j5rx-g56g)
+  affects pytest `<9.0.3`. Both metadata files require `pytest>=9.0.3`;
+  `python/uv.lock` resolves 9.1.1. This is a development-only dependency.
+- The previously unqualified OpenUSD "critical" statement was not adequately
+  sourced. The verified [GHSA-q75h-g2h7-fgxg](https://github.com/PixarAnimationStudios/OpenUSD/security/advisories/GHSA-q75h-g2h7-fgxg)
+  is Moderate, lists affected versions `<25.05` and a patched release `>=25.08`.
+  USD is optional/local: verify the installed version against the relevant
+  upstream advisories. This statement covers that advisory only, not all OpenUSD
+  vulnerabilities or a blanket security clearance of 25.08.
 
 ## Samples submodule state (spiriMirror/libuipc-samples)
 

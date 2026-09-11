@@ -90,7 +90,11 @@ without a material-frame twisting degree of freedom or torsional energy.
    **Create Rod from Curve** in the scene panel. Curve conversion creates a new
    sampled centerline and keeps the source unchanged; hide the original display
    if it would overlap the rod. Poly, Bezier and NURBS centerlines use Blender's
-   evaluated sampling/resolution. Hair Curves are not this legacy Curve type.
+   sampling/resolution on a private copy with bevel/extrusion and object modifiers
+   removed. **Object modifiers that deform the centerline are currently ignored**;
+   apply desired deformations before conversion. Hair Curves are not this legacy
+   Curve type. A base/evaluated-source choice is a future improvement, not an
+   implemented behavior.
 2. Set **Simulation Role > Rod (Stretch + Bending)**. Open/closed chains and
    disconnected chains are supported; branching, isolated vertices, duplicate/
    zero-length edges and exact backtracking are rejected before native calls.
@@ -322,10 +326,10 @@ Select a mesh and use **Object Physics** in the same sidebar.
 
 | Setting | Default | Valid range and behavior |
 |---|---:|---|
-| Simulation Role | Disabled | Disabled / Cloth / Rigid Body (ABD) / Volumetric FEM / Fixed Collider |
-| Fixed Entire Object | False | ABD: instance flag; FEM/cloth: every surface and internal node |
+| Simulation Role | Disabled | Disabled / Cloth / Rigid Body (ABD) / Volumetric FEM / Rod / Fixed Collider |
+| Fixed Entire Object | False | ABD: instance flag; FEM/cloth/rod: every node, including internal FEM nodes |
 | Solid Young's Modulus | 1e5 Pa | >= 1e-6; volumetric FEM material |
-| Density | 200 kg/m³ | >= 1e-6; used for cloth and rigid mass |
+| Density | 200 kg/m³ | >= 1e-6; used for cloth, rod, solid FEM and rigid mass |
 | Thickness Radius `r` | 0.001 m | >= 1e-7; one-sided collision offset; full cloth thickness `h = 2r` |
 | Stretch E | 5e4 Pa | >= 1e-6; membrane stretch parameter |
 | Shear E Parameter | 10 | >= 1e-6; independent effective 2D shear parameter |
@@ -334,8 +338,8 @@ Select a mesh and use **Object Physics** in the same sidebar.
 | Solid Poisson Ratio | 0.49 | Volume FEM only; UI range 0–0.499 |
 | Strain Amplification | 100 | >= 1e-6; over-stretch amplification rate |
 | ABD Rigidity | 1e8 Pa | >= 1; OrthoPotential ABD stiffness |
-| Self Collision | Enabled | Cloth only |
-| Pin Vertex Group | Empty | Optional cloth/FEM node group; fixed in world space; overridden by Fixed Entire Object |
+| Self Collision | Enabled | Cloth, FEM and rods |
+| Pin Vertex Group | Empty | Optional cloth/FEM/rod node group; fixed in world space; overridden by Fixed Entire Object |
 | Pin Weight Threshold | 0.5 | 0.0001–1; vertices with weight >= threshold are fixed |
 
 The cloth coefficients preserve the library's existing conventions:

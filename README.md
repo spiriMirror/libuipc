@@ -12,7 +12,7 @@ Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io
 
 ![teaser](docs/media/teaser.png)
 
-**Libuipc** is a GPU-accelerated simulation library built around a unified **Incremental Potential Contact** framework. It couples rigid bodies (affine body dynamics), soft bodies (FEM), cloth, and threads in one scene with accurate, **penetration-free frictional contact**, and is designed to be naturally **differentiable** for ML, inverse dynamics, and robotics workflows. The whole pipeline — collision detection, contact assembly, and a fused-PCG linear solver with CUDA-graph replay and an optional MAS preconditioner — runs on the GPU.
+**Libuipc** is a GPU-accelerated simulation library built around a unified **Incremental Potential Contact** framework. It couples rigid bodies (affine body dynamics), soft bodies (FEM), cloth, and threads in one scene. Collision detection, contact assembly and linear algebra run on CUDA, with host-side orchestration and convergence checks. IPC's non-penetration guarantees depend on valid initial geometry and successful collision/solve steps; inspect diagnostics rather than treating every completed call as a physical-accuracy certificate. Differentiable-simulation interfaces are under development, not a complete end-to-end autodiff promise.
 
 We are **actively** developing Libuipc. Feedback and contributions are welcome!
 
@@ -42,14 +42,14 @@ libuipc is organized in three layers: a friendly scene API on top, a reusable si
 
 - **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
 - **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: implicit time integration, line search with continuous collision detection, frictional contact with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
-- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels — all running without CPU round-trips in the solver loop.
+- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels. CUDA-graph replay reduces launch overhead; default block replay still checks convergence on the host between blocks.
 
 ### Why libuipc
 
 - **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
-- **Fast & Robust**: fully GPU-parallel, with Stiff-GIPC-grade numerics and a contact model that stays penetration-free under stiff, frictional, coupled scenarios.
+- **Fast & Robust**: GPU-parallel contact and constitutive kernels with Stiff-GIPC-derived solver techniques for stiff, frictional, coupled scenarios.
 - **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
-- **Fully Differentiable**: differentiable simulation APIs for backward optimization (Diff-Sim, coming soon).
+- **Differentiation roadmap**: partial Diff-Sim interfaces for future backward optimization; coverage is still under development.
 
 ## Catalogue
 

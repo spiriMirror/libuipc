@@ -5,9 +5,10 @@ This document answers two questions that the topic guides do not answer directly
 1. Where does a public API call travel through the repository?
 2. Which files must change together when a capability is extended?
 
-The map was checked against `2b954973` on 2026-08-24. Counts are an orientation aid,
-not an invariant: there are 237 public headers under `include/uipc/`, 1,013 source
-files under `src/`, 141 C++ test translation units, and 17 Python test files.
+The original map was checked against `2b954973` on 2026-08-24. The current
+`4757859c` inventory and cross-layer findings are in [the 2026-09-11 audit](14-project-audit.md).
+Counts are snapshot data, not architecture invariants; use that dated inventory
+rather than the old figures when planning coverage.
 
 ## Public Include Surface
 
@@ -139,8 +140,8 @@ no `is_surface` built-in.
 4. Add the pybind class and register it in the constitution module. Check the
    actual module export—public C++ does not imply Python parity.
 5. Add a mathematical specification plus a small unit test and an end-to-end
-   sim case. Update UID documentation manually until the generator limitation
-   described in doc 04 is fixed.
+   sim case. Regenerate UID tables with `scripts/gen_uid_doc.py` and verify with
+   `--check`; the historical parser limitation has been fixed.
 
 ### Add or replace a SimSystem
 

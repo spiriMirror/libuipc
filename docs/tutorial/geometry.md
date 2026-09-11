@@ -22,7 +22,8 @@ In this tutorial, we will focus on the simplicial complex, which is the most com
 
 === "Python"
 
-    All geometry interfaces are defined in the `pyuipc.geometry` module.
+    All geometry interfaces are defined in the `uipc.geometry` module
+    (`pyuipc` is the distribution name installed by pip).
     
     ```python
     from uipc.geometry import *
@@ -81,9 +82,9 @@ With the same basic idea, we use a more general and well-defined way to represen
 In `libuipc`, a `Simplicial Complex` is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of $3$, $2$, $1$, or $0$, respectively.
 
 - The tetrahedral mesh can be used to describe solid objects.
-- The triangle mesh can be used to describe some 2D-codimensional objects, like a cloth with a thin thickness or the surface of a solid object.
-- The line mesh can be used to describe some 1D-codimensional objects, like a rope, a curve, or a wire.
-- The point cloud can be used to describe some 0D-codimensional objects, like a bunch of particles.
+- The triangle mesh represents a 2D surface (codimension 1 in 3D), such as cloth or the surface of a solid object.
+- The line mesh represents a 1D centerline (codimension 2 in 3D), such as a rope, curve, or wire.
+- The point cloud represents 0D particles (codimension 3 in 3D).
 
 === "C++"
 
@@ -182,6 +183,19 @@ To access the positions of the cube, we need to find the attribute of the positi
     The `builtin.position` is a predefined attribute name, which is the position of the vertices to avoid typo. You can also use a string to represent the attribute name.
 
 Note that, till now, we just get a handle of the attribute `position`. To access the data, we need to create a view of the attribute.
+
+!!! warning "Borrowed facade and view lifetimes"
+
+    Keep the owning Scene, Object and Geometry alive while using their collection
+    facades. Current Python facade returns such as `mesh.vertices()` and
+    `scene.objects()` do not all retain their owners. Do not save a facade obtained
+    from a temporary parent and then discard that parent.
+
+    NumPy views are live references, not snapshots. Reacquire them after operations
+    that can resize, replace or detach attribute storage through copy-on-write.
+    Use `array.copy()` when retaining history across such operations. The read-only
+    flag prevents ordinary assignment; it does not make the underlying storage
+    immutable or promise that a view survives reallocation.
 
 === "C++"
 

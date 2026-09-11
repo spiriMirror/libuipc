@@ -1,5 +1,23 @@
 # Handoff — Current State of the Repo
 
+> **Project/API/frontend audit, documentation only (2026-09-11)**: review baseline
+> `4757859ce69c039a4146fcd574e9c59484a31a87`; findings and source/evidence links are
+> in [14-project-audit.md](14-project-audit.md). The source, kernels, addon, build
+> scripts, workflows and installed runtimes were not changed. Normal atomic-order
+> rounding is explicitly excluded as a defect; do not revive fixed-order work.
+> Reproductions include BDF2 nonzero-velocity startup, facade owner retention,
+> Poisson validation, unsupported FEM MeshDoctor success and ignored Curve
+> modifiers. Post-build destructive paths and manual artifact selection were
+> checked from source only; no destructive build or publication was attempted.
+> Validation: 49 repository + 54 Blender portable tests, 128 native Python tests
+> (Warp skipped, six examples excluded), common/core/geometry/CUDA binaries and
+> all 95 isolated sim cases pass. All 48 config defaults match. Full API site builds;
+> three video and three poster paths were corrected, while 11 generated API anchors
+> still require generator follow-up.
+> Public Blender docs are absent from main, so their 404 is a deployment/branch
+> gap. No main merge, PR or deployment is included. Unrelated samples edits and
+> local GPU_IPC/Stiff-GIPC/references directories remain untouched.
+
 > **Remaining Blender improvements completed (0.8, 2026-09-11)**: rods and moving
 > ABD compact caches are implemented. Each moving ABD uses four MDD vectors/frame
 > and a native helper/Geometry Nodes reconstruction retaining all affine terms.

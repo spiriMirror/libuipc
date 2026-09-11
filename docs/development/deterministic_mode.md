@@ -1,8 +1,17 @@
-# Deterministic Mode (Design Notes)
+# Deterministic Mode (Historical Proposal)
 
-> **Status: proposal.** This document describes the design for a deterministic
-> execution mode. It is not yet implemented; it records the agreed approach so
-> that backend authors can build against it. Last updated: 2026-08.
+> **Status: withdrawn from the active roadmap, 2026-09-11.** The notes below are
+> historical, not an agreed implementation plan. The owner requires preserving
+> parallel efficiency: small differences from valid floating-point atomic arrival
+> orders are expected and do not establish a correctness defect. Do not add sorting,
+> fixed-order reductions or serialization solely to eliminate them. A correctness
+> change needs evidence of an algorithmic error or a real concurrency/synchronization
+> violation. The experimental fixed-order changes were reverted.
+>
+> There is **no supported `debug/deterministic` configuration key**. The JSON and
+> strategies below were proposed, not implemented; the strict scene schema rejects
+> the unregistered key. Reconsidering any optional mode requires a new explicit
+> requirement, measured costs and separate approval.
 
 ## Motivation
 

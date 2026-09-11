@@ -2,7 +2,7 @@
 
 ## Positioning
 
-**libuipc** (**Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact) is a cross-platform modern C++20 library that unifies simulation of rigid bodies, soft bodies, cloth, threads, and their coupling on the GPU, guaranteeing **penetration-free, accurate frictional contact**, and is designed to support differentiable simulation (Diff-Sim planned). It provides dual C++ and Python (`pyuipc`) APIs, supporting Windows/Linux.
+**libuipc** (**Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact) is a cross-platform modern C++20 library that unifies rigid bodies, soft bodies, cloth, threads and their coupling with a CUDA backend. IPC guarantees require valid initial geometry and successful detection/solve steps; host orchestration and convergence checks remain part of the pipeline. Diff-Sim coverage is partial/under development. Dual C++ and Python (`pyuipc`) APIs support Windows/Linux. See the [dated project audit](14-project-audit.md) for current limitations and evidence.
 
 Academic origins:
 - GIPC 2024 (ACM TOG 43(2)): Gauss-Newton optimization of the IPC barrier energy

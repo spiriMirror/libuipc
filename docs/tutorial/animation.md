@@ -207,9 +207,9 @@ Voila! The cube is walking on the ground!
 
 <figure style="text-align: center">
   <video style="width: 75%" muted controls playsinline preload="metadata"
-         poster="./media/walking_cube.png"
+         poster="../media/walking_cube.png"
          aria-label="A cube driven by a rotating motor walking across the ground">
-    <source src="./media/walking_cube.mp4" type="video/mp4">
+    <source src="../media/walking_cube.mp4" type="video/mp4">
   </video>
   <figcaption>Successive poses produced by the rotating-motor animation callback.</figcaption>
 </figure>
@@ -369,9 +369,9 @@ Here we go!
 
 <figure style="text-align: center">
   <video style="width: 75%" muted controls playsinline preload="metadata"
-         poster="./media/periodically_pressed_tet.png"
+         poster="../media/periodically_pressed_tet.png"
          aria-label="A tetrahedron periodically deformed by an animated vertex constraint">
-    <source src="./media/periodically_pressed_tetrahedron.mp4" type="video/mp4">
+    <source src="../media/periodically_pressed_tetrahedron.mp4" type="video/mp4">
   </video>
   <figcaption>A vertex target moves periodically while the remaining FEM vertices stay dynamic.</figcaption>
 </figure>

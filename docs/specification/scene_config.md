@@ -84,6 +84,12 @@ values during initialization, so `scene.config()` is not a general hot-reload
 interface. Call `scene.validate_config()` for an earlier explicit check;
 `world.init(scene)` calls it automatically.
 
+In Python, `Scene.default_config()` returns a dictionary, but `scene.config()`
+returns a **ConfigAttributes facade**, not a dictionary. Use `find("dt")` and
+`uipc.view(slot)` for attribute access; retain the owning `scene` while using the
+facade. Post-initialization attribute writes are not automatically revalidated by
+every `world.advance()` call and are not a general backend reconfiguration API.
+
 === "C++"
 
     ```cpp
@@ -114,8 +120,11 @@ appropriate geometry instead.
 - A vector is a three-component column vector. Python JSON therefore displays
   gravity as `[[x], [y], [z]]`.
 - A selector must match one of the documented strings exactly. An unsupported
-  selector normally leaves a required backend system unavailable and makes
-  world initialization fail.
+  selector is rejected by scene configuration validation. Optional collision
+  selectors additionally depend on the build options described below.
+- Numeric hard constraints apply even when a subsystem is disabled or a relative
+  override is active. For example, the stored absolute `contact/d_hat` must still
+  be positive when `contact/d_hat_relative > 0`. All numeric values must be finite.
 
 ## Time integration
 
@@ -126,6 +135,17 @@ appropriate geometry instead.
 | `integrator/type` | string | `"bdf1"` | `"bdf1"`, `"bdf2"` | Backward differentiation formula used for time integration. Start with BDF1; BDF2 changes numerical damping and transient response. |
 | `cfl/enable` | flag | `0` | `0`, `1` | Enables the contact-system CFL step filter. This is an advanced/experimental high-speed-contact control; leave it off unless a scene has been diagnosed to need it. |
 
+!!! warning "BDF2 startup and variable-step limitation"
+
+    The 2026-09-11 audit of `4757859c` found that BDF2 history initialization does
+    not preserve a prescribed nonzero constant velocity at startup. A contact-free
+    particle with velocity 1 m/s and dt=0.01 s advanced 0.0066667 m on its first
+    BDF2 step rather than 0.01 m. The implemented BDF2 coefficients also assume a
+    constant step size; live dt reads do not establish variable-step BDF2 support.
+    Use default BDF1 when relying on these cases until the integration contract is
+    corrected and tested. This is an identified algorithm/history limitation,
+    not a requirement for bitwise repeatability or a change to the solver here.
+
 ## Newton solve
 
 | Key | Type | Default | Valid domain / choices | Meaning |
@@ -133,12 +153,12 @@ appropriate geometry instead.
 | `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Reaching it warns, or throws in strict mode. |
 | `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Hard floor before ordinary Newton convergence may terminate. `0` disables the floor. |
 | `newton/use_adaptive_tol` | reserved integer | `0` | exactly `0` | Reserved for compatibility. Because no adaptive-tolerance consumer exists, setting it to `1` is rejected rather than silently doing nothing. |
-| `newton/velocity_tol` | float, m/s | `0.05` | `> 0` when used | Absolute velocity tolerance. The displacement test is `max_axis_displacement <= velocity_tol * dt`. |
+| `newton/velocity_tol` | float, m/s | `0.05` | `> 0` | Absolute velocity tolerance. The displacement test is `max_axis_displacement <= velocity_tol * dt`. |
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
-| `newton/ccd_tol` | float | `1.0` | normally `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
+| `newton/ccd_tol` | float | `1.0` | `(0, 1]` | Newton convergence additionally requires the latest CCD step fraction to be at least this value. |
 | `newton/transrate_tol` | float, 1/s | `0.1` | `>= 0` | ABD transform-rate tolerance. The per-step threshold is `transrate_tol * dt`; irrelevant when no affine bodies exist. |
 | `newton/semi_implicit/enable` | flag | `1` | `0`, `1` | Enables cumulative-step termination in IPC and the configured `K_min` delay in AL-IPC. |
-| `newton/semi_implicit/beta_tol` | float | `1e-3` | normally `[0, 1]` | Standard IPC early-exit threshold for accumulated beta. AL-IPC uses `contact/al-ipc/toi_threshold` instead. |
+| `newton/semi_implicit/beta_tol` | float | `1e-3` | `[0, 1]` | Standard IPC early-exit threshold for accumulated beta. AL-IPC uses `contact/al-ipc/toi_threshold` instead. |
 | `newton/semi_implicit/K_min` | integer | `6` | `>= 0` | Delays cumulative-progress attenuation until the configured step count. It is not a hard ordinary-Newton floor in IPC; in AL-IPC it prevents safe-path termination before that many completed outer steps. Values below `1` are treated as `1` by AL-IPC. |
 
 See [Newton and Linear Solvers](scene_configs/newton.md) for the exact
@@ -148,7 +168,7 @@ termination logic and tuning guidance.
 
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
-| `linear_system/tol_rate` | float | `1e-3` | normally `(0, 1)` | Relative PCG residual tolerance. Smaller is more accurate and usually more expensive. |
+| `linear_system/tol_rate` | float | `1e-3` | `(0, 1)` | Relative PCG residual tolerance. Smaller is more accurate and usually more expensive. |
 | `linear_system/solver` | string | `"fused_pcg"` | `"fused_pcg"`, `"linear_pcg"` | Global iterative solver. `fused_pcg` is the optimized default; `linear_pcg` supports detailed PCG vector dumps. |
 | `linear_system/fem_preconditioner` | string | `"diag"` | `"diag"`, `"mas"` | FEM local preconditioner. MAS auto-partitions every non-empty FEM geometry into fixed-size clusters and is intended for stiff/ill-conditioned FEM scenes. |
 | `linear_system/use_cuda_graph` | integer mode | `1` | `0`, `1`, `2` | Fused-PCG launch mode: `0` plain launches; `1` host-checked block replay; `2` full-GPU while-loop graph. Mode 2 requires CUDA 12.4+ and falls back when unsupported. Non-IPC pipelines currently force graphs off. |
@@ -166,10 +186,10 @@ termination logic and tuning guidance.
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
 | `contact/enable` | flag | `1` | `0`, `1` | Builds contact detection and response systems. Disable for a deliberately contact-free scene. |
-| `contact/d_hat` | float, m | `0.01` | `> 0` when used | Absolute IPC activation distance. |
+| `contact/d_hat` | float, m | `0.01` | `> 0` | Absolute IPC activation distance. |
 | `contact/d_hat_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Overrides `d_hat` with `value * rest_scene_bbox_diagonal`. |
 | `contact/friction/enable` | flag | `1` | `0`, `1` | Enables frictional contact terms. Normal non-penetration remains active when disabled. |
-| `contact/eps_velocity` | float, m/s | `0.01` | `> 0` when used | Absolute friction transition velocity. |
+| `contact/eps_velocity` | float, m/s | `0.01` | `> 0` | Absolute friction transition velocity. |
 | `contact/eps_velocity_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Overrides `eps_velocity` with `value * rest_scene_bbox_diagonal`. |
 | `contact/constitution` | string | `"ipc"` | `"ipc"`, `"al-ipc"` | Selects the standard IPC or augmented-Lagrangian IPC pipeline. |
 
@@ -188,9 +208,9 @@ algorithm parameters rather than material contact resistance.
 | `contact/al-ipc/mu_scale_diag_norm` | float | `0.1` | `> 0` | In `diag_norm` mode, sets `mu = value * max_i(abs(H_E(i,i)))`, with AL contact excluded from `H_E`. |
 | `contact/al-ipc/mu_scale_fem` | float | `5e7` | `> 0` | FEM scale used only in `per_vertex` mode: `mu_i = mass_i * value * dt²`. |
 | `contact/al-ipc/mu_scale_abd` | float | `1e5` | `> 0` | ABD scale used only in `per_vertex` mode: `mu_i = body_mass * value * dt²`. |
-| `contact/al-ipc/toi_threshold` | float | `0.1` | normally `(0, 1]` | Remaining cumulative safe-path weight tolerated by AL termination. Smaller values require more outer progress. |
-| `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | normally `(0, 1]` | CCD steps at or below this value do not advance the collision-free state or termination progress. |
-| `contact/al-ipc/decay_factor` | float | `0.3` | normally `(0, 1)` | Multiplies an inactive constraint's weight after each outer AL update. The pair is removed once the accumulated weight is below `0.01`. |
+| `contact/al-ipc/toi_threshold` | float | `0.1` | `(0, 1]` | Remaining cumulative safe-path weight tolerated by AL termination. Smaller values require more outer progress. |
+| `contact/al-ipc/alpha_lower_bound` | float | `1e-6` | `(0, 1]` | CCD steps at or below this value do not advance the collision-free state or termination progress. |
+| `contact/al-ipc/decay_factor` | float | `0.3` | `(0, 1)` | Multiplies an inactive constraint's weight after each outer AL update. The pair is removed once the accumulated weight is below `0.01`. |
 
 `per_vertex` is the default because it remains stable when one scene mixes
 cloth, volumetric FEM, affine bodies, and very different vertex masses.

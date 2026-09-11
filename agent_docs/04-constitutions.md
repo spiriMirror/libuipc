@@ -1,6 +1,6 @@
 # 04 — Constitution Overview
 
-Headers: `include/uipc/constitution/` (42 files, including one empty placeholder); implementations: `src/constitution/`; mathematical specifications: `docs/specification/constitutions/`; symbolic derivation: `scripts/symbol_calculation/*.ipynb` (SymEigen generates energy/gradient/Hessian code for applicable models).
+Headers: `include/uipc/constitution/`; implementations: `src/constitution/`; mathematical specifications: `docs/specification/constitutions/`; symbolic derivation: `scripts/symbol_calculation/*.ipynb` (SymEigen generates energy/gradient/Hessian code for applicable models). The 2026-09-11 empty-file check passes; the old empty-placeholder note is obsolete. See [audit A04/D08](14-project-audit.md) for parameter validation and energy-density interpretation.
 
 ## Basic Mechanisms
 
@@ -35,7 +35,7 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `stable_neo_hookean.h` | Stable Neo-Hookean tetrahedral elasticity, `ElasticModuli::youngs_poisson(E, nu)`. **Since 2026-08-24 this is Stiff-GIPC's SNK1 verbatim** (energy `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, gradient `μF + (λ(J-1)-μ)·cof(F)`, and the analytic SPD-projected Hessian — twist/flip eigensystem from `math::qr_svd` + a 3×3 direct eigensolve, clamp-and-rebuild; replaces the SymEigen-generated SNH (`0.5λ(J-α)²+0.5μ(Ic-3)-0.5μ·log(Ic+1)`, α=1+0.75μ/λ) + generic 9×9 `make_spd` EVD). The Wilkinson shift transfers its sign with an explicit `T`-precision branch (`sign(0)=+1`) so float CUDA paths never enter a standard-library sign-copy overload. The historical controlled A/B measured case-88 297→266 ms/frame and case-89 PCG 213→77/solve; use the 2026-09-01 cross-domain record for current absolute timings. |
 | `arap.h` | ARAP energy |
 | `particle.h` | Mass point (no elasticity) |
-| `hookean_spring.h` | Linear spring $E=\frac{\kappa}{2}((L-L_0)/L_0)^2$ |
+| `hookean_spring.h` | Axial density $\psi=\frac{\kappa}{2}((L-L_0)/L_0)^2$; physical edge energy multiplies by $\pi r^2L_0$ for a uniform positive radius |
 | `neo_hookean_shell.h` | 2D Neo-Hookean shell |
 | `baraff_witkin_shell.h` | Compatibility include for the historical header name; forwards to the implemented `StrainLimitingBaraffWitkinShell` API below |
 | `strain_limiting_baraff_witkin.h` | Implemented `StrainLimitingBaraffWitkinShell` with independent stretch/shear `(E,ν)` pairs and `strain_rate`. The stored `thickness=r` is one-sided: stretch is `E_s·(2r)/(1-ν_s²)` while shear remains the independently calibrated 2D coefficient `E_sh/(2(1+ν_sh))`; both energies use triangle rest area. |
@@ -65,8 +65,9 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 
 `soft_transform_constraint.h` also declares the C++ `RotatingMotor` and
 `LinearMotor`. All three classes return UID 16 and drive `aim_transform` in
-material coordinates. Only `SoftTransformConstraint` is currently exposed by the
-Python constitution module; the two motor helpers have no pybind registration.
+material coordinates. `SoftTransformConstraint`, `RotatingMotor` and `LinearMotor`
+are all exposed in `src/pybind/pyuipc/constitution/soft_transform_constraint.cpp`;
+the earlier unbound-motor statement is obsolete.
 
 ### Soft Stitching (stitch, Inter-primitive)
 | Header | Description |

@@ -74,9 +74,9 @@ before reading positions/transforms or exporting that frame.
 
 <figure style="text-align: center">
   <video style="width: 75%" muted controls playsinline preload="metadata"
-         poster="./media/falling_tet.png"
+         poster="../media/falling_tet.png"
          aria-label="Successive retrieved frames of a falling tetrahedron">
-    <source src="./media/falling_tet.mp4" type="video/mp4">
+    <source src="../media/falling_tet.mp4" type="video/mp4">
   </video>
   <figcaption>The montage shows successive retrieved frames of one tetrahedron, not multiple bodies in one scene.</figcaption>
 </figure>

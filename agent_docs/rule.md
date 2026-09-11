@@ -136,6 +136,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- 2026-09-11 project review: inspect implementation, frontend design, public APIs
+  and documentation; update the documentation and record findings, but do not
+  implement fixes or optimizations during this audit. Distinguish confirmed issues
+  from risks/proposals and keep unrelated work unchanged.
+
 - Dining-scene reconstruction: ground is `z = 0`; tabletop objects may begin
   separated and suspended, with final stacking and tablecloth drape obtained
   through libuipc gravity/contact simulation, not manually posed final geometry.
