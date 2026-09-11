@@ -15,6 +15,23 @@ The extension LICENSE defines the per-file boundary and ships both full texts.
 
 ## Performance baseline (2026-09-11)
 
+Preview preparation now reuses base topology/edges, pin selections, two decoded
+MDD samples and world-space arrays. Normals/guides are lazy. Indexed GPU batches
+and window-local shaders are reused on camera-only redraws. CPU caching retains
+at most four objects/two frames each and clears at a conservatively counted
+128 MiB; GPU batches are bounded per object/window. Mesh depsgraph updates clear
+topology, evaluated geometry updates clear pins, transforms/frame/file-stat and
+playback changes refresh relevant data. Load, undo/redo and unregister clear caches.
+Scripts editing mesh data must tag/update the datablock, as for Blender evaluation.
+The cache is only a preview: full bake integrity validation is unchanged.
+
+Blender 4.5.3 comparison on the frozen 16,641-vertex preview grid: cold preparation
+61.98 -> 54.26 ms; 20 warm calls' median 59.609 -> 0.0117 ms (CPU, not solver/GPU
+draw time). `blender_preview_cache.py` verifies camera reuse, lazy normals, pin and
+same-count topology edits, transform, forward/reverse/subframes, same-size atomic
+file replacement and cleanup. Installed GUI `blender_quality_gui.py` verifies
+successful repeated GPU draws without new CPU/GPU builds and exits with code 0.
+
 `result.json.performance` records host wall seconds/call counts for input loading,
 runtime import, scene/engine construction, initialization, advance, retrieve,
 coordinate conversion, diagnostics, cache I/O and status writes. It also records

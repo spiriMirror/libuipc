@@ -2,6 +2,11 @@
 
 ### Performance reports
 
+Physics previews reuse unchanged topology, decoded frames and GPU batches when
+orbiting the viewport. Thickness normals are computed only when guides are shown.
+Edits, changed cache files and file/history changes invalidate the relevant cache.
+This improves viewport overhead without changing the solver or physical materials.
+
 New bakes include `result.json.performance`. **Load Quality Report** shows solve
 plus retrieval time, diagnostic time, cache I/O time, bytes, and the last frontend
 export/attach/validation timings. Values are host wall seconds with no added GPU

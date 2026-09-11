@@ -30,6 +30,9 @@ observer = None
 def draw_observer():
     if addon.preview.draw():
         state["draws"] += 1
+        before = addon.preview.statistics()
+        repeated = addon.preview.draw()
+        state["gpu_reuse_verified"] = bool(repeated and before == addon.preview.statistics())
 
 
 def popup(name):
@@ -96,6 +99,7 @@ def tick():
         if state["stage"] == "material_capture":
             assert bpy.ops.screen.screenshot(filepath=str(args.output / "material_ui.png")) == {"FINISHED"}
             assert state["draws"] > 0, "GPU overlay never completed a draw"
+            assert state.get("gpu_reuse_verified"), "Repeated draw rebuilt CPU/GPU preview data"
             assert "uipc" not in sys.modules
             # Close popup-owned RNA widgets before unregistering their types.
             bpy.context.window.event_simulate(type="ESC", value="PRESS")

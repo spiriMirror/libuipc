@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **Blender performance stage 2 (2026-09-11)**: bounded preview topology/pin/frame
+> and GPU reuse, lazy normals and dependency/history cleanup are implemented.
+> Same frozen 16,641-vertex grid warm CPU median: 59.609 -> 0.0117 ms; cold still
+> 54.26 ms. This is not a solver speedup. Actual Blender invalidation regressions,
+> native diagnostics and installed GPU repeated-draw reuse pass, GUI exit code 0.
+> Evidence: `output/blender-perf-stage2-*`, `output/blender-perf-06-inputs`.
+
 > **Blender performance stage 1 (2026-09-11)**: host phase timings and byte/call
 > accounting are integrated without added GPU synchronization or physics changes.
 > Export/attach/check timings do not mutate Scene RNA. Frozen-input benchmarks

@@ -634,6 +634,7 @@ def _validate_pending():
 
 @persistent
 def _depsgraph_updated(scene, depsgraph):
+    preview.dependency_update(scene, depsgraph.updates)
     if not scene.uipc_settings.last_bake or runtime.is_running():
         return
     if watch.relevant_update(scene, depsgraph.updates):
@@ -648,6 +649,13 @@ def _load_pre(_):
     _pending_validation.clear()
     watch.clear()
     performance.clear()
+    preview.clear()
+
+
+@persistent
+def _history_post(_):
+    preview.clear()
+    watch.clear()
 
 
 @persistent
@@ -679,6 +687,8 @@ def register():
     bpy.app.handlers.load_pre.append(_load_pre)
     bpy.app.handlers.load_post.append(_load_post)
     bpy.app.handlers.depsgraph_update_post.append(_depsgraph_updated)
+    bpy.app.handlers.undo_post.append(_history_post)
+    bpy.app.handlers.redo_post.append(_history_post)
     preview.register()
 
 
@@ -693,6 +703,8 @@ def unregister():
             bpy.app.timers.unregister(timer)
     for handlers, function in ((bpy.app.handlers.load_pre, _load_pre),
                                (bpy.app.handlers.load_post, _load_post),
+                               (bpy.app.handlers.undo_post, _history_post),
+                               (bpy.app.handlers.redo_post, _history_post),
                                (bpy.app.handlers.depsgraph_update_post, _depsgraph_updated)):
         if function in handlers:
             handlers.remove(function)
