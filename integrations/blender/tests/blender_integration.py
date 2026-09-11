@@ -51,6 +51,8 @@ def result_arrays(scene):
     for obj in result["objects"]:
         name = request["objects"][obj["index"]]["name"]
         times, points = read_mdd(directory / f"object_{obj['index']:04d}.mdd")
+        if len(points) == 1:
+            points = np.broadcast_to(points, (result["frames"], *points.shape[1:]))
         data[name] = points
     return directory, request, result, data
 

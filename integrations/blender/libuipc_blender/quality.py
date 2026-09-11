@@ -99,6 +99,18 @@ class QualityRecorder:
         atomic_json(self.directory / "quality_report.json", report)
         return report
 
+    def record_stationary(self, index, frame):
+        """After the first sample, proven fixed bodies need no N-vertex history."""
+        entry = self.objects[index]
+        if entry["max_speed"] or entry["max_acceleration"]:
+            raise ValueError("Cannot mark a moving diagnostic history as stationary")
+        self.previous.pop(index, None)
+        self.velocities.pop(index, None)
+        self._record({"kind": "object", "index": index, "frame": frame,
+                      "max_speed": 0.0, "rms_speed": 0.0,
+                      "max_acceleration": 0.0 if entry["samples"] >= 2 else None})
+        entry["samples"] += 1
+
     def close(self):
         if not self.file.closed:
             self.file.close()

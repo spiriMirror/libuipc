@@ -16,7 +16,7 @@ from quality import QualityRecorder
 from performance import Timings
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
-                      positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256)
+                      positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256, fully_fixed)
 
 
 class ParentProcess:
@@ -63,7 +63,7 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] not in (2, 3, 4, SCHEMA_VERSION):
+    if request["schema_version"] not in (2, 3, 4, 5, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
@@ -268,8 +268,10 @@ def simulate(directory, parent):
                 view(slot.geometry().instances().find(builtin.aim_transform))[0] = values[motion_step[0]]
             scene.animator().insert(obj, update_target)
         if role != "STATIC":
+            constant = fully_fixed(body)
             outputs.append({"index": index, "slot": current, "role": role,
-                            "inverse": inverse, "vertices": len(world_positions)})
+                            "inverse": inverse, "vertices": len(world_positions), "constant": constant,
+                            "stored_frames": 1 if constant and request["schema_version"] >= 6 else frame_count})
 
     # Engine must outlive World and all native calls. One process owns one World.
     engine = uipc.Engine("cuda", str(directory / "solver") + os.sep)
@@ -290,7 +292,7 @@ def simulate(directory, parent):
         for output in outputs:
             with timings.measure("cache_write"):
                 writers.append(MDDWriter(directory / f"object_{output['index']:04d}.mdd",
-                                         frame_count, output["vertices"], settings["fps"]))
+                                         output["stored_frames"], output["vertices"], settings["fps"]))
         for frame in range(frame_count):
             if not parent.alive() or (directory / "cancel").exists():
                 atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
@@ -317,6 +319,13 @@ def simulate(directory, parent):
                 with timings.measure("solver_diagnostics"):
                     statistics.flush()
             for output, writer in zip(outputs, writers):
+                if frame and output["constant"]:
+                    with timings.measure("motion_diagnostics"):
+                        quality.record_stationary(output["index"], frame + settings["frame_start"])
+                    if output["stored_frames"] != 1:
+                        with timings.measure("cache_write"):
+                            writer.append(output["constant_local"])
+                    continue
                 with timings.measure("output_transform"):
                     geometry = output["slot"].geometry()
                     points = np.asarray(geometry.positions().view()).reshape(-1, 3)
@@ -331,6 +340,8 @@ def simulate(directory, parent):
                     local_points = points @ inverse[:3, :3].T + inverse[:3, 3]
                 with timings.measure("cache_write"):
                     writer.append(local_points)
+                if output["constant"] and output["stored_frames"] != 1:
+                    output["constant_local"] = local_points
             with timings.measure("status_write"):
                 atomic_json(directory / "status.json", {
                     "state": "running", "frame": frame + 1, "total": frame_count,
@@ -346,6 +357,8 @@ def simulate(directory, parent):
         performance = timings.report()
         performance.update(output_frames=frame_count, native_steps=motion_step[0],
                            output_vertices=sum(o["vertices"] for o in outputs),
+                           stored_vertex_samples=sum(o["vertices"]*o["stored_frames"] for o in outputs),
+                           dense_cache_bytes=sum(8+4*frame_count+12*frame_count*o["vertices"] for o in outputs),
                            cache_bytes=sum(writer.path.stat().st_size for writer in writers),
                            diagnostics_bytes=sum((directory / name).stat().st_size for name in
                                ("solver_steps.jsonl", "quality_frames.jsonl", "quality_report.json")))
@@ -364,6 +377,7 @@ def simulate(directory, parent):
             "effective_contacts": contact_plan,
             "quality_report_sha256": quality_digest,
             "objects": [{"index": o["index"], "vertices": o["vertices"],
+                         **({"stored_frames": o["stored_frames"]} if request["schema_version"] >= 6 else {}),
                          "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })
         atomic_json(directory / "status.json", {"state": "complete", "frame": frame_count, "total": frame_count})

@@ -1,19 +1,5 @@
 # Blender Extension
 
-### Performance reports
-
-Physics previews reuse unchanged topology, decoded frames and GPU batches when
-orbiting the viewport. Thickness normals are computed only when guides are shown.
-Edits, changed cache files and file/history changes invalidate the relevant cache.
-This improves viewport overhead without changing the solver or physical materials.
-
-New bakes include `result.json.performance`. **Load Quality Report** shows solve
-plus retrieval time, diagnostic time, cache I/O time, bytes, and the last frontend
-export/attach/validation timings. Values are host wall seconds with no added GPU
-synchronization, not isolated CUDA kernel times. Physics settings are unchanged.
-Historical caches without timings still load. Reproducible benchmark instructions
-are in the repository's `agent_docs/13-blender-integration.md`.
-
 The **libuipc Physics** extension connects Blender to the public `pyuipc` API.
 Blender exports meshes and physics settings, an external Python process runs
 the CUDA solver, and native Mesh Cache modifiers play the resulting MDD files.
@@ -62,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.5.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.6.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.5.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.6.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -351,6 +337,32 @@ The default empty contact table and unused presets do not invalidate legacy
 caches. Editing effective contact/physical parameters requires a new bake.
 
 ## Quality report and viewport diagnostics
+
+### Performance and storage (0.6)
+
+Physics previews reuse unchanged topology, decoded frames and GPU batches when
+orbiting the viewport. Thickness normals are computed only when guides are shown.
+Edits, changed cache files and file/history changes invalidate the relevant cache.
+This improves viewport overhead without changing the solver or physical materials.
+
+New bakes include `result.json.performance`. **Load Quality Report** shows solve
+plus retrieval time, diagnostic time, cache I/O time, bytes/storage saved, and the
+last frontend export/attach/validation timings. Values are host wall seconds with
+no added GPU synchronization, not isolated CUDA kernel times. Historical caches
+without timings still load. Reproducible benchmark instructions and measured
+limits are in the repository's `agent_docs/13-blender-integration.md`.
+
+Schema-6 bakes store one MDD sample for wholly fixed ABD/cloth/FEM, including
+cloth/FEM whose every vertex is pinned. They remain in coupled collision/solving;
+only repeated output conversion, diagnostics and storage are removed. The native
+modifier holds the sample throughout the timeline, including fractional frames,
+saved files and background renders without the extension. Partially pinned,
+moving and driven bodies still store every output frame. Dynamic ABD keeps full
+affine vertex output: ordinary translation/rotation/scale keys would lose shear.
+
+No physical parameter, default or solver setting changes. Updating the extension
+does not require rebuilding/reinstalling pyuipc. Old schema-1 through schema-5
+caches remain readable; rebake to benefit from fixed-output storage reduction.
 
 ### Robot joint controls (0.5)
 

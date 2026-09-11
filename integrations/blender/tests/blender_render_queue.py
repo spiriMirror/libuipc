@@ -21,13 +21,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 addon = importlib.import_module("libuipc_blender")
 addon.register()
 queue = importlib.import_module("libuipc_blender.render_queue")
-scene = importlib.import_module("libuipc_blender.demo").create_demo()
+demo = importlib.import_module("libuipc_blender.demo")
+scene = demo.create_demo()
 bpy.context.window.scene = scene
+fixed = demo.box(scene, "Compact fixed ABD", (1.5,1.5,.25), (.2,.2,.2), "RIGID")
+fixed.uipc_body.fixed = True
 scene.frame_end = 3
 settings = scene.uipc_settings
 settings.python_executable = args.python
 settings.cache_directory = str(args.output / "cache")
 assert bpy.ops.uipc.bake(blocking=True) == {"FINISHED"}
+result = addon.protocol.read_json(Path(settings.last_bake) / "result.json")
+assert any(o.get("stored_frames") == 1 for o in result["objects"])
 scene.render.engine = "BLENDER_EEVEE_NEXT"
 scene.render.resolution_x = scene.render.resolution_y = 64
 scene.render.resolution_percentage = 100

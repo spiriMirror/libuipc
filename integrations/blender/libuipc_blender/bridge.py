@@ -14,7 +14,7 @@ from .protocol import (SCHEMA_VERSION, MODIFIER_NAME, OBJECT_FIELDS, atomic_json
                        fingerprint, cache_fingerprint, inspect_mdd, read_json, validate_mesh, validate_tetmesh)
 from .protocol import SOLVER_FIELDS, validate_solver_settings
 from .protocol import validate_result, file_sha256
-from .protocol import match_bodies
+from .protocol import match_bodies, fully_fixed
 from .identity import object_id, ensure_scene_ids, resolve_object
 from .performance import frontend_phase
 
@@ -41,10 +41,11 @@ def configure_cache_modifier(modifier, path, request):
 
 
 def validate_output_files(directory, request, result, bodies, verify_data):
-    frames = validate_result(request, result, [len(b["vertices"]) for b in bodies])
+    frames = validate_result(request, result, [len(b["vertices"]) for b in bodies],
+                             [fully_fixed(b) for b in bodies])
     for output in result["objects"]:
         path = directory / f"object_{output['index']:04d}.mdd"
-        inspect_mdd(path, frames, output["vertices"])
+        inspect_mdd(path, output.get("stored_frames", frames), output["vertices"])
         if verify_data and output.get("sha256") and file_sha256(path) != output["sha256"]:
             raise ValueError(f"Cache checksum mismatch: {path.name}; restore or rebake the cache")
 

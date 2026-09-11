@@ -9,10 +9,6 @@ The root library remains Apache-2.0. Independent `worker.py`/`protocol.py` also
 use Apache-2.0; only Blender-specific adapter files use GPL-3.0-or-later.
 The extension LICENSE defines the per-file boundary and ships both full texts.
 
-## Source map
-
-`performance.py` records non-mutating frontend timings and worker host timings.
-
 ## Performance baseline (2026-09-11)
 
 Preview preparation now reuses base topology/edges, pin selections, two decoded
@@ -57,7 +53,67 @@ draw duration. Reopen its saved source with `--measure <label>` for comparisons.
 Local initial evidence is in `output/blender-perf-06-*`; 43 portable tests and the
 real Blender/CUDA three-frame contact regression pass with instrumentation enabled.
 
-## Module ownership
+Final 0.6 verification: 47 portable bridge tests on Python 3.11/3.14, 49 repository
+tests, 61-frame mixed contact, 41-frame FEM/fixed contact, 81-frame controller
+motion, constant-cache addon-free playback, cache contracts, preview invalidation,
+legacy 500-frame playback and EEVEE/OptiX snapshot queues. Checked Blender playback
+error against each bake's MDD is zero for the mixed/FEM suites; that is distinct
+from independent native simulations being reproducible. The installed 0.6 GUI
+also draws the overlays/phase panel and verifies repeated GPU resource reuse.
+The installed GUI exits with code 0; the user's profile is not changed. Re-running
+the frozen schema-5 ABD job with the 0.6 worker reproduces every dense MDD byte.
+
+Local RTX 5090 / pyuipc 0.9.0 cp314 / CUDA 13.2.51 native build, 31 output frames:
+
+| Workload | Before / after process median (s) | Before / after MDD bytes | Interpretation |
+|---|---:|---:|---|
+| Four dynamic + two fixed ABD spheres | 1.201 / 1.197 | 2,469,384 / 1,672,824 | 32.3% less storage; all 617,148 compared vertex samples identical |
+| Pinned 33 x 33 cloth | 9.432 / 9.365 | 405,240 / 405,240 | No fixed-output saving; timing change is not evidence of a speedup |
+| Cloth + sphere + 17 driven hand links | 13.046 / 13.092 | 4,574,760 / 4,574,760 | No compactable body; runtime essentially unchanged |
+
+These are one warmup plus three fresh-process trials. Use
+`benchmark_worker.py --current-schema` only to update transport metadata of frozen
+schema-5 inputs: NPZ hashes, physical fingerprints/configs and native build are
+unchanged. `compare_worker_benchmarks.py --before <dir> --after <dir> --output <json>`
+checks every vertex of every frame across all three trials and also reports
+within-revision variation. Evidence: `output/blender-perf-06-comparison.json`.
+
+**Open reproducibility finding:** the cloth workload already differs between
+baseline trials by up to 0.021640 m per local component; optimized repeated trials
+differ by 0.052424 m, and cross-revision comparisons by 0.068073 m. Mixed-workload
+values are 0.006711 / 0.004028 / 0.007459 m. Scale is one in these inputs. The
+cause is not yet isolated; do not label this drift harmless, attribute it solely
+to the output optimization, or claim exact cloth-trajectory equivalence. No native
+solver changes were made here. Frozen inputs and raw logs remain available for a
+dedicated repeatability investigation. Pure ABD repeats and cross-comparisons are exact.
+
+## Fixed cache encoding and affine boundary (0.6 / schema 6)
+
+`result.frames` remains the authored scene range. Each output has `stored_frames`:
+one for proven wholly fixed bodies, otherwise the full range. `fully_fixed()` uses
+the fixed flag or complete in-range pin coverage, never observed low velocity;
+driven ABD and partially pinned FEM/cloth remain dense. Bodies still participate
+in the same World/contact table. Validation derives fixedness from the current
+fingerprint-checked input and rejects shortened moving/legacy caches. Schema 1-5
+readers stay compatible; the worker still writes dense output for schema 2-5 jobs.
+
+MDD bytes for N vertices/F frames are `8 + 4F + 12FN`; a constant file is `12 + 12N`.
+The one-sample native modifier clamps throughout the timeline, without a Python
+frame handler. Stationary diagnostics keep every output-frame row/sample count
+and the same zero speed/acceleration semantics, but release per-vertex history.
+`test_fixed_cache.py` checks byte-identical dense/constant diagnostic series;
+`blender_fixed_cache.py` checks all-node pins, zero DOFs, cm units, mirrored scale,
+frame-start 7, fractional/backward frames and reopened addon-free playback to 500.
+
+Dynamic ABD compact encoding was evaluated, not enabled: a 0.2 m cube with 2% shear
+loses 1.514 mm after Blender TRS decomposition, while native full-affine MDD is
+within 3e-8 m including the midpoint (`blender_affine_contract.py`). A future compact
+scheme must store all 12 affine coefficients, interpolate them linearly and provide
+native addon-free reconstruction plus cache/snapshot integrity, rather than write
+lossy location/rotation/scale keys. Geometry-node or shape-basis reconstruction
+needs its own validated attachment/snapshot format; it is not part of schema 6.
+
+## Source map
 
 | File | Ownership |
 |---|---|
@@ -67,7 +123,8 @@ real Blender/CUDA three-frame contact regression pass with instrumentation enabl
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.5.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.6.0; Windows/Linux; Blender >=4.2 API target |
+| `performance.py` | Host-phase and non-mutating frontend timings, without GPU synchronization |
 | `materials.py` / `material_ui.py` | Portable independent cloth/pair rules and Blender contact/preset controls |
 | `quality.py` / `quality_ui.py` / `preview.py` | Streaming observations, verified report navigation and non-destructive selected-object GPU preview |
 | `identity.py` / `watch.py` | Persistent IDs, request-order binding and relevant/raw-input validation gates |

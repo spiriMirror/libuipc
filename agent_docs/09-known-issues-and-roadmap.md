@@ -2,8 +2,17 @@
 
 Blender performance instrumentation and frozen-input baseline tooling are now
 implemented (2026-09-11). No added GPU synchronization or solver changes. Preview
-resource reuse is implemented and validated; fixed-output compaction is next. Moving
-ABD encoding must preserve full affine motion and addon-free playback.
+resource reuse and fixed-output compaction are implemented and validated in 0.6.
+Moving ABD encoding remains dense: the TRS-only probe loses shear; any future
+compact format must preserve all 12 affine coefficients and addon-free playback.
+
+New repeatability issue from frozen 31-frame cloth benchmarks: before-optimization
+repeated runs already differ by up to 0.021640 m (single cloth) / 0.006711 m (mixed)
+per component; cross-revision maxima reach 0.068073 / 0.007459 m. Cause is unisolated.
+Do not treat this as established harmless roundoff or claim trajectory equivalence.
+Exact ABD comparison, cache playback checks and no native-code changes do not resolve
+this separate native-run drift. Inputs/logs/comparator live in
+`output/blender-perf-06-*` and `integrations/blender/tests/compare_worker_benchmarks.py`.
 
 Blender 0.5 stable object/controller identities and relevant-input validation
 gates are implemented. Older cache schemas stay name-based until rebaked.

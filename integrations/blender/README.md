@@ -4,7 +4,7 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.5 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
+Version 0.6 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
@@ -25,6 +25,13 @@ an independent multi-camera PNG render queue with verified resume, and robot
 joint/pose/keying/trajectory-review controls. Render queues never resume physics;
 they use an immutable saved scene and existing MDD trajectories.
 
+Version 0.6 adds host-phase performance reports, bounded topology/frame/GPU
+preview reuse, lazy thickness normals and single-sample MDD for proven fixed
+bodies. Fixed bodies still participate in the same coupled simulation. Moving
+ABD retains full affine MDD; a TRS-only shortcut would lose shear. No native solver
+or physical parameter changes, and no pyuipc reinstall is needed. Rebuild/install
+the extension and rebake only if you want the smaller fixed-object files.
+
 See the [installation and parameter guide](../../docs/build_install/blender.md).
 
 ## Package
@@ -33,7 +40,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.5.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.6.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -83,6 +90,14 @@ The 0.5 suites add `test_identity.py`, `test_render_protocol.py` and
 `test_robot_controls.py`, plus real Blender tests `blender_identity.py`,
 `blender_render_queue.py` (optional `--test-gpu-render`),
 `blender_robot_controls.py` (requires a URDF) and `blender_workflow_gui.py`.
+
+The 0.6 suites add `test_performance.py`, `test_fixed_cache.py`,
+`blender_preview_cache.py`, `blender_fixed_cache.py` and `blender_affine_contract.py`.
+`blender_performance.py` freezes benchmark scenes/inputs; `benchmark_worker.py`
+runs warmup/measured trials, and `compare_worker_benchmarks.py` checks every output
+vertex and exposes within-revision drift. See `agent_docs/13-blender-integration.md`
+for reproduction and measured limitations: native cloth runs are not yet verified
+reproducible, so small runtime differences are not claimed as a solver speedup.
 
 `tests/blender_fem.py` additionally verifies native strict/relaxed meshing,
 original vertex IDs and groups, interior and surface pins, wholly fixed

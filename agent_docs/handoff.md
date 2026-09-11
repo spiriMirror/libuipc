@@ -1,5 +1,24 @@
 # Handoff — Current State of the Repo
 
+> **Blender 0.6 performance delivery (2026-09-11)**: the accepted baseline,
+> preview-reuse and fixed-output reduction stages are implemented. Schema 6 stores
+> one native MDD sample for proven fixed bodies; older bakes remain compatible.
+> The six-sphere ABD benchmark saves 32.3% total cache bytes with exact per-vertex
+> before/after output. Overall solve speed is not claimed. Moving ABD remains full
+> affine MDD after a native TRS-loss probe; compact moving-ABD reconstruction needs
+> a separately validated native representation. Install
+> `output/blender-dist/libuipc_blender-0.6.0.zip`; no native Python reinstall needed.
+> Validation: 47 bridge tests on Python 3.11/3.14, 49 repository tests, actual mixed,
+> FEM, motion, fixed addon-free playback, preview, cache and EEVEE/OptiX queue tests.
+> User profile/Python installation and unrelated submodule edits are untouched.
+>
+> **New open finding:** independent cloth runs differ even before optimization.
+> Baseline maximum repeated-run component difference 0.021640 m (cloth) / 0.006711 m
+> (mixed); cross-revision differences reach 0.068073 / 0.007459 m. Cause unisolated;
+> do not claim bitwise cloth reproducibility or silently dismiss the discrepancy.
+> `output/blender-perf-06-{inputs,before,after}` and the comparison JSON preserve
+> all inputs/results for follow-up. See `13-blender-integration.md` for exact scope.
+
 > **Blender performance stage 2 (2026-09-11)**: bounded preview topology/pin/frame
 > and GPU reuse, lazy normals and dependency/history cleanup are implemented.
 > Same frozen 16,641-vertex grid warm CPU median: 59.609 -> 0.0117 ms; cold still

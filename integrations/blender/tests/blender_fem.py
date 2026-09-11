@@ -139,8 +139,10 @@ def main():
             data = np.frombuffer(stream.read(), dtype=">f4").reshape(count, size, 3)
         for frame in (1, 41, 11, 2):
             observed = coordinates(scene.objects[name], scene, frame)
-            max_error = max(max_error, float(np.max(np.abs(observed - data[frame-1]))))
-            np.testing.assert_allclose(observed, data[frame-1], atol=3e-6)
+            sample = data[min(frame-1, count-1)]
+            max_error = max(max_error, float(np.max(np.abs(observed - sample))))
+            np.testing.assert_allclose(observed, sample, atol=3e-6)
+        assert count == (1 if scene.objects[name].uipc_body.fixed else result["frames"])
     assert bpy.ops.uipc.validate_cache() == {"FINISHED"}
     checks.append("all volume nodes, including internal nodes, match MDD playback at forward/backward frames")
 

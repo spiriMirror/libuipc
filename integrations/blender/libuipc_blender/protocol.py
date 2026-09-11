@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
@@ -139,7 +139,7 @@ def cache_fingerprint(request, settings, bodies):
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema not in (2, 3, 4, SCHEMA_VERSION):
+    if schema not in (2, 3, 4, 5, SCHEMA_VERSION):
         return None
     return fingerprint(settings, bodies, schema_version=schema)
 
@@ -162,7 +162,22 @@ def positive(value, name, allow_zero=False):
         raise ValueError(f"{name} must be finite and {'non-negative' if allow_zero else 'positive'}")
 
 
-def validate_result(request, result, vertex_counts):
+def fully_fixed(body):
+    """Only proven fixed inputs qualify, never merely small observed motion."""
+    material = body["material"]
+    if "drive" in material:
+        return False
+    if material.get("fixed", False) or material["role"] == "STATIC":
+        return True
+    if material["role"] in ("CLOTH", "FEM"):
+        pins = np.asarray(body["pins"])
+        count = len(body["vertices"])
+        return bool(count and len(pins) and pins.min() >= 0 and pins.max() < count
+                    and len(np.unique(pins)) == count)
+    return False
+
+
+def validate_result(request, result, vertex_counts, fixed_flags=None):
     """Never trust result-provided counts, indices or provenance in isolation."""
     frames = request["settings"]["frame_end"] - request["settings"]["frame_start"] + 1
     if (result.get("schema_version") != request["schema_version"]
@@ -180,6 +195,12 @@ def validate_result(request, result, vertex_counts):
         if (type(output["index"]) is not int or type(output.get("vertices")) is not int
                 or output["vertices"] != vertex_counts[index]):
             raise ValueError("Bake result has an invalid object/vertex count")
+        stored = output.get("stored_frames", frames)
+        if type(stored) is not int or stored not in (1, frames):
+            raise ValueError("Invalid stored cache frame count")
+        if stored != frames and (request["schema_version"] < 6 or fixed_flags is None
+                                 or not fixed_flags[index]):
+            raise ValueError("Constant cache requires a proven fully fixed input")
         digest = output.get("sha256")
         if result.get("cache_integrity") == 1 and (
                 not isinstance(digest, str) or len(digest) != 64
