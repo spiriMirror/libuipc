@@ -144,7 +144,7 @@ class UIPC_PT_quality(bpy.types.Panel):
             dense_bytes = performance.get("dense_cache_bytes", performance["cache_bytes"])
             if dense_bytes > performance["cache_bytes"]:
                 saved = 1 - performance["cache_bytes"] / dense_bytes
-                box.label(text=f"Fixed-output storage saved: {saved:.1%}")
+                box.label(text=f"Cache storage saved: {saved:.1%}")
             from .performance import frontend_report
             for name, entry in frontend_report(context.scene).items():
                 box.label(text=f"Last {name}: {entry['last_seconds']:.3f} s")

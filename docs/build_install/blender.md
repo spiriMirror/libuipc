@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.7.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.8.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.7.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.8.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -132,7 +132,7 @@ shows centerline edges, fixed nodes and diameter guides; it does not invent a
 material-frame orientation. Schema 7 fingerprints include edge connectivity;
 older non-rod cache fingerprints remain unchanged.
 
-## Volumetric FEM workflow
+## Volumetric FEM and fixed objects
 
 For an existing closed Blender surface:
 
@@ -260,6 +260,7 @@ still applies.
 | Contact Distance | 0.001 m | >= 1e-7 m; activation distance beyond thickness offsets |
 | Friction | 0.5 | >= 0; global Coulomb coefficient |
 | Contact Resistance | 1e9 Pa | >= 1 Pa; global contact model resistance |
+| Compact ABD Cache | True | Boolean; affects the next bake's encoding only, not physics or existing cache validity |
 
 Geometry is multiplied by Blender's **Unit Scale** to obtain meters. Material
 parameters, thickness radius, activation distance, and gravity are already SI
@@ -409,12 +410,45 @@ cloth/FEM whose every vertex is pinned. They remain in coupled collision/solving
 only repeated output conversion, diagnostics and storage are removed. The native
 modifier holds the sample throughout the timeline, including fractional frames,
 saved files and background renders without the extension. Partially pinned,
-moving and driven bodies still store every output frame. Dynamic ABD keeps full
-affine vertex output: ordinary translation/rotation/scale keys would lose shear.
+moving and driven bodies still store every output frame. Starting with 0.8,
+moving/driven ABD can use the compact full-affine encoding below; cloth/FEM/rod
+outputs remain per-vertex MDD.
 
 No physical parameter, default or solver setting changes. Updating the extension
-does not require rebuilding/reinstalling pyuipc. Old schema-1 through schema-5
+does not require rebuilding/reinstalling pyuipc. Old schema-1 through schema-7
 caches remain readable; rebake to benefit from fixed-output storage reduction.
+
+### Compact moving ABD playback (0.8)
+
+**Compact ABD Cache** is on by default for new bakes. Each moving/driven ABD writes
+four vectors to its MDD file per frame: translation $\mathbf{t}$ and the three
+columns $\mathbf{a}_0,\mathbf{a}_1,\mathbf{a}_2$ of its complete local affine map.
+For a source vertex $\mathbf{x}=(x,y,z)$, native Geometry Nodes evaluates
+$\mathbf{x}'=\mathbf{t}+x\mathbf{a}_0+y\mathbf{a}_1+z\mathbf{a}_2$.
+This retains all 12 coefficients, including shear and nonuniform scale; no
+translation/rotation/scale decomposition or Python playback callback is involved.
+
+A generated hidden four-point helper owns the ordinary MDD modifier. The visible
+body's first **libuipc Cache** modifier is now Geometry Nodes; normal display
+modifiers can follow it. Keep the generated helpers and cache files with the
+`.blend`. They remain functional with the addon disabled and in independent render
+workers. Do not edit/delete their node graphs, transforms or MDD settings; explicit
+validation and guarded rendering detect those changes. Detach/rebake removes owned
+unshared helpers, while explicitly reused/fake-user node groups are preserved.
+
+An F-frame compact ABD file uses `8 + 52*F` bytes, regardless of source vertex
+count, instead of `8 + 4*F + 12*F*N` for N source vertices. A 500-frame file is
+26,008 bytes. Wholly fixed ABD continues to use one per-vertex MDD sample.
+Interpolation remains linear in the output samples, as with the old MDD path.
+MDD and Blender geometry use float32, so reconstruction is checked at that
+precision, not for bitwise equality with double-precision solver state.
+
+For a conventional per-vertex MDD file suitable for direct import into another
+tool, disable **Compact ABD Cache** before baking. Do not attach a compact
+four-vector file directly to the full source mesh. Switching the checkbox does
+not invalidate existing physical results; it only changes subsequent output.
+Attachment is transactional across both encodings, and the render queue captures
+the native helper MDD dependencies in its existing snapshot manifest.
 
 ### Robot joint controls (0.5)
 

@@ -17,6 +17,8 @@ from .protocol import validate_result, file_sha256
 from .protocol import match_bodies, fully_fixed
 from .identity import object_id, ensure_scene_ids, resolve_object
 from .performance import frontend_phase
+from .affine import cache_vertices
+from . import affine_playback
 
 
 CACHE_PROPERTIES = ("cache_format", "filepath", "time_mode", "play_mode", "frame_start",
@@ -45,7 +47,7 @@ def validate_output_files(directory, request, result, bodies, verify_data):
                              [fully_fixed(b) for b in bodies])
     for output in result["objects"]:
         path = directory / f"object_{output['index']:04d}.mdd"
-        inspect_mdd(path, output.get("stored_frames", frames), output["vertices"])
+        inspect_mdd(path, output.get("stored_frames", frames), cache_vertices(output))
         if verify_data and output.get("sha256") and file_sha256(path) != output["sha256"]:
             raise ValueError(f"Cache checksum mismatch: {path.name}; restore or rebake the cache")
 
@@ -123,9 +125,9 @@ def collect_scene(scene, validate_geometry=True):
             from .rod_ui import is_display
             if is_display(obj, modifier):
                 continue
-            if modifier.name == MODIFIER_NAME and modifier.type != "MESH_CACHE":
+            if modifier.name == MODIFIER_NAME and modifier.type != "MESH_CACHE" and not affine_playback.is_affine(modifier):
                 raise ValueError(f"{obj.name}: rename the existing '{MODIFIER_NAME}' modifier")
-            if modifier.name == MODIFIER_NAME and modifier.type == "MESH_CACHE":
+            if modifier.name == MODIFIER_NAME and (modifier.type == "MESH_CACHE" or affine_playback.is_affine(modifier)):
                 continue
             if not (modifier.show_viewport or modifier.show_render):
                 continue
@@ -213,6 +215,7 @@ def export_job(scene):
     directory = root / ("bake_" + uuid.uuid4().hex)
     directory.mkdir()
     request = {"schema_version": SCHEMA_VERSION, "settings": settings,
+               "output_options": {"compact_abd": scene.uipc_settings.compact_abd},
                "fingerprint": fingerprint(settings, bodies),
                "objects": [{"id": b["id"], "name": b["name"], "material": b["material"]} for b in bodies]}
     for index, body in enumerate(bodies):
@@ -253,32 +256,48 @@ def attach_cache(scene, directory, request):
     previous = (scene.uipc_settings.last_bake, scene.uipc_settings.baked_fingerprint)
     changes = []
     try:
+        # Stage every replacement before disabling or deleting an existing cache.
+        # Old modifiers/groups are kept intact until evaluation succeeds.
         for output in result["objects"]:
             index = output["index"]
             obj = resolve_object(scene, request["objects"][index], request["schema_version"])
-            modifier = obj.modifiers.get(MODIFIER_NAME)
-            snapshot = None
-            if modifier is not None:
-                snapshot = {key: tuple(getattr(modifier, key)) if key == "flip_axis" else getattr(modifier, key)
-                            for key in CACHE_PROPERTIES}
+            old_modifier = obj.modifiers.get(MODIFIER_NAME)
+            snapshot = None if old_modifier is None else (
+                old_modifier.name, old_modifier.show_viewport, old_modifier.show_render,
+                list(obj.modifiers).index(old_modifier))
+            path = directory / f"object_{index:04d}.mdd"
+            if output.get("encoding", "VERTEX") == "AFFINE":
+                replacement = affine_playback.create(scene, obj, path, request, index, configure_cache_modifier)
             else:
-                modifier = obj.modifiers.new(MODIFIER_NAME, "MESH_CACHE")
-            changes.append((obj, modifier, snapshot, list(obj.modifiers).index(modifier)))
-            configure_cache_modifier(modifier, directory / f"object_{index:04d}.mdd", request)
-            obj.modifiers.move(list(obj.modifiers).index(modifier), 0)
+                replacement = obj.modifiers.new("libuipc Pending Cache", "MESH_CACHE")
+                try:
+                    configure_cache_modifier(replacement, path, request)
+                    replacement.show_viewport = replacement.show_render = False
+                except Exception:
+                    obj.modifiers.remove(replacement)
+                    raise
+            changes.append((obj, old_modifier, snapshot, replacement))
+        for obj, old_modifier, snapshot, replacement in changes:
+            if old_modifier:
+                old_modifier.name = "libuipc Previous Cache"
+                old_modifier.show_viewport = old_modifier.show_render = False
+            replacement.name = MODIFIER_NAME
+            obj.modifiers.move(list(obj.modifiers).index(replacement), 0)
+            replacement.show_viewport = replacement.show_render = True
         scene.uipc_settings.last_bake = bpy.path.relpath(str(directory)) if bpy.data.filepath else str(directory)
         scene.uipc_settings.baked_fingerprint = expected
         scene.frame_set(scene.frame_current)
     except Exception:
-        for obj, modifier, snapshot, position in reversed(changes):
-            if snapshot is None:
-                obj.modifiers.remove(modifier)
-            else:
-                for key, value in snapshot.items():
-                    setattr(modifier, key, value)
-                obj.modifiers.move(list(obj.modifiers).index(modifier), position)
+        for obj, old_modifier, snapshot, replacement in reversed(changes):
+            affine_playback.remove(obj, replacement)
+            if old_modifier:
+                old_modifier.name, old_modifier.show_viewport, old_modifier.show_render = snapshot[:3]
+                obj.modifiers.move(list(obj.modifiers).index(old_modifier), snapshot[3])
         scene.uipc_settings.last_bake, scene.uipc_settings.baked_fingerprint = previous
         raise
+    for obj, old_modifier, snapshot, replacement in changes:
+        if old_modifier:
+            affine_playback.remove(obj, old_modifier)
     return result
 
 
@@ -298,15 +317,21 @@ def check_cache(scene, verify_data=False):
         index = output["index"]
         obj = resolve_object(scene, request["objects"][index], request["schema_version"])
         modifier = obj.modifiers.get(MODIFIER_NAME) if obj else None
-        if not modifier or modifier.type != "MESH_CACHE":
+        if not modifier:
             raise ValueError("A baked object's cache modifier is missing")
+        if output.get("encoding", "VERTEX") == "AFFINE":
+            cached = affine_playback.validate_binding(modifier, scene, request, index)
+        elif modifier.type == "MESH_CACHE":
+            cached = modifier
+        else:
+            raise ValueError("Cache modifier type does not match the output encoding")
         expected_path = directory / f"object_{index:04d}.mdd"
-        if Path(bpy.path.abspath(modifier.filepath)).resolve() != expected_path.resolve():
+        if Path(bpy.path.abspath(cached.filepath)).resolve() != expected_path.resolve():
             raise ValueError("Cache modifier path has changed")
         if list(obj.modifiers).index(modifier) != 0:
             raise ValueError(f"{obj.name}: cache modifier must be first in the stack")
         for key, expected in cache_settings(request).items():
-            actual = tuple(getattr(modifier, key)) if key == "flip_axis" else getattr(modifier, key)
+            actual = tuple(getattr(cached, key)) if key == "flip_axis" else getattr(cached, key)
             if actual != expected:
                 raise ValueError(f"{obj.name}: cache playback setting '{key}' changed; expected {expected}")
     return result
@@ -345,10 +370,11 @@ def activate_cache(scene):
 
 
 def detach_cache(scene):
-    for obj in scene.objects:
+    targets = [obj for obj in scene.objects if obj.get(affine_playback.MARKER) != 1]
+    for obj in targets:
         modifier = obj.modifiers.get(MODIFIER_NAME)
-        if modifier and modifier.type == "MESH_CACHE":
-            obj.modifiers.remove(modifier)
+        if modifier and (modifier.type == "MESH_CACHE" or affine_playback.is_affine(modifier)):
+            affine_playback.remove(obj, modifier)
     scene.uipc_settings.last_bake = ""
     scene.uipc_settings.baked_fingerprint = ""
     scene.frame_set(scene.frame_current)

@@ -4,7 +4,7 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.7 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, rods, fixed
+Version 0.8 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, rods, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
@@ -38,6 +38,12 @@ and addon-free circular-section display with round end caps. Rods use a straight
 stress-free bending state, not the initial curve's curvature. See the parameter
 guide for ranges, section formulas and supported centerline topology.
 
+Version 0.8 stores moving ABD as four MDD vectors/frame and reconstructs the full
+affine map through native Geometry Nodes. Shear/scale, fractional frames and
+addon-free rendering are preserved. **Compact ABD Cache** defaults on; disable it
+before baking if another tool requires per-vertex MDD. Generated helpers are
+validated and transactionally replaced. The native solver is unchanged.
+
 See the [installation and parameter guide](../../docs/build_install/blender.md).
 
 ## Package
@@ -46,7 +52,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.7.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.8.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -102,8 +108,13 @@ The 0.6 suites add `test_performance.py`, `test_fixed_cache.py`,
 `blender_performance.py` freezes benchmark scenes/inputs; `benchmark_worker.py`
 runs warmup/measured trials, and `compare_worker_benchmarks.py` checks every output
 vertex and exposes within-revision drift. See `agent_docs/13-blender-integration.md`
-for reproduction and measured limitations: native cloth runs are not yet verified
-reproducible, so small runtime differences are not claimed as a solver speedup.
+for reproduction and measured limitations. Independent native trajectories are not
+bitwise correctness goldens; small timing changes are not claimed as solver speedups.
+
+The 0.8 suites add `test_affine.py`, `blender_affine_cache.py` (including all 500
+frames after addon-free reopening) and `native_affine_cache.py` (every output
+vertex compared to the same native run). The installed GUI test covers both rod
+and affine overlays. Native parallel reduction/solver code is unchanged.
 
 `tests/blender_fem.py` additionally verifies native strict/relaxed meshing,
 original vertex IDs and groups, interior and surface pins, wholly fixed

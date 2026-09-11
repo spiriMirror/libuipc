@@ -57,6 +57,11 @@ def main():
         frames, vertices = struct.unpack(">ii", stream.read(8))
         stream.read(4 * frames)
         points = np.frombuffer(stream.read(), dtype=">f4").reshape(frames, vertices, 3)
+    result = json.loads((directory / "result.json").read_text())
+    if result["objects"][0].get("encoding") == "AFFINE":
+        decode = importlib.import_module(args.module + ".affine").affine_positions
+        source = np.array([v.co[:] for v in body.data.vertices])
+        points = np.stack([decode(frame, source) for frame in points])
     held = float(np.abs(points[:50] - points[0]).max())
     displacement = points[-1].mean(axis=0) - points[0].mean(axis=0)
     assert held < 1e-5, held

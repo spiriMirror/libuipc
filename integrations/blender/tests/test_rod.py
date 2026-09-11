@@ -14,6 +14,11 @@ from materials import validate_preset
 
 
 class RodTests(unittest.TestCase):
+    def test_volume_preparation_signatures_do_not_require_a_simulation_role(self):
+        body = {"name": "Surface", "material": {"preserve_surface": True},
+                "vertices": np.eye(3), "triangles": [[0,1,2]], "matrix": np.eye(4), "pins": []}
+        self.assertEqual(fingerprint({}, [body], 6), fingerprint({}, [body], 8))
+
     def test_native_section_coefficients_and_preset(self):
         material = {"rod_stretch": 4e4, "rod_bending": 1e5, "thickness": .005, "density": 200, "self_collision": True}
         values = rod_stiffness(material)

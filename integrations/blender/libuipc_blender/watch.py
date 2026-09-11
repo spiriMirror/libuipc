@@ -20,13 +20,24 @@ def clear():
 
 def relevant_update(scene, updates):
     physical, related = related_objects(scene)
+    from .affine_playback import is_affine, proxy_object
+    related = set(related)
+    groups = set()
+    for obj in physical:
+        modifier = obj.modifiers.get(MODIFIER_NAME)
+        if is_affine(modifier):
+            groups.add(modifier.node_group)
+            try:
+                related.add(proxy_object(modifier))
+            except ValueError:
+                return True
     membership = (tuple(sorted(o.as_pointer() for o in related)), scene.frame_start, scene.frame_end,
                   scene.render.fps, scene.render.fps_base, scene.unit_settings.scale_length)
     key = scene.as_pointer()
     if _members.get(key) != membership:
         _members[key] = membership
         return True
-    meshes = {o.data for o in physical if o.type == "MESH"}
+    meshes = {o.data for o in related if o.type == "MESH"}
     actions = {o.animation_data.action for o in related if o.animation_data and o.animation_data.action}
     for update in updates:
         item = getattr(update.id, "original", update.id)
@@ -35,6 +46,8 @@ def relevant_update(scene, updates):
         if isinstance(item, bpy.types.Object) and item in related:
             return True
         if isinstance(item, bpy.types.Action) and item in actions:
+            return True
+        if isinstance(item, bpy.types.NodeTree) and item in groups:
             return True
     return False
 
@@ -46,10 +59,19 @@ def check(scene):
     for obj in sorted((o for o in scene.objects if o.uipc_body.role != "NONE"), key=lambda o: object_id(o) or o.name):
         modifier = obj.modifiers.get(MODIFIER_NAME)
         if modifier:
+            from .affine_playback import is_affine, validate_graph, playback_modifier
+            if is_affine(modifier):
+                proxy = validate_graph(modifier)
+                controls.append(("affine", modifier.node_group.as_pointer(), proxy.as_pointer(),
+                                 modifier.show_viewport, modifier.show_render,
+                                 modifier.node_group.get("uipc_source_id"),
+                                 modifier.node_group.get("uipc_cache_fingerprint"),
+                                 proxy.get("uipc_source_id"), proxy.get("uipc_cache_fingerprint")))
+            cached = playback_modifier(modifier)
             controls.append((object_id(obj) or obj.name, list(obj.modifiers).index(modifier),
-                             tuple(tuple(getattr(modifier, k)) if k == "flip_axis" else getattr(modifier, k)
+                             tuple(tuple(getattr(cached, k)) if k == "flip_axis" else getattr(cached, k)
                                    for k in bridge.CACHE_PROPERTIES)))
-            path = Path(bpy.path.abspath(modifier.filepath))
+            path = Path(bpy.path.abspath(cached.filepath))
             stat = path.stat()
             files.append((str(path), stat.st_size, stat.st_mtime_ns))
     directory = Path(bpy.path.abspath(scene.uipc_settings.last_bake))

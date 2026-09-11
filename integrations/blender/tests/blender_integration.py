@@ -51,6 +51,10 @@ def result_arrays(scene):
     for obj in result["objects"]:
         name = request["objects"][obj["index"]]["name"]
         times, points = read_mdd(directory / f"object_{obj['index']:04d}.mdd")
+        if obj.get("encoding") == "AFFINE":
+            with np.load(directory / f"input_{obj['index']:04d}.npz", allow_pickle=False) as source_data:
+                source = source_data["vertices"]
+            points = np.einsum("vj,fjk->fvk", source, points[:,1:]) + points[:,0,None,:]
         if len(points) == 1:
             points = np.broadcast_to(points, (result["frames"], *points.shape[1:]))
         data[name] = points

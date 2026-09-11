@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "libuipc_blender"
-version = "0.7.0"
+version = "0.8.0"
 name = "libuipc Physics"
 tagline = "Bake cloth, solids, rigid bodies and animated robot hands"
 maintainer = "spiriMirror"

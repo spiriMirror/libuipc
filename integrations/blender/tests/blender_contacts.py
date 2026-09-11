@@ -48,6 +48,10 @@ for label, friction, enabled in (("sliding", 0., True), ("sticking", 1., True), 
         frames, vertices = struct.unpack(">ii", stream.read(8))
         stream.read(4 * frames)
         points = np.frombuffer(stream.read(), dtype=">f4").reshape(frames, vertices, 3)
+    if result["objects"][0].get("encoding") == "AFFINE":
+        decode = importlib.import_module("libuipc_blender.affine").affine_positions
+        source = np.array([v.co[:] for v in cube.data.vertices])
+        points = np.stack([decode(frame, source) for frame in points])
     results[label] = {"x": float(points[-1, :, 0].mean()),
                       "z": float(points[-1, :, 2].mean() + cube.location.z)}
 assert results["sliding"]["x"] > .2, results

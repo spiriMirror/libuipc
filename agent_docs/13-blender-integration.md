@@ -9,6 +9,65 @@ The root library remains Apache-2.0. Independent `worker.py`/`protocol.py` also
 use Apache-2.0; only Blender-specific adapter files use GPL-3.0-or-later.
 The extension LICENSE defines the per-file boundary and ships both full texts.
 
+## Compact affine delivery (0.8 / schema 8)
+
+Moving/driven ABD now uses four ordinary MDD vectors per frame: translation and
+the three columns of the complete object-local affine map. `affine.py` packs/
+decodes this representation; `affine_playback.py` builds an owned hidden four-point
+Mesh Cache helper and a native Sample Index/Vector Math/Set Position graph on the
+visible source mesh. All 12 coefficients are retained, including shear and scale.
+No TRS decomposition, shape-key approximation, scripted driver or Python frame
+callback is used. Source meshes and native physics are unchanged.
+
+The worker forms `local_map * current_transform * rest_map`, where
+`rest_map = S * original_matrix` with the native ABD rest center subtracted, and
+`local_map = inverse(original_matrix) * inverse(S)`. S converts Blender units to
+meters. This preserves the original local-coordinate playback contract under
+translation, rotation, nonuniform/negative scale and non-unit scene scales.
+Quality metrics still sample the real native world-space vertices. Encoding checks
+compare to that SAME native run, not bitwise goldens from a second simulation.
+
+`result.objects[].vertices` is still the source vertex count. New `encoding` is
+`AFFINE` or `VERTEX` (legacy default); the former requires schema >= 8 and RIGID.
+`cache_vertices()` derives an MDD header count of four for AFFINE. Wholly fixed
+ABD remains single-sample VERTEX. `output_options.compact_abd` is a strict boolean,
+default true for new schema-8 jobs, outside the physical fingerprint. Old schemas
+retain their old encoding. The UI checkbox affects future bakes, never physics or
+the validity of an existing cache. Disable it for direct per-vertex MDD exchange.
+
+Attachment stages all new modifiers/helpers before switching, preserves the old
+data until evaluation succeeds, and rolls back both encoding directions on failure.
+Removal only deletes owned unshared helpers/groups; fake-user/reused data survives.
+Validation checks code-owned node/link/input structure, helper topology/transform,
+enabled playback, source identity/fingerprint, exact cache path/header/hash and
+stack position. Watch/preview understand both encodings. Native helper file paths
+are automatically included in `bpy.utils.blend_paths`, so existing snapshot/receipt
+render queues remain addon-free without inventing a second renderer protocol.
+
+| Frozen workload (31 frames) | 0.6 cache bytes | 0.8 cache bytes | Reduction |
+|---|---:|---:|---:|
+| Four moving + two fixed ABD spheres | 1,672,824 | 33,048 | 98.0% |
+| Cloth + sphere + 17 driven hand links | 4,574,760 | 434,400 | 90.5% |
+| Cloth only | 405,240 | 405,240 | None; encoding unchanged |
+
+This is a storage/output optimization, not a claimed solver speedup. Initial
+candidate process medians remain effectively unchanged (ABD 1.20 s, mixed 13.1 s).
+One warmup plus three trials reuse the frozen NPZ hashes/config/native runtime;
+results are under `output/blender-affine-08-benchmark` and its comparison JSON.
+Single-run encoding checks under `output/blender-affine-08-native-{abd,hand}`
+compare every output vertex to the same native state within float32 cache precision.
+
+Verification includes 54 portable tests on Python 3.11/3.14; native 61-frame mixed
+contact, 41-frame FEM, 81-frame motion and sample-87 controller regressions; cached
+EEVEE/OptiX multi-view rendering; old schema-3 500-frame playback; and installed GUI
+rod/affine overlays with repeated GPU resource reuse (exit 0). The synthetic affine
+contract reopens and checks ALL 500 varying-transform frames without the addon,
+including shear, mirrored/nonuniform scale and cm units. Its 500-frame file is
+26,008 bytes. Evidence directories use `output/blender-affine-08-*`.
+The regression also exposed/fixed a rod fingerprint assumption in volume
+preparation: generic preparation materials need not contain a simulation `role`.
+No native C++/CUDA changes or Python runtime reinstall are part of this delivery.
+
 ## Rod integration (0.7 / schema 7)
 
 `rod.py` validates edge-only unbranched open/closed chains and maps radius/density/
@@ -34,7 +93,7 @@ Validation: `test_rod.py` plus 47 existing portable tests pass (50 total);
 whole-fixed rods, two bending moduli, floor contact, surface rendering, save/reopen
 without the addon and non-destructive beveled-curve conversion. Soft/stiff tip
 displacements are -0.0926753 / -0.0056086 m. Evidence:
-`output/blender-followup-rods-v2`. Compact moving ABD is the remaining stage.
+`output/blender-followup-rods-v2`. Compact moving ABD is delivered in 0.8 above.
 The native fixed-order experiment was withdrawn; retain concurrent solver paths
 per rule 16. Rounding from valid atomic accumulation orders is not a defect.
 
@@ -137,13 +196,11 @@ and the same zero speed/acceleration semantics, but release per-vertex history.
 `blender_fixed_cache.py` checks all-node pins, zero DOFs, cm units, mirrored scale,
 frame-start 7, fractional/backward frames and reopened addon-free playback to 500.
 
-Dynamic ABD compact encoding was evaluated, not enabled: a 0.2 m cube with 2% shear
+At the 0.6 stage, dynamic ABD compact encoding was evaluated but not enabled: a 0.2 m cube with 2% shear
 loses 1.514 mm after Blender TRS decomposition, while native full-affine MDD is
-within 3e-8 m including the midpoint (`blender_affine_contract.py`). A future compact
-scheme must store all 12 affine coefficients, interpolate them linearly and provide
-native addon-free reconstruction plus cache/snapshot integrity, rather than write
-lossy location/rotation/scale keys. Geometry-node or shape-basis reconstruction
-needs its own validated attachment/snapshot format; it is not part of schema 6.
+within 3e-8 m including the midpoint (`blender_affine_contract.py`). Version 0.8 now
+meets that requirement with all 12 coefficients in a four-vector MDD and validated
+native reconstruction; it does not use lossy location/rotation/scale keys.
 
 ## Source map
 
@@ -155,7 +212,9 @@ needs its own validated attachment/snapshot format; it is not part of schema 6.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.7.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.8.0; Windows/Linux; Blender >=4.2 API target |
+| `affine.py` / `affine_playback.py` | Four-vector full-affine encoding, native helpers and structural validation |
+| `rod.py` / `rod_ui.py` / `node_math.py` | Rod validation/section mapping, authoring and native surface transforms |
 | `performance.py` | Host-phase and non-mutating frontend timings, without GPU synchronization |
 | `materials.py` / `material_ui.py` | Portable independent cloth/pair rules and Blender contact/preset controls |
 | `quality.py` / `quality_ui.py` / `preview.py` | Streaming observations, verified report navigation and non-destructive selected-object GPU preview |

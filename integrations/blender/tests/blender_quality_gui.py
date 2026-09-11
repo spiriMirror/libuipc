@@ -103,6 +103,54 @@ def tick():
             assert "uipc" not in sys.modules
             # Close popup-owned RNA widgets before unregistering their types.
             bpy.context.window.event_simulate(type="ESC", value="PRESS")
+            state["stage"] = "affine_popup"
+            return .5
+        if state["stage"] == "affine_popup":
+            body = scene.objects["Falling ABD"]
+            assert addon.bridge.affine_playback.is_affine(body.modifiers[addon.protocol.MODIFIER_NAME])
+            for obj in scene.objects:
+                obj.select_set(obj == body)
+            bpy.context.view_layer.objects.active = body
+            state["affine_draws_before"] = state["draws"]
+            popup("UIPC_PT_scene")
+            state["stage"] = "affine_capture"
+            return 1.0
+        if state["stage"] == "affine_capture":
+            assert state["draws"] > state["affine_draws_before"] and state["gpu_reuse_verified"]
+            state["affine_preview_verified"] = True
+            assert bpy.ops.screen.screenshot(filepath=str(args.output / "affine_ui.png")) == {"FINISHED"}
+            bpy.context.window.event_simulate(type="ESC", value="PRESS")
+            state["stage"] = "rod_popup"
+            return .5
+        if state["stage"] == "rod_popup":
+            rod_scene = bpy.data.scenes.new("Rod UI controls")
+            bpy.context.window.scene = rod_scene
+            mesh = bpy.data.meshes.new("Rod UI centerline")
+            mesh.from_pydata([(i*.04,0,.5) for i in range(8)],[(i,i+1) for i in range(7)],[])
+            body = bpy.data.objects.new("Rod UI",mesh)
+            rod_scene.collection.objects.link(body)
+            body.uipc_body.role,body.uipc_body.thickness = "ROD",.005
+            pins = body.vertex_groups.new(name="Pins")
+            pins.add([0,1],1,"REPLACE")
+            body.uipc_body.pin_group = pins.name
+            body.select_set(True)
+            bpy.context.view_layer.objects.active = body
+            rod_scene.uipc_settings.show_physics_overlay = True
+            rod_scene.uipc_settings.show_pin_overlay = True
+            rod_scene.uipc_settings.show_thickness_overlay = True
+            area = next(a for a in bpy.context.screen.areas if a.type == "VIEW_3D")
+            area.spaces.active.region_3d.view_perspective = "ORTHO"
+            area.spaces.active.region_3d.view_location = (.14,0,.5)
+            area.spaces.active.region_3d.view_distance = .7
+            state["rod_draws_before"] = state["draws"]
+            popup("UIPC_PT_body")
+            state["stage"] = "rod_capture"
+            return 1.0
+        if state["stage"] == "rod_capture":
+            assert state["draws"] > state["rod_draws_before"] and state["gpu_reuse_verified"]
+            state["rod_preview_verified"] = True
+            assert bpy.ops.screen.screenshot(filepath=str(args.output / "rod_ui.png")) == {"FINISHED"}
+            bpy.context.window.event_simulate(type="ESC", value="PRESS")
             state["stage"] = "closing_popups"
             return 1.0
         if state["stage"] == "closing_popups":

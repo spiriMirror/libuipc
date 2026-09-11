@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
@@ -112,7 +112,7 @@ def fingerprint(settings, bodies, schema_version=SCHEMA_VERSION):
             data = np.ascontiguousarray(values, dtype=dtype)
             digest.update(str(data.shape).encode())
             digest.update(data.tobytes())
-        if body["material"]["role"] == "ROD" and schema_version >= 7:
+        if body["material"].get("role") == "ROD" and schema_version >= 7:
             data = np.ascontiguousarray(body["edges"], dtype="<i4")
             digest.update(str(data.shape).encode())
             digest.update(data.tobytes())
@@ -143,7 +143,7 @@ def cache_fingerprint(request, settings, bodies):
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema not in (2, 3, 4, 5, 6, SCHEMA_VERSION):
+    if schema not in (2, 3, 4, 5, 6, 7, SCHEMA_VERSION):
         return None
     return fingerprint(settings, bodies, schema_version=schema)
 
@@ -199,6 +199,10 @@ def validate_result(request, result, vertex_counts, fixed_flags=None):
         if (type(output["index"]) is not int or type(output.get("vertices")) is not int
                 or output["vertices"] != vertex_counts[index]):
             raise ValueError("Bake result has an invalid object/vertex count")
+        encoding = output.get("encoding", "VERTEX")
+        if encoding not in ("VERTEX", "AFFINE") or (encoding == "AFFINE" and (
+                request["schema_version"] < 8 or request["objects"][index]["material"]["role"] != "RIGID")):
+            raise ValueError("Unsupported cache encoding for this object/schema")
         stored = output.get("stored_frames", frames)
         if type(stored) is not int or stored not in (1, frames):
             raise ValueError("Invalid stored cache frame count")

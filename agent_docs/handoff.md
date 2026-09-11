@@ -1,12 +1,25 @@
 # Handoff — Current State of the Repo
 
+> **Remaining Blender improvements completed (0.8, 2026-09-11)**: rods and moving
+> ABD compact caches are implemented. Each moving ABD uses four MDD vectors/frame
+> and a native helper/Geometry Nodes reconstruction retaining all affine terms.
+> Fixed outputs and old schemas remain compatible; a checkbox requests conventional
+> per-vertex output. Six-sphere cache storage drops 1,672,824 -> 33,048 bytes; the
+> hand/cloth workload drops 4,574,760 -> 434,400 bytes. This is not a solver speedup.
+> 54 portable tests, real mixed/FEM/motion/hand and EEVEE/OptiX queue regressions,
+> installed GUI overlays and ALL 500 synthetic affine frames without the addon
+> are verified. See `13-blender-integration.md` and `output/blender-affine-08-*`.
+> Install `output/blender-dist/libuipc_blender-0.8.0.zip`; no pyuipc reinstall needed.
+> The user's Blender profile and native solver installation remain unchanged.
+> Native fixed-order experiments stay withdrawn per rule 16, not pending work.
+
 > **Blender rods stage (2026-09-11)**: schema 7 / extension 0.7.0 now exposes
 > Hookean stretch + Kirchhoff bending on centerline meshes, without twist or rest
 > curvature. Curve conversion preserves the source; native circular-section
 > surface display follows MDD with correct scale mapping. Pins, coupled contact,
 > presets, diagnostics and constant fixed caches include rods. 50 portable tests
 > and a real 31-frame rod contact/render/addon-free regression pass, evidence in
-> `output/blender-followup-rods-v2`. Moving-ABD compression remains ongoing.
+> `output/blender-followup-rods-v2`. Moving-ABD compression was completed in 0.8.
 > The fixed-order native experiment was rejected and fully withdrawn. Preserve
 > parallel atomic accumulation per rule 16; do not revive determinism work merely
 > because independent trajectories differ in floating-point arithmetic.

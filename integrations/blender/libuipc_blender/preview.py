@@ -80,9 +80,16 @@ def _entry(obj, scene):
 
 def _local_points(entry, obj, scene):
     modifier = obj.modifiers.get(MODIFIER_NAME)
-    if not (modifier and modifier.type == "MESH_CACHE" and modifier.show_viewport):
+    if not (modifier and modifier.show_viewport):
         return ("rest",), entry["rest"]
     from .bridge import cache_settings
+    from .affine_playback import is_affine, playback_modifier
+    from .affine import affine_positions
+    compact = is_affine(modifier)
+    if modifier.type != "MESH_CACHE" and not compact:
+        raise ValueError("Preview cache modifier is invalid")
+    modifier = playback_modifier(modifier)
+    vertex_count = 4 if compact else len(entry["rest"])
     request_path = Path(bpy.path.abspath(scene.uipc_settings.last_bake)) / "request.json"
     request_token = _file_token(request_path)
     if entry.get("request_token") != request_token:
@@ -94,19 +101,19 @@ def _local_points(entry, obj, scene):
         if actual != expected:
             raise ValueError("Preview requires validated cache playback settings")
     path = Path(bpy.path.abspath(modifier.filepath))
-    token = _file_token(path)
+    token = (*_file_token(path), compact)
     if entry.get("file_token") != token:
         with path.open("rb") as stream:
             header = stream.read(8)
         if len(header) != 8:
             raise ValueError("Truncated preview cache")
         frames, vertices = struct.unpack(">ii", header)
-        if (frames < 1 or vertices != len(entry["rest"])
+        if (frames < 1 or vertices != vertex_count
                 or token[1] != 8 + 4*frames + 12*frames*vertices):
             raise ValueError("Preview cache topology/size mismatch")
         entry.update(file_token=token, frames=frames)
         entry["samples"].clear()
-    frames, vertices = entry["frames"], len(entry["rest"])
+    frames, vertices = entry["frames"], vertex_count
     position = min(max(scene.frame_current + scene.frame_subframe - modifier.frame_start, 0), frames - 1)
     source_key = (token, position)
     if entry.get("source_key") != source_key:
@@ -130,6 +137,8 @@ def _local_points(entry, obj, scene):
             entry["samples"].move_to_end(frame)
         points = entry["samples"][first]
         entry["local"] = points if not alpha else points*(1-alpha) + entry["samples"][second]*alpha
+        if compact:
+            entry["local"] = affine_positions(entry["local"], entry["rest"])
         entry["source_key"] = source_key
         while len(entry["samples"]) > 2:
             entry["samples"].popitem(last=False)

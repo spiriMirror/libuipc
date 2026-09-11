@@ -15,6 +15,7 @@ from materials import cloth_moduli, cloth_stiffness, build_contact_plan
 from quality import QualityRecorder
 from performance import Timings
 from rod import rod_stiffness, validate_linemesh
+from affine import pack_affine, cache_vertices
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
                       positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256, fully_fixed)
@@ -64,9 +65,13 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] not in (2, 3, 4, 5, 6, SCHEMA_VERSION):
+    if request["schema_version"] not in (2, 3, 4, 5, 6, 7, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
+    options = request.get("output_options", {})
+    if (not isinstance(options, dict) or set(options) - {"compact_abd"}
+            or type(options.get("compact_abd", True)) is not bool):
+        raise ValueError("Invalid cache output options")
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
         positive(settings[key], key)
     positive(settings["friction"], "friction", allow_zero=True)
@@ -284,8 +289,17 @@ def simulate(directory, parent):
             scene.animator().insert(obj, update_target)
         if role != "STATIC":
             constant = fully_fixed(body)
+            compact = (request["schema_version"] >= 8 and role == "RIGID" and not constant
+                       and request.get("output_options", {}).get("compact_abd", True))
+            rest_map = matrix.copy()
+            rest_map[:3,:] *= settings["unit_scale"]
+            rest_map[:3,3] -= center
+            local_map = inverse.copy()
+            local_map[:3,:3] /= settings["unit_scale"]
             outputs.append({"index": index, "slot": current, "role": role,
                             "inverse": inverse, "vertices": len(world_positions), "constant": constant,
+                            "encoding": "AFFINE" if compact else "VERTEX",
+                            "rest_map": rest_map, "local_map": local_map,
                             "stored_frames": 1 if constant and request["schema_version"] >= 6 else frame_count})
 
     # Engine must outlive World and all native calls. One process owns one World.
@@ -307,7 +321,7 @@ def simulate(directory, parent):
         for output in outputs:
             with timings.measure("cache_write"):
                 writers.append(MDDWriter(directory / f"object_{output['index']:04d}.mdd",
-                                         output["stored_frames"], output["vertices"], settings["fps"]))
+                                         output["stored_frames"], cache_vertices(output), settings["fps"]))
         for frame in range(frame_count):
             if not parent.alive() or (directory / "cancel").exists():
                 atomic_json(directory / "status.json", {"state": "cancelled", "frame": frame})
@@ -350,9 +364,12 @@ def simulate(directory, parent):
                 with timings.measure("motion_diagnostics"):
                     quality.record_object(output["index"], frame + settings["frame_start"], points)
                 with timings.measure("output_transform"):
-                    points = points / settings["unit_scale"]
-                    inverse = output["inverse"]
-                    local_points = points @ inverse[:3, :3].T + inverse[:3, 3]
+                    if output["encoding"] == "AFFINE":
+                        local_points = pack_affine(output["local_map"] @ transform @ output["rest_map"])
+                    else:
+                        points = points / settings["unit_scale"]
+                        inverse = output["inverse"]
+                        local_points = points @ inverse[:3, :3].T + inverse[:3, 3]
                 with timings.measure("cache_write"):
                     writer.append(local_points)
                 if output["constant"] and output["stored_frames"] != 1:
@@ -372,7 +389,7 @@ def simulate(directory, parent):
         performance = timings.report()
         performance.update(output_frames=frame_count, native_steps=motion_step[0],
                            output_vertices=sum(o["vertices"] for o in outputs),
-                           stored_vertex_samples=sum(o["vertices"]*o["stored_frames"] for o in outputs),
+                           stored_vertex_samples=sum(cache_vertices(o)*o["stored_frames"] for o in outputs),
                            dense_cache_bytes=sum(8+4*frame_count+12*frame_count*o["vertices"] for o in outputs),
                            cache_bytes=sum(writer.path.stat().st_size for writer in writers),
                            diagnostics_bytes=sum((directory / name).stat().st_size for name in
@@ -394,6 +411,7 @@ def simulate(directory, parent):
             "effective_contacts": contact_plan,
             "quality_report_sha256": quality_digest,
             "objects": [{"index": o["index"], "vertices": o["vertices"],
+                         **({"encoding": o["encoding"]} if request["schema_version"] >= 8 else {}),
                          **({"stored_frames": o["stored_frames"]} if request["schema_version"] >= 6 else {}),
                          "sha256": writer.digest.hexdigest()} for o, writer in zip(outputs, writers)],
         })

@@ -32,7 +32,9 @@ def invalidate(scene, message):
         return
     for obj in scene.objects:
         modifier = obj.modifiers.get(MODIFIER_NAME)
-        if modifier and modifier.type == "MESH_CACHE":
+        if modifier and (modifier.type == "MESH_CACHE" or bridge.affine_playback.is_affine(modifier)):
+            if obj.get(bridge.affine_playback.MARKER) == 1:
+                continue
             modifier.show_viewport = False
             modifier.show_render = False
     scene.uipc_settings.quality_bake = ""
@@ -47,6 +49,8 @@ def changed(self, context):
 
 
 class UIPCSceneSettings(bpy.types.PropertyGroup):
+    compact_abd: BoolProperty(name="Compact ABD Cache", default=True,
+        description="Store the complete affine transform as four MDD vectors per frame; affects the next bake's storage only")
     active_robot: PointerProperty(name="Robot", type=bpy.types.Object,
         poll=lambda self, obj: bool(obj.get("uipc_robot_source")))
     render_cameras: CollectionProperty(type=UIPCRenderCamera)
@@ -536,6 +540,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.operator("uipc.render_validated", text="Validate & Render").animation = False
         row.operator("uipc.render_validated", text="Render Full Timeline").animation = True
         layout.operator("uipc.create_demo")
+        layout.prop(settings, "compact_abd")
         layout.operator("uipc.curve_to_rod")
         layout.operator("uipc.import_volume")
         layout.operator("uipc.import_robot")

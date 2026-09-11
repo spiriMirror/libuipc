@@ -3,13 +3,16 @@
 Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
 bending (no twist), edge/curve input, pinning/contact and native surface playback.
 Current limits: unbranched chains, straight-rest bending, no animated rod pins.
-Compact moving-ABD encoding is the remaining accepted integration task.
+Compact moving-ABD encoding is completed in 0.8/schema 8 with four-vector MDD,
+full-affine native reconstruction, rollback/integrity checks and addon-free renders.
+The accepted Blender improvement tasks are complete; twisting, animated rod pins,
+prismatic/mimic/torque controls and simulation checkpoint resume remain out of scope.
 
 Blender performance instrumentation and frozen-input baseline tooling are now
 implemented (2026-09-11). No added GPU synchronization or solver changes. Preview
 resource reuse and fixed-output compaction are implemented and validated in 0.6.
-Moving ABD encoding remains dense: the TRS-only probe loses shear; any future
-compact format must preserve all 12 affine coefficients and addon-free playback.
+Moving ABD now retains all 12 affine coefficients without TRS decomposition. The
+per-vertex MDD option remains available for interoperability with external tools.
 
 The native fixed-order experiment was withdrawn completely. Diagnostics found
 floating-point atomic accumulation order differences; these alone are not a
@@ -35,8 +38,8 @@ Ordinary F12/direct Blender rendering is intentionally not intercepted. Contact
 material pairs and batch physical presets are implemented and validated with
 native friction/exclusion tests. Streaming quality reports, peak-frame navigation
 and selected-object mesh/pin/thickness previews are implemented. Position metrics
-are output-frame finite differences, not physical-error certificates. Compact ABD
-caches and true stateful resume remain follow-up work; the 0.5 joint-control UI
+are output-frame finite differences, not physical-error certificates. True stateful
+resume remains follow-up work; the 0.5 joint-control UI
 now covers supported fixed/revolute controllers.
 
 Status as of 2026-09-03. Completed performance work is
