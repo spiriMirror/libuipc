@@ -121,6 +121,19 @@ record it here in the same commit.**
     friction path skips detected parallel pairs. Do not make `need_mollify()`
     globally constant. (Set 2026-09-03; refined 2026-09-03.)
 
+16. **Do not serialize or impose fixed-order floating-point accumulation merely
+    to eliminate run-to-run rounding differences.** Preserve the existing parallel
+    architecture and efficiency. Small numerical differences caused solely by
+    rounding under different valid atomic-add accumulation orders are expected,
+    not numerical correctness defects. Distinguish permitted atomic arrival-order
+    variation from violations of required parallel execution dependencies. A
+    correctness fix must address a demonstrated algorithmic error or an actual
+    concurrency/synchronization defect (for example, lost contributions, data
+    races, missing synchronization, out-of-bounds access or uninitialized reads).
+    Do not add sorting, fixed-order reductions or serialization merely to obtain
+    bitwise reproducibility without an explicit requirement. (Set and clarified
+    2026-09-11.)
+
 ## Task-scoped (recorded for context, not general policy)
 
 - Dining-scene reconstruction: ground is `z = 0`; tabletop objects may begin
