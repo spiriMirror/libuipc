@@ -71,6 +71,9 @@ def object_material(obj):
     if obj.uipc_body.role == "CLOTH":
         from .materials import CLOTH_POISSON_FIELDS
         result.update({name: getattr(obj.uipc_body, name) for name in CLOTH_POISSON_FIELDS})
+    if obj.uipc_body.role == "ROD":
+        from .rod import ROD_FIELDS
+        result.update({name: getattr(obj.uipc_body, name) for name in ROD_FIELDS})
     drive = drive_material(obj)
     if drive is not None:
         result["drive"] = drive
@@ -117,6 +120,9 @@ def collect_scene(scene, validate_geometry=True):
                 raise ValueError(f"{obj.name}: animated/constrained/Bullet objects or parents are unsupported in v0.1")
             current = current.parent
         for modifier in obj.modifiers:
+            from .rod_ui import is_display
+            if is_display(obj, modifier):
+                continue
             if modifier.name == MODIFIER_NAME and modifier.type != "MESH_CACHE":
                 raise ValueError(f"{obj.name}: rename the existing '{MODIFIER_NAME}' modifier")
             if modifier.name == MODIFIER_NAME and modifier.type == "MESH_CACHE":
@@ -140,7 +146,17 @@ def collect_scene(scene, validate_geometry=True):
         world_vertices = (vertices @ matrix[:3, :3].T + matrix[:3, 3]) * simulation["unit_scale"]
         # Normalize only winding; keep vertex IDs and base coordinates untouched.
         tetrahedra = np.empty((0, 4), dtype=np.int32)
-        if obj.uipc_body.role == "FEM":
+        edges = np.empty((0, 2), dtype=np.int32)
+        if obj.uipc_body.role == "ROD":
+            if len(mesh.polygons):
+                raise ValueError(f"{obj.name}: rods require edges only, not a tube surface")
+            edges = np.empty(len(mesh.edges) * 2, dtype=np.int32)
+            mesh.edges.foreach_get("vertices", edges)
+            edges = edges.reshape(-1, 2)
+            if validate_geometry:
+                from .rod import validate_linemesh
+                _, edges = validate_linemesh(world_vertices, edges, obj.name)
+        elif obj.uipc_body.role == "FEM":
             stored = mesh.get("uipc_tetrahedra")
             if stored is None or len(stored) % 4:
                 raise ValueError(f"{obj.name}: generate or import a tetrahedral mesh before baking FEM")
@@ -155,7 +171,7 @@ def collect_scene(scene, validate_geometry=True):
             _, triangles = validate_mesh(world_vertices, triangles, obj.uipc_body.role, obj.name,
                                          allow_components=obj.uipc_body.driven)
         pins = []
-        if obj.uipc_body.role in ("CLOTH", "FEM") and obj.uipc_body.pin_group and not obj.uipc_body.fixed:
+        if obj.uipc_body.role in ("CLOTH", "FEM", "ROD") and obj.uipc_body.pin_group and not obj.uipc_body.fixed:
             group = obj.vertex_groups.get(obj.uipc_body.pin_group)
             if group is None:
                 raise ValueError(f"{obj.name}: pin group '{obj.uipc_body.pin_group}' does not exist")
@@ -168,6 +184,8 @@ def collect_scene(scene, validate_geometry=True):
                        "tetrahedra": tetrahedra,
                        "matrix": matrix, "pins": np.array(pins, dtype=np.int32),
                        "material": object_material(obj)})
+        if obj.uipc_body.role == "ROD":
+            bodies[-1]["edges"] = edges
         if object_id(obj):
             bodies[-1]["id"] = object_id(obj)
     if not bodies or not any(b["material"]["role"] != "STATIC" for b in bodies):
@@ -185,6 +203,8 @@ def collect_scene(scene, validate_geometry=True):
 def export_job(scene):
     from .motion import sample_targets, sample_hash, align_robot_initial
     align_robot_initial(scene)
+    from .rod_ui import refresh_displays
+    refresh_displays(scene)
     ensure_scene_ids(scene)
     settings, bodies = collect_scene(scene)
     targets = sample_targets(scene, bodies)
@@ -197,6 +217,8 @@ def export_job(scene):
                "objects": [{"id": b["id"], "name": b["name"], "material": b["material"]} for b in bodies]}
     for index, body in enumerate(bodies):
         arrays = {key: body[key] for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
+        if body["material"]["role"] == "ROD":
+            arrays["edges"] = body["edges"]
         if "drive" in body["material"]:
             arrays["drive_targets"] = targets[body["material"]["drive"]["target"]]
             request["objects"][index]["drive_targets_sha256"] = sample_hash(arrays["drive_targets"])

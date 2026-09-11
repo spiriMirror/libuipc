@@ -56,7 +56,7 @@ def _entry(obj, scene):
     key = (scene.as_pointer(), obj.as_pointer(), mesh.as_pointer())
     entry = _entries.get(key)
     counts = (len(mesh.vertices), len(mesh.edges), len(mesh.polygons), len(mesh.loops))
-    if entry is None or entry["counts"] != counts:
+    if entry is None or entry["counts"] != counts or entry["role"] != obj.uipc_body.role:
         rest = np.empty(len(mesh.vertices) * 3, dtype=np.float64)
         mesh.vertices.foreach_get("co", rest)
         mesh.calc_loop_triangles()
@@ -64,7 +64,11 @@ def _entry(obj, scene):
         mesh.loop_triangles.foreach_get("vertices", triangles)
         triangles = triangles.reshape(-1, 3)
         edges = np.sort(np.concatenate((triangles[:, [0, 1]], triangles[:, [1, 2]], triangles[:, [2, 0]])), axis=1)
-        entry = {"counts": counts, "rest": rest.reshape(-1, 3), "triangles": triangles,
+        if obj.uipc_body.role == "ROD":
+            edges = np.empty(len(mesh.edges) * 2, dtype=np.int32)
+            mesh.edges.foreach_get("vertices", edges)
+            edges = edges.reshape(-1, 2)
+        entry = {"counts": counts, "role": obj.uipc_body.role, "rest": rest.reshape(-1, 3), "triangles": triangles,
                  "edges": np.unique(edges, axis=0), "samples": OrderedDict()}
         _entries[key] = entry
         _counts["topology_builds"] += 1
@@ -167,7 +171,7 @@ def simulation_preview(obj, scene, *, include_guides=True, include_pins=True):
         if entry.get("pins_key") != pins_key:
             if body.fixed or body.role == "STATIC":
                 pins = np.arange(len(points), dtype=np.int32)
-            elif body.role in ("CLOTH", "FEM") and group:
+            elif body.role in ("CLOTH", "FEM", "ROD") and group:
                 pins = np.asarray([v.index for v in obj.data.vertices if any(
                     g.group == group.index and g.weight >= body.pin_threshold for g in v.groups)], dtype=np.int32)
             else:
@@ -181,7 +185,18 @@ def simulation_preview(obj, scene, *, include_guides=True, include_pins=True):
         if entry.get("guides_key") != radius:
             normals = np.zeros_like(points)
             triangles = entry["triangles"]
-            if radius and len(triangles):
+            if radius and body.role == "ROD" and len(data["edges"]):
+                edges = data["edges"]
+                first = np.full(len(points), len(edges), dtype=int)
+                np.minimum.at(first, edges.ravel(), np.repeat(np.arange(len(edges)), 2))
+                valid = first < len(edges)
+                directions = np.tile([1.,0.,0.], (len(points),1))
+                directions[valid] = points[edges[first[valid],1]] - points[edges[first[valid],0]]
+                axes = np.eye(3)[np.argmin(np.abs(directions), axis=1)]
+                normals = np.cross(directions, axes)
+                normals /= np.maximum(np.linalg.norm(normals, axis=1)[:,None], np.finfo(float).tiny)
+                _counts["normal_builds"] += 1
+            elif radius and len(triangles):
                 face_normals = np.cross(points[triangles[:, 1]] - points[triangles[:, 0]],
                                         points[triangles[:, 2]] - points[triangles[:, 0]])
                 for corner in range(3):

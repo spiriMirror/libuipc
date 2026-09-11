@@ -48,13 +48,13 @@ and a per-file `LICENSE` explanation; the libuipc root license is unchanged.
     .venv-uipc-blender/bin/python -m uipc doctor --probe-cuda
     ```
 
-2. Obtain `libuipc_blender-0.6.0.zip`, or build it from the repository root:
+2. Obtain `libuipc_blender-0.7.0.zip`, or build it from the repository root:
 
     ```shell
     python scripts/build_blender_addon.py
     ```
 
-    Output: `output/blender-dist/libuipc_blender-0.6.0.zip`.
+    Output: `output/blender-dist/libuipc_blender-0.7.0.zip`.
 
 3. In Blender, open **Edit > Preferences > Add-ons**, open the menu, and choose
    **Install from Disk**. Select the ZIP and enable **libuipc Physics**.
@@ -80,7 +80,59 @@ Each bake has a new directory. Results are attached only when every file has
 completed, its header/length is valid, and the scene still matches the export.
 Cancelling or failing a bake never replaces the previous completed bake.
 
-## Volumetric FEM and fixed objects
+## Rod centerlines (0.7)
+
+The extension now exposes libuipc's existing `HookeanSpring` plus
+`KirchhoffRodBending` on 1D edge meshes. This is a stretch-and-bend rod model,
+without a material-frame twisting degree of freedom or torsional energy.
+
+1. Use an edge-only mesh (no faces), or select a 3D Blender Curve and click
+   **Create Rod from Curve** in the scene panel. Curve conversion creates a new
+   sampled centerline and keeps the source unchanged; hide the original display
+   if it would overlap the rod. Poly, Bezier and NURBS centerlines use Blender's
+   evaluated sampling/resolution. Hair Curves are not this legacy Curve type.
+2. Set **Simulation Role > Rod (Stretch + Bending)**. Open/closed chains and
+   disconnected chains are supported; branching, isolated vertices, duplicate/
+   zero-length edges and exact backtracking are rejected before native calls.
+3. Set the cross-section radius, density and independent stretch/bending moduli.
+   Use the ordinary **Pin Vertex Group** for selected nodes, or **Fixed Entire
+   Object** for the whole rod. Pinning two adjacent nodes also fixes the root
+   tangent; pinning one node alone leaves a pivot. No animated rod pins are exposed.
+4. **Create / Refresh Rod Surface** adds native Geometry Nodes after the simulation
+   cache: circular tube display with round end caps, including nonuniform/negative
+   object scale. The surface is only rendering geometry, never the FEM collision
+   input. It uses the active material initially; its Material modifier input can
+   be changed independently. Rebaking refreshes its radius and scale mapping.
+5. Bake normally. Rods share the World, contact-pair table and friction with cloth,
+   ABD and FEM. MDD centerline playback and generated surface rendering work after
+   the extension is disabled. All-pinned rods use the constant-cache optimization.
+
+| Parameter | Default | Valid domain / interpretation |
+|---|---:|---|
+| `rod_stretch` | 40,000 Pa | Finite, >= 1e-6 in UI; Hookean axial modulus |
+| `rod_bending` | 100,000 Pa | Finite, >= 0; zero omits the bending constitution |
+| `thickness` | 0.001 m | Radius r, not diameter; finite, >= 1e-7 in UI |
+| `density` | 200 kg/m^3 | Finite, >= 1e-6 in UI |
+| `self_collision` | True | Uses the native rod self-contact path |
+| `fixed` | False | Fix every centerline node |
+| `pin_group` / `pin_threshold` | Empty / 0.5 | Weights >= threshold are fixed; threshold in [0.0001, 1] |
+
+For a circular section, $A=\pi r^2$, $I=\pi r^4/4$, axial rigidity is $E_s A$
+(N), bending rigidity is $E_b I$ (N m$^2$), and linear density is $\rho A$
+(kg/m). The axial edge energy is
+$E_s A (L-L_0)^2/(2L_0)$. The existing bending energy is
+$E_b I\|\boldsymbol{\kappa}\|^2/(L_{0a}+L_{0b})$, with curvature defined in
+[Kirchhoff Rod Bending](../specification/constitutions/kirchhoff_rod_bending.md).
+Here $L$ is current edge length and $L_0$ is its rest length. Bending's stress-free
+state is straight: an initially curved centerline is **not** assigned rest curvature.
+There is no rod Poisson-ratio or twisting parameter in this implementation.
+
+Physical presets, quality reports and physics previews support rods. The preview
+shows centerline edges, fixed nodes and diameter guides; it does not invent a
+material-frame orientation. Schema 7 fingerprints include edge connectivity;
+older non-rod cache fingerprints remain unchanged.
+
+## Volumetric FEM workflow
 
 For an existing closed Blender surface:
 
@@ -519,7 +571,7 @@ extension does not claim to intercept them. Playback without the addon is unchan
 - Version 0.3 rejects shape keys, animation/drivers/constraints on physical participants
   or their parents, and Blender Bullet rigid bodies on the same hierarchy.
   It supports separate animated ABD targets as described above. Animated cloth/FEM
-  pins, rods, torque-driven articulations and topology-changing simulation remain unsupported.
+  pins, rod twisting, torque-driven articulations and topology-changing simulation remain unsupported.
 - One bake runs at a time. Loading another file or disabling the extension stops
   its worker. The worker notices a closed parent Blender process between substeps.
 - `worker.log`, `request.json`, input NPZ files, `status.json`, and `result.json`

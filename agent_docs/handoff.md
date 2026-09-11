@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Blender rods stage (2026-09-11)**: schema 7 / extension 0.7.0 now exposes
+> Hookean stretch + Kirchhoff bending on centerline meshes, without twist or rest
+> curvature. Curve conversion preserves the source; native circular-section
+> surface display follows MDD with correct scale mapping. Pins, coupled contact,
+> presets, diagnostics and constant fixed caches include rods. 50 portable tests
+> and a real 31-frame rod contact/render/addon-free regression pass, evidence in
+> `output/blender-followup-rods-v2`. Moving-ABD compression remains ongoing.
+> The fixed-order native experiment was rejected and fully withdrawn. Preserve
+> parallel atomic accumulation per rule 16; do not revive determinism work merely
+> because independent trajectories differ in floating-point arithmetic.
+
 > **Blender 0.6 performance delivery (2026-09-11)**: the accepted baseline,
 > preview-reuse and fixed-output reduction stages are implemented. Schema 6 stores
 > one native MDD sample for proven fixed bodies; older bakes remain compatible.
@@ -12,12 +23,11 @@
 > FEM, motion, fixed addon-free playback, preview, cache and EEVEE/OptiX queue tests.
 > User profile/Python installation and unrelated submodule edits are untouched.
 >
-> **New open finding:** independent cloth runs differ even before optimization.
-> Baseline maximum repeated-run component difference 0.021640 m (cloth) / 0.006711 m
-> (mixed); cross-revision differences reach 0.068073 / 0.007459 m. Cause unisolated;
-> do not claim bitwise cloth reproducibility or silently dismiss the discrepancy.
-> `output/blender-perf-06-{inputs,before,after}` and the comparison JSON preserve
-> all inputs/results for follow-up. See `13-blender-integration.md` for exact scope.
+> **Benchmark interpretation corrected:** independent trajectories need not be
+> bitwise identical. Atomic-order rounding differences alone are not correctness
+> defects. No algorithmic/synchronization bug was established by that observation.
+> The fixed-order experiment and its compiled backend were restored, not delivered.
+> See rule 16; retain measurements without turning them into a determinism task.
 
 > **Blender performance stage 2 (2026-09-11)**: bounded preview topology/pin/frame
 > and GPU reuse, lazy normals and dependency/history cleanup are implemented.

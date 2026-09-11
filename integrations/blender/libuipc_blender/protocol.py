@@ -15,7 +15,7 @@ import time
 
 import numpy as np
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 MODIFIER_NAME = "libuipc Cache"
 OBJECT_FIELDS = (
     "role", "density", "thickness", "stretch", "shear", "bending",
@@ -112,6 +112,10 @@ def fingerprint(settings, bodies, schema_version=SCHEMA_VERSION):
             data = np.ascontiguousarray(values, dtype=dtype)
             digest.update(str(data.shape).encode())
             digest.update(data.tobytes())
+        if body["material"]["role"] == "ROD" and schema_version >= 7:
+            data = np.ascontiguousarray(body["edges"], dtype="<i4")
+            digest.update(str(data.shape).encode())
+            digest.update(data.tobytes())
     return digest.hexdigest()
 
 
@@ -139,7 +143,7 @@ def cache_fingerprint(request, settings, bodies):
             fields = old["material"].keys()
             legacy.append({**body, "material": {key: body["material"][key] for key in fields}})
         return fingerprint(settings, legacy, schema_version=1)
-    if schema not in (2, 3, 4, 5, SCHEMA_VERSION):
+    if schema not in (2, 3, 4, 5, 6, SCHEMA_VERSION):
         return None
     return fingerprint(settings, bodies, schema_version=schema)
 
@@ -169,7 +173,7 @@ def fully_fixed(body):
         return False
     if material.get("fixed", False) or material["role"] == "STATIC":
         return True
-    if material["role"] in ("CLOTH", "FEM"):
+    if material["role"] in ("CLOTH", "FEM", "ROD"):
         pins = np.asarray(body["pins"])
         count = len(body["vertices"])
         return bool(count and len(pins) and pins.min() >= 0 and pins.max() < count

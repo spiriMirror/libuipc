@@ -1,18 +1,24 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
+bending (no twist), edge/curve input, pinning/contact and native surface playback.
+Current limits: unbranched chains, straight-rest bending, no animated rod pins.
+Compact moving-ABD encoding is the remaining accepted integration task.
+
 Blender performance instrumentation and frozen-input baseline tooling are now
 implemented (2026-09-11). No added GPU synchronization or solver changes. Preview
 resource reuse and fixed-output compaction are implemented and validated in 0.6.
 Moving ABD encoding remains dense: the TRS-only probe loses shear; any future
 compact format must preserve all 12 affine coefficients and addon-free playback.
 
-New repeatability issue from frozen 31-frame cloth benchmarks: before-optimization
-repeated runs already differ by up to 0.021640 m (single cloth) / 0.006711 m (mixed)
-per component; cross-revision maxima reach 0.068073 / 0.007459 m. Cause is unisolated.
-Do not treat this as established harmless roundoff or claim trajectory equivalence.
-Exact ABD comparison, cache playback checks and no native-code changes do not resolve
-this separate native-run drift. Inputs/logs/comparator live in
-`output/blender-perf-06-*` and `integrations/blender/tests/compare_worker_benchmarks.py`.
+The native fixed-order experiment was withdrawn completely. Diagnostics found
+floating-point atomic accumulation order differences; these alone are not a
+numerical correctness defect and do not justify changing parallel solver structure.
+Rule 16 requires independent evidence of an algorithmic or synchronization error
+for a correctness fix. Preserve the original concurrent SpMV, dot and assembly
+paths. The source and local backend DLL were restored; the installed Python
+backend was never replaced. Benchmark variability measurements remain observations,
+not a pending bitwise-determinism requirement or proof of a solver defect.
 
 Blender 0.5 stable object/controller identities and relevant-input validation
 gates are implemented. Older cache schemas stay name-based until rebaked.

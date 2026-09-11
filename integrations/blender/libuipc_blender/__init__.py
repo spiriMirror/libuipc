@@ -22,6 +22,7 @@ from .robot_controls import ROBOT_CLASSES, UIPCRobotSettings
 from . import preview
 from . import performance
 from . import watch
+from .rod_ui import ROD_CLASSES
 
 _pending_validation = set()
 
@@ -132,12 +133,17 @@ class UIPCBodySettings(bpy.types.PropertyGroup):
         ("CLOTH", "Cloth", "Baraff-Witkin membrane with discrete shell bending", 0, 1),
         ("RIGID", "Rigid Body (ABD)", "One closed, connected, consistently oriented surface", 0, 2),
         ("FEM", "Volumetric FEM", "Tetrahedral solid with Stable Neo-Hookean elasticity", 0, 4),
+        ("ROD", "Rod (Stretch + Bending)", "Edge centerlines; Hookean stretch and Kirchhoff bending, no twist", 0, 5),
         ("STATIC", "Fixed Collider", "Fixed triangle surface; open surfaces are supported", 0, 3),
     ], default="NONE", update=changed)
     fixed: BoolProperty(name="Fixed Entire Object", default=False, update=changed,
         description="Fix the whole ABD instance or every FEM/cloth node, including internal nodes")
     young_modulus: FloatProperty(name="Solid Young's Modulus (Pa)", default=1e5, min=1e-6,
         soft_max=1e9, update=changed, description="3D Stable Neo-Hookean elastic modulus")
+    rod_stretch: FloatProperty(name="Rod Stretch E (Pa)", default=4e4, min=1e-6, soft_max=1e9, update=changed,
+        description="Hookean spring modulus; axial rigidity EA with A=pi*r*r")
+    rod_bending: FloatProperty(name="Rod Bending E (Pa)", default=1e5, min=0, soft_max=1e9, update=changed,
+        description="Kirchhoff bending modulus; EI=E*pi*r^4/4. Zero disables bending; no twisting term")
     preserve_surface: BoolProperty(name="Preserve Original Surface", default=True,
         description="Keep every original surface vertex, coordinate and triangle; only add internal nodes")
     tet_edge_length: FloatProperty(name="Target Tet Edge (m)", default=0, min=0, precision=5,
@@ -530,6 +536,7 @@ class UIPC_PT_scene(bpy.types.Panel):
         row.operator("uipc.render_validated", text="Validate & Render").animation = False
         row.operator("uipc.render_validated", text="Render Full Timeline").animation = True
         layout.operator("uipc.create_demo")
+        layout.operator("uipc.curve_to_rod")
         layout.operator("uipc.import_volume")
         layout.operator("uipc.import_robot")
         if any(obj.get("uipc_robot_source") for obj in context.scene.objects):
@@ -609,7 +616,16 @@ class UIPC_PT_body(bpy.types.Panel):
             layout.prop(body, "young_modulus")
             layout.prop(body, "poisson")
             layout.prop(body, "self_collision")
-        if body.role in ("CLOTH", "FEM"):
+        if body.role == "ROD":
+            layout.prop(body, "rod_stretch")
+            layout.prop(body, "rod_bending")
+            layout.prop(body, "self_collision")
+            from .rod import rod_stiffness
+            effective = rod_stiffness(bridge.object_material(context.object))
+            layout.label(text=f"EA: {effective['axial_rigidity']:.5g} N; EI: {effective['bending_rigidity']:.5g} N m^2")
+            layout.label(text="Straight-rest bending; no twisting term")
+            layout.operator("uipc.rod_surface")
+        if body.role in ("CLOTH", "FEM", "ROD"):
             pins = layout.column()
             pins.enabled = not body.fixed
             pins.prop_search(body, "pin_group", context.object, "vertex_groups")
@@ -667,7 +683,7 @@ def _load_post(_):
         bpy.app.timers.register(_validate_pending, first_interval=0.1)
 
 
-CLASSES = (*MATERIAL_CLASSES, *RENDER_CLASSES, *ROBOT_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
+CLASSES = (*MATERIAL_CLASSES, *RENDER_CLASSES, *ROBOT_CLASSES, *ROD_CLASSES, UIPCSceneSettings, UIPCBodySettings, UIPCPreferences, UIPC_OT_bake, UIPC_OT_cancel,
            UIPC_OT_validate, UIPC_OT_render_validated, UIPC_OT_detach, UIPC_OT_probe, UIPC_OT_demo,
            UIPC_OT_generate_volume, UIPC_OT_import_volume, UIPC_OT_restore_surface, UIPC_OT_import_robot,
            UIPC_OT_robot_initial_pose,

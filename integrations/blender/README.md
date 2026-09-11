@@ -4,7 +4,7 @@ Blender extension source: [`libuipc_blender/`](libuipc_blender/).
 This integration is independently packaged; it uses the public `pyuipc` API and
 does not add Blender dependencies to libuipc's CMake or XMake targets.
 
-Version 0.6 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, fixed
+Version 0.7 supports coupled cloth, ABD rigid bodies, tetrahedral FEM, rods, fixed
 triangle colliders, whole-object fixing, pinned surface/internal FEM nodes,
 Coulomb friction, and native MDD bake playback. Volume generation uses libuipc's
 native C++ tetrahedralizer; existing `.msh` volumes can also be imported.
@@ -32,6 +32,12 @@ ABD retains full affine MDD; a TRS-only shortcut would lose shear. No native sol
 or physical parameter changes, and no pyuipc reinstall is needed. Rebuild/install
 the extension and rebake only if you want the smaller fixed-object files.
 
+Version 0.7 connects the existing Hookean/Kirchhoff rod model (stretch and bending,
+no twist), edge-only meshes, curve-to-centerline conversion, pins/contact/presets,
+and addon-free circular-section display with round end caps. Rods use a straight
+stress-free bending state, not the initial curve's curvature. See the parameter
+guide for ranges, section formulas and supported centerline topology.
+
 See the [installation and parameter guide](../../docs/build_install/blender.md).
 
 ## Package
@@ -40,7 +46,7 @@ From the repository root, with Python 3.11 or newer:
 
 ```shell
 python scripts/build_blender_addon.py
-blender --background --command extension validate output/blender-dist/libuipc_blender-0.6.0.zip
+blender --background --command extension validate output/blender-dist/libuipc_blender-0.7.0.zip
 ```
 
 The generated ZIP can be installed using Blender's **Install from Disk**.
@@ -115,7 +121,7 @@ installed in the external Python; PyPI 0.0.28 does not contain the new mesher.
 - This is an offline bake integration, not a real-time solver guarantee.
 - URDF mesh links with fixed/revolute joints and animated ABD targets are exposed
   in 0.3. The joint hierarchy specifies target poses, as in sample 87; it is not
-  a torque-controlled articulation solver. Rods and animated cloth/FEM pins remain unsupported.
+  a torque-controlled articulation solver. Rod twisting and animated cloth/FEM/rod pins remain unsupported.
 - Blender-specific adapter code is GPL-3.0-or-later; the independently usable
   `worker.py`, `protocol.py` and `robot_model.py` retain Apache-2.0. Copyright: spiriMirror.
   Separately installed libuipc remains Apache-2.0. See the extension's `LICENSE`

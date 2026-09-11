@@ -9,6 +9,35 @@ The root library remains Apache-2.0. Independent `worker.py`/`protocol.py` also
 use Apache-2.0; only Blender-specific adapter files use GPL-3.0-or-later.
 The extension LICENSE defines the per-file boundary and ships both full texts.
 
+## Rod integration (0.7 / schema 7)
+
+`rod.py` validates edge-only unbranched open/closed chains and maps radius/density/
+independent axial and bending E to section properties. `worker.py` constructs
+`linemesh` + `HookeanSpring` + optional `KirchhoffRodBending`, with the same node
+fixing and contact table as FEM/cloth. This reuses existing native constitutions;
+there is no twist term or rest-curvature extension. Rod-only fields and edge arrays
+are fingerprinted without changing old non-rod hashes. Schema 2-6 workers/readers
+remain supported; rods require 7. Presets, diagnostics, overlays and all-fixed
+compaction include rods.
+
+`rod_ui.py` explicitly converts a private curve copy into a new centerline object,
+without editing/deleting the source, and builds a native display node group after
+MDD. `node_math.py` applies full affine position fields without TRS decomposition.
+The rod section is constructed in world-length coordinates and mapped back to
+local coordinates, preserving negative/nonuniform scale. The display uses a
+12-sided circular section and round end caps, not additional simulated vertices.
+The active material initializes an exposed Material input. Bake export refreshes
+existing managed displays; read-only cache checks never rebuild node groups.
+
+Validation: `test_rod.py` plus 47 existing portable tests pass (50 total);
+`blender_rods.py` checks 31 frames, exact centerline cache playback, pinned roots,
+whole-fixed rods, two bending moduli, floor contact, surface rendering, save/reopen
+without the addon and non-destructive beveled-curve conversion. Soft/stiff tip
+displacements are -0.0926753 / -0.0056086 m. Evidence:
+`output/blender-followup-rods-v2`. Compact moving ABD is the remaining stage.
+The native fixed-order experiment was withdrawn; retain concurrent solver paths
+per rule 16. Rounding from valid atomic accumulation orders is not a defect.
+
 ## Performance baseline (2026-09-11)
 
 Preview preparation now reuses base topology/edges, pin selections, two decoded
@@ -78,14 +107,17 @@ unchanged. `compare_worker_benchmarks.py --before <dir> --after <dir> --output <
 checks every vertex of every frame across all three trials and also reports
 within-revision variation. Evidence: `output/blender-perf-06-comparison.json`.
 
-**Open reproducibility finding:** the cloth workload already differs between
+**Benchmark variability observation (not a determinism requirement):** the cloth workload differs between
 baseline trials by up to 0.021640 m per local component; optimized repeated trials
 differ by 0.052424 m, and cross-revision comparisons by 0.068073 m. Mixed-workload
 values are 0.006711 / 0.004028 / 0.007459 m. Scale is one in these inputs. The
-cause is not yet isolated; do not label this drift harmless, attribute it solely
-to the output optimization, or claim exact cloth-trajectory equivalence. No native
-solver changes were made here. Frozen inputs and raw logs remain available for a
-dedicated repeatability investigation. Pure ABD repeats and cross-comparisons are exact.
+initial investigation identified atomic-order rounding in linear solving and
+gradient accumulation. This does not establish an algorithmic or synchronization
+bug. The owner explicitly rejected restructuring parallel execution for bitwise
+agreement; that experiment and its compiled backend were fully restored. Keep the
+original concurrent paths. No determinism fix is pending. Frozen inputs/logs remain
+available as measurements, not correctness goldens. Pure ABD comparisons in this
+particular baseline happened to be exact; that is not a general solver guarantee.
 
 ## Fixed cache encoding and affine boundary (0.6 / schema 6)
 
@@ -123,7 +155,7 @@ needs its own validated attachment/snapshot format; it is not part of schema 6.
 | `runtime.py` | Exactly one owned subprocess; cancellation, completion, fresh-directory rebakes |
 | `worker.py` | Native tetrahedralization/MSH preparation, 3D FEM/ABD/cloth construction, IPC advancement and output retrieval |
 | `demo.py` | Asset-free cloth/ABD/platform example scene |
-| `blender_manifest.toml` | Extension identity 0.6.0; Windows/Linux; Blender >=4.2 API target |
+| `blender_manifest.toml` | Extension identity 0.7.0; Windows/Linux; Blender >=4.2 API target |
 | `performance.py` | Host-phase and non-mutating frontend timings, without GPU synchronization |
 | `materials.py` / `material_ui.py` | Portable independent cloth/pair rules and Blender contact/preset controls |
 | `quality.py` / `quality_ui.py` / `preview.py` | Streaming observations, verified report navigation and non-destructive selected-object GPU preview |
@@ -341,7 +373,7 @@ Version 0.2 adds native volume generation/import and whole-object fixing. The
 surface/internal pins, fixed ABD/FEM/cloth, contact, all-node MDD checks and source
 restoration. It passed in Blender 4.5.3 with a Python 3.14 source-built CUDA 13.2
 runtime; cached-node playback error was zero in the checked frames.
-Version 0.3 adds the URDF/controller workflow below. Rods, torque-driven
+Version 0.3 adds the URDF/controller workflow below. Rods are exposed in 0.7; torque-driven
 articulations, animated cloth/FEM pins, shape keys and topology-changing
 simulation remain outside this plugin version.
 

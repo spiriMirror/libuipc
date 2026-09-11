@@ -14,6 +14,7 @@ import numpy as np
 from materials import cloth_moduli, cloth_stiffness, build_contact_plan
 from quality import QualityRecorder
 from performance import Timings
+from rod import rod_stiffness, validate_linemesh
 
 from protocol import (SCHEMA_VERSION, MDDWriter, atomic_json, fingerprint,
                       positive, read_json, validate_mesh, validate_tetmesh, motion_hash, file_sha256, fully_fixed)
@@ -63,7 +64,7 @@ def load_runtime():
 
 def load_request(directory):
     request = read_json(directory / "request.json")
-    if request["schema_version"] not in (2, 3, 4, 5, SCHEMA_VERSION):
+    if request["schema_version"] not in (2, 3, 4, 5, 6, SCHEMA_VERSION):
         raise ValueError("Unsupported Blender bridge schema")
     settings = request["settings"]
     for key in ("fps", "unit_scale", "d_hat", "resistance"):
@@ -79,6 +80,10 @@ def load_request(directory):
         # Paths are derived from indices, never from object names or input paths.
         with np.load(directory / f"input_{index:04d}.npz", allow_pickle=False) as data:
             body = {key: data[key].copy() for key in ("vertices", "triangles", "tetrahedra", "matrix", "pins")}
+            if entry["material"]["role"] == "ROD":
+                if request["schema_version"] < 7:
+                    raise ValueError("Rod jobs require schema 7 or newer")
+                body["edges"] = data["edges"].copy()
             if "drive" in entry["material"]:
                 body["drive_targets"] = data["drive_targets"].copy()
                 if motion_hash(body["drive_targets"]) != entry.get("drive_targets_sha256"):
@@ -157,10 +162,11 @@ def simulate(directory, parent):
         uipc = load_runtime()
     setup_started = time.perf_counter()
     from uipc import builtin, view
-    from uipc.geometry import trimesh, tetmesh, label_surface, label_triangle_orient
+    from uipc.geometry import trimesh, tetmesh, linemesh, label_surface, label_triangle_orient
     from uipc.constitution import (AffineBodyConstitution, DiscreteShellBending,
                                   ElasticModuli2D, StrainLimitingBaraffWitkinShell,
-                                  ElasticModuli, StableNeoHookean, SoftTransformConstraint)
+                                  ElasticModuli, StableNeoHookean, SoftTransformConstraint,
+                                  HookeanSpring, KirchhoffRodBending)
 
     uipc.Logger.set_level(uipc.Logger.Level.Warn)
     config = uipc.Scene.default_config()
@@ -178,6 +184,7 @@ def simulate(directory, parent):
     bending = DiscreteShellBending()
     abd = AffineBodyConstitution()
     solid = StableNeoHookean()
+    spring, rod_bending = HookeanSpring(), KirchhoffRodBending()
     outputs = []
     has_dynamic = False
     frame_count = settings["frame_end"] - settings["frame_start"] + 1
@@ -188,7 +195,7 @@ def simulate(directory, parent):
         drive = material.get("drive")
         if drive is not None and (role != "RIGID" or material["fixed"]):
             raise ValueError("Motion targets require an unfixed ABD body")
-        if role not in ("CLOTH", "RIGID", "STATIC", "FEM"):
+        if role not in ("CLOTH", "RIGID", "STATIC", "FEM", "ROD"):
             raise ValueError(f"{body['name']}: unsupported simulation role")
         for key in ("density", "thickness", "stretch", "shear", "rigidity", "strain_rate"):
             positive(material[key], f"{body['name']}: {key}")
@@ -202,7 +209,10 @@ def simulate(directory, parent):
             raise ValueError(f"{body['name']}: singular or invalid object transform")
         inverse = np.linalg.inv(matrix)
         world_positions = (body["vertices"] @ matrix[:3, :3].T + matrix[:3, 3]) * settings["unit_scale"]
-        if role == "FEM":
+        if role == "ROD":
+            rod_stiffness(material)
+            world_positions, edges = validate_linemesh(world_positions, body["edges"], body["name"])
+        elif role == "FEM":
             world_positions, cells, _boundary, _owners = validate_tetmesh(
                 world_positions, body["tetrahedra"], body["name"])
         else:
@@ -212,7 +222,8 @@ def simulate(directory, parent):
         if pins.ndim != 1 or (len(pins) and (pins.min() < 0 or pins.max() >= len(world_positions))):
             raise ValueError(f"{body['name']}: invalid pinned vertex indices")
         center = world_positions.mean(axis=0) if role == "RIGID" else np.zeros(3)
-        mesh = tetmesh(world_positions, cells) if role == "FEM" else trimesh(world_positions - center, triangles)
+        mesh = (linemesh(world_positions, edges) if role == "ROD" else
+                tetmesh(world_positions, cells) if role == "FEM" else trimesh(world_positions - center, triangles))
         label_surface(mesh)
         if role == "FEM":
             label_triangle_orient(mesh)
@@ -227,6 +238,10 @@ def simulate(directory, parent):
             if thickness is None:
                 thickness = mesh.vertices().create(builtin.thickness, float(material["thickness"]))
             view(thickness)[:] = material["thickness"]
+        elif role == "ROD":
+            spring.apply_to(mesh, material["rod_stretch"], material["density"], material["thickness"])
+            if material["rod_bending"] > 0:
+                rod_bending.apply_to(mesh, material["rod_bending"])
         elif role == "FEM":
             positive(material["young_modulus"], "solid Young's modulus")
             solid.apply_to(mesh, ElasticModuli.youngs_poisson(material["young_modulus"], material["poisson"]),
@@ -241,7 +256,7 @@ def simulate(directory, parent):
             else:
                 fixed[pins] = 1
             has_dynamic |= bool(np.any(fixed == 0))
-            view(mesh.meta().find(builtin.self_collision))[:] = int(role in ("CLOTH", "FEM") and material["self_collision"])
+            view(mesh.meta().find(builtin.self_collision))[:] = int(role in ("CLOTH", "FEM", "ROD") and material["self_collision"])
         obj = scene.objects().create(body["name"])
         current, _rest = obj.geometries().create(mesh)
         contact_groups[contact_plan["assignments"][index]].apply_to(current.geometry())
@@ -373,6 +388,8 @@ def simulate(directory, parent):
             "solver_statistics_available": frame_stats is not None,
             "cloth_stiffness": {b["name"]: cloth_stiffness(b["material"])
                                 for b in bodies if b["material"]["role"] == "CLOTH"},
+            "rod_stiffness": {b["name"]: rod_stiffness(b["material"])
+                              for b in bodies if b["material"]["role"] == "ROD"},
             "cache_integrity": 1,
             "effective_contacts": contact_plan,
             "quality_report_sha256": quality_digest,

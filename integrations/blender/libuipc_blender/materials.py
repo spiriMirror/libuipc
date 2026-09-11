@@ -11,6 +11,7 @@ PRESET_FIELDS = {
               "strain_rate", "self_collision"),
     "RIGID": ("density", "rigidity"),
     "FEM": ("density", "thickness", "young_modulus", "poisson", "self_collision"),
+    "ROD": ("density", "thickness", "rod_stretch", "rod_bending", "self_collision"),
 }
 
 
@@ -134,7 +135,7 @@ def validate_preset(payload):
             if not 0 <= value <= 0.499 + 1e-7:
                 raise ValueError(f"Preset {key} must be in [0, 0.499]")
         else:
-            minimum = 0 if key == "bending" else 1 if key == "rigidity" else 1e-7 if key == "thickness" else 1e-6
+            minimum = 0 if key in ("bending", "rod_bending") else 1 if key == "rigidity" else 1e-7 if key == "thickness" else 1e-6
             if value < minimum * (1 - 1e-6):
                 raise ValueError(f"Preset {key} must be >= {minimum}")
     return {"schema_version": 1, "role": role, "values": dict(values)}
