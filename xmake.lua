@@ -14,6 +14,8 @@ option("vdb", {default = false, description = "Build with OpenVDB support"})
 
 option("python_version", {default = "3.11.x", description = "Specify python version"})
 option("python_system", {default = false, description = "Use system python"})
+option("python_editable", {default = false,
+       description = "Drop the built extension into python/src/uipc/_native so `pip install -e python` stays live"})
 
 
 includes("src", "apps", "xmake/*.lua")

@@ -77,6 +77,49 @@ target("pyuipc")
     after_build(function (target)
         local project_dir = os.projectdir()
         local python_source_dir = path.join(project_dir, "python")
+
+        if get_config("python_editable") then
+            -- An editable install imports from the source tree, so the mirror
+            -- under build/python would never be picked up.  Install straight
+            -- into the package instead, and go through the install action the
+            -- way xmake/pack.lua does: a plain copy of targetdir misses the
+            -- shared libraries of dependency packages (spdlog, fmt, ...) that
+            -- the extension resolves through its $ORIGIN rpath.
+            import("target.action.install", {alias = "_do_install_target"})
+
+            local modules_target_dir = path.join(python_source_dir, "src", "uipc", "_native")
+            print("Editable mode: installing modules into " .. modules_target_dir)
+            os.mkdir(modules_target_dir)
+            _do_install_target(target, {
+                headers = false,
+                binaries = false,
+                libraries = true,
+                packages = true,
+                installdir = modules_target_dir,
+                libdir = "",
+                bindir = "",
+            })
+            os.rm(path.join(modules_target_dir, "*.lib"))
+
+            import("lib.detect.find_tool")
+            local python = assert(find_tool("python3", {envs = target:pkgenvs()}), "python not found!")
+            local stubs_script = path.join(project_dir, "scripts", "pyuipc_stubgen.py")
+            local dependencies_ok = try { function()
+                os.vrunv(python.program, {"-c", "import pybind11_stubgen, numpy, typing_extensions"})
+                return true
+            end }
+            assert(dependencies_ok,
+                   "editable stub generation requires pybind11-stubgen, numpy, and typing_extensions")
+            print("Generating stubs in " .. python_source_dir .. "/src")
+            os.vrunv(python.program, {
+                stubs_script,
+                "--source_dir=" .. path.join(python_source_dir, "src"),
+                "--output_dir=" .. path.join(python_source_dir, "src"),
+                "--build_type=" .. (get_config("mode") or "release"),
+            })
+            return
+        end
+
         local build_dir = path.join(project_dir, "build")
         local python_build_dir = path.join(build_dir, "python")
         local modules_target_dir = path.join(python_build_dir, "src", "uipc", "_native")

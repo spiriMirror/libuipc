@@ -1,6 +1,20 @@
 [build-system]
-requires = ["scikit-build-core>=0.10.0", "setuptools-scm>=8.0.0"]
-build-backend = "scikit_build_core.build"
+requires = [
+    "scikit-build-core>=0.10.0",
+    "setuptools-scm>=8.0.0",
+    "setuptools>=61.0",
+    # CMake checks these modules while configuring the Python binding.  Keep
+    # them in the isolated build environment instead of letting CMake mutate
+    # the target interpreter with ensurepip/pip install.
+    "pybind11>=2.11",
+    "pybind11-stubgen>=2.5",
+    "numpy>=1.23",
+    "typing_extensions>=4.6",
+]
+# Thin shim over scikit_build_core.build: forwards every hook unchanged, except
+# an editable install asked to build with xmake. See packaging/uipc_build.py.
+build-backend = "uipc_build"
+backend-path = ["packaging"]
 
 [project]
 name = "pyuipc"

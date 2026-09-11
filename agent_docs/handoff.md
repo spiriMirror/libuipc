@@ -335,6 +335,36 @@
 > solves rose from 114 to 135, so future performance claims must still use the
 > canonical large scenes.
 
+> **xmake-driven editable install (2026-09-03)**: `pip install -e .
+> --config-settings=builder=xmake --no-build-isolation` now builds the extension
+> with xmake. `packaging/uipc_build.py` is a PEP 517 shim declared via
+> `build-backend = "uipc_build"` / `backend-path = ["packaging"]`; the five
+> release hooks are re-exported as the same scikit-build-core function objects
+> (asserted by identity), and only the three `*_editable` hooks branch — still to
+> CMake unless `builder=xmake` is passed. New xmake option `python_editable`
+> makes the `pyuipc` `after_build` install into `python/src/uipc/_native` through
+> `target.action.install` with `packages = true`; the first attempt copied
+> `targetdir/*.so*` like the non-editable path and failed to import with
+> `libspdlog.so.1.17: cannot open shared object file`, because dependency-package
+> libraries live outside targetdir. Backend config is isolated in
+> `build/xmake-pep517` via `XMAKE_CONFIGDIR` (verified: the checkout's
+> `xmake.conf` md5 is unchanged across an install) since `xmake f` resets every
+> option not passed explicitly. Verified in a throwaway venv: install succeeded
+> (`pyuipc-0.9.0-0.editable-cp312-cp312-linux_x86_64.whl`), `import uipc` plus
+> submodules worked, a Python edit took effect without reinstalling, and
+> `check_release_policy.py` still passes. Two caveats: the backend defaults to
+> `release`, so a `releasedbg` checkout recompiles ~200 CUDA TUs unless given
+> `xmake-args="-m releasedbg"`; and `uv pip install -e .` fails because uv
+> misreads `backend-path` as a project directory. A fresh-interpreter check then
+> showed the shim's module-level `import scikit_build_core.build` broke
+> `--no-build-isolation` outright (`BackendUnavailable: Cannot import
+> 'uipc_build'`), since that mode skips `[build-system].requires`; the forwarded
+> hooks are now resolved through a module-level `__getattr__`, keeping function
+> identity while importing nothing until used. `setuptools` stays a hard
+> requirement of the xmake path (it builds the editable wheel) and now fails with
+> an actionable `RuntimeError`. Verified end to end on a venv containing only
+> pip + setuptools + numpy.
+
 > **cuBLAS-free CUDA runtime boundary (2026-09-02)**: published wheels through
 > 0.0.27 directly import CUDA 12 cuBLAS, but current source no longer uses or
 > links cuBLAS. `LinearSystemContext` dot/norm now use named block-partial

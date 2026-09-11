@@ -38,7 +38,19 @@ torch/warp adapters still require their own optional frameworks.
 ## Packaging pipeline
 
 **Official release (root `pyproject.toml`, scikit-build-core)**:
+- `build-backend = "uipc_build"` with `backend-path = ["packaging"]`.
+  `packaging/uipc_build.py` is a shim: `build_wheel`, `build_sdist`, their
+  `get_requires_*`, and `prepare_metadata_for_build_wheel` are re-exported as
+  the *same function objects* scikit-build-core provides, so every release path
+  is byte-identical to calling that backend directly. Only the three
+  `*_editable` hooks are wrapped, and they still delegate to CMake unless the
+  caller opts into xmake (see Development mode). `check_release_policy.py` does
+  not inspect the backend declaration.
 - Version is generated dynamically by `setuptools_scm` (release-branch-semver).
+- The root build requirements include `pybind11`, `pybind11-stubgen`, `numpy`,
+  and `typing_extensions`, which the CMake Python-binding configure step checks
+  inside pip's isolated environment. `cmake/uipc_utils.cmake` only checks those
+  modules; it never runs `ensurepip` or installs into the target interpreter.
 - `python/src/uipc/compatibility.json` is the canonical release support policy.
   `scripts/check_release_policy.py` verifies both pyprojects, classifiers, the
   workflow ABI/toolkit matrix, and the CMake wheel architecture list against it.
@@ -68,6 +80,51 @@ torch/warp adapters still require their own optional frameworks.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
 - `setup.py`'s `BuildPyCommand` collects dll/so from `build/vcpkg_installed/<triplet>/{bin,lib}` and `build/<config>/bin`.
 - uv editable development: `uv run --no-sync pytest python/tests` (`--no-sync` avoids rebuilding every time).
+
+**Editable install through xmake** (opt-in; `pip install -e .` alone still uses
+CMake):
+
+```bash
+pip install -e . --config-settings=builder=xmake
+```
+
+- The switch is `builder=xmake` (or `UIPC_BUILDER=xmake`); anything else routes
+  to scikit-build-core. Extra settings: `jobs=N` (default 4 — one job per core
+  OOMs nvcc) and `xmake-args="..."` appended to `xmake f`.
+- scikit-build-core is imported lazily (module-level `__getattr__`), so the xmake
+  path works in an environment that does not have it — which is what
+  `--no-build-isolation` gives you. A module-level import made the whole backend
+  unimportable there (`BackendUnavailable: Cannot import 'uipc_build'`). The
+  forwarded hooks are still the same function objects on first attribute access.
+  `setuptools` cannot be made lazy the same way, since the xmake path builds the
+  editable wheel with it; with `--no-build-isolation` it must be present, and the
+  backend raises an actionable `RuntimeError` naming the fix instead of a bare
+  `ModuleNotFoundError`. Without `--no-build-isolation`, pip provisions it.
+- The backend configures `--python_editable=true`, which makes the `pyuipc`
+  `after_build` hook install into `python/src/uipc/_native` instead of mirroring
+  the package under `build/python`. It goes through `target.action.install` with
+  `packages = true`, the same call `xmake/pack.lua` uses: a plain
+  `os.cp(targetdir/*.so*)` misses dependency-package libraries such as
+  `libspdlog.so`, and the extension then fails to import.
+- setuptools (from `python/pyproject.toml`) produces the editable wheel, so the
+  reported version is that file's hardcoded one, not the setuptools-scm value
+  used by non-editable CMake releases. The CMake editable hook overrides its
+  metadata to the same development version `0.9.0`. Development-only; no
+  published wheel is affected.
+- xmake configuration is kept in `build/xmake-pep517` via `XMAKE_CONFIGDIR`,
+  because `xmake f` resets every option not passed explicitly and would
+  otherwise wipe a developer's hand-set configuration. Object files live in the
+  shared `build/`, but are only reused when the modes agree — the backend
+  defaults to `release`, so a `releasedbg` checkout recompiles all ~200 CUDA TUs
+  unless given `xmake-args="-m releasedbg"`.
+- The editable after-build hook and `xmake pack` both call the shared
+  `scripts/pyuipc_stubgen.py`; editable installs therefore refresh the `.pyi`
+  tree in `python/src/uipc` alongside the native libraries. The generator
+  exits nonzero on a stub-generation failure, so packaging cannot silently
+  publish a stale tree.
+- `uv pip install -e .` does not work here: uv misreads `backend-path` as a
+  project directory and fails with "packaging does not appear to be a Python
+  project". Use `pip` / `python -m pip`.
 
 ## Python tests
 

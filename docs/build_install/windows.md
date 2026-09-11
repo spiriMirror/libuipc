@@ -2,6 +2,10 @@
 
 ## Prerequisites
 
+For editable Python development with either backend, see the complete
+[CMake/XMake editable guide](./dev_in_uv.md). The Windows commands are also
+listed below in PowerShell form.
+
 The following dependencies are required to build the project.
 
 | Name                                                | Version      | Usage           | Import         |
@@ -11,6 +15,11 @@ The following dependencies are required to build the project.
 | [Python](https://www.python.org/downloads/)         | >=3.11       | build system    | system install |
 | [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.4       | GPU programming | system install |
 | [Vcpkg](https://github.com/microsoft/vcpkg)         | >=2025.7.25  | package manager | git clone      |
+
+Python development headers, a C++20 compiler (Visual Studio 2022 is
+recommended), and network access for the first vcpkg/XMake dependency download
+are also required. The default build enables CUDA, so install the CUDA Toolkit
+with `nvcc` and a compatible NVIDIA driver.
 
 ## Install Vcpkg
 
@@ -137,3 +146,79 @@ If you want to install the Pyuipc to any Python Venv (like [uv](https://docs.ast
 cmake -S .. -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<YOUR_PYTHON_EXECUTABLE_PATH>
 cmake --build . --config <Release/RelWithDebInfo> -j8
 ```
+
+## Editable Python Install with CMake or XMake
+
+Use a Python 3.12 environment. `uv --seed` installs pip into the new venv;
+Conda environments with Python and pip work as well.
+
+```powershell
+$Project = "C:\path\to\libuipc"
+Set-Location $Project
+
+uv venv --seed --python 3.12 .venv
+.\.venv\Scripts\Activate.ps1
+
+python --version
+python -m pip --version
+xmake --version
+cmake --version
+nvcc --version
+```
+
+For CMake, configure vcpkg in the current PowerShell session. Replace the
+path if vcpkg is installed elsewhere:
+
+```powershell
+$env:CMAKE_TOOLCHAIN_FILE = "$HOME\Toolchain\vcpkg\scripts\buildsystems\vcpkg.cmake"
+if (-not (Test-Path $env:CMAKE_TOOLCHAIN_FILE)) { throw "CMAKE_TOOLCHAIN_FILE not found" }
+$env:VCPKG_DISABLE_METRICS = "1"
+$env:CMAKE_BUILD_PARALLEL_LEVEL = "4"
+
+python -m pip install -v -e . `
+  --config-settings=builder=cmake `
+  --config-settings=build-dir=build/cmake-editable
+```
+
+The CMake editable hook supplies the development version `0.9.0`. Its build
+requirements (`pybind11`, `pybind11-stubgen`, `numpy`, and
+`typing_extensions`) are installed into pip's isolated build environment, and
+the CMake helper only checks them; it does not run `ensurepip` or install into
+the target interpreter. Re-run the same command after native code changes.
+
+For XMake, select the backend explicitly:
+
+```powershell
+$env:CMAKE_BUILD_PARALLEL_LEVEL = "4"
+
+python -m pip install -v -e . `
+  --config-settings=builder=xmake `
+  --config-settings=jobs=4
+```
+
+XMake also reports the development version `0.9.0` from
+`python/pyproject.toml`. For repeated local builds, `--no-build-isolation` is
+optional; install the build requirements in the active environment first:
+
+```powershell
+python -m pip install "setuptools>=64" wheel
+python -m pip install -v -e . `
+  --config-settings=builder=xmake `
+  --config-settings=jobs=4 `
+  --no-build-isolation
+```
+
+`uv pip install -e .` currently misreads the repository's in-tree PEP 517
+`backend-path`; use `python -m pip` for the root project. `uv` remains suitable
+for creating the venv and installing individual packages.
+
+Verify either installation:
+
+```powershell
+python -c "import importlib.metadata as m, uipc; from uipc._native import pyuipc; print(m.version('pyuipc')); print(uipc.__file__); print(pyuipc.__file__)"
+python -m pip list --editable
+python -m uipc doctor --probe-cuda
+```
+
+The doctor command initializes the CUDA backend. An import alone does not
+verify that a CUDA engine can be constructed.
