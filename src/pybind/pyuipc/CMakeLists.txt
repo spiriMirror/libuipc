@@ -15,6 +15,9 @@ foreach(_uipc_backend_target IN LISTS _uipc_backend_targets)
 endforeach()
 unset(_uipc_backend_target)
 unset(_uipc_backend_targets)
+# Geometry implementations can change without changing the Windows import
+# library. Refresh the Python runtime even when only the mesher DLL changed.
+set_property(TARGET pyuipc APPEND PROPERTY LINK_DEPENDS "$<TARGET_FILE:uipc_geometry>")
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
 

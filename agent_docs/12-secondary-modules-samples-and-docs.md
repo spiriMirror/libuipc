@@ -4,6 +4,10 @@ This guide covers public surfaces that sit outside the main
 Engine/Scene/constitution/CUDA path, plus the repository's user-documentation
 pipeline and the sample corpus used as executable API evidence.
 
+The independently packaged Blender integration is documented in
+[`13-blender-integration.md`](13-blender-integration.md): external Python/CUDA
+worker, cloth/ABD/fixed contact, and native MDD playback with real Blender tests.
+
 ## Backend Feature Collection
 
 `Engine::features()` is a runtime registry, not a compile-time promise. The common
@@ -102,7 +106,7 @@ test functions.
 ## Sample Repository as Executable API Evidence
 
 `libuipc-samples/` is a tracked git submodule, not an untracked sibling. At the
-audited revision it contains 52 directories under `examples/`. Numbering is
+audited revision it contains 53 directories under `examples/`. Numbering is
 historical: it is non-contiguous and `40_abd_four_box_revolute_chain` and
 `40_distance_diagnoser` intentionally share the numeric prefix. Use names and
 paths, not numeric uniqueness, in automation or documentation.
@@ -125,12 +129,12 @@ Representative map:
 | contact pair materials | `14_load_scene` |
 | subscene collision filtering | `29_subscene` |
 | backend features/interoperability | `20_contact_system_feature`, `21_interop`, `31_state_accessor_feature`, `40_distance_diagnoser` |
-| URDF robot | `87_robot_hand` |
+| URDF robot | `87_robot_hand` (manual posing), `94_robot_hand_grasp_apple` (scripted, four-finger physical pick/place) |
 | advanced solver config/performance alignment | `28_advanced_scene_config`, `88_stiff_gipc_benchmark`, `89`–`93` |
 
 Samples often include polyscope GUI loops. For CI or agent experiments, prefer a
 headless branch with a finite frame count, `advance/retrieve` pairing, and one
-small numerical assertion. Examples 6 and 88–93 already demonstrate this pattern.
+small numerical assertion. Examples 6 and 88–94 already demonstrate this pattern.
 The root `benchmarks/manifest.json` promotes examples 6, 88, 89, and 93 as the
 canonical cross-domain performance suite. Run them through
 `scripts/run_benchmark.py` so the sample submodule revision, canonical

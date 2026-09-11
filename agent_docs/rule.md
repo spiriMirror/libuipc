@@ -24,6 +24,10 @@ record it here in the same commit.**
    structure, workflow, conventions, build, or behavior must update the
    matching doc (and `handoff.md` / `09-known-issues-and-roadmap.md` when
    it closes or opens work) **in the same commit**.
+5. **Commit sample changes directly to `libuipc-samples/main`.** Do not use an
+   intermediate samples branch unless the owner explicitly requests one. When
+   the shared submodule worktree contains unrelated local edits, use a clean
+   worktree to update `main` and never include those edits. (Set 2026-09-07.)
 
 ## Language
 
@@ -64,6 +68,15 @@ record it here in the same commit.**
   `src/geometry/metis/` through `uipc_metis`; do not restore separate
   `external/METIS` or `external/GKlib` source trees or targets. Keep the CMake
   and XMake source boundary equivalent. (Set 2026-09-03.)
+
+## Geometry
+
+- **Native tetrahedralization belongs in `src/geometry/tetrahedralization/`.**
+  Provide strict surface preservation and quality-oriented modes. Strict mode
+  must keep original vertices, coordinates and triangle connectivity, with no
+  boundary subdivision. Construct/retain a conservative valid mesh when quality
+  optimization cannot improve it; do not return a changed boundary or fail merely
+  because optimization did not succeed. (Set and clarified 2026-09-05.)
 
 ## CUDA backend
 
@@ -108,7 +121,39 @@ record it here in the same commit.**
     friction path skips detected parallel pairs. Do not make `need_mollify()`
     globally constant. (Set 2026-09-03; refined 2026-09-03.)
 
+16. **Do not serialize or impose fixed-order floating-point accumulation merely
+    to eliminate run-to-run rounding differences.** Preserve the existing parallel
+    architecture and efficiency. Small numerical differences caused solely by
+    rounding under different valid atomic-add accumulation orders are expected,
+    not numerical correctness defects. Distinguish permitted atomic arrival-order
+    variation from violations of required parallel execution dependencies. A
+    correctness fix must address a demonstrated algorithmic error or an actual
+    concurrency/synchronization defect (for example, lost contributions, data
+    races, missing synchronization, out-of-bounds access or uninitialized reads).
+    Do not add sorting, fixed-order reductions or serialization merely to obtain
+    bitwise reproducibility without an explicit requirement. (Set and clarified
+    2026-09-11.)
+
 ## Task-scoped (recorded for context, not general policy)
+
+- 2026-09-11 project review: inspect implementation, frontend design, public APIs
+  and documentation; update the documentation and record findings, but do not
+  implement fixes or optimizations during this audit. Distinguish confirmed issues
+  from risks/proposals and keep unrelated work unchanged.
+
+- Dining-scene reconstruction: ground is `z = 0`; tabletop objects may begin
+  separated and suspended, with final stacking and tablecloth drape obtained
+  through libuipc gravity/contact simulation, not manually posed final geometry.
+  (Set 2026-09-05.)
+
+- Blender integration: use `spiriMirror` for the new extension's copyright
+  attribution and maintainer. (Set 2026-09-05.)
+
+- Blender cloth parameters: stretch, shear and bending each have independent
+  Young's modulus and Poisson ratio controls. Preserve the previous shared
+  Poisson value when loading old scenes; changing one channel must not change
+  either of the others. Keep the existing full-thickness `2r` material formulas.
+  (Set 2026-09-10.)
 
 - During the Stiff-GIPC performance-alignment work: "when a design choice
   is uncertain, follow Stiff-GIPC's algorithm design" — that applied to

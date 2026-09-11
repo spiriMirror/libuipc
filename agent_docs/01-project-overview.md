@@ -2,7 +2,7 @@
 
 ## Positioning
 
-**libuipc** (**Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact) is a cross-platform modern C++20 library that unifies simulation of rigid bodies, soft bodies, cloth, threads, and their coupling on the GPU, guaranteeing **penetration-free, accurate frictional contact**, and is designed to support differentiable simulation (Diff-Sim planned). It provides dual C++ and Python (`pyuipc`) APIs, supporting Windows/Linux.
+**libuipc** (**Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact) is a cross-platform modern C++20 library that unifies rigid bodies, soft bodies, cloth, threads and their coupling with a CUDA backend. IPC guarantees require valid initial geometry and successful detection/solve steps; host orchestration and convergence checks remain part of the pipeline. Diff-Sim coverage is partial/under development. Dual C++ and Python (`pyuipc`) APIs support Windows/Linux. See the [dated project audit](14-project-audit.md) for current limitations and evidence.
 
 Academic origins:
 - GIPC 2024 (ACM TOG 43(2)): Gauss-Newton optimization of the IPC barrier energy
@@ -21,12 +21,13 @@ Recent important changes (README News):
 | `include/uipc/` | Public headers, organized by module: `core/ geometry/ constitution/ io/ backend/ builtin/ common/ diff_sim/ usd/ vdb/`; umbrella headers `uipc.h / core.h / geometry.h / io.h` |
 | `apps/` | `tests/` (Catch2 tests), `examples/` (3 C++ examples), `benchmarks/`, `app/` (test utility library) |
 | `python/` | Python package source `python/src/uipc/`, tests, examples, and a standalone development `pyproject.toml` |
+| `integrations/blender/` | Independently packaged Blender extension, external Python worker, MDD playback, and actual Blender/GPU validation scripts |
 | `docs/` | mkdocs documentation source: `tutorial/ specification/ development/ build_install/ media/`, etc. |
 | `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
 | `benchmarks/` | Versioned four-scene end-to-end benchmark manifest and reproducibility contract; implementations/assets remain in `libuipc-samples/` |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
-| `libuipc-samples/` | Tracked git submodule containing the Python sample library (52 current example directories plus benchmarks/assets) |
+| `libuipc-samples/` | Tracked git submodule containing the Python sample library (53 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |
 | `.cursor/` | AI development configuration: `rules/` (C++ style, self-improvement) + `skills/` (17 workflow SKILL.md files) |
 | `agent_docs/` | Agent guide, including durable `adr/` decisions, `performance/` evidence, and chronological `handoff.md` history |

@@ -15,11 +15,12 @@ dependencies = [
 ]
 
 authors = [
-    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
+    {name = "Kemeng Huang", email = "kmhuang819@gmail.com"},
     {name = "MuGdxy", email = "lxy819469559@gmail.com"}
 ]
 
 maintainers = [
+    {name = "Kemeng Huang", email = "kmhuang819@gmail.com"},
     {name = "MuGdxy", email = "lxy819469559@gmail.com"}
 ]
 

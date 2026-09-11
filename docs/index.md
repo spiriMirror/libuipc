@@ -11,16 +11,16 @@ Both **<font color=red>C++</font>** and **<font color=red>Python</font>** APIs a
 
 ## Introduction
 
-**Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of rigid bodies, soft bodies, cloth, and threads, and their couplings. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
+**Libuipc** provides a unified **GPU** incremental potential contact framework for rigid bodies, soft bodies, cloth, rods, and their couplings. Its frictional contact pipeline targets non-penetration from valid initial geometry through successful collision and solve steps; this is not a guarantee for invalid inputs or failed solves. Forward simulation is the primary supported workflow. Differentiable-simulation APIs exist for selected paths, while broad backward-simulation coverage remains under development.
 
 We are **actively** developing Libuipc and will continue to add more features and improve its performance. We welcome any feedback and contributions from the community!
 
 ## Why Libuipc
 
 - **Easy & Powerful**: Libuipc offers an intuitive and unified approach to creating and accessing vivid simulation scenes, supporting a variety of objects and constraints that can be easily added.
-- **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
+- **GPU Simulation**: Contact, constitutions and linear algebra run on the GPU, with host-side orchestration and convergence checks. Solver settings and validation status matter for accuracy and robustness.
 - **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
-- **Fully Differentiable**: Libuipc provides differentiable simulation APIs for backward optimizations. (Coming Soon)
+- **Differentiable Simulation Roadmap**: Selected APIs are available; complete model and contact coverage is not yet a supported guarantee.
 
 <table>
   <tr>
@@ -39,7 +39,7 @@ We are **actively** developing Libuipc and will continue to add more features an
 - Rigid & Soft Body Strong Coupling Simulation
 - Penetration-Free & Accurate Frictional Contact Handling
 - User Scriptable Animation Control
-- Fully Differentiable Simulation (Diff-Sim Coming Soon)
+- Differentiable Simulation APIs (partial coverage; under development)
 
 ## Document Guidance
 

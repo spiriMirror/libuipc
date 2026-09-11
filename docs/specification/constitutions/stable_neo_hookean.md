@@ -12,8 +12,6 @@ Practicalities (Now With Code!)
 
 ## #10 Stable Neo Hookean
 
-Since v0.0.26, this constitution is [Stiff-GIPC](https://github.com/KemengHuang/Stiff-GIPC)'s **SNK1** (energy, gradient, and analytically SPD-projected Hessian ported verbatim from `femEnergy.cu`).
-
 Deformation energy **density**:
 
 $$

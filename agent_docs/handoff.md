@@ -1,5 +1,248 @@
 # Handoff — Current State of the Repo
 
+> **Project/API/frontend audit, documentation only (2026-09-11)**: review baseline
+> `4757859ce69c039a4146fcd574e9c59484a31a87`; findings and source/evidence links are
+> in [14-project-audit.md](14-project-audit.md). The source, kernels, addon, build
+> scripts, workflows and installed runtimes were not changed. Normal atomic-order
+> rounding is explicitly excluded as a defect; do not revive fixed-order work.
+> Reproductions include BDF2 nonzero-velocity startup, facade owner retention,
+> Poisson validation, unsupported FEM MeshDoctor success and ignored Curve
+> modifiers. Post-build destructive paths and manual artifact selection were
+> checked from source only; no destructive build or publication was attempted.
+> Validation: 49 repository + 54 Blender portable tests, 128 native Python tests
+> (Warp skipped, six examples excluded), common/core/geometry/CUDA binaries and
+> all 95 isolated sim cases pass. All 48 config defaults match. Full API site builds;
+> three video and three poster paths were corrected, while 11 generated API anchors
+> still require generator follow-up.
+> Public Blender docs are absent from main, so their 404 is a deployment/branch
+> gap. No main merge, PR or deployment is included. Unrelated samples edits and
+> local GPU_IPC/Stiff-GIPC/references directories remain untouched.
+
+> **Remaining Blender improvements completed (0.8, 2026-09-11)**: rods and moving
+> ABD compact caches are implemented. Each moving ABD uses four MDD vectors/frame
+> and a native helper/Geometry Nodes reconstruction retaining all affine terms.
+> Fixed outputs and old schemas remain compatible; a checkbox requests conventional
+> per-vertex output. Six-sphere cache storage drops 1,672,824 -> 33,048 bytes; the
+> hand/cloth workload drops 4,574,760 -> 434,400 bytes. This is not a solver speedup.
+> 54 portable tests, real mixed/FEM/motion/hand and EEVEE/OptiX queue regressions,
+> installed GUI overlays and ALL 500 synthetic affine frames without the addon
+> are verified. See `13-blender-integration.md` and `output/blender-affine-08-*`.
+> Install `output/blender-dist/libuipc_blender-0.8.0.zip`; no pyuipc reinstall needed.
+> The user's Blender profile and native solver installation remain unchanged.
+> Native fixed-order experiments stay withdrawn per rule 16, not pending work.
+
+> **Blender rods stage (2026-09-11)**: schema 7 / extension 0.7.0 now exposes
+> Hookean stretch + Kirchhoff bending on centerline meshes, without twist or rest
+> curvature. Curve conversion preserves the source; native circular-section
+> surface display follows MDD with correct scale mapping. Pins, coupled contact,
+> presets, diagnostics and constant fixed caches include rods. 50 portable tests
+> and a real 31-frame rod contact/render/addon-free regression pass, evidence in
+> `output/blender-followup-rods-v2`. Moving-ABD compression was completed in 0.8.
+> The fixed-order native experiment was rejected and fully withdrawn. Preserve
+> parallel atomic accumulation per rule 16; do not revive determinism work merely
+> because independent trajectories differ in floating-point arithmetic.
+
+> **Blender 0.6 performance delivery (2026-09-11)**: the accepted baseline,
+> preview-reuse and fixed-output reduction stages are implemented. Schema 6 stores
+> one native MDD sample for proven fixed bodies; older bakes remain compatible.
+> The six-sphere ABD benchmark saves 32.3% total cache bytes with exact per-vertex
+> before/after output. Overall solve speed is not claimed. Moving ABD remains full
+> affine MDD after a native TRS-loss probe; compact moving-ABD reconstruction needs
+> a separately validated native representation. Install
+> `output/blender-dist/libuipc_blender-0.6.0.zip`; no native Python reinstall needed.
+> Validation: 47 bridge tests on Python 3.11/3.14, 49 repository tests, actual mixed,
+> FEM, motion, fixed addon-free playback, preview, cache and EEVEE/OptiX queue tests.
+> User profile/Python installation and unrelated submodule edits are untouched.
+>
+> **Benchmark interpretation corrected:** independent trajectories need not be
+> bitwise identical. Atomic-order rounding differences alone are not correctness
+> defects. No algorithmic/synchronization bug was established by that observation.
+> The fixed-order experiment and its compiled backend were restored, not delivered.
+> See rule 16; retain measurements without turning them into a determinism task.
+
+> **Blender performance stage 2 (2026-09-11)**: bounded preview topology/pin/frame
+> and GPU reuse, lazy normals and dependency/history cleanup are implemented.
+> Same frozen 16,641-vertex grid warm CPU median: 59.609 -> 0.0117 ms; cold still
+> 54.26 ms. This is not a solver speedup. Actual Blender invalidation regressions,
+> native diagnostics and installed GPU repeated-draw reuse pass, GUI exit code 0.
+> Evidence: `output/blender-perf-stage2-*`, `output/blender-perf-06-inputs`.
+
+> **Blender performance stage 1 (2026-09-11)**: host phase timings and byte/call
+> accounting are integrated without added GPU synchronization or physics changes.
+> Export/attach/check timings do not mutate Scene RNA. Frozen-input benchmarks
+> cover cloth, ABD and a spatially separated sample-87 mixed workload; one warmup
+> plus three fresh-process trials. Preview baseline: 16,641 vertices, ~59.6 ms warm
+> CPU preparation median. 43 portable tests and Blender/CUDA quick contact pass.
+> Evidence: `output/blender-perf-06-*`. Preview and fixed-output optimization follow.
+
+> **Blender 0.5 workflow delivery (2026-09-11)**: the stable-ID/validation fast
+> path, independent multi-camera PNG queue and robot joint/pose panel are complete.
+> Forty-one portable tests cover identity, snapshots/receipts, manifest limits and
+> joint review in addition to the 0.4 suite. Real Blender/CUDA regressions cover
+> 61-frame mixed contact, 41-frame FEM and 81-frame target motion with zero checked
+> cache playback error and the unchanged 0.20 m motion result. EEVEE and OptiX queues
+> validate subset/multi-view output, resume/repair, cancellation, source preservation
+> and dependency guards. Sample 87 exercises 16 editable joints, fixed-row safety,
+> pose/key persistence and native hand baking. The installed GUI completes async
+> rendering, displays both new panels and exits with code 0. The user's profile
+> remains unchanged; install `output/blender-dist/libuipc_blender-0.5.0.zip` to update.
+> Existing 500-frame schema-3 caches remain valid at 1/250/500. Queue resume is
+> rendering only; compact ABD caches and true simulation checkpoint resume remain
+> future work. No C++/CUDA solver or Python environment rebuild was required.
+
+> **Blender 0.5 robot controls (2026-09-11)**: the panel exposes joint limits and
+> clamped degree sliders, robot-local Open/Grasp-style pose storage, native-curve
+> key insertion and sampled speed/acceleration review. Sample 87 validation covers
+> all 16 revolute controls, a fixed-control lock, pose/key persistence, controller
+> rename, non-mutating review and a native 17-link bake. Kinematic preview does
+> not replace coupled physics. Review snapshots/unsupported joint types are
+> documented. Installed UI/package regressions now pass as recorded above.
+
+> **Blender 0.5 render queue (2026-09-10)**: independent render range, multiple
+> cameras, immutable scene snapshots and per-frame PNG receipts are implemented.
+> Actual background-Blender tests render a two-camera subset, preserve the original
+> .blend/timeline/camera/cache, skip four verified frames on resume, repair one
+> damaged frame, cancel safely and reject a changed cache dependency. GPU/backend
+> selection and file tracking are explicit; see the guide for supported inputs.
+
+> **Blender 0.5 identities (2026-09-10)**: schema-5 body/controller IDs decouple
+> names from physics fingerprints and result attachment. Older caches remain
+> name-based. Copied IDs are rejected with an explicit selected-object reset
+> operator. Relevant-update filtering and raw-input tokens avoid unnecessary
+> full topology checks. Multi-camera rendering and robot panel work follow.
+
+> **Blender 0.4 integration improvements (2026-09-10)**: independent cloth E/nu,
+> named contact pairs and batch physical presets, transactional/verified caches,
+> guarded render operators, streaming quality reports and GPU physics previews
+> are complete. Thirty-two portable tests pass on Python 3.11/3.14; all Blender
+> contract, material persistence, contact-response, quality/navigation, 61-frame
+> mixed-scene and 41-frame FEM suites pass on Blender 4.5.3 with the Python 3.14
+> CUDA 13.2 worker. Verified native-cache playback error is zero in those suites.
+> The existing 500-frame dining hand cache validates at 1/250/500 without rebaking
+> or changing its .blend. Installed UI tests draw the actual GPU overlay and new
+> panels; float64-to-GPU buffer corruption was corrected by explicit F32 buffers.
+> The ZIP is `output/blender-dist/libuipc_blender-0.4.0.zip`; the user's active
+> addon profile is not replaced. Repository Contracts now discovers every portable
+> Blender `test_*.py`, not just the original protocol tests. Normal F12 is unguarded;
+> use the plugin's validated render operators. Quality peaks are review aids, not
+> accuracy certificates. Compact ABD caches, richer robot controls and true
+> stateful resume remain separate follow-up work.
+
+> **Blender contact materials (2026-09-10)**: named symmetric contact-pair
+> overrides and scene-local batch physical presets are implemented. Assembly
+> exclusions and legacy robot friction remain intact. Twenty-eight portable
+> tests and Blender save/reopen pass. Real pair-friction bakes with unchanged
+> global friction slide 1.2708 m (mu=0) versus 0.00244 m (mu=1); disabling the
+> pair allows passage through the floor. The 81-frame robot/solver regression
+> still holds within 2.72e-7 m and follows its 0.20 m target.
+
+> **Blender cache reliability (2026-09-10)**: complete result/provenance checks,
+> streamed MDD checksums, playback-parameter validation and transactional attachment
+> rollback are implemented. Guarded render operators validate before dispatch;
+> ordinary F12/direct render stays unguarded. Twenty-four portable tests, factory
+> Blender fault-injection tests and a fresh three-frame CUDA bake/playback pass.
+
+> **Blender independent cloth channels (2026-09-10)**: 0.4/schema 4 exposes
+> separate stretch/shear/bending Poisson ratios alongside existing independent
+> Young's moduli. Old scenes inherit the original shared ratio until edited;
+> equivalent legacy caches remain readable. Native material formulas are unchanged.
+
+> **Sample 94 four-finger grasp (2026-09-07)**: added
+> `libuipc-samples/examples/94_robot_hand_grasp_apple/` as a focused scripted
+> companion to manual sample 87. It directly constructs a libuipc World, drives
+> all 17 URDF links with per-substep soft-transform targets and leaves the
+> symmetric procedural ABD apple unconstrained. The final 500-output-frame run
+> (1,996 solver steps) lifts 0.2180 m, transports 0.4495 m, verifies all four
+> fingertip surfaces at frames 250/325, and settles to 5.83e-11 m/s RMS center
+> speed. GUI startup and key-frame OBJ export also pass. The owner's unrelated
+> local edits in samples 88/93 remain uncommitted and were not included. The
+> two 94 commits were cherry-picked directly onto `libuipc-samples/main` as
+> `90607b9` and `a7ca63f`; unrelated benchmark-only commits were not included.
+> Partial headless checks use suffixed reports and cannot replace the full
+> validation. By owner rule, future samples changes go directly to samples
+> `main` unless another branch is explicitly requested.
+
+> **Four-finger dining correction complete (2026-09-06)**: the new 500-frame
+> bake grasps/carries/releases with all four fingertips. Its Converged profile
+> and smooth target velocities eliminate the original large cloth kicks without
+> editing cloth material/rest/pins/damping. All-frame crossings, four-finger
+> contact/motion, temporal cloth bounds, installed UI and relocated native-cache
+> playback pass. See `integrations/blender/examples/ROBOT_PICK_PLACE.md` for
+> controlled replay evidence and `13-blender-integration.md` for plugin controls.
+> Local delivery: `output/robot-hand-apple/run_02/robot_pick_place.blend` and its
+> portable ZIP; original source/old renders are retained. Subsequently, at the
+> owner's request, all 500 corrected frames were rendered to
+> `output/robot-hand-apple/run_02/render_0001_0500/frames/` (1280x1000 PNG,
+> Cycles 48 samples, saved action camera). All frame names/sizes/PNGs passed
+> integrity checks; the source and all 39 caches remained unchanged. See the
+> adjacent `sequence_validation.json` for per-image hashes and provenance.
+> A subsequent wide View 01 delivery keeps the former orbit-start azimuth but
+> pulls the camera back to include the complete table, chair, cloth, place
+> settings and hand. Its 500 PNGs are under
+> `output/robot-hand-apple/run_02/render_view_01_wide_0001_0500/`; all-frame
+> scene/robot framing, PNG CRCs and unchanged source/39-cache hashes pass.
+> A subsequent three-view delivery is under
+> `output/robot-hand-apple/run_02/render_three_views_0001_0500/`: the prior
+> dining-orbit start azimuth (raised/refitted for robot visibility), a right-side
+> view, and a high left-side view each contain frames 1-500. All 1,500 PNGs are
+> 1280x1000 / Cycles 48 samples. Per-frame projected robot bounds guarantee the
+> hand remains inside the safe image area with at least 14.4% frame span; PNG
+> CRCs, names, dimensions, source hash, and all 39 cache hashes passed.
+
+> **Editable Blender solver precision (2026-09-06)**: extension 0.3.2 adds
+> Custom controls for PCG/Newton tolerances, semi-implicit enable/K_min/beta and
+> iteration limits. Scientific-notation text is validated/normalized before
+> fingerprinting and native calls. Eighteen portable tests and actual three-
+> profile Blender/CUDA bakes verify effective values, invalidation and saved
+> settings. The four-finger dining re-bake is complete as recorded above.
+
+> **Blender robot accuracy follow-up (2026-09-06, resolved above)**: 0.3.1 adds an
+> explicit Converged solver profile and per-substep diagnostic statistics without
+> changing native defaults or invalidating old default-profile caches. Portable
+> tests and real Blender/CUDA profile-switch/rebake tests pass. The earlier
+> three-finger scene has a user-reported carrying-stage cloth kick (confirmed in
+> raw MDD positions, not a render artifact); four-finger planning and controlled
+> solver comparisons were completed in the correction above. See `13-blender-integration.md`.
+
+> **Blender robot hand (2026-09-06)**: extension 0.3 adds native URDF import,
+> keyframeable root/joint controllers and per-substep soft ABD target drives,
+> with protocol-v3 motion integrity and legacy-cache support. Sample 87's hand
+> holds through frame 50, physically grasps the upper apple, lifts/transfers it
+> and releases it onto the dining cloth. The full 500-frame coupled bake passes
+> contact and playback checks. See `integrations/blender/examples/ROBOT_PICK_PLACE.md`
+> and `13-blender-integration.md`; core C++/CUDA algorithms are unchanged.
+>
+> **Blender dining reconstruction (2026-09-05)**: added reproducible procedural
+> scene, full compound fixed-furniture contact, one continuous gravity bake,
+> Cycles render, verification and portable-cache packaging under
+> `integrations/blender/examples/`. Ground is z=0; cloth is unpinned. The delivered
+> 961-frame result passes all cached surface crossings and final visible-thickness
+> checks, including the table legs (a tabletop-only proxy was rejected). Relocated
+> playback without the addon matches every checked vertex and renders correctly.
+> Time-step comparison records substantial pointwise fold sensitivity, not a
+> convergence claim. See the example README and `13-blender-integration.md`.
+>
+> **Native tetrahedralization and Blender FEM/Fixed (2026-09-05)**: implemented
+> original Apache-2.0 geometry code under `src/geometry/tetrahedralization`, with
+> exact protected boundary or optional surface refinement. Conservative volume
+> construction precedes quality work and survives quality rollback. C++/Python
+> APIs expose mesh/report/source IDs; both build systems preserve FP predicates.
+> Blender 0.2 prepares native volumes or imports MSH, retains all internal nodes
+> for pin selection, and supports Fixed Entire Object for ABD/FEM/cloth. See
+> [ADR 0008](adr/0008-native-tetrahedralization.md), the native geometry tests,
+> and `integrations/blender/tests/blender_fem.py` for the checked contracts.
+
+> **Blender integration (2026-09-05, `refactor-main`)**: added an independently
+> packaged Blender extension for cloth/ABD/fixed contact, friction and pins,
+> with a separate Python CUDA worker and native MDD Mesh Cache playback.
+> Real Blender 4.5.3 + official pyuipc 0.0.28 + RTX 5090 tests cover every cached
+> vertex, backward/fractional playback, .blend reopening/rendering, scale/units,
+> friction, cancellation, invalidation, rebake and detach. Export uses evaluated
+> matrices after reproducing stale original transforms; Windows atomic status
+> replacement retries reader-sharing conflicts. Source, packaging commands,
+> integration tests and remaining scope are in
+> [`13-blender-integration.md`](13-blender-integration.md).
+
 > **Routing note (2026-08-30)**: this file is the chronological audit trail and
 > may retain detailed commands/incidents. New durable architecture rationale
 > belongs in `agent_docs/adr/`; reusable performance conclusions and rejected

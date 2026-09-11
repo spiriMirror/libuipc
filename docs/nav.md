@@ -4,6 +4,7 @@
     - [Linux](build_install/linux.md)
     - [Linux-Docker](build_install/docker.md)
     - [XMake](build_install/xmake.md)
+    - [Blender Extension](build_install/blender.md)
     - [Build Docs](build_install/build_docs.md)
     - [Dev in UV](build_install/dev_in_uv.md)
 - [Tutorial](tutorial/index.md)
@@ -17,6 +18,7 @@
     - [Animation](tutorial/animation.md)
     - [Profiling](tutorial/profiling.md)
 - [Specification](specification/index.md)
+    - [Native Tetrahedralization](specification/tetrahedralization.md)
     - Scene Configuration
         - [Full Reference](specification/scene_config.md)
         - [Newton & Linear Solvers](specification/scene_configs/newton.md)

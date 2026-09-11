@@ -9,6 +9,7 @@ A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**ot
     - [Linux](./linux.md)
     - [Docker](./docker.md)
     - [XMake](./xmake.md)
+    - [Blender Extension](./blender.md)
 - Libuipc Documentation:
     - [Build Document](./build_docs.md)
 

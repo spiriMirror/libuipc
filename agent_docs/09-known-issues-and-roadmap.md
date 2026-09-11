@@ -1,8 +1,87 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Status as of 2026-09-03. Completed performance work is
+Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
+`4757859c`. This inspection updated documentation only. Open priorities include
+Python facade ownership, BDF2 history startup, unsafe post-build package/path
+handling, material validation, manual publishing, MeshDoctor, modified curve
+conversion and CUDA graph error propagation. The report distinguishes focused
+reproductions from source-confirmed paths and unverified risks. Passing current
+tests is not evidence that these uncovered contracts are correct.
+
+Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
+bending (no twist), edge/curve input, pinning/contact and native surface playback.
+Current limits: unbranched chains, straight-rest bending, no animated rod pins.
+Compact moving-ABD encoding is completed in 0.8/schema 8 with four-vector MDD,
+full-affine native reconstruction, rollback/integrity checks and addon-free renders.
+The accepted Blender improvement tasks are complete; twisting, animated rod pins,
+prismatic/mimic/torque controls and simulation checkpoint resume remain out of scope.
+
+Blender performance instrumentation and frozen-input baseline tooling are now
+implemented (2026-09-11). No added GPU synchronization or solver changes. Preview
+resource reuse and fixed-output compaction are implemented and validated in 0.6.
+Moving ABD now retains all 12 affine coefficients without TRS decomposition. The
+per-vertex MDD option remains available for interoperability with external tools.
+
+The native fixed-order experiment was withdrawn completely. Diagnostics found
+floating-point atomic accumulation order differences; these alone are not a
+numerical correctness defect and do not justify changing parallel solver structure.
+Rule 16 requires independent evidence of an algorithmic or synchronization error
+for a correctness fix. Preserve the original concurrent SpMV, dot and assembly
+paths. The source and local backend DLL were restored; the installed Python
+backend was never replaced. Benchmark variability measurements remain observations,
+not a pending bitwise-determinism requirement or proof of a solver defect.
+
+Blender 0.5 stable object/controller identities and relevant-input validation
+gates are implemented. Older cache schemas stay name-based until rebaked.
+Independent render ranges and a verified snapshot PNG queue are implemented.
+Robot degree sliders, validated joint poses, keying and trajectory review are
+implemented. Render queue asset/device and original-directory restrictions are
+documented; it is not simulation resume. Prismatic/mimic/torque controls and true
+checkpoint resume remain follow-up work.
+
+Blender 0.4 (2026-09-10) separates all three cloth E/Poisson channels while
+preserving old shared-ratio scenes/caches. Cache integrity, playback validation,
+transactional attachment and guarded render operators are implemented and tested.
+Ordinary F12/direct Blender rendering is intentionally not intercepted. Contact
+material pairs and batch physical presets are implemented and validated with
+native friction/exclusion tests. Streaming quality reports, peak-frame navigation
+and selected-object mesh/pin/thickness previews are implemented. Position metrics
+are output-frame finite differences, not physical-error certificates. True stateful
+resume remains follow-up work; the 0.5 joint-control UI
+now covers supported fixed/revolute controllers.
+
+The historical ledger below starts from 2026-09-03. Completed performance work is
 recorded in `handoff.md`; this file tracks what is **open** — analyze here first
 before planning new work.
+
+Blender integration v0.1 was added on 2026-09-05. Cloth/ABD/fixed contact and
+native cache playback have actual Windows Blender 4.5.3/RTX 5090 verification;
+see [the integration guide](13-blender-integration.md). Linux/other Blender
+versions and the broader driver matrix were not validated in that initial stage;
+the subsequent rod/robot deliveries above supersede its feature limitations.
+Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
+internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
+conservative construction contract. This does not change the simulation solver.
+
+Version 0.3 adds URDF mesh-link import and keyframed ABD target drives. Sample 87's
+hand now completes the dining-scene apple pick/place through Blender with coupled
+contact. Torque-driven articulations, rods, animated cloth/FEM pins and controller
+NLA/drivers/constraints remain outside this interface; see the robot section of
+`13-blender-integration.md` for exact supported controls and validation.
+
+The original dining robot's cloth kicks and parked fourth finger are corrected
+in a revalidated 500-frame bake. It uses the Converged profile and four active
+fingertips; the 0.3.2 UI also exposes Custom tolerances and iteration limits.
+Controlled replay shows default mixed-system under-convergence; native defaults
+are deliberately unchanged. Per-domain convergence/automatic accuracy selection
+would be future solver work, not a feature of this scene-specific correction.
+See `13-blender-integration.md` for results and validation limits.
+
+The procedural dining-scene reconstruction now has a complete gravity bake,
+render and independently reopened portable cache. It is an assumed-material
+visual/physical example, not a calibrated fabric benchmark: its 1/60 vs 1/120 s
+comparison still shows pointwise fold sensitivity (27.8 mm RMS at t=16 s).
+See `integrations/blender/examples/README.md` for the full validation boundary.
 
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner
@@ -335,15 +414,20 @@ assertions).
 
 ## Security advisories
 
-- pytest `< 9.0.3` tmpdir CVE → both metadata files require
-  `pytest>=9.0.3`; `python/uv.lock` resolves 9.1.1. Dev-only dependency.
-- usd-core `< 25.8` (critical) is marked fixed in the repo, but USD is a
-  local/optional dep — upgrade any local install to `usd-core >= 25.8`.
+- [CVE-2025-71176 / GHSA-6w46-j5rx-g56g](https://github.com/advisories/GHSA-6w46-j5rx-g56g)
+  affects pytest `<9.0.3`. Both metadata files require `pytest>=9.0.3`;
+  `python/uv.lock` resolves 9.1.1. This is a development-only dependency.
+- The previously unqualified OpenUSD "critical" statement was not adequately
+  sourced. The verified [GHSA-q75h-g2h7-fgxg](https://github.com/PixarAnimationStudios/OpenUSD/security/advisories/GHSA-q75h-g2h7-fgxg)
+  is Moderate, lists affected versions `<25.05` and a patched release `>=25.08`.
+  USD is optional/local: verify the installed version against the relevant
+  upstream advisories. This statement covers that advisory only, not all OpenUSD
+  vulnerabilities or a blanket security clearance of 25.08.
 
 ## Samples submodule state (spiriMirror/libuipc-samples)
 
 The root repository tracks this repository as the `libuipc-samples/` submodule.
-It currently has 52 example directories; numbering is non-contiguous and two
+It currently has 53 example directories; numbering is non-contiguous and two
 directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
 reference.
 
@@ -354,6 +438,12 @@ reference.
   (urdf `filename=` refs rewritten; link/joint names unchanged because the
   pose jsons key on them). The scripted auto-grasp was removed at the
   user's request (manual posing instead).
+- `94_robot_hand_grasp_apple` — focused scripted counterpart to 87. The same
+  17-link hand uses smooth per-substep soft-transform targets to grasp, lift,
+  move and release a free procedural ABD apple with all four fingers. Its
+  500-output-frame headless mode validates each carrying fingertip, lift,
+  transport, table support and final velocity. It does not reintroduce automatic
+  motion into the deliberately manual sample 87.
 - `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.
