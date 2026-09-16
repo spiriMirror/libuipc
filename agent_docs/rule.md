@@ -64,6 +64,13 @@ record it here in the same commit.**
    not re-introduce it (or similar compiler-cache layers) without an
    explicit request.
 
+- **Preserve the existing pyuipc uninstall-first policy.** The early removal
+  of the old installed package in the build/package workflow is intentional
+  and explicitly required by the owner. Do not classify that ordering as a
+  defect or remove/postpone the step without a new owner request. This policy
+  is separate from checking that staging cleanup cannot delete source files.
+  (Confirmed 2026-09-16.)
+
 - **Use only the embedded C++ METIS target.** Mesh partitioning must use
   `src/geometry/metis/` through `uipc_metis`; do not restore separate
   `external/METIS` or `external/GKlib` source trees or targets. Keep the CMake
