@@ -134,14 +134,14 @@ class CMakePythonRequirementTests(unittest.TestCase):
         marker = self.fake_pip(install_module=False, exit_code=1)
         result = self.check_module("uipc_missing_build_dependency")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("failed to install", result.stderr)
+        self.assertIn("failed to install", " ".join(result.stderr.split()))
         self.assertTrue(marker.exists())
 
     def test_direct_build_verifies_import_after_installation(self):
         marker = self.fake_pip(install_module=False)
         result = self.check_module("uipc_missing_build_dependency")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("after pip installation", result.stderr)
+        self.assertIn("after pip installation", " ".join(result.stderr.split()))
         self.assertTrue(marker.exists())
 
 

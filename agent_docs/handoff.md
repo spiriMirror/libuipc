@@ -11,6 +11,9 @@
 > CPython 3.14 stub-generation run (12 files) pass. No native rebuild/reinstall
 > was necessary for that generator check. CI/main merge status is recorded in
 > the integration PR; do not squash/rebase away the original PR head ancestry.
+> The first Linux CI run exposed only diagnostic line wrapping in a new negative
+> test assertion. Error-text checks normalize whitespace; nonzero exit status,
+> installer invocation and the missing-module behavior remain asserted.
 
 > **Uninstall-first policy clarified (2026-09-16)**: the owner explicitly requires
 > the existing early removal of old `pyuipc` in the build/package workflow. This is
