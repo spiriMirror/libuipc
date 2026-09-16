@@ -147,6 +147,25 @@ On Linux, a conda environment is recommended: `conda env create -f conda/env.yam
 
 **Check the install**: `cd python && python uipc_info.py`.
 
+For editable Python development, change to the repository root and select a
+backend explicitly:
+
+```bash
+# CMake (the development package version is 0.9.0)
+python -m pip install -e . \
+  --config-settings=builder=cmake \
+  --config-settings=build-dir=build/cmake-editable
+
+# XMake
+python -m pip install -e . \
+  --config-settings=builder=xmake \
+  --config-settings=jobs=4
+```
+
+These commands use the active Python environment. See the [editable Python
+development guide](docs/build_install/dev_in_uv.md) for uv/Conda setup,
+Windows PowerShell commands, vcpkg configuration, and CUDA verification.
+
 Full guide (incl. Docker and CUDA/driver compatibility notes): [Build & Install](https://spirimirror.github.io/libuipc-doc/build_install/). For the samples' uv-based workflow, see the [libuipc-samples README](https://github.com/spiriMirror/libuipc-samples#readme).
 
 ## Quick Start (Python)

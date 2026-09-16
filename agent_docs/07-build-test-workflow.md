@@ -28,7 +28,7 @@ cmake --preset ci-release && cmake --build --preset ci-release -j8
 
 ```bash
 xmake f -c                 # Configure (default release; -m releasedbg / -m debug)
-xmake build -j8            # Don't set -j too high, NVCC tends to OOM
+xmake build -j4            # Don't set -j too high, NVCC tends to OOM
 xmake run sim_case         # Run a test target
 ```
 Test target names are rewritten by the `uipc_test` rule into binary names `uipc_test_<target>`; `xmake run --help` lists all runnable targets.
@@ -39,7 +39,10 @@ optional `usd` and `vdb` targets. The removed C++ GUI, torch extension, and
 nonexistent RPC module have no stale options. Project policy explicitly
 disables `build.ccache`. The pybind post-build step copies the package,
 extension, and colocated runtime libraries synchronously before packaging
-begins.
+begins. With `--python_editable=true` it instead installs the extension plus
+dependency-package libraries straight into `python/src/uipc/_native`, which is
+what `pip install -e . --config-settings=builder=xmake` drives — see
+`06-python-api-and-packaging.md`.
 
 The CUDA backend has one runtime library and eight logical source components
 (seven primary domains plus optional legacy collision). CMake owns the

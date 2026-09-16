@@ -48,3 +48,8 @@ vsxmake*/
 
 # local dev notes
 docs/development/backend_cuda/
+
+# xmake --python_editable=true drops build artifacts here
+python/src/uipc/_native/*
+!python/src/uipc/_native/README.md
+python/src/uipc/*.pyi
