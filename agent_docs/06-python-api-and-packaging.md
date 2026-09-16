@@ -65,7 +65,26 @@ torch/warp adapters still require their own optional frameworks.
   reproducible binary baseline.
 
 **Development mode (`python/pyproject.toml` + `python/setup.py`)**:
+
+- The root backend remains `scikit_build_core.build`, with Git-derived
+  distribution metadata. Build requirements explicitly include pybind11,
+  pybind11-stubgen, numpy and typing_extensions. No custom PEP 517 shim,
+  XMake editable builder selector or editable-only version override is added.
+- Direct CMake configuration reuses importable modules and auto-installs missing
+  ones with the selected Python's pip, then verifies the import. When SKBUILD
+  is defined, dependency setup belongs to the frontend; --no-build-isolation
+  requires callers to provision the same build requirements.
+- The existing helper removes an installed old `pyuipc` before package staging
+  and stub generation. This uninstall-first ordering is intentional and was
+  explicitly reaffirmed by the owner on 2026-09-16; preserve it. It must not be
+  reported as a defect or confused with the independent source/build-directory
+  aliasing risk in audit A03.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
+- CMake post-build and `xmake pack` both call `scripts/pyuipc_stubgen.py`.
+  It regenerates the complete `uipc` stub tree at the staged package root,
+  rather than generating only extension-level stubs inside `_native`.
+  XMake installs missing stub-generation dependencies with `uv pip --python`
+  targeting its chosen Python interpreter.
 - `setup.py`'s `BuildPyCommand` collects dll/so from `build/vcpkg_installed/<triplet>/{bin,lib}` and `build/<config>/bin`.
 - uv editable development: `uv run --no-sync pytest python/tests` (`--no-sync` avoids rebuilding every time).
 

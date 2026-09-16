@@ -57,9 +57,16 @@ compilation jobs.
 Use [uv](https://docs.astral.sh/uv/) to manage a virtual environment for Python development. The following steps configure xmake with Python binding support, create a virtual environment, build the project, and package the Python wheel.
 
 ```shell
-uv venv --python 3.11
-source venv/bin/activate
+uv venv --seed --python 3.12 .venv
+source .venv/bin/activate
 xmake f --pybind=true --python_system=true --python_version=3.12.x -c
 xmake build -j8
 xmake pack -v
 ```
+
+Packaging invokes `scripts/pyuipc_stubgen.py`, shared with CMake, to generate
+the complete `uipc` stub tree at the staged package root. Missing stub-generation
+dependencies (pybind11-stubgen, numpy, typing_extensions) are installed with
+`uv pip --python` using the Python selected by the packaging step.
+See [Python build environments](./dev_in_uv.md) for the CMake/pip dependency
+distinction. This workflow does not add `builder=xmake` or `python_editable`.

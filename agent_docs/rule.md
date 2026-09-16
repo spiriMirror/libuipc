@@ -64,6 +64,19 @@ record it here in the same commit.**
    not re-introduce it (or similar compiler-cache layers) without an
    explicit request.
 
+- **Preserve the existing pyuipc uninstall-first policy.** The early removal
+  of the old installed package in the build/package workflow is intentional
+  and explicitly required by the owner. Do not classify that ordering as a
+  defect or remove/postpone the step without a new owner request. This policy
+  is separate from checking that staging cleanup cannot delete source files.
+  (Confirmed 2026-09-16.)
+
+- **Keep automatic Python dependency setup for direct CMake builds.** Reuse
+  importable modules and install missing ones with the selected interpreter's
+  pip. Do not replace this convenience with unconditional check-only behavior.
+  Scikit-build-managed builds use declared build requirements; callers using
+  --no-build-isolation provide those requirements themselves. (Confirmed 2026-09-16.)
+
 - **Use only the embedded C++ METIS target.** Mesh partitioning must use
   `src/geometry/metis/` through `uipc_metis`; do not restore separate
   `external/METIS` or `external/GKlib` source trees or targets. Keep the CMake
@@ -135,6 +148,12 @@ record it here in the same commit.**
     2026-09-11.)
 
 ## Task-scoped (recorded for context, not general policy)
+
+- PR #494 integration: preserve the contributor's original commits through
+  merge commits in our repository, append our scoped adjustments, then merge
+  into main after validation. Do not modify the contributor's fork. Retain
+  dependency declarations and shared stub generation; defer the added XMake
+  editable route and custom backend shim. (Set 2026-09-16.)
 
 - 2026-09-11 project review: inspect implementation, frontend design, public APIs
   and documentation; update the documentation and record findings, but do not

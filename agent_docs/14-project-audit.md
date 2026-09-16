@@ -120,25 +120,25 @@ hot reload; this limitation should be explicit for BDF2. Recommendation: separat
 design startup/history behavior and variable-step support or a clear restriction.
 Default BDF1 was correct in both constant- and varying-dt control probes.
 
-### A03 · P1 · Pybind post-build helper has destructive side effects
+### A03 · P1 · Pybind staging cleanup can alias the source directory
 
-**Source-confirmed; destructive cases were not executed.**
-[after_build_pyuipc.py](../scripts/after_build_pyuipc.py) uninstalls the existing
-`pyuipc` before validating the build configuration, generating stubs or installing
-the replacement. Even wheel-build mode reaches this uninstall; that mode only skips
-the later installation. A failure can leave the chosen interpreter without its
-previous working package.
+**Scope corrected following the owner's clarification on 2026-09-16.** The
+existing early uninstall of old `pyuipc` is intentional and explicitly required.
+It is not a defect, and the earlier recommendation to keep the old package until
+a replacement was ready is withdrawn. Preserve the existing uninstall-first
+ordering; do not treat its presence as a reason to reject a PR.
 
-The same helper deletes `binary_dir/python`. The
+**Independent source-confirmed path hazard; destructive cases were not executed.**
+[after_build_pyuipc.py](../scripts/after_build_pyuipc.py) deletes `binary_dir/python`. The
 [CMake hook](../src/pybind/pyuipc/CMakeLists.txt) passes `CMAKE_BINARY_DIR`, and the
 root CMake entry has no in-source-build rejection. In an in-source pybind build,
-that path aliases the tracked source `python/` directory. This is a separate
-source-loss hazard, not just a failed install. Always use an out-of-source build
-and an isolated interpreter with the current implementation.
+that path aliases the tracked source `python/` directory. This source-loss hazard
+is separate from intentionally uninstalling a package. Use an out-of-source build
+with the current implementation.
 
-Recommendation: separate staging, verification and explicit installation; validate
-resolved source/build paths before deletion; do not remove a working package before
-a replacement is ready. This was previously deferred, not fixed by this audit.
+Recommendation: validate resolved source/build paths before staging deletion,
+while preserving the owner's uninstall-first policy. No implementation fix was
+made by this audit or by the documentation correction.
 
 ### A04 · P2 · ElasticModuli's Poisson guard rejects a valid value and admits invalid ones
 
@@ -301,7 +301,7 @@ introducing them as if the project currently allocates every operation from scra
 |---|---|---|
 | API ownership | Consistent facade lifetime contracts, return types and invalidation rules | Parent-GC, resize, COW and temporary-expression tests; retain the data-oriented API |
 | Material/config UX | Machine-readable constitution parameter units, defaults and valid domains | Trace every field to its consumer; distinguish recommendations, constraints and init-only/live settings |
-| Build/install | Stage and verify packages before any explicit install | Test failures, in-source/path-alias rejection and isolated interpreters; no editable-install requirement inferred |
+| Build/install | Guard staging cleanup without changing the required uninstall-first policy | Test in-source/path-alias rejection and staging boundaries; no editable-install requirement inferred |
 | Documentation | Generated HTML file/anchor checks, executable C++/Python snippets, versioned API coverage | Test the generated site, not just Markdown links; keep demos on the homepage and educational videos in tutorials |
 | Blender large scenes | Batch preset invalidation once per scene; keep existing preview/frame/GPU caches | Current per-property callbacks can repeatedly scan all objects; measure 1k+ object scenes before changing callbacks |
 | Solver throughput | Profile existing atomic SpMV, contact assembly and preconditioning end to end | Use current four-scene baselines; preserve CUB/persistent scratch, geometric growth and kernel fusion rules |

@@ -2,6 +2,11 @@
 
 ## Prerequisites
 
+Direct CMake builds automatically install missing Python modules into the selected
+interpreter and reuse modules that already import successfully. For root pip/uv
+builds, including `--no-build-isolation` setup, see
+[Python build environments](./dev_in_uv.md).
+
 The following dependencies are required to build the project.
 
 | Name                                                | Version      | Usage           | Import         |

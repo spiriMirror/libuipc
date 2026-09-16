@@ -24,6 +24,13 @@ cmake --preset ci-release && cmake --build --preset ci-release -j8
 
 **Output directories**: Windows `<build>/<config>/bin` (runtime+library) and `.../lib`; Linux `<build>/<CMAKE_BUILD_TYPE>/bin|lib`. Aggregate target `uipc::uipc` (= core+geometry+constitution+io+sanity_check).
 
+Python module setup has two entry points. Direct CMake builds automatically
+install missing modules into the selected interpreter, but do not invoke pip
+when the requested module is already importable. Scikit-build-managed builds
+check the dependencies declared by the root pyproject; when build isolation is
+disabled, install those requirements first. The original uninstall-first
+package staging policy is unchanged. See [the environment guide](../docs/build_install/dev_in_uv.md).
+
 ## XMake (Alternative)
 
 ```bash
@@ -40,6 +47,10 @@ nonexistent RPC module have no stale options. Project policy explicitly
 disables `build.ccache`. The pybind post-build step copies the package,
 extension, and colocated runtime libraries synchronously before packaging
 begins.
+
+CMake and XMake packaging share `scripts/pyuipc_stubgen.py`; the complete stub
+tree is generated at the package root. No new XMake editable install option or
+custom Python build backend is supported by the scoped PR #494 integration.
 
 The CUDA backend has one runtime library and eight logical source components
 (seven primary domains plus optional legacy collision). CMake owns the

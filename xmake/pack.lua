@@ -42,16 +42,23 @@ xpack("pyuipc")
                 python = path.join(installdir, "bin/python")
             end
         end
+        if not python then
+            local python_tool = find_tool("python3", {envs = pyuipc_target:pkgenvs()})
+            if python_tool then
+                python = python_tool.program
+            end
+        end
         python = python or "python"
 
         local ok = try { function()
-            os.vrunv(python, { "-c", "import mypy" })
+            os.vrunv(python, { "-c", "import pybind11_stubgen, numpy, typing_extensions" })
             return true
         end }
 
         local uv = assert(find_tool("uv"), "uv not found!")
         if not ok then
-            os.vrunv(uv.program, {"pip", "install", "mypy", "numpy"})
+            os.vrunv(uv.program, {"pip", "install", "--python", python,
+                                  "pybind11-stubgen", "numpy", "typing_extensions"})
         end
 
         local LD_LIBRARY_PATH = path.splitenv(os.getenv("LD_LIBRARY_PATH") or "")
@@ -64,9 +71,9 @@ xpack("pyuipc")
             table.insert(LD_LIBRARY_PATH, python_libdir)
         end
         os.vrunv(python, {
-            path.join(os.projectdir(), "scripts/stubgen.py"),
+            path.join(os.projectdir(), "scripts/pyuipc_stubgen.py"),
             "--source_dir=" .. path.join(build_dir, "src"),
-            "--output_dir=" .. path.join(build_dir, "src/uipc/_native"),
+            "--output_dir=" .. path.join(build_dir, "src"),
             "--build_type=" .. config.get("mode"),
         }, {setenvs = {["LD_LIBRARY_PATH"] = path.joinenv(LD_LIBRARY_PATH)}})
 

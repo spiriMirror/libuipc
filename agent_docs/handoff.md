@@ -1,5 +1,27 @@
 # Handoff — Current State of the Repo
 
+> **Scoped PR #494 integration (2026-09-16)**: clean worktree
+> `output/pr494-integration`, branch `integration/pr-494-build-cleanup`.
+> The original `946e7ed1` history and the uninstall-policy clarification are
+> preserved by merge commits. Our follow-up retains isolated-build requirements
+> and shared stub generation, restores direct-CMake automatic dependency setup,
+> and removes the added XMake editable route/custom backend/version override.
+> It does not change the contributor's fork, native code or the installed runtime.
+> Local verification: 61 repository tests, 54 Blender portable tests and an actual
+> CPython 3.14 stub-generation run (12 files) pass. No native rebuild/reinstall
+> was necessary for that generator check. CI/main merge status is recorded in
+> the integration PR; do not squash/rebase away the original PR head ancestry.
+> The first Linux CI run exposed only diagnostic line wrapping in a new negative
+> test assertion. Error-text checks normalize whitespace; nonzero exit status,
+> installer invocation and the missing-module behavior remain asserted.
+
+> **Uninstall-first policy clarified (2026-09-16)**: the owner explicitly requires
+> the existing early removal of old `pyuipc` in the build/package workflow. This is
+> intentional behavior, not a defect or a reason to reject PR #494. The audit's
+> contrary recommendation is withdrawn; A03 now covers only the independent
+> staging/source-directory aliasing hazard. The rule, packaging guide, audit and
+> roadmap are corrected. No implementation, installation or PR state was changed.
+
 > **Project/API/frontend audit, documentation only (2026-09-11)**: review baseline
 > `4757859ce69c039a4146fcd574e9c59484a31a87`; findings and source/evidence links are
 > in [14-project-audit.md](14-project-audit.md). The source, kernels, addon, build
@@ -7,7 +29,7 @@
 > rounding is explicitly excluded as a defect; do not revive fixed-order work.
 > Reproductions include BDF2 nonzero-velocity startup, facade owner retention,
 > Poisson validation, unsupported FEM MeshDoctor success and ignored Curve
-> modifiers. Post-build destructive paths and manual artifact selection were
+> modifiers. Staging/source-path aliasing and manual artifact selection were
 > checked from source only; no destructive build or publication was attempted.
 > Validation: 49 repository + 54 Blender portable tests, 128 native Python tests
 > (Warp skipped, six examples excluded), common/core/geometry/CUDA binaries and
