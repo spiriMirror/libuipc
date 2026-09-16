@@ -65,6 +65,11 @@ torch/warp adapters still require their own optional frameworks.
   reproducible binary baseline.
 
 **Development mode (`python/pyproject.toml` + `python/setup.py`)**:
+- The existing helper removes an installed old `pyuipc` before package staging
+  and stub generation. This uninstall-first ordering is intentional and was
+  explicitly reaffirmed by the owner on 2026-09-16; preserve it. It must not be
+  reported as a defect or confused with the independent source/build-directory
+  aliasing risk in audit A03.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
 - `setup.py`'s `BuildPyCommand` collects dll/so from `build/vcpkg_installed/<triplet>/{bin,lib}` and `build/<config>/bin`.
 - uv editable development: `uv run --no-sync pytest python/tests` (`--no-sync` avoids rebuilding every time).
