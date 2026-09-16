@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+PR #494 scoped integration (2026-09-16) preserves the contributor's commits and
+retains explicit Python build requirements plus shared CMake/XMake stub generation.
+Direct CMake auto-install and the intentional uninstall-first policy remain.
+The added custom backend and XMake editable route are deferred, not advertised
+as delivered features. Existing scikit-build-core CMake editable support remains.
+The contributor's fork is not modified; main integration must preserve commit ancestry.
+
 Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
 `4757859c`. This inspection updated documentation only. Open priorities include
 Python facade ownership, BDF2 history startup, build/source-directory aliasing
@@ -363,18 +370,6 @@ assertions).
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
 
 ## Open issues
-
-- **`uv pip install -e .` is incompatible with the PEP 517 `backend-path`**: uv
-  treats `packaging` (the `backend-path` entry pointing at
-  `packaging/uipc_build.py`) as a project directory and aborts with "packaging
-  does not appear to be a Python project, as neither `pyproject.toml` nor
-  `setup.py` are present". `pip` / `python -m pip` handle the same declaration
-  correctly, so all editable installs must use pip until uv is fixed or the shim
-  is relocated into an installed distribution. Observed with uv 0.12.5 against
-  scikit-build-core 1.0.3 on 2026-09-03. The alternative, hand-driven route
-  (`xmake f --python_editable=true` then `uv pip install -e python`) works under
-  uv, because `python/pyproject.toml` declares a plain setuptools backend with no
-  `backend-path`.
 
 - **Published wheels through 0.0.27 need the CUDA 12 cuBLAS runtime; current
   source removes it**: package

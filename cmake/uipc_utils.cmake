@@ -281,13 +281,26 @@ function(uipc_init_submodule target)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Require a Python module supplied by the build environment.
-#
-# Do not bootstrap pip or install into the selected interpreter here.  During
-# a PEP 517 isolated build, that interpreter intentionally cannot see its
-# normal site-packages; mutating it with ensurepip would also overwrite the
-# user's pip installation.  Build-time modules belong in
-# [build-system].requires in the root pyproject.toml.
+# Bootstrap pip only when a direct CMake build needs to install a missing module.
+# -----------------------------------------------------------------------------------------
+function(uipc_require_pip_ensure python_dir)
+    execute_process(COMMAND "${python_dir}" "-c" "import pip"
+        RESULT_VARIABLE CMD_RESULT
+        OUTPUT_QUIET)
+    if(NOT "${CMD_RESULT}" STREQUAL "0")
+        uipc_info("pip not available, trying ensurepip...")
+        execute_process(COMMAND "${python_dir}" "-m" "ensurepip" "--upgrade"
+            RESULT_VARIABLE ENSUREPIP_RESULT)
+        if(NOT "${ENSUREPIP_RESULT}" STREQUAL "0")
+            uipc_error("Python [${python_dir}] failed to bootstrap pip. Please install pip manually.")
+        endif()
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Reuse available modules. Direct CMake builds automatically install missing ones
+# into the selected interpreter. Scikit-build-managed builds obtain dependencies
+# from [build-system].requires; with --no-build-isolation the caller supplies them.
 # -----------------------------------------------------------------------------------------
 function(uipc_require_python_module python_dir module_name)
     file(TO_CMAKE_PATH "${python_dir}" python_dir)
@@ -300,15 +313,34 @@ function(uipc_require_python_module python_dir module_name)
         OUTPUT_QUIET
     )
     
-    if (NOT CMD_RESULT EQUAL 0)
+    if("${CMD_RESULT}" STREQUAL "0")
+        uipc_info("[${module_name}] found with [${python_dir}].")
+        return()
+    endif()
+
+    if(DEFINED SKBUILD)
         message(FATAL_ERROR
             "[libuipc] Python module [${module_name}] is unavailable in [${python_dir}]. "
-            "CMake does not install Python packages. Use the root pip build with isolation, "
-            "or install the build requirements in this interpreter before configuring. "
+            "CMake does not install Python packages in a scikit-build-managed build. "
+            "Use the root pip build with its declared build requirements, or install "
+            "those requirements first when using --no-build-isolation. "
             "See docs/build_install/dev_in_uv.md.")
-    else()
-        uipc_info("[${module_name}] found with [${python_dir}].")
     endif()
+
+    uipc_require_pip_ensure("${python_dir}")
+    uipc_info("${module_name} not found, installing it with [${python_dir}]...")
+    execute_process(COMMAND "${python_dir}" "-m" "pip" "install" "${module_name}"
+        RESULT_VARIABLE INSTALL_RESULT)
+    if(NOT "${INSTALL_RESULT}" STREQUAL "0")
+        uipc_error("Python [${python_dir}] failed to install [${module_name}].")
+    endif()
+    execute_process(COMMAND "${python_dir}" "-c" "import ${module_name}"
+        RESULT_VARIABLE IMPORT_RESULT
+        OUTPUT_QUIET)
+    if(NOT "${IMPORT_RESULT}" STREQUAL "0")
+        uipc_error("Python [${python_dir}] cannot import [${module_name}] after pip installation.")
+    endif()
+    uipc_info("[${module_name}] installed and import verified with [${python_dir}].")
 endfunction()
 
 

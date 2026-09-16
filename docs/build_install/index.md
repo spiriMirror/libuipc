@@ -87,4 +87,4 @@ The human report distinguishes commonly conflated failures:
 
 ## Development Build
 
-- [Editable Python development with CMake or XMake](./dev_in_uv.md)
+- [Development in UV](./dev_in_uv.md)
