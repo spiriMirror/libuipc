@@ -3,6 +3,8 @@ target("backend_cuda")
     add_rules("uipc_test")
     add_deps("cuda")
     add_files("**.cu", "**.cpp")
+    -- Compile the production helpers into the test's CUDA device-link unit.
+    add_files("$(projectdir)/src/backends/cuda/affine_body/utils.cu")
     if has_config("dev") then
         add_rules("clangd")
     end
