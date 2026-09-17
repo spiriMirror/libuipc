@@ -206,7 +206,6 @@ UIPC_GENERIC Vector12 torque_to_F(Float tau, const Vector3& e, const Vector12& q
         return Vector12::Zero();
     }
 
-    // Materialize the inverse before transposing for Eigen 3.4 CUDA support.
     Matrix3x3 A_inv   = A.inverse();
     Matrix3x3 A_inv_T = A_inv.transpose();
     Matrix3x3 FA      = (0.5 * tau) * skew(e) * A_inv_T;
