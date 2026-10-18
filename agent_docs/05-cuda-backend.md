@@ -162,6 +162,14 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
+FEM vertex forces and ABD body forces consume the dedicated
+`external_force/is_constrained` attribute. Only legacy geometries without it
+fall back to the shared `is_constrained` mask. Both constraint reporters resize
+their force and index buffers to the active count on every step, including zero;
+otherwise disabling the last force would leave stale contributions on the GPU.
+`python/tests/test_external_force.py` covers default activation, soft-constraint
+independence, legacy fallback, and disable/re-enable through both IPC and AL-IPC.
+
 AL-IPC follows a nested solve boundary that must not be collapsed into the IPC
 line search. The unconstrained/penalty iterate may penetrate, so its energy line
 search starts at one without the IPC CFL clamp. A backtracked step continues the

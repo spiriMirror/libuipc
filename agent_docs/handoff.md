@@ -1,5 +1,33 @@
 # Handoff — Current State of the Repo
 
+> **Issue #499 external force activation (2026-10-18)**: FEM vertex forces
+> and ABD body forces now use `external_force/is_constrained`, enabled by
+> default by `apply_to(sc, force, enable=true)` (Python: `enable=True`). Explicit
+> false stores a disabled force. Reapplying resets the force and its mask on all
+> current vertices/instances, preserving the shared soft-constraint mask.
+> Update source animation code to toggle the dedicated attribute. The backend
+> only falls back to shared `is_constrained` for legacy geometry lacking the new
+> attribute; a present dedicated mask always wins. ABD now resizes active force
+> and index buffers to zero when the last force is disabled, preventing stale
+> acceleration. Headers, bindings/generated help, specifications, in-tree
+> examples and docs 01/04/05 are synchronized. New regression cases cover both
+> ABD overloads, soft constraints in either apply order, default force/gravity
+> equivalence, legacy masks and disable/re-enable in IPC and AL-IPC.
+> Validation: a fresh Release build with MSVC 19.39, CUDA 12.4.131 (sm_89)
+> and CPython 3.12 passed. The isolated `output/issue499-venv` runtime on RTX 4090
+> (driver 591.44) passed all 36 focused Python cases: 6 API, 28 new GPU, and 2
+> existing FEM buffer-drain/timer regressions. The 50-step BDF1 checks allow
+> 1 micrometer absolute residual (the gravity-only AL reference also shows
+> sub-micrometer lateral drift); the six-frame toggle checks retain 1e-7 m.
+> Core CTest (1040 assertions in 36 cases), 66 repository script tests, API parity,
+> zero-byte/workflow checks, generated stub inspection, clang-format 18 (10
+> changed C++/CUDA files), local document links and diff whitespace checks pass.
+> Build and installed CUDA DLL SHA-256 match:
+> `cd3ed187eb44e51938c54ccc842ec9e30a1fe64687efd754fa8cdda073dbe589`.
+> Evidence: `output/issue499-{configure,build,core-tests,tests}.log` and
+> `output/issue499-tests.xml`. No release or main merge was performed; the
+> pre-existing global Python installation was not replaced.
+
 > **Documentation drift repair (2026-10-18)**: active `.cursor` skills now
 > use named raw-CUDA kernels, cuda_tool diagnostics/views, existing owner
 > branch/commit policy, maintained formatter/build/test entry points and

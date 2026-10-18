@@ -21,7 +21,7 @@ TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
     Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                 = test::Scene::default_config();
+    auto config = test::Scene::default_config();
     // Disable built-in gravity since we're using external force
     config["gravity"]           = Vector3{0, 0, 0};
     config["contact"]["enable"] = true;
@@ -110,9 +110,9 @@ TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
                     if(!force_attr)
                         continue;
 
-                    // Set is_constrained to enable external force
+                    // Enable the external force independently of soft constraints
                     auto is_constrained =
-                        sc->instances().find<IndexT>(builtin::is_constrained);
+                        sc->instances().find<IndexT>("external_force/is_constrained");
                     if(is_constrained)
                     {
                         auto is_constrained_view = view(*is_constrained);
@@ -141,4 +141,3 @@ TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
             fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }
-

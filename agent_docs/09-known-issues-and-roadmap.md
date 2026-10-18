@@ -1,5 +1,15 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Issue #499 (2026-10-18): FEM vertex and ABD body external forces now have an
+independent `external_force/is_constrained` mask, enabled by default by
+`apply_to(sc, force, enable=true)`. Soft position/transform masks are unchanged.
+Source callers must migrate force toggles to the dedicated attribute; serialized
+legacy geometries without it retain shared-mask behavior. Disabling every ABD
+force now drains its device buffers, matching FEM. Public headers, Python
+help/stubs, specifications and in-tree examples follow the new contract.
+Focused regression coverage is in `python/tests/test_external_force.py`.
+Validation results and environment are recorded in `handoff.md`.
+
 Documentation drift corrected, 2026-10-18: active Cursor skills now follow
 the raw-CUDA/cuda_tool policy, current owner workflow, and valid skill links.
 The maintained guides agree on none-backend pending mutations, optional

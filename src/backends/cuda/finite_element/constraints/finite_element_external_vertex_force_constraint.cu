@@ -49,8 +49,13 @@ void FiniteElementExternalVertexForceConstraint::Impl::step(backend::WorldVisito
             UIPC_ASSERT(vertex_offset, "`backend_fem_vertex_offset` attribute not found");
             current_vertex_offset = vertex_offset->view().front();
 
-            auto is_constrained = sc.vertices().find<IndexT>(builtin::is_constrained);
-            UIPC_ASSERT(is_constrained, "`is_constrained` attribute not found");
+            auto is_constrained =
+                sc.vertices().find<IndexT>("external_force/is_constrained");
+            // Serialized geometries from older versions only have the shared mask.
+            // When both exist, the force-specific mask always takes precedence.
+            if(!is_constrained)
+                is_constrained = sc.vertices().find<IndexT>(builtin::is_constrained);
+            UIPC_ASSERT(is_constrained, "External force enable attribute not found; apply the external force constitution first");
             auto external_force = sc.vertices().find<Vector3>("external_force");
             UIPC_ASSERT(external_force, "`external_force` attribute not found");
 
