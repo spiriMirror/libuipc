@@ -1,5 +1,91 @@
 # Handoff — Current State of the Repo
 
+> **Issue #498 Python stitch indices (2026-10-18)**: both
+> `SoftVertexStitch.create_geometry` bindings now accept contiguous `IndexT`
+> arrays with conversion owned at the binding boundary. This removes the
+> temporary Float-to-integer buffer behind a dangling `as_span_of` result.
+> C-contiguous normalization also handles sliced, reversed and Fortran-order
+> inputs safely; only changing the dtype would leave strided arrays exposed.
+> The shared span helper and native stitching implementation are unchanged.
+> Python help/generated stubs, the constitution specification and docs 06/09
+> describe the integer input and ownership contract.
+> Validation: before the fix, 22 of 40 new index-preservation cases failed on
+> the source-matched Windows runtime. After the incremental Release rebuild
+> (MSVC 19.39, CPython 3.12.7, NumPy 2.5.4), all 80 new CPU regression cases pass,
+> including both overloads/dtypes, 0-4096 pairs, repeated calls, contact-element
+> assignment, input mutation/release, eight layouts and invalid shapes. The
+> complete portable Python suite passes 166 tests, with one optional Warp
+> module skipped because Warp is absent and 82 CUDA/example cases deselected.
+> The issue's original reproduction passes all 32 combinations with no corrupt
+> indices or exceptions. Constitution API parity (43 classes/40 initializers),
+> generated int32 stub signatures, clang-format 18 and diff checks pass.
+> Build and installed pyuipc extension SHA-256 match:
+> `f1fd0af50ae400f07a7c77580eb582aa1f1c7ca0c22335e7f90a3bb9cd8ab3bf`.
+> Evidence: `output/issue498-{before,build,after,portable}.log` and
+> `output/issue498-{before,portable}.xml`. The build and isolated interpreter
+> reuse `output/issue499-build` and `output/issue499-venv`.
+
+> **Issue #499 external force activation (2026-10-18)**: FEM vertex forces
+> and ABD body forces now use `external_force/is_constrained`, enabled by
+> default by `apply_to(sc, force, enable=true)` (Python: `enable=True`). Explicit
+> false stores a disabled force. Reapplying resets the force and its mask on all
+> current vertices/instances, preserving the shared soft-constraint mask.
+> Update source animation code to toggle the dedicated attribute. The backend
+> only falls back to shared `is_constrained` for legacy geometry lacking the new
+> attribute; a present dedicated mask always wins. ABD now resizes active force
+> and index buffers to zero when the last force is disabled, preventing stale
+> acceleration. Headers, bindings/generated help, specifications, in-tree
+> examples and docs 01/04/05 are synchronized. New regression cases cover both
+> ABD overloads, soft constraints in either apply order, default force/gravity
+> equivalence, legacy masks and disable/re-enable in IPC and AL-IPC.
+> Validation: a fresh Release build with MSVC 19.39, CUDA 12.4.131 (sm_89)
+> and CPython 3.12 passed. The isolated `output/issue499-venv` runtime on RTX 4090
+> (driver 591.44) passed all 36 focused Python cases: 6 API, 28 new GPU, and 2
+> existing FEM buffer-drain/timer regressions. The 50-step BDF1 checks allow
+> 1 micrometer absolute residual (the gravity-only AL reference also shows
+> sub-micrometer lateral drift); the six-frame toggle checks retain 1e-7 m.
+> Core CTest (1040 assertions in 36 cases), 66 repository script tests, API parity,
+> zero-byte/workflow checks, generated stub inspection, clang-format 18 (10
+> changed C++/CUDA files), local document links and diff whitespace checks pass.
+> Build and installed CUDA DLL SHA-256 match:
+> `cd3ed187eb44e51938c54ccc842ec9e30a1fe64687efd754fa8cdda073dbe589`.
+> Evidence: `output/issue499-{configure,build,core-tests,tests}.log` and
+> `output/issue499-tests.xml`. No release or main merge was performed; the
+> pre-existing global Python installation was not replaced.
+
+> **Documentation drift repair (2026-10-18)**: active `.cursor` skills now
+> use named raw-CUDA kernels, cuda_tool diagnostics/views, existing owner
+> branch/commit policy, maintained formatter/build/test entry points and
+> valid skill links. Core/backend guides now match none pending mutations,
+> strict Contact/Subscene config, the four-symbol backend handshake and
+> XMake USD/VDB support. The older claims below that Ninja ignores compiler
+> flag changes or blocking streams do not synchronize with the legacy
+> default stream are incorrect; consult docs 05/08 for corrected guidance.
+> Historical experiment records are retained. No native implementation,
+> installed runtime, samples or performance baseline was changed. Validation:
+> 66 repository tests, 12 skill-structure checks with invocation metadata
+> preserved, local instruction/agent-document links, and `git diff --check`.
+
+> **Performance baseline preparation (2026-10-03)**: the owner selected the fourth
+> audit-follow-up stage and deferred correctness/interface/frontend remediation.
+> Baseline native source is `9c748a75`. Existing samples edits (88 material stiffness;
+> 93 AL/K_min) remain untouched. A clean detached samples `ecad2ca` worktree is at
+> `output/perf-2026-10-03/samples`. The canonical runner supports
+> `--samples-directory`, records the selected revision, and captures pre/post
+> package/native/input fingerprints outside the frame timing interval. Runtime
+> equality is never inferred from a source SHA or a failed fingerprint probe.
+> Release/CPython 3.14 rebuilding and installation completed with CUDA 13.2.51.
+> Build output, installed backend, and the frozen `output/perf-2026-10-03/runtime-baseline`
+> package share CUDA DLL SHA-256 `37d68c593c519d9549a38a80519040365bebb24d7eed0b40479b5900493436d3`.
+> Validation: 66 repository tests, 54 Blender portable tests, 80 native-package
+> portable Python tests (one skip, 54 deselected), 13 benchmark-harness tests on
+> Python 3.12, and four canonical dry runs pass. A second incremental build exits
+> successfully with no remaining work. No GPU benchmark/test was started; the
+> owner will notify when the separate Unified_GIPC workload is finished.
+> GPU kernel changes, a new measured throughput baseline, and speedup claims
+> remain pending. Build metadata and a per-frame Timer diagnostic wrapper are
+> in `output/perf-2026-10-03/`; preserve this runtime snapshot for controlled A/B.
+
 > **Scoped PR #494 integration (2026-09-16)**: clean worktree
 > `output/pr494-integration`, branch `integration/pr-494-build-cleanup`.
 > The original `946e7ed1` history and the uninstall-policy clarification are

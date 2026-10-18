@@ -67,9 +67,9 @@ The codebase uses Data-Oriented Programming with an ECS-inspired RMR pattern for
 - `src/constitution/` - Material models (AffineBody, NeoHookean, springs, constraints)
 - `src/backends/` - Backend implementations loaded as dynamic modules
   - `cuda/` - GPU backend with CUDA kernels
-  - `none/` - CPU reference implementation
+  - `none/` - Empty interface/template backend; handles pending scene mutations but performs no physics
 - `src/pybind/` - Python bindings via pybind11
-- `src/io/` - File I/O (obj, gltf, serialization)
+- `src/io/` - Mesh/scene IO (OBJ, MSH, STL, URDF and serialization); glTF code is experimental test code
 
 ### Key Classes
 - **SimplicialComplex** - Core geometry type (vertices, edges, triangles, tetrahedra)

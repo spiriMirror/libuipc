@@ -50,12 +50,13 @@ touching that area; several of these have bitten us more than once.
   `cuda`, then run the Python post-build sync above. A mixed old/new vtable can
   dispatch `status()` or `frame_stats()` into a neighboring virtual slot and
   appear as recursion, an unrelated assertion, or an invalid world.
-- **CMake+ninja does not track compile-flag changes** (purely mtime-driven).
-  After flipping a global flag (e.g. RDC), stale objects slip through the
-  link and fake a "verified" result — clean the object dir before believing
-  it. This produced the wrong "RDC can be disabled" conclusion (RDC must
-  stay ON: `affine_body/utils.cu` `UIPC_GENERIC` free functions are called
-  cross-TU; off → `ptxas fatal: Unresolved extern`).
+- **Verify the generated commands after changing build flags.** Ninja tracks
+  command-line changes, including compiler flags
+  ([manual](https://ninja-build.org/manual.html#_comparison_to_make)). Reconfigure,
+  inspect `compile_commands.json`, and confirm the affected compile/device-link
+  steps. Use a fresh build directory to resolve suspected stale artifacts.
+  The old claim that Ninja is purely mtime-driven was incorrect; RDC must
+  still stay ON for cross-TU device calls in `affine_body/utils.cu`.
 - **`file(GLOB ... CONFIGURE_DEPENDS)`** is now on all project CMake files:
   adding/removing sources does NOT need a manual re-configure (the older
   note in handoff's environment section predates this).
@@ -176,21 +177,19 @@ touching that area; several of these have bitten us more than once.
   use it); `Warn` keeps kappa-clamp warnings visible.
 - stdout redirection block-buffers printf in some native code — a timeout
   kill loses logs; instrumented prints need `fflush(stdout)`.
-- **Stale-dll trap when benchmarking solver changes through the python
-  samples:** the samples load the dlls from
-  `<python>\\Lib\\site-packages\\uipc\\_native\\`, NOT from `build/`. After
-  rebuilding backend `.cu` files, re-copy `build/Release/bin/uipc_*.dll`
-  into both `build/python/src/uipc/_native/` and the site-packages
-  `_native/` dir before running — otherwise python silently runs the OLD
-  solver and trajectory/timing comparisons are garbage (this once cost a
-  full debug round chasing a MAS "freeze" that was just a stale dll).
+- **Verify the runtime used by Python benchmarks.** A backend-only build does
+  not run pyuipc's staging hook; build `pyuipc` afterward to refresh the staged
+  and installed package (see Build & CI above). Check the selected interpreter,
+  imported package path and backend hash instead of assuming Python loads
+  from `build/` or a particular site-packages directory. The canonical runner
+  records pre/post runtime and input fingerprints outside frame timing.
 - **Incremental Scene commits require the exact compatible baseline.** They now
   propagate subscene/contact topology, geometry removal, sparse IDs, and
   allocator state, but they are deltas rather than standalone Scene files. Use
   full SceneIO to establish or migrate a baseline, reject pending mutations at
   snapshot time, and read doc 11 before extending commit/update.
 - **The `none` backend is not a CPU simulator.** It advances the frame without
-  physics and does not settle post-init pending geometry mutations.
+  physics, but settles post-init pending geometry mutations on each advance.
 
 ## Simulation semantics (contact/constraints/ABD)
 
@@ -211,8 +210,9 @@ touching that area; several of these have bitten us more than once.
 - **Sanity check failure permanently invalidates the world**
   ("World is not valid, frame set to 0"): intersection reports set
   `m_valid=false` and `advance` becomes a no-op. Use sanity_check=enable as
-  a *probe* (e.g. verifying an initial pose is penetration-free), not in
-  production scenes where mid-run contact is expected.
+  an initial-state validation gate (e.g. verifying a penetration-free pose).
+  It runs before backend initialization; ordinary contact during simulation
+  is handled by the collision/solver pipeline, not this initial check.
 - **Implicit ground half-plane CCD asserts `toi > 0`**: an object starting
   *exactly* on the plane (gap == 0, moving into it) reports `toi == -0` and
   aborts. Start objects ~1 mm above the ground and let contact engage
@@ -250,11 +250,12 @@ touching that area; several of these have bitten us more than once.
     `params.conditional.phGraph_out[0]`; do NOT point it at your own
     variable (the node is created but the body graph handle is never
     populated and the error code stays "success").
-  - **Blocking streams do not wait for legacy-default-stream work.** A
-    `cudaMemcpyAsync` H2D on the default stream followed by
-    `cudaGraphLaunch` on a blocking stream races (we read an uninitialized
-    device tolerance → `dx=0` → flat line-search energy). Upload
-    graph-consumed host data with a *synchronous* `cudaMemcpy`.
+  - **Blocking streams synchronize with the legacy default stream in the
+    same context.** Non-blocking streams are exempt; per-thread defaults
+    have different semantics. See the [CUDA stream contract](https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html).
+    The existing graph path retains a synchronous tolerance upload; do not
+    remove it based on the obsolete contrary comment in `graph.h`. A new
+    concurrency diagnosis must establish the actual streams and dependencies.
   - A launch into the legacy default stream during capture invalidates the
     capture (detected at `cudaStreamEndCapture`) — use that as the automatic
     fallback signal for un-plumbed callees.

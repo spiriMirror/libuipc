@@ -162,6 +162,14 @@ CCD, and termination algorithms remain intentionally distinct. Timer enablement
 and reporting are caller-controlled--neither advance path changes the
 process-global Timer state or prints a report implicitly.
 
+FEM vertex forces and ABD body forces consume the dedicated
+`external_force/is_constrained` attribute. Only legacy geometries without it
+fall back to the shared `is_constrained` mask. Both constraint reporters resize
+their force and index buffers to the active count on every step, including zero;
+otherwise disabling the last force would leave stale contributions on the GPU.
+`python/tests/test_external_force.py` covers default activation, soft-constraint
+independence, legacy fallback, and disable/re-enable through both IPC and AL-IPC.
+
 AL-IPC follows a nested solve boundary that must not be collapsed into the IPC
 line search. The unconstrained/penalty iterate may penetrate, so its energy line
 search starts at one without the IPC CFL clamp. A backtracked step continues the
@@ -300,8 +308,9 @@ InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel
 FEMLineSearchReporter_step_forward_kernel
 ```
 
-- Launch block size is auto-selected by occupancy via `cuda_tool::best_block_dim(kernel)` (consistent with muda's occupancy-based selection, guaranteeing unchanged FP behavior); the grid is computed by `cuda_tool::best_grid_dim(n, kernel)`. **The block-size cache is keyed by kernel function address** (`unordered_map<const void*, int>`); it must not be a `static` cache keyed by function-pointer type — different kernels with the same signature would share a cache entry, and cross-kernel block-size interference perturbs the atomic reduction order, which once caused a case 36 frame 17 line-search failure in the full test suite (not reproducible when run in isolation).
-- Memory operations such as `buffer::kernel_fill<int>` uniformly go through `cuda_tool::BufferLaunch` (internally named template kernels).
+- Launch block size is auto-selected by occupancy via `cuda_tool::best_block_dim(kernel)` (using the existing occupancy-based launch policy; atomic arrival order can still vary); the grid is computed by `cuda_tool::best_grid_dim(n, kernel)`. **The block-size cache is keyed by kernel function address** (`unordered_map<const void*, int>`); it must not be a `static` cache keyed by function-pointer type — different kernels with the same signature would share a cache entry, and cross-kernel block-size interference perturbs the atomic reduction order, which once caused a case 36 frame 17 line-search failure in the full test suite (not reproducible when run in isolation).
+- Device fills and copies use the `cuda_tool` buffer/stream APIs; fill
+  kernels appear as `details::buffer_fill_kernel<T>` in profiler output.
 - `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
 
 ### Resource-aware contact and FEM assembly
@@ -433,7 +442,7 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 | `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. |
 | `cub.h` | Thin wrappers (pointer-style) for `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` + warp-level cub headers; **temporary storage uses a stream-level workspace cache** (`details::cub_temp_storage`, grows 2× on demand, reused across calls — per-call cudaMalloc/cudaFree costs ~10-100µs each and implicitly synchronizes with the device, which once caused a ~15%/frame performance regression in the 6_wrecking_balls scene) |
 | `linear_system.h` + `linear_reduction.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + full set of views (Triplet/Doublet/DenseVector/BCOO) + `LinearSystemContext`; dot/norm use named partial-reduction kernels, persistent geometrically grown partial/result buffers, the per-stream CUB workspace, and scaled-square norm accumulation without cuBLAS |
-| `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`; ported verbatim from muda ext/eigen, bit-for-bit identical) |
+| `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`). The family originated in the MUDA migration; current `svd/pd` use `algorithm/qr_svd.hpp` with signed-SVD fixup and native float/double precision. |
 | `debug.h` | `debug_sync_all/check_finite` + the `UIPC_KERNEL_ASSERT/ERROR/WARN` macro family (gated by `uipc::RUNTIME_CHECK`) |
 | `graph.h` | `GraphCapture`: self-contained CUDA-graph block capture/replay (capture body on a capture stream, replay via `launch_sync()`, permanent fallback on capture failure). Instantiation API is selected by `CUDART_VERSION` (`cudaGraphInstantiateWithFlags` ≥11.4 through 13.x, legacy 5-arg form below), so the same source builds across CUDA 11/12/13 |
 | `logger.h` | `LoggerViewer` (in-kernel `cout <<`, device printf) + `KernelCout` |
@@ -449,14 +458,20 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   subsystem's memory budget.
 - **The umbrella header `cuda_tool.h` does not include `cub.h`**: the CCCL device-algorithm headers are extremely heavy (~165k extra expanded lines per TU), so files using the `Device*` wrappers explicitly `#include <cuda_tool/cub.h>`; `linear_system.h` does not transitively include it. The separate `linear_reduction.h` is included only by the three dot/norm callers and focused test.
 - **RDC must be enabled** (`CUDA_SEPARABLE_COMPILATION ON` + `CUDA_RESOLVE_DEVICE_SYMBOLS ON`): `affine_body/utils.cu` defines `UIPC_GENERIC` free functions (e.g. `q_to_transform`) that are called across translation units by device code in other TUs; disabling RDC gives `ptxas fatal: Unresolved extern`. The xmake-side equivalent is `add_cuflags("-rdc=true")`.
-- **Lesson learned (correction dated 2026-08-20)**: CMake+ninja does not track compile-flag changes (purely mtime-driven) — after switching a global flag like RDC, a "full build" may actually only recompile TUs whose source files changed, and stale objects can slip through linking and create a false "verification passed" impression; after changing global flags you must manually clean the object directory before verifying. This once led to the wrong conclusion that RDC could be disabled (the RDC part of commit d2f48087 has since been corrected).
-- Compile-time profile (32 cores, CUDA 13.2, RTX 5090): full build ~4.7 min / ~8800 CPU·s, 219 .cu files averaging ~35s; a single TU's preprocessed expansion is ~1.63M lines, of which CUDA toolchain headers ~860k, WinSDK ~310k, MSVC STL ~150k, Eigen ~150k, the project itself <20k — the bulk is toolchain headers; the project headers have already been trimmed as far as possible.
+- **Verify flag changes in the generated build.** Ninja tracks command-line
+  changes, including compile flags ([manual](https://ninja-build.org/manual.html#_comparison_to_make)).
+  Reconfigure and inspect `compile_commands.json` plus verbose build/device-link
+  output to confirm the intended flags and targets. Use a fresh build directory
+  when investigating suspected stale artifacts; a successful partial build is
+  not evidence that RDC can be disabled. Historical handoff claims that Ninja
+  ignores flag changes are incorrect; the cross-TU RDC requirement above remains.
+- Historical compile diagnostics (32 cores, CUDA 13.2, RTX 5090): the old ~4.7-minute wall figure involved incomplete recompilation and is not a clean-build baseline; a single TU's preprocessed expansion is ~1.63M lines, of which CUDA toolchain headers ~860k, WinSDK ~310k, MSVC STL ~150k, Eigen ~150k, the project itself <20k — the bulk is toolchain headers; the project headers have already been trimmed as far as possible.
 - The smoke test is kept as `test_compile.cu.txt`.
 
 ## none Backend
 
 `src/backends/none/`: an empty implementation: it increments the frame and logs,
 but performs no physics. It is useful as a backend template and for limited core
-interface/geometry checks. It does not enter/solve the Scene pending-geometry
-cycle, so post-init object additions remain pending. **Environments without a GPU
-have no usable compute backend**.
+interface/geometry checks. Initialization enters the Scene pending phase,
+and each advance settles queued geometry creation/destruction. Environments
+without a GPU have no physical simulation backend.

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import platform
@@ -89,6 +90,42 @@ def missing_required_paths(entry: Mapping[str, Any]) -> list[Path]:
     ]
 
 
+def use_samples_directory(entry: Mapping[str, Any], directory: Path) -> dict[str, Any]:
+    """Rebase sample inputs onto an isolated in-repository worktree."""
+    directory = directory.resolve()
+    try:
+        relative = directory.relative_to(REPO_ROOT.resolve()).as_posix()
+    except ValueError as error:
+        raise ValueError("--samples-directory must be inside the repository") from error
+
+    def rebase(value: str) -> str:
+        prefix = "libuipc-samples/"
+        return relative + "/" + value[len(prefix):] if value.startswith(prefix) else value
+
+    return {
+        **entry,
+        "entrypoint": rebase(entry["entrypoint"]),
+        "workingDirectory": rebase(entry["workingDirectory"]),
+        "requiredPaths": [rebase(value) for value in entry["requiredPaths"]],
+    }
+
+
+def input_fingerprints(entry: Mapping[str, Any]) -> dict[str, str]:
+    """Hash declared input content outside the timed simulation interval."""
+    fingerprints = {}
+    for value in entry["requiredPaths"]:
+        path = repo_path(value)
+        paths = sorted(path.rglob("*")) if path.is_dir() else [path]
+        for source in paths:
+            if source.is_file():
+                digest = hashlib.sha256()
+                with source.open("rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+                fingerprints[source.relative_to(REPO_ROOT).as_posix()] = digest.hexdigest()
+    return fingerprints
+
+
 def parse_overrides(values: list[str]) -> dict[str, str]:
     overrides: dict[str, str] = {}
     for value in values:
@@ -162,7 +199,8 @@ def display_command(command: list[str]) -> str:
 
 
 def command_output(
-    command: list[str], environment: Mapping[str, str] | None = None
+    command: list[str], environment: Mapping[str, str] | None = None,
+    *, working_directory: Path | None = None,
 ) -> str:
     try:
         result = subprocess.run(
@@ -171,10 +209,28 @@ def command_output(
             text=True,
             check=False,
             env=None if environment is None else dict(environment),
+            cwd=working_directory,
         )
     except OSError:
         return "unavailable"
     return result.stdout.strip() if result.returncode == 0 else "unavailable"
+
+
+def runtime_fingerprint(
+    python: str, environment: Mapping[str, str], working_directory: Path
+) -> dict[str, Any]:
+    output = command_output(
+        [python, str(REPO_ROOT / "scripts" / "benchmark_runtime.py")],
+        environment,
+        working_directory=working_directory,
+    )
+    try:
+        payload = json.loads(output)
+    except (ValueError, TypeError):
+        return {"available": False, "error": "Runtime fingerprint probe failed"}
+    if not isinstance(payload, dict) or not payload.get("nativeFiles"):
+        return {"available": False, "error": "Runtime probe found no native binaries"}
+    return {"available": True, **payload}
 
 
 def runtime_facts(python: str, environment: Mapping[str, str]) -> dict[str, Any]:
@@ -325,7 +381,8 @@ def write_metadata(path: Path, payload: Mapping[str, Any]) -> None:
 def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any]]) -> int:
     if args.name not in registry:
         raise ValueError(f"unknown benchmark: {args.name}")
-    entry = registry[args.name]
+    samples_directory = (args.samples_directory or REPO_ROOT / "libuipc-samples").resolve()
+    entry = use_samples_directory(registry[args.name], samples_directory)
     missing = missing_required_paths(entry)
     if missing:
         paths = "\n  ".join(str(path) for path in missing)
@@ -352,6 +409,14 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         return 0
     sys.stdout.flush()
 
+    # Capture provenance before launch, not only after a possibly long run.
+    revisions = {
+        "libuipc": git_state(REPO_ROOT),
+        "libuipc-samples": git_state(samples_directory),
+    }
+    inputs_before = input_fingerprints(entry)
+    runtime_before = runtime_fingerprint(python, environment, working_directory)
+    runtime = runtime_facts(python, environment)
     started = dt.datetime.now(dt.timezone.utc)
     start_time = time.perf_counter()
     output_lines: list[str] = []
@@ -382,6 +447,8 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         return_code = 130
     gpu_memory = memory_monitor.stop()
     duration = time.perf_counter() - start_time
+    runtime_after = runtime_fingerprint(python, environment, working_directory)
+    inputs_after = input_fingerprints(entry)
 
     output = "".join(output_lines)
     reported_benchmark = parse_reported_benchmark(output)
@@ -411,12 +478,19 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
             "unset": entry.get("unsetEnvironment", []),
             "overrides": overrides,
         },
-        "revisions": {
-            "libuipc": git_state(REPO_ROOT),
-            "libuipc-samples": git_state(REPO_ROOT / "libuipc-samples"),
-        },
+        "revisions": revisions,
+        "samplesDirectory": str(samples_directory),
         "python": python,
-        "runtime": runtime_facts(python, environment),
+        "runtime": runtime,
+        "provenance": {
+            "runtimeBefore": runtime_before,
+            "runtimeAfter": runtime_after,
+            "runtimeUnchanged": bool(runtime_before.get("available"))
+                                and runtime_before == runtime_after,
+            "inputsBefore": inputs_before,
+            "inputsAfter": inputs_after,
+            "inputsUnchanged": inputs_before == inputs_after,
+        },
         "reportedFrameTiming": reported_timing,
         "reportedBenchmark": reported_benchmark,
         "gpuMemory": gpu_memory,
@@ -426,6 +500,7 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         f"{metadata_path.stem}-{metadata['runId']}{metadata_path.suffix}"
     )
     log_path = archive_path.with_suffix(".log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     log_path.write_text(output, encoding="utf-8")
     write_metadata(archive_path, metadata)
     write_metadata(metadata_path, metadata)
@@ -448,6 +523,8 @@ def main(argv: list[str] | None = None) -> int:
     frames.add_argument("--quick", action="store_true")
     run_parser.add_argument("--python", default=sys.executable)
     run_parser.add_argument("--env", action="append", default=[], metavar="KEY=VALUE")
+    run_parser.add_argument("--samples-directory", type=Path,
+                            help="use an isolated samples worktree inside this repository")
     run_parser.add_argument("--dry-run", action="store_true")
 
     args = parser.parse_args(argv)

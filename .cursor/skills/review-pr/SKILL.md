@@ -11,6 +11,9 @@ description: >-
 
 # libuipc PR Review
 
+Follow the [owner working agreements](../../../agent_docs/rule.md). Inspect PRs without changing the working
+branch unless the user requests checkout; a review does not authorize publication.
+
 ## Architecture primer (read before reviewing)
 
 libuipc is a GPU-accelerated Incremental Potential Contact (IPC) simulation
@@ -25,13 +28,14 @@ library (C++20 + optional Python/pybind11).
 | Constitution | `src/constitution/` | Material / constraint implementations |
 | I/O | `src/io/` | Scene + mesh serialisation |
 | Sanity check | `src/sanity_check/` | Pre-sim scene validation |
-| Backends | `src/backends/<name>/` | Physics engines as runtime-loaded **MODULE** DLLs |
+| Backends | `src/backends/<name>/` | Physics engines as runtime-loaded **SHARED** libraries in test and packaged builds |
 | Pybind | `src/pybind/` | Thin pybind11 wrapper; mirrors C++ submodules |
 
 **Backend plugin ABI** (`src/backends/common/module.h`):
-- Exports: `uipc_init_module`, `uipc_create_engine`, `uipc_destroy_engine`
-- Base classes: `SimEngine` → `ISimSystem` → subsystem folders (`affine_body/`,
-  `finite_element/`, `contact_system/`, `collision_detection/`, etc.)
+- Exports: `uipc_query_module`, `uipc_init_module`, `uipc_create_engine`, `uipc_destroy_engine`
+- Core validates backend ABI, libuipc major/minor and backend identity before init/create.
+- Engine hierarchy: `core::IEngine` → `backend::SimEngine` → CUDA/none engines.
+  Systems separately derive from `ISimSystem` / `SimSystem` and register with their engine.
 - RMR (Reporter–Manager–Receiver) data-oriented design; avoid heavy OOP in backend code
 
 **CUDA backend subsystems** (most review-sensitive):
@@ -44,9 +48,10 @@ library (C++20 + optional Python/pybind11).
 ### 1. Checkout and fetch metadata
 
 ```bash
-gh pr checkout <PR_NUMBER>
-gh pr view <PR_NUMBER> --json title,body,author,baseRefName,headRefName,headRefOid,repository,url,additions,deletions,changedFiles
-gh pr diff <PR_NUMBER> --name-only
+# Only when checkout is requested:
+gh pr checkout <PR_NUMBER> --repo spiriMirror/libuipc
+gh pr view <PR_NUMBER> --repo spiriMirror/libuipc --json title,body,author,baseRefName,headRefName,headRefOid,headRepository,url,additions,deletions,changedFiles
+gh pr diff <PR_NUMBER> --name-only --repo spiriMirror/libuipc
 ```
 
 ### 2. Present summary to the human reviewer
@@ -80,7 +85,9 @@ Stats: +<add> / -<del> across <N> files
 
 ### 3. AI review — libuipc-specific checklist
 
-Run `gh pr diff <PR_NUMBER>` and check every area below that is touched.
+Run `gh pr diff <PR_NUMBER> --repo spiriMirror/libuipc` and check every
+area below that is touched. Metadata fields must match the
+[GitHub CLI JSON contract](https://cli.github.com/manual/gh_pr_view#json-fields).
 
 ---
 
@@ -95,7 +102,10 @@ Run `gh pr diff <PR_NUMBER>` and check every area below that is touched.
 - [ ] Multiple inheritance is forbidden; separate concerns into distinct classes
 
 #### CUDA / GPU code
-- [ ] GPU buffer arguments use `muda::BufferView` / `muda::TripletMatrixView` (or equivalent view types) instead of raw pointers
+- [ ] GPU buffer arguments use `cuda_tool::BufferView` / sparse-matrix views instead of raw pointers
+- [ ] Business kernels are named `__global__` functions with raw `<<<>>>` launches
+- [ ] CUB scratch is persistent; buffer growth preserves the required initialization/history
+- [ ] Correctness findings identify algorithmic or synchronization defects, not valid atomic-order rounding alone
 - [ ] Raw pointer parameters are forbidden in device code unless unavoidable
 
 #### Constitution / material
@@ -114,7 +124,8 @@ Run `gh pr diff <PR_NUMBER>` and check every area below that is touched.
 - [ ] Left-aligned pointers (`int* p`, not `int *p`)
 - [ ] No `using namespace std;` in headers
 
-#### CMake
+#### CMake / XMake
+- [ ] Build-affecting changes are mirrored in both build systems, including CUDA component ownership
 - [ ] New backend follows `uipc_add_backend(name)` macro in `src/backends/CMakeLists.txt`
 - [ ] New CMake options added to the root `CMakeLists.txt` option block with sensible defaults
 - [ ] `file(GLOB ...)` patterns extended if new source subdirs added
@@ -184,9 +195,9 @@ Description.
 
 **General review comment / request changes / approve:**
 ```bash
-gh pr review <PR_NUMBER> --comment   --body "..."
-gh pr review <PR_NUMBER> --request-changes --body "..."
-gh pr review <PR_NUMBER> --approve   --body "LGTM"
+gh pr review <PR_NUMBER> --repo spiriMirror/libuipc --comment --body "..."
+gh pr review <PR_NUMBER> --repo spiriMirror/libuipc --request-changes --body "..."
+gh pr review <PR_NUMBER> --repo spiriMirror/libuipc --approve --body "LGTM"
 ```
 
 **Inline comment on a specific line:**

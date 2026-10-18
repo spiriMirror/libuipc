@@ -82,6 +82,24 @@ the earlier unbound-motor statement is obsolete.
 | `finite_element_external_force.h` | FEM external force (additional) |
 | `conversion.h` | Utilities such as rigid-body → affine-body conversion |
 
+## Body and vertex external forces
+
+`FiniteElementExternalForce` (UID 671, `vertices`) and
+`AffineBodyExternalBodyForce` (UID 666, `instances`) use
+`apply_to(sc, force, enable=true)` (Python: `enable=True`). Each call fills the
+force and its dedicated `external_force/is_constrained` mask. Forces are enabled
+by default; `enable=false` stores a disabled force for later Animator activation.
+The shared `is_constrained` mask is neither created nor modified by these APIs,
+so soft position/transform constraints remain independent in either apply order.
+
+Migrate force animation from `is_constrained` to `external_force/is_constrained`.
+The CUDA backend falls back to the shared mask only for legacy geometries without
+the new attribute. A present dedicated mask always wins, even when all entries
+are zero. Reapplying upgrades legacy geometry using the explicit `enable` value.
+Both FEM and ABD drain active device force buffers when every force is disabled.
+See the [FEM specification](../docs/specification/constitutions/finite_element_external_force.md)
+and [ABD specification](../docs/specification/constitutions/affine_body_external_force.md).
+
 ## Usage Notes
 
 - Parameter formulas/ranges are documented where available under `docs/specification/constitutions/` (for example, ABD $\kappa$: 100 MPa–100 GPa). Verify constructor validation in source before treating a prose range as enforced.

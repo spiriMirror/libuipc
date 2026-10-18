@@ -149,6 +149,11 @@ record it here in the same commit.**
 
 ## Task-scoped (recorded for context, not general policy)
 
+- 2026-10-03 audit follow-up: prioritize the fourth proposed stage, a matching
+  source/runtime performance baseline followed by measured optimizations. Defer
+  the first three audit-remediation stages; do not fold their correctness,
+  interface, or Blender changes into this performance task. (Set 2026-10-03.)
+
 - PR #494 integration: preserve the contributor's original commits through
   merge commits in our repository, append our scoped adjustments, then merge
   into main after validation. Do not modify the contributor's fork. Retain

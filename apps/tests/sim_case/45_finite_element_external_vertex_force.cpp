@@ -28,7 +28,7 @@ TEST_CASE("45_finite_element_external_vertex_force", "[fem][external_force]")
 
     Scene scene{config};
     {
-        StableNeoHookean          snh;
+        StableNeoHookean           snh;
         FiniteElementExternalForce ext_force;
 
         Matrix4x4 pre_trans = Matrix4x4::Identity();
@@ -76,7 +76,7 @@ TEST_CASE("45_finite_element_external_vertex_force", "[fem][external_force]")
                         continue;
 
                     auto is_constrained =
-                        sc->vertices().find<IndexT>(builtin::is_constrained);
+                        sc->vertices().find<IndexT>("external_force/is_constrained");
                     if(is_constrained)
                     {
                         auto is_constrained_view = view(*is_constrained);

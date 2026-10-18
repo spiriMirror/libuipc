@@ -8,13 +8,16 @@ disable-model-invocation: true
 
 ## Overview
 
-Create a well-formatted, conventional commit locally. **Do NOT push unless the user explicitly asks to push.**
+Create a conventional commit on the current working branch. Follow the
+[owner working agreements](../../../agent_docs/rule.md): commit completed stages and push the working
+branch under the standing owner authorization. Pushing to `main` or opening
+a PR targeting it requires an explicit owner request.
 
 ## Steps
 
 ### 1. Format Changed Files
 
-Run [format command](./format.md) on all changed C++ files before staging.
+Run [format command](../format/SKILL.md) on all changed C++ files before staging.
 
 ### 2. Stage Changes
 
@@ -42,7 +45,7 @@ Use a temp file to avoid shell escaping issues (`output/` is gitignored):
 mkdir -p output/.cursor
 ```
 
-Write the commit message to `output/.cursor/commit_msg.txt` following the [commit convention](../rules/commit-convention.mdc).
+Write the commit message to `output/.cursor/commit_msg.txt` following the [commit convention](../commit-convention/SKILL.md).
 
 ### 4. Commit
 
@@ -51,9 +54,10 @@ git commit -F output/.cursor/commit_msg.txt
 rm -r output/.cursor
 ```
 
-### 5. Push (only if user explicitly requests)
+### 5. Push the Working Branch
 
-Only push when the user says "push", "commit and push", or similar. Otherwise, stop after step 4.
+Use the current branch and its verified upstream under the owner policy.
+Do not push to `main` without an explicit owner request.
 
 ```bash
 git push

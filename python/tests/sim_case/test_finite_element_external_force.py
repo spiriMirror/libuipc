@@ -3,7 +3,7 @@ Regression test for FiniteElementExternalForce buffer drain.
 
 Bug (pre-fix):
   FiniteElementExternalVertexForceConstraint::Impl::step() filtered the
-  per-vertex is_constrained / external_force attributes into host arrays
+  per-vertex external_force/is_constrained / external_force attributes into host arrays
   (`h_forces`, `h_vertex_ids`) and copied them to the device.  The copy was
   guarded by `if (!h_forces.empty())` — so when the user cleared all
   external forces (host arrays empty), the device-side buffers `forces`
@@ -80,7 +80,7 @@ def test_finite_element_external_force_clear(
     def animate_force(info):
         geom = info.geo_slots()[0].geometry()
         force_attr = geom.vertices().find("external_force")
-        is_constrained_attr = geom.vertices().find(builtin.is_constrained)
+        is_constrained_attr = geom.vertices().find("external_force/is_constrained")
         assert force_attr is not None
         assert is_constrained_attr is not None
 

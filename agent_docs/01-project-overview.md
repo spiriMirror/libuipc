@@ -33,7 +33,7 @@ Recent important changes (README News):
 | `agent_docs/` | Agent guide, including durable `adr/` decisions, `performance/` evidence, and chronological `handoff.md` history |
 | `CMakeLists.txt` / `CMakePresets.json` / `pyproject.toml` | Build entry points |
 
-> **Local reference checkouts in this working copy (untracked, do NOT commit into this repo)**: `Stiff-GIPC/` (performance-alignment reference) and `references/` (third-party reference code). `libuipc-samples/` is different: it is a tracked submodule, so update its gitlink deliberately rather than treating its files as part of the root repository.
+> **Optional local references**: historical development worktrees used untracked `Stiff-GIPC/` (performance-alignment reference) and `references/` (third-party reference code). Do not assume they exist in a fresh checkout or commit them into this repository. `libuipc-samples/` is a tracked submodule: initialize it when needed and update its gitlink deliberately.
 
 ## Three Core Concepts
 
@@ -49,7 +49,7 @@ The 5 major components of a Scene (see `docs/tutorial/concepts.md` for details):
 2. **Geometries**: geometry data held by the scene (the core is `SimplicialComplex`).
 3. **Constitution Tabular**: collection of constitution models. `constitution.apply_to(mesh, params...)` writes parameters into geometry attributes, identified by a **UID** (official: 0~2³²-1; user-defined: 2³²~2⁶⁴-1; written to the `constitution_uid` attribute in meta).
 4. **Contact Tabular**: contact model table. `contact_tabular.create("wood")` creates a ContactElement; `insert(ce1, ce2, friction, resistance)` builds a pairwise model $C_{ij}=(\kappa,\mu,f)$; undefined pairs fall back to `default_model` (id=0). There is also the Subscene Tabular (subscene enable matrix, default identity).
-5. **Animator**: animation script. `animator.insert(obj, update_fn)` is a per-frame callback; `info.geo_slots()` retrieves the bound geometries; must be combined with Constraints (`SoftTransformConstraint` drives an affine body's `aim_transform`, `SoftPositionConstraint` drives vertices' `aim_position`), and the geometry must first set `is_constrained=1`.
+5. **Animator**: animation script. `animator.insert(obj, update_fn)` is a per-frame callback; `info.geo_slots()` retrieves the bound geometries; soft constraints use `is_constrained=1` (`SoftTransformConstraint` drives an affine body's `aim_transform`, `SoftPositionConstraint` drives vertices' `aim_position`). FEM vertex and ABD body external forces instead use the independent `external_force/is_constrained` mask, enabled by default by `apply_to` (see doc 04).
 
 ## Typical Simulation Flow (Hello Libuipc)
 

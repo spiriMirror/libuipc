@@ -151,6 +151,15 @@ Canonical throughput runs keep `UIPC_BENCHMARK_TIMERS=0`; use a separate
 instrumentation changes wall time. Performance thresholds belong in compatible
 `uipc.profile` baseline/check artifacts, never in portable correctness tests.
 
+The runner also records pre/post runtime fingerprints (selected Python package,
+build metadata, Python source hashes, colocated native-library SHA-256 values)
+and declared input-file hashes outside the timed interval. Inspect both
+`provenance.*Unchanged` flags; the source checkout's commit alone does not prove
+the installed backend revision. `--samples-directory output/<clean-worktree>`
+selects an isolated in-repository samples worktree and records its own revision,
+without resetting the user's submodule edits. See the public benchmark guide
+for the worktree command and interpretation limits.
+
 **Typical sim_case flow** (e.g. `0_abd_gravity.cpp`, `14_fem_3d_ground_contact.cpp`, `37_abd_revolute_joint.cpp`): `Engine{"cuda"}` → configure `Scene::default_config()` (gravity/contact/friction/line_search) → build geometry + `apply_to` constitution → `world.init(scene)` → loop `advance/retrieve` + `SceneIO::write_surface` to export obj each frame. `0_abd_gravity` uses two SECTIONs to compare `ipc` and `al-ipc`.
 
 ## CI / Release
@@ -242,10 +251,19 @@ clang-format-18 lives in `output/venv_clangfmt/`.
 
 ## Development Conventions Summary (from .cursor/)
 
+`agent_docs/rule.md` takes precedence over workflow defaults in `.cursor/`.
+The skills use the current `../<skill>/SKILL.md` link layout. Keep their
+CUDA, branch/commit, build and test instructions consistent with this guide;
+historical MUDA launch/diagnostic APIs are not supported.
+
 **C++ style** (`.cursor/rules/cpp-format.mdc`, aligned with the root `.clang-format`):
 4-space indent, 80 columns, Allman braces, left-aligned pointers (`int* p`), no space in `if(cond)`, indented inner scope of `namespace uipc::module {}`, one parameter per line (no bin-packing), no include sorting, `#pragma once`.
 
 **Formatting gate**: CI runs `clang-format-18 --dry-run --Werror` on the C++ files changed by a PR. Before committing C++ changes, run `python scripts/format_changed.py` (in-place format, same file selection as CI) or `--check` to verify. Formatter resolution: `$CLANG_FORMAT` → `clang-format-18` → `clang-format` → repo-local `output/venv_clangfmt/Scripts/clang-format.exe` (18.1.8). Use an 18.x formatter — other majors can disagree with CI.
+
+The formatter helper selects committed changes with `<base>...HEAD`
+(default base `origin/main`); format newly edited, uncommitted C++ files
+explicitly with the same 18.x formatter before staging.
 
 **Code guidelines** (review-pr checklist):
 - Use `UIPC_ASSERT` for internal invariants and `UIPC_ASSERT_THROW` for user input (fast-fail).

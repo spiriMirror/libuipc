@@ -17,8 +17,12 @@ class UIPC_CONSTITUTION_API FiniteElementExternalForce final : public IConstitut
      * @brief Apply external force (3D) to finite element vertices
      * @param sc SimplicialComplex representing finite element geometry
      * @param force 3D force vector applied uniformly to all vertices
+     * @param enable Enable external force on all vertices (default: true).
+     * Sets `external_force/is_constrained`; does not modify `is_constrained`
+     * used by soft position constraints. Change the dedicated attribute per
+     * vertex in the Animator to toggle forces. Reapplying resets this mask.
      */
-    void apply_to(geometry::SimplicialComplex& sc, const Vector3& force);
+    void apply_to(geometry::SimplicialComplex& sc, const Vector3& force, bool enable = true);
 
     static Json default_config();
 

@@ -53,7 +53,8 @@ Holds `S<internal::Scene>`, `W<internal::Engine>` (weak, to prevent circular ref
 ## internal::Scene (`src/core/core/internal/scene.cpp`)
 
 - `init(world)`: records the world raw pointer; `m_constitution_tabular.init(*this)` scans all geometry metas to collect UIDs; when `diff_sim/enable`, calls `m_diff_sim.init(*this)`; sets `m_started=true`.
-- **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`). The CUDA backend calls `begin_pending()` during initialization and `solve_pending()` in each rebuild phase. The `none` backend does neither, so post-init additions remain pending there. `Scene::Objects::destroy` chooses between direct destroy and pending destroy based on `is_started()/is_pending()`.
+- **Pending mechanism**: after the world has started, geometry additions/removals do not take effect immediately; they go into `m_pending_create/m_pending_destroy` (`GeometryCollection`). The CUDA backend calls `begin_pending()` during initialization and `solve_pending()` in each rebuild phase. The `none` backend also calls `begin_pending()` during initialization and
+  `solve_pending()` on each advance, modeling frontend mutation without physics. `Scene::Objects::destroy` chooses between direct destroy and pending destroy based on `is_started()/is_pending()`.
 - `dt()` is read from the config attribute `"dt"`.
 - Calling non-const `Scene::diff_sim()` sets `diff_sim/enable=1`; merely requesting the mutable handle changes Scene configuration.
 - `update_from(const SceneSnapshotCommit&)` applies config, objects, contact and

@@ -51,8 +51,13 @@ void AffineBodyExternalBodyForceConstraint::Impl::step(backend::WorldVisitor& wo
             auto body_offset = sc.meta().find<IndexT>(builtin::backend_abd_body_offset);
             UIPC_ASSERT(body_offset, "`backend_abd_body_offset` attribute not found in geometry simplicial complex");
             current_body_offset = body_offset->view().front();
-            auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-            UIPC_ASSERT(is_constrained, "`is_constrained` attribute not found in geometry simplicial complex");
+            auto is_constrained =
+                sc.instances().find<IndexT>("external_force/is_constrained");
+            // Serialized geometries from older versions only have the shared mask.
+            // When both exist, the force-specific mask always takes precedence.
+            if(!is_constrained)
+                is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
+            UIPC_ASSERT(is_constrained, "External force enable attribute not found; apply the external force constitution first");
             auto external_force = sc.instances().find<Vector12>("external_force");
             UIPC_ASSERT(external_force, "`external_force` attribute not found in geometry simplicial complex");
             return zip(is_constrained->view(), external_force->view());
@@ -68,7 +73,9 @@ void AffineBodyExternalBodyForceConstraint::Impl::step(backend::WorldVisitor& wo
             }
         });
 
-    // Copy from host to device
+    // Drain device buffers as well when the last force is disabled.
+    forces.resize(h_forces.size());
+    body_ids.resize(h_body_ids.size());
     if(!h_forces.empty())
     {
         forces.copy_from(h_forces);

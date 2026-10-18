@@ -73,8 +73,10 @@ The native Python module always creates a `usd` submodule object, but USD classe
 are populated only in a USD-enabled build. Therefore “`uipc.usd` imports” is not
 evidence that USD functionality was compiled.
 
-XMake does not currently expose equivalent USD/VDB targets. Treat edits to these
-modules as build-parity work, not as an isolated source change.
+XMake exposes matching `usd` / `vdb` options (both default off), building
+`uipc_usd` / `uipc_vdb` from `src/usd/xmake.lua` and `src/vdb/xmake.lua`.
+Keep both build descriptions synchronized; optional-module runtime coverage
+remains limited as recorded in the dated project audit.
 
 ## Python Enhancement Layer
 
@@ -84,7 +86,7 @@ The native extension is only part of `python/src/uipc/`. The pure-Python layer a
 |---|---|---|
 | visualization | `gui.py` | polyscope-based; this is the supported GUI after removal of the C++ GUI |
 | profiling | `profile/`, including `nsight.py` | benchmark helpers and Nsight integration |
-| CLI | `cli/` | benchmark, mesh doctor, and UID info commands |
+| CLI | `cli/` | benchmark, config-schema, compatibility doctor, mesh doctor, and UID info commands |
 | adapters | `adapter/torch`, `adapter/warp` | optional external frameworks, not base wheel dependencies |
 | assets | `assets/` | downloads/builds scenes from Hugging Face |
 | statistics/development | `stats.py`, `dev/` | some reporting paths use matplotlib |
@@ -100,8 +102,9 @@ Packaging/helper invariants verified in the current tree:
 - `assets.show(..., gui=False)` remains a continuous runner with no built-in
   frame cap.
 
-Base functionality is covered by 19 `test_*.py` files containing 75 top-level
-test functions.
+Pytest defaults to portable tests (`not example and not cuda`). Select GPU
+and interactive coverage explicitly; source-function counts do not describe
+parametrized runtime coverage. See the dated inventory in doc 14.
 
 ## Sample Repository as Executable API Evidence
 

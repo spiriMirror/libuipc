@@ -56,3 +56,15 @@ On `instances`:
 - `topo`: vertex index pairs $(\mathbf{x}_0, \mathbf{x}_1)$ identifying stitched vertices
 - `kappa`: $\kappa$, the stiffness of the stitch constraint
 - `rest_length`: $L_0$, the rest length of the spring (0 for harmonic energy)
+
+## Python Input
+
+Both `SoftVertexStitch.create_geometry` overloads accept `stitched_vert_ids`
+as an integer array of shape `(N, 2)` or `(N, 2, 1)`. Each row identifies one
+vertex in each geometry; IDs must fit in `int32` and be valid vertex indices
+in the corresponding geometry.
+
+The binding converts `int64` arrays and non-contiguous views to contiguous
+`int32` storage as needed, retaining that storage throughout the call.
+The returned geometry owns a copy of the index pairs in `instances.topo`;
+changing or releasing the input afterward does not change the stitches.

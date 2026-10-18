@@ -10,6 +10,21 @@
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
+## Stitch index arrays
+
+Both `SoftVertexStitch.create_geometry` overloads bind `stitched_vert_ids` as
+`py::array_t<IndexT, py::array::c_style | py::array::forcecast>`. Dtype and layout
+conversion happen at the binding boundary, where the owner remains alive for
+the whole call. Inputs have shape `(N, 2)` or `(N, 2, 1)`; `int64`, sliced,
+reversed, transposed, Fortran-order and read-only arrays are supported for valid
+indices. The native geometry copies the pairs into `instances.topo`.
+
+Issue #498 previously declared these indices as `Float`, so `as_span_of` could
+return a view into a freed temporary integer conversion. The shared helper
+borrows memory and does not normalize strides: binding authors must keep a
+matching-dtype owner alive and supply the layout expected by the native span.
+CPU regression coverage is in `python/tests/test_soft_vertex_stitch.py`.
+
 ## Python package layout (`python/src/uipc/`)
 
 - `__init__.py`: on import, first calls `pyuipc.init(config)` (injecting `module_dir` pointing to `_native`), then `from ._native.pyuipc import *`.

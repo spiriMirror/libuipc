@@ -12,7 +12,7 @@ Run C++ tests built with Catch2. Test sources are in `apps/tests/`, grouped by f
 
 ## Prerequisites
 
-Build the project first using the [build command](./build.md). Test binaries are output to `<cmake-binary-directory>/<configuration>/bin/`.
+Build the project first using the [build command](../cmake-workflow/SKILL.md). Test binaries are output to `<cmake-binary-directory>/<configuration>/bin/`.
 
 ## Run All Tests in a Binary
 
@@ -51,6 +51,11 @@ Levels: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`.
 ./uipc_test_<name> --list-tests
 ```
 
+Keep the single-process `uipc.sim_case` aggregate for global-state pollution
+coverage; `scripts/run_sim_case_isolated.py` supplies fresh-process cases
+and stable shards. For OR filters, put comma-separated Catch2 names inside
+one argument. See [the test guide](../../../agent_docs/07-build-test-workflow.md).
+
 ## Python tests (pytest)
 
 Python tests live under `python/tests/`. Run them with the project venv after installing pyuipc (e.g. `uv pip install -e .` or a CMake build that installs into the venv).
@@ -68,6 +73,10 @@ Or run pytest from the venv directly:
 ```
 
 Without `--no-sync`, `uv run` syncs the environment first, which (re)builds and installs pyuipc from source.
+
+The portable default excludes `cuda` and `example`. Select non-interactive
+GPU tests with `pytest -m "cuda and not example" python/tests`; interactive
+examples require an explicit `-m example` in a GUI environment.
 
 ## Test Organization
 

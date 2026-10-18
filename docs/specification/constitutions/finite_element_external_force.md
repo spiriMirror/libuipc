@@ -40,9 +40,38 @@ $$
 
 Users are allowed to modify the external force $\mathbf{F}_{ext,i}$ per vertex using the `uipc` Animator System interface during the simulation.
 
+## Activation and animation
+
+`apply_to(sc, force, enable=true)` in C++, or `apply_to(sc, force, enable=True)`
+in Python, sets the force uniformly and **enables it by default** on all
+vertices. Pass `false` / `False` to store a force for later activation.
+Each call resets the force and `external_force/is_constrained` on all current
+vertices; edit their attributes directly for per-vertex selection.
+
+The Animator can change `external_force` and `external_force/is_constrained`
+before each step: `1` enables a force and `0` disables it. The flag persists
+until changed; disabling every force clears the backend's active force buffers.
+The dedicated flag is independent of `is_constrained`, which controls
+`SoftPositionConstraint`. Applying or toggling a force does not activate that
+soft constraint, regardless of which constitution was applied first.
+
+### Migration from the shared flag
+
+Code that calls `apply_to` and then toggles `vertices.is_constrained` to control
+external forces must instead toggle `vertices["external_force/is_constrained"]`.
+For delayed activation, pass `enable=false` / `enable=False` or clear the new
+mask before initialization. `apply_to` no longer creates or modifies the shared
+`is_constrained` attribute.
+
+Older serialized geometries lacking the dedicated attribute retain their
+original behavior: the backend reads their shared `is_constrained` flag. If both
+attributes exist, **only the dedicated force flag** controls the force, including
+when it is zero. Reapplying the constitution upgrades a geometry to the new
+layout and resets its force mask from `enable`; it does not copy a legacy mask.
+
 ## Attributes
 
 On `vertices`:
 
 - `external_force`: $\mathbf{F}_{ext,i} \in \mathbb{R}^3$ per-vertex external force vector
-- `is_constrained`: flag indicating whether the vertex is subject to external force ($1$ = enabled, $0$ = disabled)
+- `external_force/is_constrained`: integer enable flag ($1$ = enabled, $0$ = disabled), set from `enable` (default `true`) by `apply_to`

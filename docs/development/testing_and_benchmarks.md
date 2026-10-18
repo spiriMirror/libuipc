@@ -66,6 +66,31 @@ log.
 Timestamped records are retained; the un-suffixed JSON points to the latest
 run.
 
+Each run fingerprints the selected interpreter's package before and after
+execution: `build_info()`, package path, Python source hashes, and SHA-256 hashes
+of colocated native binaries. Declared scene/helper/asset files are also hashed
+before and after the run. All this work happens outside the frame timing interval
+and does not launch CUDA work. `provenance.runtimeUnchanged` and
+`provenance.inputsUnchanged` must both be true for a controlled comparison.
+An unavailable runtime probe is not counted as an unchanged runtime. These are
+package-file fingerprints, not a claim that every bundled DLL was loaded, nor a
+proof that the installed package was built from the recorded worktree commit.
+Check the backend hash against the intended build output as well.
+
+To avoid changing local sample parameters, create an isolated samples worktree
+under the root repository and select it explicitly:
+
+```shell
+git -C libuipc-samples worktree add --detach ../output/perf-samples <samples-commit>
+python scripts/run_benchmark.py run stiff-gipc-case2 \
+  --samples-directory output/perf-samples --frames 250
+```
+
+The selected worktree's revision and input hashes are recorded; the original
+submodule and its local edits are untouched. This option rebases sample inputs
+only, not the benchmark's result destination. Keep concurrent GPU workloads off
+the device during measurements and alternate repeated baseline/candidate runs.
+
 Canonical throughput runs keep `UIPC_BENCHMARK_TIMERS=0`. For a separate stage
 diagnostic use, for example:
 

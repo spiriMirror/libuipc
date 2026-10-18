@@ -107,7 +107,7 @@ def test_affine_body_external_force():
 
             # Find the "external_force" attribute
             force_attr = geo.instances().find("external_force")
-            is_constrained_attr = geo.instances().find("is_constrained")
+            is_constrained_attr = geo.instances().find("external_force/is_constrained")
 
             if force_attr is None or is_constrained_attr is None:
                 continue
@@ -122,7 +122,7 @@ def test_affine_body_external_force():
             # Update the force (reshape to match attribute shape)
             view(force_attr)[:] = force_v12.reshape(-1, 1)
             
-            # Enable constraint (must be set to 1 each frame for force to apply)
+            # Enable the force; this flag persists until explicitly changed
             view(is_constrained_attr)[:] = 1
 
             assert info.frame() >= 0

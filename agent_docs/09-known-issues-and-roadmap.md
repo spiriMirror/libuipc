@@ -1,5 +1,41 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
+now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
+temporary reads that corrupted topology or raised spurious vertex-range errors,
+and safely handles non-contiguous input views. CPU regressions cover both
+overloads, integer dtypes, repeated calls, input ownership, layouts and shapes.
+See `06-python-api-and-packaging.md` and `handoff.md` for details and validation.
+
+Issue #499 (2026-10-18): FEM vertex and ABD body external forces now have an
+independent `external_force/is_constrained` mask, enabled by default by
+`apply_to(sc, force, enable=true)`. Soft position/transform masks are unchanged.
+Source callers must migrate force toggles to the dedicated attribute; serialized
+legacy geometries without it retain shared-mask behavior. Disabling every ABD
+force now drains its device buffers, matching FEM. Public headers, Python
+help/stubs, specifications and in-tree examples follow the new contract.
+Focused regression coverage is in `python/tests/test_external_force.py`.
+Validation results and environment are recorded in `handoff.md`.
+
+Documentation drift corrected, 2026-10-18: active Cursor skills now follow
+the raw-CUDA/cuda_tool policy, current owner workflow, and valid skill links.
+The maintained guides agree on none-backend pending mutations, optional
+XMake modules, strict table config and backend ABI exports. Ninja flag
+tracking and CUDA stream explanations are corrected. This is documentation
+maintenance only; audit implementation findings and the pending GPU
+performance measurements below remain open.
+
+Performance follow-up, 2026-10-03: the owner prioritizes a fresh, matching-runtime
+baseline and measured optimization; the audit-remediation stages remain deferred.
+The benchmark runner now supports isolated samples worktrees and pre/post hashes
+of declared inputs, installed native binaries, and Python package sources. This
+closes a measurement-provenance gap, not a simulation performance improvement.
+The Release/CUDA 13.2 CPython 3.14 baseline has been rebuilt, installed, and
+hash-matched to an isolated runtime snapshot (details in `handoff.md`). GPU
+measurements await the owner's completion of another GPU workload.
+The September reference below is not replaced until fresh uncontended GPU runs
+and repeated comparisons are available.
+
 PR #494 scoped integration (2026-09-16) preserves the contributor's commits and
 retains explicit Python build requirements plus shared CMake/XMake stub generation.
 Direct CMake auto-install and the intentional uninstall-first policy remain.

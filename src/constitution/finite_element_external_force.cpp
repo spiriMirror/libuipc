@@ -27,7 +27,8 @@ FiniteElementExternalForce::FiniteElementExternalForce(const Json& config)
 FiniteElementExternalForce::~FiniteElementExternalForce() = default;
 
 void FiniteElementExternalForce::apply_to(geometry::SimplicialComplex& sc,
-                                          const Vector3&               force)
+                                          const Vector3&               force,
+                                          bool                         enable)
 {
     auto uids = sc.meta().find<VectorXu64>(builtin::constraint_uids);
     if(!uids)
@@ -39,11 +40,13 @@ void FiniteElementExternalForce::apply_to(geometry::SimplicialComplex& sc,
     vs.resize(uids_set.size());
     std::ranges::copy(uids_set, vs.begin());
 
-    auto is_constrained_attr = sc.vertices().find<IndexT>(builtin::is_constrained);
-    if(!is_constrained_attr)
+    auto force_enabled = sc.vertices().find<IndexT>("external_force/is_constrained");
+    if(!force_enabled)
     {
-        is_constrained_attr = sc.vertices().create<IndexT>(builtin::is_constrained, 0);
+        force_enabled = sc.vertices().create<IndexT>("external_force/is_constrained",
+                                                     static_cast<IndexT>(enable));
     }
+    std::ranges::fill(view(*force_enabled), static_cast<IndexT>(enable));
 
     auto external_force_attr = sc.vertices().find<Vector3>("external_force");
     if(!external_force_attr)

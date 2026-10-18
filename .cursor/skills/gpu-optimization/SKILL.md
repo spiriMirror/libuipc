@@ -9,7 +9,12 @@ Workflow for profiling and optimizing CUDA kernels in libuipc using `uipc.profil
 
 For building and installing, see [cmake-workflow](mdc:.cursor/skills/cmake-workflow/SKILL.md).
 
-**Build type**: Always use `Release` for benchmarking and profiling. `Debug` is too slow; `RelWithDebInfo` adds debug info overhead that skews results.
+**Build type**: Use `Release` for the canonical benchmarks and profiling.
+Keep build type and flags identical for comparisons; a different configuration
+is a separate baseline.
+
+Read the [owner working agreements](../../../agent_docs/rule.md) and
+[performance evidence policy](../../../agent_docs/performance/README.md) first.
 
 ## Agent Rules
 
@@ -17,6 +22,17 @@ For building and installing, see [cmake-workflow](mdc:.cursor/skills/cmake-workf
 - Do NOT benchmark or profile with `Debug` builds — results are meaningless.
 - Do NOT optimize kernels in stages that take <5% of total frame time.
 - Always read `timer_frames.json` for the actual timer hierarchy — it is dynamic and varies per scene/run.
+
+## Canonical Cross-Domain Benchmarks
+
+Use `python scripts/run_benchmark.py list` and `run <name>` for the four
+versioned scenes in `benchmarks/manifest.json`. Throughput runs keep
+`UIPC_BENCHMARK_TIMERS=0`; collect synchronized Timer diagnostics separately.
+Use repeated fresh processes and inspect iteration counts as well as wall time.
+The runner records pre/post runtime and input hashes outside frame timing;
+both provenance flags must be true for a controlled comparison. Select an
+isolated in-repository samples worktree with `--samples-directory` when needed.
+See [the benchmark guide](../../../docs/development/testing_and_benchmarks.md).
 
 ## CLI Commands
 
@@ -106,13 +122,16 @@ void MySystem::do_something()
 }
 ```
 
+Keep `Timer` scopes outside CUDA-graph capture; synchronized diagnostics
+change wall time and belong in separate runs.
+
 The `Timer` is scoped — it starts on construction and stops on destruction. Nested timers form a tree. The names appear in `timer_frames.json` and `report/report.md`, letting you drill down into which sub-phase of a hot stage is the actual bottleneck before running the more expensive `ncu` profiling.
 
 ## Simulation Timer Hierarchy
 
 The timer tree is **dynamic** — it varies per run depending on which simulation features are active (contact, friction, animation, etc.). The actual tree for any run is stored in `timer_frames.json` (written by `run`). Always read that file for the real hierarchy.
 
-Below is a **representative example** with all features enabled, showing the typical nesting from [sim_engine_do_advance.cu](mdc:src/backends/cuda/engine/sim_engine_do_advance.cu), [global_linear_system.cu](mdc:src/backends/cuda/linear_system/global_linear_system.cu), and [linear_pcg.cu](mdc:src/backends/cuda/linear_system/linear_pcg.cu):
+Below is a **representative example** with all features enabled, showing the typical nesting from [advance_ipc.cu](mdc:src/backends/cuda/engine/advance_ipc.cu), [global_linear_system.cu](mdc:src/backends/cuda/linear_system/global_linear_system.cu), and [linear_pcg.cu](mdc:src/backends/cuda/linear_system/linear_pcg.cu):
 
 ```
 Pipeline                                    engine/
@@ -160,9 +179,13 @@ StacklessBVH::... (older helpers may still appear as <Class>::<method>)
 
 Naming convention: `<OwningClass>_<original_function>[_kN]_kernel` (`_kN` = Nth launch point in the same function). To find the source of a kernel: search the kernel name (or its suffix) in `src/backends/cuda/`.
 
-Legacy note: before the named-kernel migration, kernels were launched via `muda::ParallelFor().apply(N, lambda)` and appeared as `parallel_for_kernel<Class::method()::lambda>` (with `#N` for the Nth lambda in a function). The `_shorten_kernel_name()` function in [nsight.py](mdc:python/src/uipc/profile/nsight.py) was written for that scheme; with named kernels it passes the readable name through unchanged.
+Historical lambda-kernel reports are covered in
+[handoff.md](../../../agent_docs/handoff.md). Use current named-kernel
+symbols for new reports; do not restore removed launch wrappers.
 
-**Buffer operations** (`buffer_fill_kernel<T>`, `buffer_copy_kernel<T>` in `cuda_tool`) are memory operations, usually not optimization targets.
+**Buffer operations** (`buffer_fill_kernel<T>` and device-memory copies
+through `cuda_tool`) are memory operations; prioritize them only when
+enclosing-stage measurements identify material cost.
 
 ## Python API
 
@@ -267,9 +290,9 @@ When the bottleneck report identifies a hot kernel:
 1. **Memory-bound** (high Mem%, low SM%): Coalesced access, shared memory, reduce data movement.
 2. **Compute-bound** (high SM%, low Mem%): Algorithmic improvements, intrinsics.
 3. **Low occupancy**: Reduce register pressure (`__launch_bounds__`), adjust block size.
-4. **Many small launches**: Kernel fusion or batching via `muda::ParallelFor`.
+4. **Many small launches**: Measure fusion of named raw-CUDA kernels or CUDA-graph replay; retain explicit stream dependencies.
 5. **High launch overhead**: Reduce host-device sync points.
-6. **High register count** (>64/thread): Simplify kernel logic, split into multiple passes, use `__launch_bounds__(blockSize, minBlocksPerSM)`.
+6. **High register count** (>64/thread): Measure simpler intermediates or launch bounds. Split heterogeneous work only when kernel and enclosing-stage timings both improve; keep IPC PT/EE/PE/PP Hessian assembly fused under rule 14.
 
 ## Scenes
 
@@ -302,7 +325,7 @@ Scenes are loaded from [HuggingFace: MuGdxy/uipc-assets](https://huggingface.co/
 JSON report per kernel:
 ```json
 {
-  "name": "StacklessBVH::calcExtNodeSplitMetrics",
+  "name": "InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel",
   "launches": 3,
   "total_duration_ns": 123456.0,
   "registers_per_thread": 40,
@@ -310,6 +333,6 @@ JSON report per kernel:
   "avg_occupancy_pct": 48.0,
   "source_hint": "src/backends/cuda/collision_detection/",
   "optimization_hints": ["Low occupancy - consider reducing registers"],
-  "full_names": ["void muda::parallel_for_kernel<...>"]
+  "full_names": ["void InfoStacklessBVHSimplexTrajectoryFilter_detect_k1_kernel(...)"]
 }
 ```

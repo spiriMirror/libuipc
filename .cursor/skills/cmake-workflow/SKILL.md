@@ -7,26 +7,34 @@ description: Build and test the libuipc project using CMake. Use when building t
 
 ## Build
 
-The build directory is `libuipc/build`. Run all cmake commands from there.
+Run from the repository root and keep generated files in an out-of-source
+directory. Reuse the selected toolchain, interpreter and existing build settings.
+For a Release configuration with the checked-in Ninja preset:
 
-**Configure:**
 ```bash
-cd libuipc/build
-cmake -S ..
+cmake -S . -B build --preset ci-release
+cmake --build build --config Release -j8
 ```
 
-**Build:**
-```bash
-cmake --build . -j32 --config RelWithDebInfo
-```
+Use `RelWithDebInfo` when debugging requires it; for single-config generators,
+select it at configure time with `-DCMAKE_BUILD_TYPE=RelWithDebInfo`, and use the
+matching build/test configuration. Performance comparisons use `Release`.
+Choose parallelism to fit available memory; NVCC can exhaust memory at high `-j`.
 
-Use `-j32` for parallel compilation. The config is always `RelWithDebInfo`.
+See [the maintained build guide](../../../agent_docs/07-build-test-workflow.md)
+for Python packaging, dependency setup and CMake/XMake parity.
 
 ## Testing
 
-Tests use **Catch2**. After a successful build, run the test executable directly — no separate test runner command is needed.
+Tests use **Catch2** and are also registered with CTest. The fast CPU gate is:
 
-Find the compiled test binary in the build output (typically under `libuipc/build/bin/` or the relevant subdirectory) and execute it:
+```bash
+ctest --test-dir build --build-config Release --label-regex fast --output-on-failure --timeout 900
+```
+
+Run a test executable directly for a focused Catch2 filter.
+
+Find the compiled test binary in the build output (under `<build>/<configuration>/bin/`, for example `build/Release/bin/`) and execute it:
 
 ```bash
 ./path/to/test_executable
@@ -41,6 +49,6 @@ Catch2 test binaries accept standard flags such as:
 
 | Step | Command |
 |------|---------|
-| Configure | `cmake -S ..` (from `libuipc/build`) |
-| Build | `cmake --build . -j32 --config RelWithDebInfo` |
+| Configure | `cmake -S . -B build --preset ci-release` |
+| Build | `cmake --build build --config Release -j8` |
 | Run tests | Execute the test binary directly |
