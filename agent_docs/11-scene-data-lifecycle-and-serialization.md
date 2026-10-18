@@ -135,8 +135,9 @@ argument is a Geometry.
 - The built-in default model is enabled with friction `0.5` and resistance
   `1 GPa`; it is not marked “user set” until `default_model(...)` is called.
 - Pair insertion is symmetric. A missing pair resolves to model index 0.
-- The optional JSON `config` arguments accepted by `create/insert/default_model`
-  are currently ignored; returned model configs are empty objects.
+- `insert` and `default_model` accept only an empty JSON object `{}` for
+  per-model `config`; non-empty or non-object values are rejected. `create`
+  takes a name, not a config. Returned model configs are empty objects.
 - Both `build_from` and `update_from` clear and reconstruct model topology. The
   default model's explicit-user-set state is preserved by full snapshots and
   commits.
@@ -146,7 +147,8 @@ argument is a Geometry.
 - Element 0 is the default subscene.
 - Pair insertion is symmetric.
 - An unspecified pair returns `true` only when both element IDs are equal.
-- Its JSON config argument is also currently ignored.
+- `insert` accepts only `{}` for its JSON config; non-empty or non-object
+  values are rejected. Control coupling through the `enable` argument.
 - Both full builds and incremental updates clear and reconstruct the pair map.
 
 Subscenes filter whether collision/contact is allowed; they are not nested Scene

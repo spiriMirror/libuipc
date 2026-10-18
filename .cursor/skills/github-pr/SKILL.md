@@ -8,21 +8,25 @@ disable-model-invocation: true
 
 ## Overview
 
-Create a well-structured pull request with proper description, labels, and reviewers.
+Create the requested pull request with a clear description, labels, and reviewers.
+
+Follow the [owner working agreements](../../../agent_docs/rule.md): stay on the current working branch.
+Use the requested base branch; a PR targeting `main` requires an explicit
+owner request and must not be inferred from an implementation task.
 
 ## Steps
 
-Follow the [commit convention](../rules/commit-convention.mdc) for all commit messages and PR titles.
+Follow the [commit convention](../commit-convention/SKILL.md) for all commit messages and PR titles.
 
 1. **Prepare branch**
    - Ensure all changes are committed using the convention above
-   - Format code with [format command](./format.md)
+   - Format code with [format command](../format/SKILL.md)
    - Push branch to remote:
      ```bash
      # Use 'origin' remote (most common), or specify a different remote if needed
      git push -u origin HEAD
      ```
-   - Verify branch is up to date with main
+   - Inspect the diff and commit ancestry against the requested base branch
 
 2. **Create PR**
 
@@ -37,7 +41,7 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
    EOF
    
    # Create the PR - always target upstream repository
-   gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main --repo spiriMirror/libuipc
+   gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base <BASE_BRANCH> --repo spiriMirror/libuipc
    
    # Clean up
    rm -r output/.cursor

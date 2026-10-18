@@ -1,5 +1,18 @@
 # Handoff — Current State of the Repo
 
+> **Documentation drift repair (2026-10-18)**: active `.cursor` skills now
+> use named raw-CUDA kernels, cuda_tool diagnostics/views, existing owner
+> branch/commit policy, maintained formatter/build/test entry points and
+> valid skill links. Core/backend guides now match none pending mutations,
+> strict Contact/Subscene config, the four-symbol backend handshake and
+> XMake USD/VDB support. The older claims below that Ninja ignores compiler
+> flag changes or blocking streams do not synchronize with the legacy
+> default stream are incorrect; consult docs 05/08 for corrected guidance.
+> Historical experiment records are retained. No native implementation,
+> installed runtime, samples or performance baseline was changed. Validation:
+> 66 repository tests, 12 skill-structure checks with invocation metadata
+> preserved, local instruction/agent-document links, and `git diff --check`.
+
 > **Performance baseline preparation (2026-10-03)**: the owner selected the fourth
 > audit-follow-up stage and deferred correctness/interface/frontend remediation.
 > Baseline native source is `9c748a75`. Existing samples edits (88 material stiffness;

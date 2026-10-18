@@ -15,29 +15,27 @@ gh issue list --repo spiriMirror/libuipc
 gh issue view <ISSUE_NUMBER> --repo spiriMirror/libuipc
 ```
 
-**Note:** Always use `--repo spiriMirror/libuipc` to reference the upstream repository (works with forks). See [repository-setup.mdc](../rules/repository-setup.mdc) for details.
+**Note:** Always use `--repo spiriMirror/libuipc` to reference the upstream repository (works with forks). See [repository-setup](../repository-setup/SKILL.md) for details.
 
 Determine the issue type: bug fix, feature, performance, refactor, docs, or test improvement.
 
-## 2. Create a Branch
+## 2. Verify the Working Branch
 
-```bash
-git checkout -b fix/issue-<ISSUE_NUMBER>
-```
-
-Use `feat/` prefix for features, `fix/` for bugs, `refactor/` for refactoring, etc.
+Follow the [owner working agreements](../../../agent_docs/rule.md): work on the current branch.
+Do not create a new branch as a workflow default; honor any different
+working branch explicitly selected by the owner.
 
 ## 3. Plan & Implement
 
-Switch to **plan mode**. Analyze the issue, identify root cause, then implement the fix.
+Analyze the issue, identify the root cause, then implement the focused fix.
 
-Build with the [build command](./build.md).
+Build with the [build command](../cmake-workflow/SKILL.md).
 
 ## 4. Test
 
 - Test binaries are in `<cmake-binary-directory>/<configuration>/bin/`.
 - Tests source code is in `apps/tests/`.
-- Run relevant tests to verify the fix. See [run-tests command](./run-tests.md).
+- Run relevant tests to verify the fix. See [run-tests command](../run-tests/SKILL.md).
 
 ### Adding New Tests
 
@@ -50,8 +48,9 @@ Rules:
 
 ## 5. Commit
 
-Use the [commit command](./commit.md) to format, commit, and push.
+Use the [commit command](../commit/SKILL.md) to format, commit, and push.
 
 ## 6. Review & PR
 
-Switch to **review mode**, review all changes, then create a PR via [github-pr.md](./github-pr.md).
+Review the changes. Create a PR via [github-pr](../github-pr/SKILL.md)
+only when requested; targeting `main` requires an explicit owner request.

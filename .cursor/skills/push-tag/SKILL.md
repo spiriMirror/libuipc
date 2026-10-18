@@ -16,7 +16,8 @@ Push a new tag to the upstream repository. Optionally create a GitHub release.
    ```bash
    git branch --show-current
    ```
-   - Must be on `main` branch. If not, switch: `git checkout main`
+   - Follow the [owner working agreements](../../../agent_docs/rule.md). Use the owner-selected release ref;
+     do not switch to `main` automatically. Verify the intended commit before tagging.
 
 2. **Determine tag version**
    ```bash

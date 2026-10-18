@@ -1,5 +1,13 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Documentation drift corrected, 2026-10-18: active Cursor skills now follow
+the raw-CUDA/cuda_tool policy, current owner workflow, and valid skill links.
+The maintained guides agree on none-backend pending mutations, optional
+XMake modules, strict table config and backend ABI exports. Ninja flag
+tracking and CUDA stream explanations are corrected. This is documentation
+maintenance only; audit implementation findings and the pending GPU
+performance measurements below remain open.
+
 Performance follow-up, 2026-10-03: the owner prioritizes a fresh, matching-runtime
 baseline and measured optimization; the audit-remediation stages remain deferred.
 The benchmark runner now supports isolated samples worktrees and pre/post hashes

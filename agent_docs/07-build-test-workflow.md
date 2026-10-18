@@ -251,10 +251,19 @@ clang-format-18 lives in `output/venv_clangfmt/`.
 
 ## Development Conventions Summary (from .cursor/)
 
+`agent_docs/rule.md` takes precedence over workflow defaults in `.cursor/`.
+The skills use the current `../<skill>/SKILL.md` link layout. Keep their
+CUDA, branch/commit, build and test instructions consistent with this guide;
+historical MUDA launch/diagnostic APIs are not supported.
+
 **C++ style** (`.cursor/rules/cpp-format.mdc`, aligned with the root `.clang-format`):
 4-space indent, 80 columns, Allman braces, left-aligned pointers (`int* p`), no space in `if(cond)`, indented inner scope of `namespace uipc::module {}`, one parameter per line (no bin-packing), no include sorting, `#pragma once`.
 
 **Formatting gate**: CI runs `clang-format-18 --dry-run --Werror` on the C++ files changed by a PR. Before committing C++ changes, run `python scripts/format_changed.py` (in-place format, same file selection as CI) or `--check` to verify. Formatter resolution: `$CLANG_FORMAT` → `clang-format-18` → `clang-format` → repo-local `output/venv_clangfmt/Scripts/clang-format.exe` (18.1.8). Use an 18.x formatter — other majors can disagree with CI.
+
+The formatter helper selects committed changes with `<base>...HEAD`
+(default base `origin/main`); format newly edited, uncommitted C++ files
+explicitly with the same 18.x formatter before staging.
 
 **Code guidelines** (review-pr checklist):
 - Use `UIPC_ASSERT` for internal invariants and `UIPC_ASSERT_THROW` for user input (fast-fail).

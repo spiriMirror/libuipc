@@ -80,6 +80,8 @@ Overview of the main directories and important files in the repository.
 - `vdb/` - VDB integration.
 
 The supported visualization frontend is the pure-Python polyscope layer at
-`python/src/uipc/gui.py`. CMake is the primary build; XMake currently has known
-option/module drift documented in `agent_docs/07-build-test-workflow.md` and
-`agent_docs/12-secondary-modules-samples-and-docs.md`.
+`python/src/uipc/gui.py`. CMake is the primary and wheel-tested build. XMake mirrors the active optional
+USD/VDB targets, disables ccache, and synchronizes pybind staging before
+packaging. Remaining dependency-version differences are documented in
+[the build guide](../../../agent_docs/07-build-test-workflow.md) and
+[the secondary-module guide](../../../agent_docs/12-secondary-modules-samples-and-docs.md).

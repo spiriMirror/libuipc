@@ -7,6 +7,9 @@ description: General simulation development best practices for correctness, stab
 
 General rules for building simulation code that is correct first, debuggable second, and fast third.
 
+Follow the [owner working agreements](../../../agent_docs/rule.md), especially CUDA rules 9-16.
+MUDA is removed; do not restore its dependency, wrappers, or compatibility layer.
+
 ## When to Use
 
 Use this skill when:
@@ -19,8 +22,8 @@ Use this skill when:
 
 1. Correctness before performance.
 2. Fail fast on invalid states.
-3. Prefer deterministic behavior during debugging.
-4. Prefer MUDA-native diagnostics for GPU paths whenever possible.
+3. Reproduce with fixed inputs while preserving parallel execution.
+4. Use named raw-CUDA kernels and the in-tree `cuda_tool` diagnostics.
 5. Validate data at subsystem boundaries.
 6. Instrument first, optimize after evidence.
 
@@ -60,40 +63,40 @@ Checklist for high-quality assert messages:
 
 ## Diagnostics and Observability
 
-- Use MUDA diagnostics as the default for GPU debugging:
-  - attach file/line metadata on launches,
-  - assign explicit names to views/buffers,
-  - prefer MUDA launch wrappers over raw CUDA launch sites when practical.
-- Attach source location metadata to kernel/parallel launches when available.
-- Name critical buffers/views to make reports readable.
-- Keep optional debug dumps for important intermediates (vectors, matrices, topology maps).
-- Use scoped timers around major phases and hot sub-phases.
-- Make debug instrumentation easy to toggle with config flags.
+- Use `UIPC_KERNEL_ASSERT` and the `UIPC_KERNEL_*` diagnostics from
+  `src/backends/cuda/cuda_tool/debug.h`; kernel assertions follow `uipc::RUNTIME_CHECK`.
+- Use named `__global__` functions and raw `<<<grid, block, 0, stream>>>`
+  launches so logs and profiler symbols identify the owning subsystem.
+- Use `cuda_tool::BufferView` / `CBufferView` and sparse-matrix views for GPU
+  buffers; pass explicit counts/offsets and report their values on failure.
+- Keep optional dumps for critical vectors, matrices, topology maps and frame/
+  iteration context. Do not use removed `.name()` or `file_line()` wrappers.
+- Use scoped timers around hot phases, outside CUDA-graph capture. Gate debug
+  dumps and synchronization so the normal path retains its existing overhead.
 
-## MUDA Debug Checklist
+## CUDA Debug Checklist
 
 For each touched GPU code path:
 
-- Do: add launch source mapping (for example, `file_line(__FILE__, __LINE__)`).
-- Do: name captured views/buffers (for example, `viewer().name("x")`) for readable diagnostics.
-- Do: use MUDA launch/parallel wrappers as first choice for new or modified kernels.
-- Do: use `muda::debug_sync_all()` as a fast-fail barrier while debugging broken kernels.
-- Do: keep index guards at the top of kernel bodies before any memory access.
-- Do: preserve a low-overhead path when debug flags are off.
-- Don't: add raw CUDA launch sites unless there is a clear, documented need.
-- Don't: leave anonymous captures for critical buffers in hot or unstable paths.
-- Don't: rely on post-mortem logs only; add immediate context at the failure point.
+- Keep index guards before memory access and validate finite intermediates.
+- Use `cuda_tool::debug_sync_all()` at diagnostic boundaries to attribute errors;
+  remove or gate these barriers after diagnosis.
+- Reuse persistent CUB workspace and preserve buffer initialization contracts
+  (`resize`, `resize_discard`, `resize_preserve`).
+- Keep kernel launch sizing through the existing occupancy helpers and their
+  per-kernel-address cache.
+- Preserve stream dependencies and fill every reported gradient/Hessian slot.
 
-## Deterministic Debug Workflow
+## Reproduction Workflow
 
-1. Reproduce on the smallest case that still fails.
-2. Freeze nondeterminism where possible:
-   - fixed seeds,
-   - stable ordering,
-   - reduced parallel variability.
-3. Enable strict checks and diagnostic output.
+1. Reproduce on the smallest failing case with fixed inputs and random seeds.
+2. Compare isolated runs with the single-process aggregate to detect global-state
+   pollution; preserve existing concurrent assembly and solver paths.
+3. Enable strict checks and locate the first invalid value or missing dependency.
 4. Bisect by pipeline stage (assemble -> solve -> update).
-5. Narrow to first bad value and assert there.
+5. Distinguish an algorithmic error or synchronization defect from rounding due
+   solely to valid atomic-add arrival order. Do not add sorting, fixed-order
+   reductions or serialization merely to obtain bitwise-identical trajectories.
 
 ## Simulation Debug Loop (Iterative)
 
@@ -107,7 +110,7 @@ Use this loop as the default process for debugging simulation issues:
 
 If any step fails or new evidence contradicts the assumption, return to step 1 or 2 and iterate until root cause and fix are both confirmed.
 
-During active GPU debugging, insert `muda::debug_sync_all()` at key boundaries to stop immediately when a kernel fails, then remove or gate it once diagnosis is complete.
+During active GPU debugging, insert `cuda_tool::debug_sync_all()` at key boundaries to stop immediately when a kernel fails, then remove or gate it once diagnosis is complete.
 
 ## Convergence and Stability Guidelines
 

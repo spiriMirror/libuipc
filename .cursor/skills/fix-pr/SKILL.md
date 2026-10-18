@@ -20,13 +20,11 @@ gh pr list --repo spiriMirror/libuipc
 
 **Note:** Always use `--repo spiriMirror/libuipc` to reference the upstream repository (works with forks).
 
-## 2. Checkout the PR Branch
+## 2. Verify the Working Branch
 
-```bash
-gh pr checkout <PR_NUMBER> --repo spiriMirror/libuipc
-```
-
-Or the developer may already be on their own branch for the PR (e.g., from a forked repository).
+Follow the [owner working agreements](../../../agent_docs/rule.md). Keep
+implementation commits on the current working branch; honor any different
+working branch explicitly selected by the owner.
 
 ## 3. Read Review Comments
 
@@ -51,21 +49,21 @@ gh pr status --conflict-status --repo spiriMirror/libuipc
 
 ## 4. Plan & Implement Fixes
 
-Switch to **plan mode**. Address each review comment, then implement the fixes.
+Analyze each review comment, then implement the focused fixes.
 
-Build with the [build command](./build.md).
+Build with the [build command](../cmake-workflow/SKILL.md).
 
 ## 5. Test
 
-Follow the same test procedure as [fix-issue step 4](./fix-issue.md):
+Follow the same test procedure as [fix-issue step 4](../fix-issue/SKILL.md):
 
-- Run relevant tests to verify the fix. See [run-tests command](./run-tests.md).
+- Run relevant tests to verify the fix. See [run-tests command](../run-tests/SKILL.md).
 - Add new tests if the feedback requires new coverage.
 - **Do NOT modify existing tests** to make a fix pass.
 
 ## 6. Commit & Push
 
-Use the [commit command](./commit.md) to format, commit, and push.
+Use the [commit command](../commit/SKILL.md) to format, commit, and push.
 
 The PR will update automatically. Clean up any temporary files:
 
