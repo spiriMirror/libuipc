@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
+now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
+temporary reads that corrupted topology or raised spurious vertex-range errors,
+and safely handles non-contiguous input views. CPU regressions cover both
+overloads, integer dtypes, repeated calls, input ownership, layouts and shapes.
+See `06-python-api-and-packaging.md` and `handoff.md` for details and validation.
+
 Issue #499 (2026-10-18): FEM vertex and ABD body external forces now have an
 independent `external_force/is_constrained` mask, enabled by default by
 `apply_to(sc, force, enable=true)`. Soft position/transform masks are unchanged.

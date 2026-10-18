@@ -1,5 +1,30 @@
 # Handoff — Current State of the Repo
 
+> **Issue #498 Python stitch indices (2026-10-18)**: both
+> `SoftVertexStitch.create_geometry` bindings now accept contiguous `IndexT`
+> arrays with conversion owned at the binding boundary. This removes the
+> temporary Float-to-integer buffer behind a dangling `as_span_of` result.
+> C-contiguous normalization also handles sliced, reversed and Fortran-order
+> inputs safely; only changing the dtype would leave strided arrays exposed.
+> The shared span helper and native stitching implementation are unchanged.
+> Python help/generated stubs, the constitution specification and docs 06/09
+> describe the integer input and ownership contract.
+> Validation: before the fix, 22 of 40 new index-preservation cases failed on
+> the source-matched Windows runtime. After the incremental Release rebuild
+> (MSVC 19.39, CPython 3.12.7, NumPy 2.5.4), all 80 new CPU regression cases pass,
+> including both overloads/dtypes, 0-4096 pairs, repeated calls, contact-element
+> assignment, input mutation/release, eight layouts and invalid shapes. The
+> complete portable Python suite passes 166 tests, with one optional Warp
+> module skipped because Warp is absent and 82 CUDA/example cases deselected.
+> The issue's original reproduction passes all 32 combinations with no corrupt
+> indices or exceptions. Constitution API parity (43 classes/40 initializers),
+> generated int32 stub signatures, clang-format 18 and diff checks pass.
+> Build and installed pyuipc extension SHA-256 match:
+> `f1fd0af50ae400f07a7c77580eb582aa1f1c7ca0c22335e7f90a3bb9cd8ab3bf`.
+> Evidence: `output/issue498-{before,build,after,portable}.log` and
+> `output/issue498-{before,portable}.xml`. The build and isolated interpreter
+> reuse `output/issue499-build` and `output/issue499-venv`.
+
 > **Issue #499 external force activation (2026-10-18)**: FEM vertex forces
 > and ABD body forces now use `external_force/is_constrained`, enabled by
 > default by `apply_to(sc, force, enable=true)` (Python: `enable=True`). Explicit

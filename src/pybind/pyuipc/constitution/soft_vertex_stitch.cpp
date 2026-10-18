@@ -7,6 +7,10 @@ using namespace uipc::constitution;
 
 PySoftVertexStitch::PySoftVertexStitch(py::module& m)
 {
+    // Convert dtype/layout at the binding boundary so the array owner outlives
+    // the borrowed span returned by as_span_of.
+    using IndexArray = py::array_t<IndexT, py::array::c_style | py::array::forcecast>;
+
     auto class_SoftVertexStitch = py::class_<SoftVertexStitch, InterPrimitiveConstitution>(
         m, "SoftVertexStitch", R"(SoftVertexStitch constitution for stitching vertices between geometries with soft constraints.)");
 
@@ -26,7 +30,7 @@ Returns:
         "create_geometry",
         [](SoftVertexStitch&                  self,
            const SoftVertexStitch::SlotTuple& aim_geo_slots,
-           const py::array_t<Float>&          stitched_vert_ids,
+           const IndexArray&                  stitched_vert_ids,
            Float                              kappa,
            Float                              rest_length)
         {
@@ -40,7 +44,8 @@ Returns:
         R"(Create geometry for vertex stitching.
 Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
-    stitched_vert_ids: Array of vertex ID pairs [geometry0_vert, geometry1_vert] to stitch.
+    stitched_vert_ids: Integer array of vertex ID pairs [geometry0_vert, geometry1_vert],
+        shape (N, 2) or (N, 2, 1). Converted to contiguous int32 storage for this call.
     kappa: Stitching stiffness (default: 1e6).
     rest_length: Rest length of the spring (default: 0.0). When 0, the singularity-free
         harmonic energy E=0.5*k*||x-y||^2 is used.
@@ -51,7 +56,7 @@ Returns:
         "create_geometry",
         [](SoftVertexStitch&                            self,
            const SoftVertexStitch::SlotTuple&           aim_geo_slots,
-           const py::array_t<Float>&                    stitched_vert_ids,
+           const IndexArray&                            stitched_vert_ids,
            const SoftVertexStitch::ContactElementTuple& contact_elements,
            Float                                        kappa,
            Float                                        rest_length)
@@ -70,7 +75,8 @@ Returns:
         R"(Create geometry for vertex stitching with contact elements.
 Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
-    stitched_vert_ids: Array of vertex ID pairs [geometry0_vert, geometry1_vert] to stitch.
+    stitched_vert_ids: Integer array of vertex ID pairs [geometry0_vert, geometry1_vert],
+        shape (N, 2) or (N, 2, 1). Converted to contiguous int32 storage for this call.
     contact_elements: Tuple of two contact element objects.
     kappa: Stitching stiffness (default: 1e6).
     rest_length: Rest length of the spring (default: 0.0). When 0, the singularity-free
