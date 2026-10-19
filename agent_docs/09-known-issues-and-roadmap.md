@@ -1,5 +1,27 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Stable Neo-Hookean calibration corrected (2026-10-19): UID 10 now stores
+`mu=mu_L`, `lambda=lambda_L+mu_L`, matching the active SNK1 energy to the input
+physical small-strain E/nu. The old log-barrier transformation is removed.
+Regression tests cover physical stiffness, Poisson coupling, default and auxetic
+inputs, near-incompressibility, all ElasticModuli factories, and reapplication.
+Existing serialized coefficients are not automatically rewritten; reapply from
+physical inputs or rebake scenes to use the correction. ElasticModuli validation
+issue A04 remains open and is independent of this fix. See the material
+specification and handoff for derivation, migration and validation.
+
+Discrete Shells calibration corrected (2026-10-19): the formula-based bending
+coefficient is now `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]`, matching the backend energy
+without an additional 1/2. C++/Python helpers, Blender previews and documentation
+agree; raw coefficients retain their behavior. Core and backend formula tests
+cover the physical calibration. See `handoff.md` for validation and the bending
+specification for migration of existing formula-based scenes.
+The follow-up full-formula review verified signed/rest angles, endpoint thickness
+averaging, fixed reference geometry, unique interior-edge summation, dt^2 scaling,
+and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
+for both fold signs and rigid transforms. No additional coefficient or derivative
+mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
+
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
 temporary reads that corrupted topology or raised spurious vertex-range errors,

@@ -41,10 +41,11 @@ Float DiscreteShellBending::bending_stiffness(Float young_modulus,
                                               Float thickness) noexcept
 {
     // `thickness` is the one-sided collision offset r. Classical shell
-    // bending uses the full material thickness h = 2r.
+    // bending uses the full material thickness h = 2r. The hinge energy
+    // is kappa * (L0 / h_bar) * delta_theta^2, so kappa = D / 2.
     Float full_thickness = 2 * thickness;
     return young_modulus * full_thickness * full_thickness * full_thickness
-           / (12.0 * (1.0 - poisson_ratio * poisson_ratio));
+           / (24.0 * (1.0 - poisson_ratio * poisson_ratio));
 }
 
 void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float young_modulus, Float poisson_ratio)
@@ -69,13 +70,11 @@ void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float young
     }
     auto bs_view = geometry::view(*bs);
 
-    Float denom = 12.0 * (1.0 - poisson_ratio * poisson_ratio);
     for(SizeT i = 0; i < edges.size(); ++i)
     {
         // Average the one-sided offsets, then convert to full material thickness.
         Float radius_e = (t_view[edges[i](0)] + t_view[edges[i](1)]) * 0.5;
-        Float full_thickness = 2 * radius_e;
-        bs_view[i] = young_modulus * full_thickness * full_thickness * full_thickness / denom;
+        bs_view[i] = bending_stiffness(young_modulus, poisson_ratio, radius_e);
     }
 }
 

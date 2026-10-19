@@ -153,6 +153,11 @@ For an existing closed Blender surface:
 5. Set **Solid Young's Modulus (Pa)**, Poisson ratio, density and collision radius,
    then bake. The material is libuipc's 3D **Stable Neo-Hookean** model.
 
+The native Stable Neo-Hookean parameter mapping was corrected on 2026-10-19
+so its small-strain response matches the entered E/nu. Rebaking older scenes
+with the corrected runtime may change their deformation; see the
+[material specification](../specification/constitutions/stable_neo_hookean.md).
+
 The 0.0.28 wheel predates the native mesher API. **Generate Tetrahedra** requires a
 current source build installed into the external Python selected by Blender.
 After building this checkout with Python bindings, install its generated package
@@ -347,7 +352,7 @@ The cloth coefficients preserve the library's existing conventions:
 $$
 k_s = \frac{E_s(2r)}{1-\nu_s^2},\qquad
 k_{\mathrm{shear}} = \frac{E_{\mathrm{shear}}}{2(1+\nu_{\mathrm{shear}})},\qquad
-k_b = \frac{E_b(2r)^3}{12(1-\nu_b^2)}.
+k_b = \frac{E_b(2r)^3}{24(1-\nu_b^2)} = \frac{D}{2}.
 $$
 
 Each channel has its own Young's modulus and Poisson ratio; `r` is the one-sided

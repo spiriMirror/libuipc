@@ -345,6 +345,10 @@ native reconstruction; it does not use lossy location/rotation/scale keys.
   positions. Transform every result back into the original Blender local frame.
 - Thickness is the one-sided radius `r`; membrane/bending retain full thickness
   `2r`. Shear keeps the library's independently calibrated effective coefficient.
+  Since 2026-10-19, formula-based bending uses `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]`
+  to match the hinge energy normalization. The frontend preview and native API
+  agree. Rebakings are half as stiff in bending for the same inputs; double only
+  bending E to reproduce the previous response. Existing baked frames are unchanged.
 - First output frame is rest state. Subsequent frames each advance `substeps`,
   with `dt = fps_base / (fps * substeps)`. Sanity and strict solver checks remain on.
 - `solver_accuracy` is opt-in: omit `DEFAULT` from serialized settings to retain

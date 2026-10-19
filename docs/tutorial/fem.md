@@ -7,6 +7,11 @@ is isolated from collision behavior.
 
 ## What defines a deformable solid
 
+The native material conversion matches the SNK1 small-strain response to the
+entered physical E/nu. See the
+[material specification](../specification/constitutions/stable_neo_hookean.md)
+for the coefficient mapping and migration from the pre-2026-10-19 calibration.
+
 | Part | API | Meaning |
 | --- | --- | --- |
 | Rest mesh | `tetmesh(vertices, tetrahedra)` | Tetrahedral material domain and rest positions. |

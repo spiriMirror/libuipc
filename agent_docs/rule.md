@@ -179,6 +179,14 @@ record it here in the same commit.**
   either of the others. Keep the existing full-thickness `2r` material formulas.
   (Set 2026-09-10.)
 
+- 2026-10-19 material calibration: correct the Discrete Shells formula-derived
+  hinge coefficient to `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]`, retaining full thickness
+  `h=2r` and the raw-coefficient overload. This supersedes the earlier denominator
+  12 convention for cloth bending. Audit Stable Neo-Hookean parameter settings
+  after the bending correction.
+  Follow-up: correct SNK1's conversion to match physical input moduli, then
+  inspect the full cloth bending energy, reference geometry and solver scaling.
+
 - During the Stiff-GIPC performance-alignment work: "when a design choice
   is uncertain, follow Stiff-GIPC's algorithm design" — that applied to
   that effort (and its evidence lives in `handoff.md`), not to unrelated

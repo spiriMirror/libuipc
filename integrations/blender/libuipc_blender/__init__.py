@@ -165,7 +165,7 @@ class UIPCBodySettings(bpy.types.PropertyGroup):
     shear: FloatProperty(name="Shear E Parameter", default=10, min=1e-6, soft_max=1e6, update=changed,
         description="Effective shear coefficient = E / (2*(1+nu)); not multiplied by thickness")
     bending: FloatProperty(name="Bending E (Pa)", default=3e4, min=0, soft_max=1e8, update=changed,
-        description="Bending = E*(2*r)^3 / (12*(1-nu^2)); zero disables bending")
+        description="Bending k = D/2 = E*(2*r)^3 / (24*(1-nu^2)); zero disables bending")
     poisson: FloatProperty(name="Poisson Ratio", default=0.49, min=0, max=0.499, precision=3, update=changed)
     stretch_poisson: FloatProperty(name="Stretch Poisson Ratio", min=0, max=0.499, precision=3,
         get=cloth_poisson_get("stretch_poisson"), set=cloth_poisson_set("stretch_poisson"), update=changed)

@@ -39,9 +39,30 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `neo_hookean_shell.h` | 2D Neo-Hookean shell |
 | `baraff_witkin_shell.h` | Compatibility include for the historical header name; forwards to the implemented `StrainLimitingBaraffWitkinShell` API below |
 | `strain_limiting_baraff_witkin.h` | Implemented `StrainLimitingBaraffWitkinShell` with independent stretch/shear `(E,ν)` pairs and `strain_rate`. The stored `thickness=r` is one-sided: stretch is `E_s·(2r)/(1-ν_s²)` while shear remains the independently calibrated 2D coefficient `E_sh/(2(1+ν_sh))`; both energies use triangle rest area. |
-| `discrete_shell_bending.h` | Discrete Shells hinge energy `κ(L₀/h̄)(θ-θ̄)²`, with `L₀/h̄=3L₀²/(A₁+A₂)` and no second area multiplier. Raw `apply_to(sc,κ)` writes κ directly. The formula overload reads one-sided vertex radius `r`, averages it per edge, and writes `κ=E·(2r)³/(12(1-ν²))`. |
+| `discrete_shell_bending.h` | Discrete Shells hinge energy `κ(L₀/h̄)(θ-θ̄)²`, with `L₀/h̄=3L₀²/(A₁+A₂)` and no second area multiplier. Raw `apply_to(sc,κ)` writes κ directly. The formula overload reads one-sided vertex radius `r`, averages it per edge, and writes `κ=D/2=E·(2r)³/(24(1-ν²))` (N m). Corrected 2026-10-19: earlier formula-based scenes were twice as stiff; raw coefficients are unchanged. |
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | Shell bending with strain/stress plasticity |
 | `kirchhoff_rod_bending.h` | Kirchhoff rod bending |
+
+**SNK1 material calibration corrected (2026-10-19):** `StableNeoHookean::apply_to`
+stores `mu=mu_L` and `lambda=lambda_L+mu_L`, matching the active backend's
+small-strain response to the supplied physical E/nu or Lamé pair. The former
+log-barrier mapping incorrectly made shear 4/3 as stiff and shifted E/nu.
+Core regressions cover all ElasticModuli factories and reapplication; backend
+tests compare all nine stress-tangent directions and the projected Hessian at
+identity with physical Hooke's law. Defaults and migration are in the
+[specification](../docs/specification/constitutions/stable_neo_hookean.md).
+The separate native ElasticModuli domain-validation issue remains open.
+
+**Complete elastic bending energy checked (2026-10-19):** on a manifold mesh,
+sum `E_b*h_e^3*L0_e^2/[8*(1-nu_b^2)*(A1_e+A2_e)]*(theta_e-theta0_e)^2`
+over interior edges, where `h_e=r_i+r_j` uses the shared edge endpoints.
+All geometry weights and rest angles are fixed reference values; `h_bar=A/(3L0)`
+is a reference mesh height parameter, not material thickness. The solver adds
+`dt^2*U_b`, with no extra area/volume factor; only its Hessian is projected PSD.
+Actual-function finite differences pass for flat/curved rest hinges and both
+fold signs. The signed-angle difference is not wrapped across +/-pi; the
+formula assumes nondegenerate triangles and a consistent angle branch.
+See the [full specification](../docs/specification/constitutions/discrete_shell_bending.md).
 
 ### ABD and ABD Joints (joint axes defined by `linemesh` edges; multi-instance API supports `geo_slots + instance_id + strength_ratio`)
 | Header | Description |

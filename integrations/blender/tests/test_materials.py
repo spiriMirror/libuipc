@@ -36,7 +36,7 @@ class MaterialTests(unittest.TestCase):
         values = cloth_stiffness(material)
         self.assertAlmostEqual(values["stretch"], 1e4 * 0.001 / 0.84)
         self.assertAlmostEqual(values["shear"], 10 / 2.9)
-        self.assertAlmostEqual(values["bending"], 1e4 * 0.001**3 / (12 * 0.84))
+        self.assertAlmostEqual(values["bending"], 1e4 * 0.001**3 / (24 * 0.84))
         for channel in values:
             changed = cloth_stiffness({**material, channel + "_poisson": 0.2})
             self.assertNotEqual(changed[channel], values[channel])

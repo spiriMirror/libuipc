@@ -1,5 +1,87 @@
 # Handoff — Current State of the Repo
 
+> **Full elastic cloth bending review (2026-10-19)**: traced formula-based
+> material assignment through reference geometry, signed dihedral angles,
+> unique interior-edge stencils and CUDA energy/derivative assembly. Physical
+> energy is `sum E_b*h_e^3*L0_e^2/[8*(1-nu_b^2)*(A1_e+A2_e)]*delta_theta_e^2`,
+> with `h_e=r_i+r_j` from the shared edge endpoints. The geometric `h_bar=A/(3L0)`
+> is not material thickness. The solver adds `dt^2*U_b`; outer weight is 1 and
+> no area/volume factor is repeated. Energy/gradient are exact for this model;
+> the Newton Hessian clamps negative eigenvalues to zero. Rest angles may be
+> nonzero. The signed angle is acos plus a sign; the elastic difference is not
+> wrapped across +/-pi, and degenerate triangles are outside the smooth domain.
+> Added actual-function regression coverage for flat/curved rest hinges, both
+> fold signs, independent atan2 angle evaluation, rigid-motion invariance,
+> zero rest force and finite differences of all 12 gradient/Hessian coordinates.
+> Release backend tests pass 3 cases / 47 assertions; no additional coefficient
+> or derivative mismatch was found in the tested nondegenerate domain. Existing
+> CMake/XMake globs include the test changes. Evidence:
+> `output/bending-full-formula.log`; the complete formula, derivatives and scope
+> are maintained in `docs/specification/constitutions/discrete_shell_bending.md`.
+
+> **Stable Neo-Hookean calibration fix (2026-10-19)**: the requested follow-up
+> replaces the former log-barrier conversion with `mu=mu_L`,
+> `lambda=lambda_L+mu_L`, matching the unchanged SNK1 energy to physical input
+> moduli. Public C++ comments, Python help, specifications and current agent
+> records now describe the corrected behavior and migration. Reapplying writes
+> every cell; previously serialized coefficients retain their literal meaning.
+> The independent ElasticModuli validation issue A04 remains open.
+> Before the fix, new core tests failed 182/186 assertions and actual backend
+> stress/tangent tests failed 270/285 assertions. After a Release rebuild with
+> MSVC 19.39, CUDA 12.4.131 and CPython 3.12, core passes 37 cases / 1234 assertions;
+> the SNK1 and DSB backend host-formula tests pass 3 cases / 296 assertions.
+> SNK1 coverage includes all 9 derivative directions, the projected Hessian at
+> identity, zero rest stress, E=1e3..1e8 Pa, nu=-0.2..0.499, all three public
+> ElasticModuli factories, defaults and repeated application to multiple cells.
+> Native Python attributes plus the C++ stress finite-difference probe recover
+> E=100000 Pa with nu=0, 0.3, 0.49 and the 120000 Pa/0.49 native default.
+> API parity remains 43 classes / 40 initializers. Evidence:
+> `output/snh-{before,after}-{core,backend}.log`, `output/snh-after-native.json`.
+
+> **Stable Neo-Hookean material audit (2026-10-19, resolved by follow-up above)**: the user requested
+> inspection after the bending fix. UID 10 uses SNK1, but its frontend still
+> converts physical Lamé parameters using the old log-barrier model's
+> `mu=4*mu_L/3`, `lambda=lambda_L+5*mu_L/6`. Differentiating the active stress at
+> identity gives `dP=mu*(dF+dF^T)+(lambda-mu)*trace(dF)*I`; thus matching the
+> requested material requires `mu=mu_L`, `lambda=lambda_L+mu_L`. The current
+> shear stiffness is 4/3 of the input; input E=100000 Pa and nu=0.3 gives
+> effective E=124542.12 Pa, nu=0.214286. Native default 120000 Pa/0.49 gives
+> 159637.27 Pa/0.486622; Blender default 100000 Pa/0.49 gives 133031.06 Pa/0.486622.
+> Validation read actual pyuipc tetrahedral attributes, then central-differenced
+> `snk1::dEdF` from the current C++ header (host calls compiled by NVCC 12.4,
+> h=1e-6) for shear, axial and transverse tangents. All four input combinations
+> agree with the analytical mismatch; passing the proposed coefficients into
+> that same function recovers the intended tangents. P(I)=0 remains true.
+> Independent NumPy stress finite differences agree. Evidence is in
+> `output/stable-neo-hookean-material-audit.{py,json}` and
+> `output/stable-neo-hookean-tangent.cu`; compile helper/log use the prefix
+> `output/stable-neo-hookean-audit-build`.
+> ElasticModuli validation issue A04 was also reconfirmed: E<=0/NaN and nu=0.6
+> are accepted while valid nu=-0.5 is rejected. Blender's worker checks its
+> narrower positive-E/nonnegative-nu input domain. Solid stiffness and mass
+> use tetrahedral volume, with no extra collision-thickness factor.
+> This stage updates the specification, tutorial and agent records only;
+> Stable Neo-Hookean behavior and its input validation remain unchanged.
+
+> **Discrete Shells physical calibration (2026-10-19)**: formula-based bending
+> now uses `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]` (N m), consistent with the backend
+> hinge energy `kappa*(3*L0^2/A)*delta_theta^2`. The per-edge overload delegates
+> to the same scalar helper after averaging endpoint radii. The full thickness
+> remains `2r`; raw coefficients and the backend energy are unchanged.
+> Blender previews/tooltips, Python help, public comments and maintained docs
+> follow the correction. Same-input formula-based scenes have half their former
+> bending energy/force; double bending E only to reproduce the former response.
+> Existing baked frames must be rebaked to reflect the new calibration.
+> Validation: the old source-matched runtime returned kappa=0.2 instead of 0.1
+> for E=288000 Pa, nu=0.2, r=0.01 m. After rebuilding Release with MSVC 19.39,
+> CUDA 12.4.131 and CPython 3.12, core passes 36 cases / 1048 assertions; the
+> CUDA-backend host formula tests pass 2 cases / 11 assertions, including actual
+> energy, angular derivative and curvature (0.01875 J, 0.15 N m, 0.6 N m at
+> delta_theta=0.25 and metric=3). All 54 portable Blender tests and the native
+> material integration script pass. API parity remains 43 classes/40 initializers.
+> Both build systems discover the added .cu regression through existing globs.
+> Evidence: `output/material-calibration-{build,core,backend,blender}.log`.
+
 > **Issue #498 Python stitch indices (2026-10-18)**: both
 > `SoftVertexStitch.create_geometry` bindings now accept contiguous `IndexT`
 > arrays with conversion owned at the binding boundary. This removes the
