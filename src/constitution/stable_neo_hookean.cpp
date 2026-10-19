@@ -31,8 +31,11 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     auto mu     = moduli.mu();
     auto lambda = moduli.lambda();
 
-    auto snh_mu = 4 * mu / 3;
-    auto snh_lambda = lambda + 5 * mu / 6;
+    // SNK1 linearizes to 2*mu*epsilon + (lambda-mu)*trace(epsilon)*I.
+    // Match the supplied physical Lame parameters, without the old log-barrier
+    // model's 4/3 and 5/6 reparameterization.
+    auto snh_mu     = mu;
+    auto snh_lambda = lambda + mu;
 
     UIPC_ASSERT_THROW(sc.dim() == 3, "StableNeoHookean only supports 3D simplicial complex");
 

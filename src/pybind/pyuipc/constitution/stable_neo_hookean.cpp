@@ -22,20 +22,19 @@ Args:
 Returns:
     dict: Default configuration dictionary.)");
 
-    class_StableNeoHookean.def("apply_to",
-                               [](StableNeoHookean& self,
-                                  SimplicialComplex& sc,
-                                  const ElasticModuli& moduli,
-                                  Float mass_density)
-                               { self.apply_to(sc, moduli, mass_density); },
-                               py::arg("sc"),
-                               py::arg("moduli") =
-                                   ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
-                               py::arg("mass_density") = 1.0e3,
-                               R"(Apply StableNeoHookean constitution to a simplicial complex.
+    class_StableNeoHookean.def(
+        "apply_to",
+        [](StableNeoHookean& self, SimplicialComplex& sc, const ElasticModuli& moduli, Float mass_density)
+        { self.apply_to(sc, moduli, mass_density); },
+        py::arg("sc"),
+        py::arg("moduli") = ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
+        py::arg("mass_density") = 1.0e3,
+        R"(Apply StableNeoHookean constitution to a simplicial complex.
 Args:
     sc: SimplicialComplex to apply to.
-    moduli: ElasticModuli (default: Young's modulus 120.0 kPa, Poisson's ratio 0.49).
-    mass_density: Mass density (default: 1000.0).)");
+    moduli: Physical 3D ElasticModuli in Pa (default: Young's modulus 120.0 kPa,
+        Poisson's ratio 0.49). The small-strain response matches these inputs;
+        tetrahedra store SNK1 coefficients mu=mu_L and lambda=lambda_L+mu_L.
+    mass_density: Mass density in kg/m^3 (default: 1000.0).)");
 }
 }  // namespace pyuipc::constitution

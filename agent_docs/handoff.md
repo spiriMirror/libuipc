@@ -1,6 +1,25 @@
 # Handoff — Current State of the Repo
 
-> **Stable Neo-Hookean material audit (2026-10-19, open)**: the user requested
+> **Stable Neo-Hookean calibration fix (2026-10-19)**: the requested follow-up
+> replaces the former log-barrier conversion with `mu=mu_L`,
+> `lambda=lambda_L+mu_L`, matching the unchanged SNK1 energy to physical input
+> moduli. Public C++ comments, Python help, specifications and current agent
+> records now describe the corrected behavior and migration. Reapplying writes
+> every cell; previously serialized coefficients retain their literal meaning.
+> The independent ElasticModuli validation issue A04 remains open.
+> Before the fix, new core tests failed 182/186 assertions and actual backend
+> stress/tangent tests failed 270/285 assertions. After a Release rebuild with
+> MSVC 19.39, CUDA 12.4.131 and CPython 3.12, core passes 37 cases / 1234 assertions;
+> the SNK1 and DSB backend host-formula tests pass 3 cases / 296 assertions.
+> SNK1 coverage includes all 9 derivative directions, the projected Hessian at
+> identity, zero rest stress, E=1e3..1e8 Pa, nu=-0.2..0.499, all three public
+> ElasticModuli factories, defaults and repeated application to multiple cells.
+> Native Python attributes plus the C++ stress finite-difference probe recover
+> E=100000 Pa with nu=0, 0.3, 0.49 and the 120000 Pa/0.49 native default.
+> API parity remains 43 classes / 40 initializers. Evidence:
+> `output/snh-{before,after}-{core,backend}.log`, `output/snh-after-native.json`.
+
+> **Stable Neo-Hookean material audit (2026-10-19, resolved by follow-up above)**: the user requested
 > inspection after the bending fix. UID 10 uses SNK1, but its frontend still
 > converts physical Lamé parameters using the old log-barrier model's
 > `mu=4*mu_L/3`, `lambda=lambda_L+5*mu_L/6`. Differentiating the active stress at

@@ -12,6 +12,8 @@ class UIPC_CONSTITUTION_API StableNeoHookean : public FiniteElementConstitution
   public:
     StableNeoHookean(const Json& config = default_config()) noexcept;
 
+    // Physical 3D moduli (Pa): SNK1 stores mu=mu_L, lambda=lambda_L+mu_L
+    // so its small-strain response matches the supplied E/nu or Lame pair.
     void apply_to(geometry::SimplicialComplex& sc,
                   const ElasticModuli& moduli = ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
                   Float mass_density = 1e3) const;

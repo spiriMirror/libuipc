@@ -1,17 +1,14 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-Stable Neo-Hookean calibration audit (2026-10-19, **open**): UID 10's SNK1
-backend uses a different energy from the former log-barrier model, but
-`StableNeoHookean::apply_to` retains the latter's parameter transformation.
-For physical input Lamé parameters, it stores `mu=4*mu_L/3` and
-`lambda=lambda_L+5*mu_L/6`; SNK1 requires `mu=mu_L`, `lambda=lambda_L+mu_L`
-to recover the requested small-strain response. Native attributes plus the
-actual C++ stress derivative reproduce the mismatch: shear is 33.3% too stiff;
-E=100 kPa, nu=0.3 gives effective E=124.54 kPa, nu=0.214286. The native default
-E=120 kPa, nu=0.49 gives E=159.64 kPa, nu=0.486622. This is independent of the
-existing ElasticModuli validation issue A04, which was also reproduced again.
-No Stable Neo-Hookean implementation was changed during the requested audit.
-See the material specification and handoff for derivation and evidence.
+Stable Neo-Hookean calibration corrected (2026-10-19): UID 10 now stores
+`mu=mu_L`, `lambda=lambda_L+mu_L`, matching the active SNK1 energy to the input
+physical small-strain E/nu. The old log-barrier transformation is removed.
+Regression tests cover physical stiffness, Poisson coupling, default and auxetic
+inputs, near-incompressibility, all ElasticModuli factories, and reapplication.
+Existing serialized coefficients are not automatically rewritten; reapply from
+physical inputs or rebake scenes to use the correction. ElasticModuli validation
+issue A04 remains open and is independent of this fix. See the material
+specification and handoff for derivation, migration and validation.
 
 Discrete Shells calibration corrected (2026-10-19): the formula-based bending
 coefficient is now `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]`, matching the backend energy

@@ -33,7 +33,7 @@ deformation tensor, and $I_c=\operatorname{tr}(C)=\|F\|_F^2$.
 The coefficients $\lambda,\mu$ in this SNK1 energy are stored on tetrahedra;
 they must be distinguished from the physical Lamé parameters below.
 
-### Material inputs and current calibration issue
+### Material inputs and SNK1 calibration
 
 `ElasticModuli.youngs_poisson(E, nu)` first computes the physical 3D parameters
 
@@ -50,45 +50,42 @@ and passes these values to the same native API. Tetrahedral energy is weighted
 by rest volume, and vertex mass by $\rho$ times lumped rest volume. The collision
 radius does not multiply the solid's material stiffness or mass.
 
-**Confirmed open issue, 2026-10-19:** the material entry point still writes
+The material entry point stores the SNK1 coefficients
 
 $$
-\mu=\frac43\mu_L,\qquad \lambda=\lambda_L+\frac56\mu_L.
+\mu=\mu_L,\qquad \lambda=\lambda_L+\mu_L.
 $$
 
-That mapping belongs to the version with the $-\mu\log(I_c+1)/2$ term
-([Smith et al., Section 3.4, Eq. (14)](https://www.tkim.graphics/NEO/StableNeoHookean2018.pdf)).
-The active SNK1 backend uses the energy above without that term. Linearizing its
-stress at $F=I$, for infinitesimal strain $\epsilon$, gives
+The active SNK1 backend uses the energy above without a logarithmic term.
+Linearizing its stress at $F=I$, for infinitesimal strain $\epsilon$, gives
 
 $$
 P=2\mu\epsilon+(\lambda-\mu)\operatorname{tr}(\epsilon)I
   +O(\|F-I\|^2).
 $$
 
-Consequently, the implemented small-strain Lamé parameters are
-$\mu_{\mathrm{eff}}=4\mu_L/3$ and
-$\lambda_{\mathrm{eff}}=\lambda_L-\mu_L/2$, rather than the requested values.
-Reading actual native tetrahedron attributes and finite-differencing the C++
-SNK1 stress at identity gives:
+Substituting the stored coefficients recovers Hooke's law with the supplied
+physical $\lambda_L,\mu_L$, and therefore the requested small-strain $E,\nu$.
+At identity the stress is zero; the energy has an irrelevant constant offset
+$\mu^2/(2\lambda)$, which disappears from forces and tangents.
 
-| Requested $E$ (Pa) | Requested $\nu$ | Effective $E$ (Pa) | Effective $\nu$ |
-| ---: | ---: | ---: | ---: |
-| 100000 | 0 | 93333.33 | -0.3 |
-| 100000 | 0.3 | 124542.12 | 0.214286 |
-| 100000 | 0.49 | 133031.06 | 0.486622 |
-| 120000 | 0.49 | 159637.27 | 0.486622 |
-
-For the active energy, the mapping that would recover the requested small-strain
-response is $\mu=\mu_L$, $\lambda=\lambda_L+\mu_L$. This correction is **pending**;
-the audit did not change Stable Neo-Hookean behavior. The model still has zero
-stress at rest; the mismatch concerns its material response.
+**Migration, 2026-10-19:** earlier versions stored
+$\mu=4\mu_L/3$, $\lambda=\lambda_L+5\mu_L/6$. That mapping belongs to the
+version with the $-\mu\log(I_c+1)/2$ term
+([Smith et al., Section 3.4, Eq. (14)](https://www.tkim.graphics/NEO/StableNeoHookean2018.pdf)),
+not the active SNK1 model. The former mapping gave 4/3 of the requested shear
+modulus and shifted E/nu (for example, 100 kPa/0.3 behaved as 124.54 kPa/0.214286).
+New applications of the constitution now match the physical inputs; existing
+scenes may deform differently and should be rebaked or recalibrated as needed.
+Serialized tetrahedral `mu`/`lambda` attributes remain raw energy coefficients;
+reapply the constitution from physical moduli to update them. Reapplying replaces
+the coefficients on every tetrahedron, including previously created attributes.
 
 The usual positive-definite isotropic linear-elastic input domain is finite
 $E>0$ and $-1<\nu<0.5$. Native validation is incomplete: it admits nonpositive
 or nonfinite $E$ and invalid $\nu$, and incorrectly rejects $\nu=-0.5$.
 Blender restricts solid inputs to finite positive $E$ and $0\le\nu<0.5$.
-These validation findings are also open; see the
+These validation findings remain open and are separate from calibration; see the
 [material audit](../../../agent_docs/14-project-audit.md).
 
 ## Attributes
