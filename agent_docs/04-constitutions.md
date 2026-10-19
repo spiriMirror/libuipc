@@ -53,6 +53,17 @@ identity with physical Hooke's law. Defaults and migration are in the
 [specification](../docs/specification/constitutions/stable_neo_hookean.md).
 The separate native ElasticModuli domain-validation issue remains open.
 
+**Complete elastic bending energy checked (2026-10-19):** on a manifold mesh,
+sum `E_b*h_e^3*L0_e^2/[8*(1-nu_b^2)*(A1_e+A2_e)]*(theta_e-theta0_e)^2`
+over interior edges, where `h_e=r_i+r_j` uses the shared edge endpoints.
+All geometry weights and rest angles are fixed reference values; `h_bar=A/(3L0)`
+is a reference mesh height parameter, not material thickness. The solver adds
+`dt^2*U_b`, with no extra area/volume factor; only its Hessian is projected PSD.
+Actual-function finite differences pass for flat/curved rest hinges and both
+fold signs. The signed-angle difference is not wrapped across +/-pi; the
+formula assumes nondegenerate triangles and a consistent angle branch.
+See the [full specification](../docs/specification/constitutions/discrete_shell_bending.md).
+
 ### ABD and ABD Joints (joint axes defined by `linemesh` edges; multi-instance API supports `geo_slots + instance_id + strength_ratio`)
 | Header | Description |
 |---|---|

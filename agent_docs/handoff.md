@@ -1,5 +1,24 @@
 # Handoff — Current State of the Repo
 
+> **Full elastic cloth bending review (2026-10-19)**: traced formula-based
+> material assignment through reference geometry, signed dihedral angles,
+> unique interior-edge stencils and CUDA energy/derivative assembly. Physical
+> energy is `sum E_b*h_e^3*L0_e^2/[8*(1-nu_b^2)*(A1_e+A2_e)]*delta_theta_e^2`,
+> with `h_e=r_i+r_j` from the shared edge endpoints. The geometric `h_bar=A/(3L0)`
+> is not material thickness. The solver adds `dt^2*U_b`; outer weight is 1 and
+> no area/volume factor is repeated. Energy/gradient are exact for this model;
+> the Newton Hessian clamps negative eigenvalues to zero. Rest angles may be
+> nonzero. The signed angle is acos plus a sign; the elastic difference is not
+> wrapped across +/-pi, and degenerate triangles are outside the smooth domain.
+> Added actual-function regression coverage for flat/curved rest hinges, both
+> fold signs, independent atan2 angle evaluation, rigid-motion invariance,
+> zero rest force and finite differences of all 12 gradient/Hessian coordinates.
+> Release backend tests pass 3 cases / 47 assertions; no additional coefficient
+> or derivative mismatch was found in the tested nondegenerate domain. Existing
+> CMake/XMake globs include the test changes. Evidence:
+> `output/bending-full-formula.log`; the complete formula, derivatives and scope
+> are maintained in `docs/specification/constitutions/discrete_shell_bending.md`.
+
 > **Stable Neo-Hookean calibration fix (2026-10-19)**: the requested follow-up
 > replaces the former log-barrier conversion with `mu=mu_L`,
 > `lambda=lambda_L+mu_L`, matching the unchanged SNK1 energy to physical input

@@ -16,6 +16,11 @@ without an additional 1/2. C++/Python helpers, Blender previews and documentatio
 agree; raw coefficients retain their behavior. Core and backend formula tests
 cover the physical calibration. See `handoff.md` for validation and the bending
 specification for migration of existing formula-based scenes.
+The follow-up full-formula review verified signed/rest angles, endpoint thickness
+averaging, fixed reference geometry, unique interior-edge summation, dt^2 scaling,
+and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
+for both fold signs and rigid transforms. No additional coefficient or derivative
+mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
 
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
