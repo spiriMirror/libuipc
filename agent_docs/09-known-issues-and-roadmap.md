@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Discrete Shells calibration corrected (2026-10-19): the formula-based bending
+coefficient is now `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]`, matching the backend energy
+without an additional 1/2. C++/Python helpers, Blender previews and documentation
+agree; raw coefficients retain their behavior. Core and backend formula tests
+cover the physical calibration. See `handoff.md` for validation and the bending
+specification for migration of existing formula-based scenes.
+
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
 temporary reads that corrupted topology or raised spurious vertex-range errors,

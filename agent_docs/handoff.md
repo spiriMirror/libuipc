@@ -1,5 +1,24 @@
 # Handoff — Current State of the Repo
 
+> **Discrete Shells physical calibration (2026-10-19)**: formula-based bending
+> now uses `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]` (N m), consistent with the backend
+> hinge energy `kappa*(3*L0^2/A)*delta_theta^2`. The per-edge overload delegates
+> to the same scalar helper after averaging endpoint radii. The full thickness
+> remains `2r`; raw coefficients and the backend energy are unchanged.
+> Blender previews/tooltips, Python help, public comments and maintained docs
+> follow the correction. Same-input formula-based scenes have half their former
+> bending energy/force; double bending E only to reproduce the former response.
+> Existing baked frames must be rebaked to reflect the new calibration.
+> Validation: the old source-matched runtime returned kappa=0.2 instead of 0.1
+> for E=288000 Pa, nu=0.2, r=0.01 m. After rebuilding Release with MSVC 19.39,
+> CUDA 12.4.131 and CPython 3.12, core passes 36 cases / 1048 assertions; the
+> CUDA-backend host formula tests pass 2 cases / 11 assertions, including actual
+> energy, angular derivative and curvature (0.01875 J, 0.15 N m, 0.6 N m at
+> delta_theta=0.25 and metric=3). All 54 portable Blender tests and the native
+> material integration script pass. API parity remains 43 classes/40 initializers.
+> Both build systems discover the added .cu regression through existing globs.
+> Evidence: `output/material-calibration-{build,core,backend,blender}.log`.
+
 > **Issue #498 Python stitch indices (2026-10-18)**: both
 > `SoftVertexStitch.create_geometry` bindings now accept contiguous `IndexT`
 > arrays with conversion owned at the binding boundary. This removes the

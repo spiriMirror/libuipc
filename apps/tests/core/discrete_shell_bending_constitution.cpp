@@ -119,13 +119,25 @@ TEST_CASE("discrete_shell_bending_formula_overload", "[constitution]")
     auto  edges = mesh.edges().topo().view();
     auto  tv    = geometry::view(*attr_thickness);
     auto  bsv   = geometry::view(*bs);
-    Float denom = 12.0 * (1.0 - nu * nu);
+    Float denom = 24.0 * (1.0 - nu * nu);
     for(SizeT i = 0; i < edges.size(); ++i)
     {
         Float radius_e       = (tv[edges[i](0)] + tv[edges[i](1)]) * 0.5;
         Float full_thickness = 2 * radius_e;
         CHECK(bsv[i] == Catch::Approx(E * full_thickness * full_thickness * full_thickness / denom));
+        CHECK(bsv[i] == Catch::Approx(DiscreteShellBending::bending_stiffness(E, nu, radius_e)));
     }
+
+    // Tamstorf and Grinspun (2013), Eq. (11): the hinge coefficient is D/2.
+    // E=288000 Pa, nu=0.2 and full h=0.02 m give D=0.2 N*m.
+    CHECK(DiscreteShellBending::bending_stiffness(288000.0, 0.2, 0.01)
+          == Catch::Approx(0.1));
+    CHECK(DiscreteShellBending::bending_stiffness(288000.0, 0.2, 0.02)
+          == Catch::Approx(0.8));
+
+    // Reapplying must overwrite existing edge coefficients, including zero E.
+    dsb.apply_to(mesh, 0.0, nu);
+    CHECK(std::ranges::all_of(bs->view(), [](Float v) { return v == 0.0; }));
 
     // missing thickness attribute -> clear error
     auto bare = trimesh(Vs, Fs);

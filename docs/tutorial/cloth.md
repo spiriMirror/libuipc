@@ -21,9 +21,14 @@ bending implementation reads the one-sided thickness radius $r$ from the
 vertex `thickness` attribute. With full material thickness $h=2r$, it evaluates
 
 $$
-D = \frac{E h^3}{12(1-\nu^2)}
-  = \frac{E(2r)^3}{12(1-\nu^2)}.
+\kappa = \frac{D}{2} = \frac{E h^3}{24(1-\nu^2)}
+  = \frac{E(2r)^3}{24(1-\nu^2)}.
 $$
+
+The hinge energy has no extra $1/2$, so its coefficient $\kappa$ is half the
+classical flexural rigidity $D$, in N m. See the
+[bending specification](../specification/constitutions/discrete_shell_bending.md)
+for the physical calibration and migration from the previous factor of two.
 
 The raw overload `apply_to(mesh, bending_stiffness)` retains its legacy numeric
 default, but the supplied value is $\kappa$ directly in the Discrete Shells

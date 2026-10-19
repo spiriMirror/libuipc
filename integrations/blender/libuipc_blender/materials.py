@@ -43,7 +43,7 @@ def cloth_stiffness(material):
     bending, nb = values["bending"]
     return {"stretch": stretch * (2 * radius) / (1 - ns * ns),
             "shear": shear / (2 * (1 + ng)),
-            "bending": bending * (2 * radius)**3 / (12 * (1 - nb * nb))}
+            "bending": bending * (2 * radius)**3 / (24 * (1 - nb * nb))}
 
 
 def contact_label(value):

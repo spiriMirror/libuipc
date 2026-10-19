@@ -44,8 +44,8 @@ Args:
         py::arg("young_modulus"),
         py::arg("poisson_ratio"),
         R"(Apply DiscreteShellBending constitution to a simplicial complex, computing
-the bending stiffness from the material as the classical shell value
-E*h^3/(12*(1-nu^2)). The mesh stores the one-sided collision offset r in its
+the hinge coefficient kappa = D/2 = E*h^3/(24*(1-nu^2)) in N*m, where D is
+the classical flexural rigidity. The mesh stores the one-sided collision offset r in its
 vertex "thickness" attribute; the full material thickness is h=2r. The radius
 is averaged over each edge, so a membrane constitution must be applied first.
 Args:
@@ -58,7 +58,7 @@ Args:
                                           py::arg("young_modulus"),
                                           py::arg("poisson_ratio"),
                                           py::arg("thickness"),
-                                          R"(Compute the classical shell bending stiffness
-E*h^3/(12*(1-nu^2)) from the one-sided thickness radius r, with h=2r.)");
+                                          R"(Compute the Discrete Shells hinge coefficient
+E*h^3/(24*(1-nu^2)) = D/2 in N*m from the one-sided thickness radius r, with h=2r.)");
 }
 }  // namespace pyuipc::constitution

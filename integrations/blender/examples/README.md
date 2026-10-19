@@ -62,7 +62,8 @@ simulated reconstruction, not a guarantee of identical real-world behavior.
 
 The actual cloth stretch coefficient is `E_stretch * (2r) / (1 - nu^2)`;
 the shear coefficient is `E_shear / (2 * (1 + nu))`, without another thickness
-factor. Bending is `E_b * (2r)^3 / (12 * (1 - nu^2))`. These follow
+factor. Bending is `E_b * (2r)^3 / (24 * (1 - nu^2))`, half the classical
+flexural rigidity because the hinge energy has no extra factor of 1/2. These follow
 `src/constitution/strain_limiting_baraff_witkin.cpp` and
 `src/constitution/discrete_shell_bending.cpp`. Triangle mass uses area times
 `2r` times density, as implemented in `src/geometry/compute_vertex_volume.cpp`.

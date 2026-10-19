@@ -347,7 +347,7 @@ The cloth coefficients preserve the library's existing conventions:
 $$
 k_s = \frac{E_s(2r)}{1-\nu_s^2},\qquad
 k_{\mathrm{shear}} = \frac{E_{\mathrm{shear}}}{2(1+\nu_{\mathrm{shear}})},\qquad
-k_b = \frac{E_b(2r)^3}{12(1-\nu_b^2)}.
+k_b = \frac{E_b(2r)^3}{24(1-\nu_b^2)} = \frac{D}{2}.
 $$
 
 Each channel has its own Young's modulus and Poisson ratio; `r` is the one-sided

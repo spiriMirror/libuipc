@@ -39,7 +39,7 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `neo_hookean_shell.h` | 2D Neo-Hookean shell |
 | `baraff_witkin_shell.h` | Compatibility include for the historical header name; forwards to the implemented `StrainLimitingBaraffWitkinShell` API below |
 | `strain_limiting_baraff_witkin.h` | Implemented `StrainLimitingBaraffWitkinShell` with independent stretch/shear `(E,ν)` pairs and `strain_rate`. The stored `thickness=r` is one-sided: stretch is `E_s·(2r)/(1-ν_s²)` while shear remains the independently calibrated 2D coefficient `E_sh/(2(1+ν_sh))`; both energies use triangle rest area. |
-| `discrete_shell_bending.h` | Discrete Shells hinge energy `κ(L₀/h̄)(θ-θ̄)²`, with `L₀/h̄=3L₀²/(A₁+A₂)` and no second area multiplier. Raw `apply_to(sc,κ)` writes κ directly. The formula overload reads one-sided vertex radius `r`, averages it per edge, and writes `κ=E·(2r)³/(12(1-ν²))`. |
+| `discrete_shell_bending.h` | Discrete Shells hinge energy `κ(L₀/h̄)(θ-θ̄)²`, with `L₀/h̄=3L₀²/(A₁+A₂)` and no second area multiplier. Raw `apply_to(sc,κ)` writes κ directly. The formula overload reads one-sided vertex radius `r`, averages it per edge, and writes `κ=D/2=E·(2r)³/(24(1-ν²))` (N m). Corrected 2026-10-19: earlier formula-based scenes were twice as stiff; raw coefficients are unchanged. |
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | Shell bending with strain/stress plasticity |
 | `kirchhoff_rod_bending.h` | Kirchhoff rod bending |
 

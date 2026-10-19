@@ -5,6 +5,7 @@
 Reference:
 
 - [Discrete Shell](https://www.cs.columbia.edu/cg/pdfs/10_ds.pdf)
+- [Discrete bending forces and their Jacobians](https://media.disneyanimation.com/uploads/production/publication_asset/74/asset/main_preprint.pdf), Section 5, Eq. (11)
 
 ## #17 Discrete Shell Bending
 
@@ -56,9 +57,20 @@ For the formula overload, the mesh stores a one-sided thickness radius $r$.
 The full material thickness is $h=2r$, and
 
 $$
-\kappa=D=\frac{E h^3}{12(1-\nu^2)}
-        =\frac{E(2r)^3}{12(1-\nu^2)}.
+\kappa=\frac{D}{2}=\frac{E h^3}{24(1-\nu^2)}
+        =\frac{E(2r)^3}{24(1-\nu^2)}.
 $$
+
+Here $E$ is Young's modulus (Pa), $\nu$ is Poisson's ratio, $h$ is in meters,
+and $D=Eh^3/[12(1-\nu^2)]$ is the classical flexural rigidity (N m).
+The hinge coefficient is half of $D$ because the edge energy above has no
+additional factor of $1/2$.
+
+The 2026-10-19 correction halves the formula-derived coefficient and bending
+forces for the same material inputs. To reproduce earlier formula-based scenes,
+double their bending Young's modulus. Raw `apply_to(mesh, bending_stiffness)`
+values retain their existing meaning and behavior; no migration is needed for
+raw coefficients. Existing baked animation must be rebaked to use the correction.
 
 ## Attributes
 
