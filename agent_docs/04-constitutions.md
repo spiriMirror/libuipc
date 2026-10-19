@@ -43,6 +43,16 @@ Vertex positions are the DOFs; Empty/Particle/ARAP/SNH/HookeanSpring etc. all in
 | `strain_plastic_discrete_shell_bending.h` / `stress_plastic_discrete_shell_bending.h` | Shell bending with strain/stress plasticity |
 | `kirchhoff_rod_bending.h` | Kirchhoff rod bending |
 
+**Open SNK1 material calibration issue (2026-10-19):** the backend energy above
+expects `mu=mu_L` and `lambda=lambda_L+mu_L` to reproduce input small-strain
+Lamé parameters. `StableNeoHookean::apply_to` still stores the old log-barrier
+model's `mu=4*mu_L/3`, `lambda=lambda_L+5*mu_L/6`. Native attribute inspection
+and finite differences of the actual C++ SNK1 stress confirm shear stiffness
+4/3 of the requested value and shifted E/nu. E=100000 Pa, nu=0.3 behaves as
+E=124542.12 Pa, nu=0.214286 near rest. This audit changed no SNH code. Details,
+defaults and the pending conversion are in the
+[specification](../docs/specification/constitutions/stable_neo_hookean.md).
+
 ### ABD and ABD Joints (joint axes defined by `linemesh` edges; multi-instance API supports `geo_slots + instance_id + strength_ratio`)
 | Header | Description |
 |---|---|

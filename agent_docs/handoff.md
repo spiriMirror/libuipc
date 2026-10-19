@@ -1,5 +1,30 @@
 # Handoff — Current State of the Repo
 
+> **Stable Neo-Hookean material audit (2026-10-19, open)**: the user requested
+> inspection after the bending fix. UID 10 uses SNK1, but its frontend still
+> converts physical Lamé parameters using the old log-barrier model's
+> `mu=4*mu_L/3`, `lambda=lambda_L+5*mu_L/6`. Differentiating the active stress at
+> identity gives `dP=mu*(dF+dF^T)+(lambda-mu)*trace(dF)*I`; thus matching the
+> requested material requires `mu=mu_L`, `lambda=lambda_L+mu_L`. The current
+> shear stiffness is 4/3 of the input; input E=100000 Pa and nu=0.3 gives
+> effective E=124542.12 Pa, nu=0.214286. Native default 120000 Pa/0.49 gives
+> 159637.27 Pa/0.486622; Blender default 100000 Pa/0.49 gives 133031.06 Pa/0.486622.
+> Validation read actual pyuipc tetrahedral attributes, then central-differenced
+> `snk1::dEdF` from the current C++ header (host calls compiled by NVCC 12.4,
+> h=1e-6) for shear, axial and transverse tangents. All four input combinations
+> agree with the analytical mismatch; passing the proposed coefficients into
+> that same function recovers the intended tangents. P(I)=0 remains true.
+> Independent NumPy stress finite differences agree. Evidence is in
+> `output/stable-neo-hookean-material-audit.{py,json}` and
+> `output/stable-neo-hookean-tangent.cu`; compile helper/log use the prefix
+> `output/stable-neo-hookean-audit-build`.
+> ElasticModuli validation issue A04 was also reconfirmed: E<=0/NaN and nu=0.6
+> are accepted while valid nu=-0.5 is rejected. Blender's worker checks its
+> narrower positive-E/nonnegative-nu input domain. Solid stiffness and mass
+> use tetrahedral volume, with no extra collision-thickness factor.
+> This stage updates the specification, tutorial and agent records only;
+> Stable Neo-Hookean behavior and its input validation remain unchanged.
+
 > **Discrete Shells physical calibration (2026-10-19)**: formula-based bending
 > now uses `kappa=D/2=E*(2r)^3/[24*(1-nu^2)]` (N m), consistent with the backend
 > hinge energy `kappa*(3*L0^2/A)*delta_theta^2`. The per-edge overload delegates
