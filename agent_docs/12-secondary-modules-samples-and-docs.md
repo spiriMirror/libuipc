@@ -109,7 +109,7 @@ parametrized runtime coverage. See the dated inventory in doc 14.
 ## Sample Repository as Executable API Evidence
 
 `libuipc-samples/` is a tracked git submodule, not an untracked sibling. At the
-audited revision it contains 53 directories under `examples/`. Numbering is
+current revision it contains 54 directories under `examples/`. Numbering is
 historical: it is non-contiguous and `40_abd_four_box_revolute_chain` and
 `40_distance_diagnoser` intentionally share the numeric prefix. Use names and
 paths, not numeric uniqueness, in automation or documentation.
@@ -122,6 +122,7 @@ Representative map:
 | animated FEM constraint | `3_periodically_pressed_tetrahedron`, `92_twisting_bar` |
 | affine rigid bodies and contact | `6_wrecking_balls`, `10_ramp_sliding` |
 | pure cloth | `11_bunny_cloth`, `34_cloth_stack`, `91_pinned_cloth` |
+| independent directional cloth stiffness | `95_anisotropic_cloth` (procedural biaxial comparison, GUI/headless validation) |
 | volumetric FEM | `3_periodically_pressed_tetrahedron`, `89_mas_bunny` |
 | rods/codimension-one bending | `23_kirchoff_rod_bending` |
 | mixed ABD + FEM/cloth | `90_abd_fem_cube_stack`, `93_cube_wall_cloth` |

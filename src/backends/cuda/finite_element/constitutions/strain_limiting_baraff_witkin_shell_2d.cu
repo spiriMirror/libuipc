@@ -34,6 +34,7 @@ namespace
     __global__ void StrainLimitingBaraffWitkinShell2D_do_compute_energy_kernel(
         cuda_tool::CBufferView<Float>     mus,
         cuda_tool::CBufferView<Float>     lambdas,
+        cuda_tool::CBufferView<Float>     stretch_bs,
         cuda_tool::CBufferView<Float>     strain_rates,
         cuda_tool::CBufferView<Float>     rest_areas,
         cuda_tool::CBufferView<Float>     thicknesses,
@@ -71,13 +72,14 @@ namespace
         // (stretch uses full thickness 2r; shear is thickness-independent).
         Float V = rest_area;
 
-        Float E = BWS::E(F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);
+        Float E = BWS::E(F, anisotropic_a, anisotropic_b, lambda, stretch_bs(I), mu, strain_rate);
         energies(I) = E * V * dt * dt;
     }
 
     __global__ void StrainLimitingBaraffWitkinShell2D_do_compute_gradient_hessian_kernel(
         cuda_tool::CBufferView<Float>          mus,
         cuda_tool::CBufferView<Float>          lambdas,
+        cuda_tool::CBufferView<Float>          stretch_bs,
         cuda_tool::CBufferView<Float>          strainRates,
         cuda_tool::CBufferView<Vector3i>       indices,
         cuda_tool::CBufferView<Vector3>        xs,
@@ -123,7 +125,7 @@ namespace
         Float Vdt2 = V * dt * dt;
 
         Matrix<Float, 3, 2> dEdF;
-        BWS::dEdF(dEdF, F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);
+        BWS::dEdF(dEdF, F, anisotropic_a, anisotropic_b, lambda, stretch_bs(I), mu, strain_rate);
 
         auto VecdEdF = BWS::flatten(dEdF);
 
@@ -137,7 +139,7 @@ namespace
             return;
 
         Matrix6x6 ddEddF;
-        BWS::ddEddF(ddEddF, F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);
+        BWS::ddEddF(ddEddF, F, anisotropic_a, anisotropic_b, lambda, stretch_bs(I), mu, strain_rate);
 
         ddEddF *= Vdt2;
 
@@ -160,10 +162,12 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
     vector<Float> h_mus;
     vector<Float> h_lambdas;
+    vector<Float> h_stretch_bs;
     vector<Float> h_strain_rates;
 
     cuda_tool::DeviceBuffer<Float>     mus;
     cuda_tool::DeviceBuffer<Float>     lambdas;
+    cuda_tool::DeviceBuffer<Float>     stretch_bs;
     cuda_tool::DeviceBuffer<Float>     strain_rates;
     cuda_tool::DeviceBuffer<Matrix2x2> inv_B_matrices;
 
@@ -187,6 +191,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
         h_mus.resize(N);
         h_lambdas.resize(N);
+        h_stretch_bs.resize(N);
         h_strain_rates.resize(N);
 
         info.for_each(
@@ -195,6 +200,10 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
             {
                 auto lambda = sc.triangles().find<Float>("lambda");
                 auto mu     = sc.triangles().find<Float>("mu");
+                auto stretch_b = sc.triangles().find<Float>("stretch_stiffness_b");
+                // Legacy scenes and the shared-stretch API keep following lambda.
+                // Do not materialize the fallback as an independent attribute.
+                auto stretch_b_view = stretch_b ? stretch_b->view() : lambda->view();
 
                 // strain_rate is user-settable via the constitution's apply_to;
                 // scenes saved before it existed default to the legacy 100.
@@ -206,15 +215,17 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                         v = 100.0;
                 }
 
-                return zip(lambda->view(), mu->view(), strain_rate->view());
+                return zip(
+                    lambda->view(), stretch_b_view, mu->view(), strain_rate->view());
             },
             [&](const ForEachInfo& I, auto lambda_mu_strain_rate)
             {
                 auto vI = I.global_index();
 
-                auto&& [lambda, mu, strain_rate] = lambda_mu_strain_rate;
+                auto&& [lambda, stretch_b, mu, strain_rate] = lambda_mu_strain_rate;
 
                 h_lambdas[vI]      = lambda;
+                h_stretch_bs[vI]   = stretch_b;
                 h_mus[vI]          = mu;
                 h_strain_rates[vI] = strain_rate;
             });
@@ -224,6 +235,9 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
         lambdas.resize(N);
         lambdas.view().copy_from(h_lambdas.data());
+
+        stretch_bs.resize(N);
+        stretch_bs.view().copy_from(h_stretch_bs.data());
 
         strain_rates.resize(N);
         strain_rates.view().copy_from(h_strain_rates.data());
@@ -267,6 +281,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 mus.cview(),
                 lambdas.cview(),
+                stretch_bs.cview(),
                 strain_rates.cview(),
                 info.rest_areas(),
                 info.thicknesses(),
@@ -288,6 +303,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
             k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
                 mus.cview(),
                 lambdas.cview(),
+                stretch_bs.cview(),
                 strain_rates.cview(),
                 info.indices(),
                 info.xs(),

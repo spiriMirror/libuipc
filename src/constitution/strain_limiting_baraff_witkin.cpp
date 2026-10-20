@@ -23,6 +23,22 @@ StrainLimitingBaraffWitkinShell::StrainLimitingBaraffWitkinShell(const Json& con
 }
 
 void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
+                                               const ElasticModuli2D& stretch_a_moduli,
+                                               const ElasticModuli2D& stretch_b_moduli,
+                                               const ElasticModuli2D& shear_moduli,
+                                               Float mass_density,
+                                               Float thickness,
+                                               Float strain_rate) const
+{
+    apply_to(sc, stretch_a_moduli, shear_moduli, mass_density, thickness, strain_rate);
+
+    Float stretch_b_stiff =
+        (stretch_b_moduli.lambda() + 2 * stretch_b_moduli.mu()) * (2 * thickness);
+    auto stretch_b = sc.triangles().create<Float>("stretch_stiffness_b", stretch_b_stiff);
+    std::ranges::fill(geometry::view(*stretch_b), stretch_b_stiff);
+}
+
+void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
                                                const ElasticModuli2D& stretch_moduli,
                                                const ElasticModuli2D& shear_moduli,
                                                Float mass_density,
@@ -49,6 +65,11 @@ void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
     if(!lambda_attr)
         lambda_attr = sc.triangles().create<Float>("lambda", stretch_stiff);
     std::ranges::fill(geometry::view(*lambda_attr), stretch_stiff);
+
+    // Absence means both directions follow lambda, including later per-triangle
+    // edits and legacy serialized scenes. Do not leave a stale independent Kb.
+    if(sc.triangles().find<Float>("stretch_stiffness_b"))
+        sc.triangles().destroy("stretch_stiffness_b");
 
     auto mu_attr = sc.triangles().find<Float>("mu");
     if(!mu_attr)

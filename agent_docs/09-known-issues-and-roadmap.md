@@ -1,5 +1,15 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Directional Baraff-Witkin stretch added (2026-10-20): the new three-modulus
+overload independently controls Ka/Kb while retaining old APIs, defaults and
+serialized shared-stretch fallback. Energy, gradient and projected Hessian
+use both coefficients. Sample 95 compares equal biaxial loading with GUI and
+headless checks. Arbitrary UV/fiber directions, normal-strain Poisson coupling,
+and independent a/b cubic rates are not implemented. The E/nu pairs retain
+the legacy coefficient convention rather than physical orthotropic calibration.
+Blender continues to use its existing shared-stretch controls. See handoff
+for validation evidence.
+
 Stable Neo-Hookean calibration corrected (2026-10-19): UID 10 now stores
 `mu=mu_L`, `lambda=lambda_L+mu_L`, matching the active SNK1 energy to the input
 physical small-strain E/nu. The old log-barrier transformation is removed.

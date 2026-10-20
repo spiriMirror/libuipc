@@ -57,6 +57,68 @@ stretch material uses `E = 50 kPa`, while the shear material uses `E = 0.5
 kPa`; their Poisson ratios are both `0.40`. This is useful when a woven sheet
 should resist extension much more strongly than in-plane shear.
 
+## Independent directional stretch
+
+Use the three-modulus overload to control stretch along the two existing
+rest-frame axes independently. All three moduli are required; the Python
+overload uses keywords to preserve the meaning of old positional calls.
+This standalone material-assignment example creates an XY triangle, where
+`a` is X and `b` is Y:
+
+=== "C++"
+
+    ```cpp
+    #include <uipc/uipc.h>
+    #include <uipc/constitution/strain_limiting_baraff_witkin.h>
+
+    int main()
+    {
+        using namespace uipc;
+        using namespace uipc::constitution;
+        const vector<Vector3> vertices = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};
+        const vector<Vector3i> triangles = {{0, 1, 2}};
+        auto mesh = geometry::trimesh(vertices, triangles);
+        StrainLimitingBaraffWitkinShell().apply_to(
+            mesh,
+            ElasticModuli2D::youngs_poisson(2e5, 0.30),
+            ElasticModuli2D::youngs_poisson(2e3, 0.25),
+            ElasticModuli2D::youngs_poisson(10, 0.25),
+            200, 0.001, 100);
+    }
+    ```
+
+=== "Python"
+
+    ```python
+    import numpy as np
+    from uipc.geometry import trimesh
+    from uipc.constitution import ElasticModuli2D, StrainLimitingBaraffWitkinShell
+
+    mesh = trimesh(
+        np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.]]),
+        np.array([[0, 1, 2]], dtype=np.int32),
+    )
+    StrainLimitingBaraffWitkinShell().apply_to(
+        mesh,
+        stretch_a_moduli=ElasticModuli2D.youngs_poisson(2e5, 0.30),
+        stretch_b_moduli=ElasticModuli2D.youngs_poisson(2e3, 0.25),
+        shear_moduli=ElasticModuli2D.youngs_poisson(10, 0.25),
+        mass_density=200, thickness=0.001, strain_rate=100,
+    )
+    ```
+
+Each direction uses $K_i=E_i(2r)/(1-\nu_i^2)$. These are coefficient controls:
+the nu inputs do not prescribe transverse contraction, and the energy has no
+normal-strain cross term. Shear and geometry can still couple the motion.
+Both directions share `strain_rate`; shear and bending retain their own
+parameters. Arbitrary UV/fiber orientations are not exposed by this API.
+
+Calling an old overload again restores shared stretch. Older saved scenes,
+which lack `stretch_stiffness_b`, also use shared stretch. The
+[`95_anisotropic_cloth`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/95_anisotropic_cloth)
+sample generates three cloth meshes and compares shared, a-stiff and b-stiff
+materials under equal biaxial traction, with GUI and headless validation.
+
 ## Parameter meanings and defaults
 
 | Argument | Default in the convenience overload | Practical domain |
