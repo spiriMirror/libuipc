@@ -1,5 +1,56 @@
 # Handoff — Current State of the Repo
 
+> **PR #502 Eigen 5 header dependency (2026-10-20)**: Linux XMake uses Eigen
+> 5.0.1 and caught the BW formula header relying on callers to include
+> `Eigen/Geometry` before using `Vector3::cross`. Add that direct dependency
+> and include the formula header first in its regression test. A standalone
+> NVCC translation unit with Eigen 5.0.1 reproduces the two CI cross-product
+> errors before the fix and compiles/runs after it. The material equations and
+> API are unchanged. The incremental Release rebuild passes; the actual backend
+> formula tests pass 2 cases / 144 assertions, and all 10 focused Python cases
+> (including both CUDA trajectories) pass. Evidence:
+> `output/anisotropy-eigen5-{before,after,formulas,python}.log`.
+
+> **Directional Baraff-Witkin cloth (2026-10-20)**: UID 819 now has an additive
+> three-modulus overload: independent a/b stretch plus shear. Old one/two-modulus
+> calls, keywords and defaults remain supported; the Python addition is
+> keyword-only. Ka is stored in legacy `lambda`, optional Kb in
+> `stretch_stiffness_b`, and Kg in `mu`. Absence of Kb follows each triangle's
+> lambda without creating an attribute; old-API reapplication removes the
+> override. Generic scene serialization preserves both layouts. CUDA energy,
+> gradient and projected Hessian use Ka/Kb separately. Full thickness remains
+> 2r for stretch; shear has no extra thickness factor; bending is unchanged.
+> Axes remain canonical in the existing triangle rest frame. E/nu pairs retain
+> the old coefficient conversion, without adding transverse Poisson coupling,
+> UV/fiber input or separate cubic rates. Blender still exposes shared stretch.
+>
+> Sample `95_anisotropic_cloth` uses procedural XY grids, pinned left/bottom
+> edges and equal top/right traction. It compares shared/a-stiff/b-stiff
+> materials with GUI controls, headless validation and JSON/NPZ output.
+> Samples commit `b70f322` was pushed directly to samples/main; the parent
+> submodule reference follows it.
+> On RTX 4090, 120 frames at dt=0.01 gave mean a/b strains:
+> shared 6.9538% / 6.9538%, a-stiff 0.5533% / 6.8852%, b-stiff
+> 6.8852% / 0.5533%; pin errors were zero. This is a dynamic material
+> comparison, not an equilibrium or performance benchmark.
+>
+> Validation: Release MSVC 19.39 / CUDA 12.4.131 / CPython 3.12 build passed.
+> Full core: 38 cases / 1288 assertions. Actual backend formula functions:
+> 2 cases / 144 assertions covering finite-difference gradients, independent
+> spectral projection of the Hessian, compression/extension, equal coefficients
+> and axis-specific response. Portable Python: 174 passed, 1 optional Warp
+> module skipped, 84 CUDA/example cases deselected. Two new CUDA trajectory
+> cases pass for both loaded axes, mixing old fallback, explicit equal
+> coefficients, reapplication and anisotropy in one scene. Parameter
+> independence does not imply uncoupled whole-mesh motion; trajectory equality
+> is asserted only for physically identical coefficient configurations.
+> Sample headless validation passes; GUI registration/callback/simulation
+> update passes with Polyscope's mock renderer (no visual-render claim).
+> CMake/XMake existing globs cover the added test; XMake was not run locally.
+> Generated stubs include the keyword-only overload; API parity remains
+> 43 classes / 40 initializers. Evidence: `output/anisotropy-*.log`;
+> sample data: `libuipc-samples/output/examples/95_anisotropic_cloth/`.
+
 > **Full elastic cloth bending review (2026-10-19)**: traced formula-based
 > material assignment through reference geometry, signed dihedral angles,
 > unique interior-edge stencils and CUDA energy/derivative assembly. Physical

@@ -1,5 +1,6 @@
 #pragma once
 #include <type_define.h>
+#include <Eigen/Geometry>
 
 namespace uipc::backend::cuda
 {
@@ -34,7 +35,7 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     {
         Vector3 v01 = x1 - x0;
         Vector3 v02 = x2 - x0;
-        // compute uv coordinates by rotating each triangle normal to (0, 1, 0)
+        // compute uv coordinates by rotating each triangle normal to (0, 0, 1)
         Vector3 normal = v01.cross(v02).normalized();
         Vector3 target = Vector3(0, 0, 1);
 
@@ -110,7 +111,8 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     inline UIPC_GENERIC Float E(const Matrix<Float, 3, 2>& F,
                                 const Vector2&             anisotropic_a,
                                 const Vector2&             anisotropic_b,
-                                Float                      stretchS,
+                                Float                      stretchA,
+                                Float                      stretchB,
                                 Float                      shearS,
                                 Float                      strainRate)
     {
@@ -133,18 +135,20 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         }
 
 
-        Float stretch_energy =
-            std::pow(I5u - 1, 2) + ucoeff * strainRate * std::pow(I5u - 1, 3)
-            + std::pow(I5v - 1, 2) + vcoeff * strainRate * std::pow(I5v - 1, 3);
+        Float stretch_energy_a =
+            std::pow(I5u - 1, 2) + ucoeff * strainRate * std::pow(I5u - 1, 3);
+        Float stretch_energy_b =
+            std::pow(I5v - 1, 2) + vcoeff * strainRate * std::pow(I5v - 1, 3);
 
-        return (stretchS * stretch_energy + shearS * shear_energy);
+        return stretchA * stretch_energy_a + stretchB * stretch_energy_b + shearS * shear_energy;
     }
 
     inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>&       R,
                                   const Matrix<Float, 3, 2>& F,
                                   const Vector2&             anisotropic_a,
                                   const Vector2&             anisotropic_b,
-                                  Float                      stretchS,
+                                  Float                      stretchA,
+                                  Float                      stretchB,
                                   Float                      shearS,
                                   Float                      strainRate)
     {
@@ -173,17 +177,18 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
 
 
         stretch_pk1 =
-            ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
-            + vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
+            stretchA * ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
+            + stretchB * vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
 
-        R = (stretchS * stretch_pk1 + shearS * shear_pk1);
+        R = stretch_pk1 + shearS * shear_pk1;
     }
 
     inline UIPC_GENERIC void ddEddF(Eigen::Matrix<Float, 6, 6>& R,
                                     const Matrix<Float, 3, 2>&  F,
                                     const Vector2&              anisotropic_a,
                                     const Vector2&              anisotropic_b,
-                                    Float                       stretchS,
+                                    Float                       stretchA,
+                                    Float                       stretchB,
                                     Float                       shearS,
                                     Float                       strainRate)
     {
@@ -227,6 +232,9 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
 
             H_stretc.block<3, 3>(0, 0) += uCoeff * (fu * fu.transpose());
             H_stretc.block<3, 3>(3, 3) += vCoeff * (fv * fv.transpose());
+            // The projected stretch blocks use the canonical rest-frame axes.
+            H_stretc.block<3, 3>(0, 0) *= stretchA;
+            H_stretc.block<3, 3>(3, 3) *= stretchB;
         }
 
         Eigen::Matrix<Float, 6, 6> H_shear = Eigen::Matrix<Float, 6, 6>::Zero();
@@ -257,7 +265,7 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
             H_shear *= 2;
         }
 
-        R = stretchS * H_stretc + shearS * H_shear;
+        R = H_stretc + shearS * H_shear;
     }
 }  // namespace sym::strainlimiting_baraff_witkin_shell_2d
 }  // namespace uipc::backend::cuda

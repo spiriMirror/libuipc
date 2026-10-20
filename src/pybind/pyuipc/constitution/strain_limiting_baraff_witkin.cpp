@@ -30,6 +30,44 @@ Returns:
         "apply_to",
         [](StrainLimitingBaraffWitkinShell& self,
            SimplicialComplex&               sc,
+           const ElasticModuli2D&           stretch_a_moduli,
+           const ElasticModuli2D&           stretch_b_moduli,
+           const ElasticModuli2D&           shear_moduli,
+           Float                            mass_density,
+           Float                            thickness,
+           Float                            strain_rate)
+        {
+            self.apply_to(sc, stretch_a_moduli, stretch_b_moduli, shear_moduli, mass_density, thickness, strain_rate);
+        },
+        py::arg("sc"),
+        py::kw_only(),
+        py::arg("stretch_a_moduli"),
+        py::arg("stretch_b_moduli"),
+        py::arg("shear_moduli"),
+        py::arg("mass_density") = 2.0e2,
+        py::arg("thickness")    = 0.001_m,
+        py::arg("strain_rate")  = 100.0,
+        R"(Apply independent a-direction, b-direction and shear material parameters.
+
+Directions a=(1,0), b=(0,1) are fixed in each triangle's existing rest frame.
+Ka=Ea*(2*r)/(1-nua^2), Kb=Eb*(2*r)/(1-nub^2); shear uses mu without an
+extra thickness factor. The Poisson inputs parameterize coefficients only:
+there is no normal-strain coupling or physical transverse Poisson response.
+All three moduli arguments are required and keyword-only.
+
+Args:
+    sc: SimplicialComplex to apply to.
+    stretch_a_moduli: ElasticModuli2D for stretch along rest-frame a.
+    stretch_b_moduli: ElasticModuli2D for stretch along rest-frame b.
+    shear_moduli: ElasticModuli2D for the independent shear coefficient.
+    mass_density: Mass density (default: 200.0).
+    thickness: One-sided collision offset r in meters (default: 0.001; full thickness 2r).
+    strain_rate: Shared cubic over-stretch amplification (default: 100.0).)");
+
+    class_StrainLimitingBaraffWitkinShell.def(
+        "apply_to",
+        [](StrainLimitingBaraffWitkinShell& self,
+           SimplicialComplex&               sc,
            const ElasticModuli2D&           stretch_moduli,
            const ElasticModuli2D&           shear_moduli,
            Float                            mass_density,
@@ -46,6 +84,8 @@ Returns:
         py::arg("strain_rate")  = 100.0,
         R"(Apply StrainLimitingBaraffWitkinShell constitution to a simplicial complex,
 with independent stretch / shear material parameters.
+Both stretch directions share one coefficient. Calling this overload clears
+any independent b-direction coefficient previously set on this geometry.
 
 Cloth stiffness convention: stretch = E_stretch*(2*r)/(1-nu_stretch^2),
 shear = E_shear/(2*(1+nu_shear)) (thickness-independent); the backend

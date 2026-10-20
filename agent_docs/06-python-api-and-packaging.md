@@ -10,6 +10,22 @@
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
+## Directional cloth parameters
+
+`StrainLimitingBaraffWitkinShell.apply_to` retains both old signatures and
+keywords. Its additional overload requires keyword-only `stretch_a_moduli`,
+`stretch_b_moduli` and `shear_moduli`; trailing density/thickness/strain-rate
+defaults are unchanged. C++ accepts the same three required moduli positionally.
+`lambda` stores Ka, optional `stretch_stiffness_b` stores Kb, and `mu` stores Kg.
+When the optional attribute is absent, the backend reads each triangle's lambda
+for both directions without creating an override. Reapplying an old overload
+removes the override. Serialization preserves its presence/absence.
+
+The directions are the existing canonical rest-frame axes, not user UVs.
+Each E/nu pair retains the legacy coefficient convention; nu does not specify
+transverse contraction. Portable and CUDA trajectory regressions live in
+`python/tests/test_baraff_witkin_anisotropy.py`.
+
 ## Stitch index arrays
 
 Both `SoftVertexStitch.create_geometry` overloads bind `stitched_vert_ids` as

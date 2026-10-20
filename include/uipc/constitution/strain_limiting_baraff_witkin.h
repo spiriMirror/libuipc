@@ -12,9 +12,23 @@ class UIPC_CONSTITUTION_API StrainLimitingBaraffWitkinShell : public FiniteEleme
   public:
     StrainLimitingBaraffWitkinShell(const Json& config = default_config()) noexcept;
 
+    // Independent stretch coefficients along the existing rest-frame axes
+    // a=(1,0), b=(0,1), plus independent shear. Each stretch coefficient is
+    // E*(2r)/(1-nu^2). These Poisson inputs parameterize stiffness; the energy
+    // has no coupling between the two normal strains.
+    void apply_to(geometry::SimplicialComplex& sc,
+                  const ElasticModuli2D&       stretch_a_moduli,
+                  const ElasticModuli2D&       stretch_b_moduli,
+                  const ElasticModuli2D&       shear_moduli,
+                  Float                        mass_density = 2e2,
+                  Float                        thickness    = 0.001_m,
+                  Float                        strain_rate  = 100.0) const;
+
     // Separate stretch / shear moduli. The stored thickness is the one-sided
     // collision offset r; stretch uses the full material thickness 2r, while
     // shear is an independently calibrated two-dimensional coefficient.
+    // Both stretch directions share one coefficient. Reapplication clears any
+    // independent b-direction override previously set by the overload above.
     void apply_to(geometry::SimplicialComplex& sc,
                   const ElasticModuli2D&       stretch_moduli,
                   const ElasticModuli2D&       shear_moduli,

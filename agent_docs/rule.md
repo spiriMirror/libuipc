@@ -187,6 +187,13 @@ record it here in the same commit.**
   Follow-up: correct SNK1's conversion to match physical input moduli, then
   inspect the full cloth bending energy, reference geometry and solver scaling.
 
+- 2026-10-20 directional cloth: preserve the existing Baraff-Witkin APIs and add
+  independent a/b stretch coefficients through separate ElasticModuli2D inputs,
+  keeping shear independent. Missing b overrides retain shared legacy behavior;
+  reapplying an old API restores shared stretch. Add a corresponding cloth
+  example under libuipc-samples/examples. These E/nu inputs retain the existing
+  coefficient convention without adding physical Poisson coupling.
+
 - During the Stiff-GIPC performance-alignment work: "when a design choice
   is uncertain, follow Stiff-GIPC's algorithm design" — that applied to
   that effort (and its evidence lives in `handoff.md`), not to unrelated

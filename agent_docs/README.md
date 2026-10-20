@@ -64,7 +64,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 - The latest cross-cutting inspection is [doc 14](14-project-audit.md). It separates
   reproduced/source-confirmed problems from risks and optimization opportunities;
   its listed implementation fixes have not been applied.
-- `libuipc-samples/` is a tracked submodule with 53 current example directories; numbering is historical and includes two `40_*` directories.
+- `libuipc-samples/` is a tracked submodule with 54 current example directories, including directional cloth sample 95; numbering is historical and includes two `40_*` directories.
 - Incremental Scene commits are lossless relative to a compatible full baseline,
   including removals, sparse IDs, and contact/subscene tables. They are not
   standalone Scene files; read doc 11 for baseline and lifecycle requirements.
