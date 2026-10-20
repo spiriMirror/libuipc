@@ -1,5 +1,5 @@
-#include <app/app.h>
 #include <finite_element/constitutions/strain_limiting_baraff_witkin_shell_2d.h>
+#include <app/app.h>
 #include <Eigen/Eigenvalues>
 
 using namespace uipc;

@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **PR #502 Eigen 5 header dependency (2026-10-20)**: Linux XMake uses Eigen
+> 5.0.1 and caught the BW formula header relying on callers to include
+> `Eigen/Geometry` before using `Vector3::cross`. Add that direct dependency
+> and include the formula header first in its regression test. A standalone
+> NVCC translation unit with Eigen 5.0.1 reproduces the two CI cross-product
+> errors before the fix and compiles/runs after it. The material equations and
+> API are unchanged. The incremental Release rebuild passes; the actual backend
+> formula tests pass 2 cases / 144 assertions, and all 10 focused Python cases
+> (including both CUDA trajectories) pass. Evidence:
+> `output/anisotropy-eigen5-{before,after,formulas,python}.log`.
+
 > **Directional Baraff-Witkin cloth (2026-10-20)**: UID 819 now has an additive
 > three-modulus overload: independent a/b stretch plus shear. Old one/two-modulus
 > calls, keywords and defaults remain supported; the Python addition is
