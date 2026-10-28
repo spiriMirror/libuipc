@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import platform
 import re
@@ -42,6 +43,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, dict[str, Any]]:
     registry: dict[str, dict[str, Any]] = {}
     required = {
         "name",
+        "tier",
         "description",
         "entrypoint",
         "workingDirectory",
@@ -59,6 +61,8 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, dict[str, Any]]:
             raise ValueError("benchmark name must be a non-empty string")
         if name in registry:
             raise ValueError(f"duplicate benchmark name: {name}")
+        if entry["tier"] not in ("small", "standard", "stress"):
+            raise ValueError(f"{name}.tier must be small, standard or stress")
         for field in ("defaultFrames", "quickFrames"):
             if not isinstance(entry[field], int) or entry[field] <= 0:
                 raise ValueError(f"{name}.{field} must be a positive integer")
@@ -88,6 +92,28 @@ def missing_required_paths(entry: Mapping[str, Any]) -> list[Path]:
         for value in entry["requiredPaths"]
         if not (path := repo_path(value)).exists()
     ]
+
+
+def validate_registry(registry: Mapping[str, dict[str, Any]]) -> None:
+    """Check the actual samples checkout without importing GPU dependencies."""
+    for name, entry in registry.items():
+        missing = missing_required_paths(entry)
+        if missing:
+            raise ValueError(f"{name}: missing benchmark inputs: "
+                             + ", ".join(str(path) for path in missing)
+                             + "; initialize libuipc-samples at the parent gitlink "
+                             "and verify that the pinned revision supplies these files")
+        if entry["entrypoint"] not in entry["requiredPaths"]:
+            raise ValueError(f"{name}: entrypoint must be declared in requiredPaths")
+        if not repo_path(entry["workingDirectory"]).is_dir():
+            raise ValueError(f"{name}: workingDirectory is not a directory")
+        for value in entry["requiredPaths"]:
+            path = repo_path(value)
+            if path.suffix == ".py":
+                try:
+                    compile(path.read_bytes(), str(path), "exec")
+                except SyntaxError as error:
+                    raise ValueError(f"{name}: invalid Python input {path}: {error}") from error
 
 
 def use_samples_directory(entry: Mapping[str, Any], directory: Path) -> dict[str, Any]:
@@ -269,7 +295,9 @@ def parse_reported_summary(output: str) -> dict[str, Any] | None:
     }
 
 
-def parse_reported_benchmark(output: str) -> dict[str, Any] | None:
+def parse_reported_benchmark(
+    output: str, expected_frames: int | None = None,
+) -> dict[str, Any] | None:
     """Parse the last compact result emitted by a canonical sample."""
     prefix = "BENCHMARK_RESULT "
     lines = [line for line in output.splitlines() if line.startswith(prefix)]
@@ -288,9 +316,17 @@ def parse_reported_benchmark(output: str) -> dict[str, Any] | None:
         )
     if not all(
         isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(value) and value >= 0
         for value in frame_ms
     ):
-        raise ValueError("BENCHMARK_RESULT.frame_ms must contain only numbers")
+        raise ValueError("BENCHMARK_RESULT.frame_ms must contain finite non-negative numbers")
+    if expected_frames is not None and len(frame_ms) != expected_frames:
+        raise ValueError("BENCHMARK_RESULT frame count differs from requested frames")
+    for index, stats in enumerate(frame_stats, 1):
+        if not isinstance(stats, dict) or stats.get("completed") is not True:
+            raise ValueError(f"BENCHMARK_RESULT frame {index} did not complete")
+        if stats.get("frame") != index:
+            raise ValueError("BENCHMARK_RESULT frame sequence must start at 1 without gaps")
     return payload
 
 
@@ -383,13 +419,7 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         raise ValueError(f"unknown benchmark: {args.name}")
     samples_directory = (args.samples_directory or REPO_ROOT / "libuipc-samples").resolve()
     entry = use_samples_directory(registry[args.name], samples_directory)
-    missing = missing_required_paths(entry)
-    if missing:
-        paths = "\n  ".join(str(path) for path in missing)
-        raise ValueError(
-            "benchmark assets are missing; run git submodule update --init --recursive:\n  "
-            + paths
-        )
+    validate_registry({args.name: entry})
 
     frames = entry["quickFrames"] if args.quick else (
         args.frames if args.frames is not None else entry["defaultFrames"]
@@ -451,7 +481,17 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
     inputs_after = input_fingerprints(entry)
 
     output = "".join(output_lines)
-    reported_benchmark = parse_reported_benchmark(output)
+    result_error = None
+    reported_benchmark = None
+    child_return_code = return_code
+    try:
+        reported_benchmark = parse_reported_benchmark(output, frames)
+        if reported_benchmark is None:
+            raise ValueError("sample did not emit BENCHMARK_RESULT")
+    except ValueError as error:
+        result_error = str(error)
+        return_code = return_code or 2
+        print(f"error: {result_error}", file=sys.stderr)
     reported_timing = parse_reported_summary(output)
     if reported_benchmark is not None:
         frame_ms = [float(value) for value in reported_benchmark["frame_ms"]]
@@ -466,11 +506,14 @@ def run_benchmark(args: argparse.Namespace, registry: Mapping[str, dict[str, Any
         "schemaVersion": 1,
         "benchmark": args.name,
         "description": entry["description"],
+        "tier": entry.get("tier"),
         "frames": frames,
         "startedAt": started.isoformat(),
-        "runId": started.strftime("%Y%m%dT%H%M%SZ"),
+        "runId": started.strftime("%Y%m%dT%H%M%S.%fZ"),
         "durationSeconds": duration,
         "returnCode": return_code,
+        "childReturnCode": child_return_code,
+        "resultError": result_error,
         "command": command,
         "workingDirectory": str(working_directory),
         "environment": {
@@ -516,6 +559,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("list", help="list registered project benchmarks")
+    subparsers.add_parser("validate", help="check registry against pinned samples without a GPU")
     run_parser = subparsers.add_parser("run", help="run one project benchmark")
     run_parser.add_argument("name")
     frames = run_parser.add_mutually_exclusive_group()
@@ -530,11 +574,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         registry = load_manifest(args.manifest)
+        if args.command == "validate":
+            validate_registry(registry)
+            print(f"Validated {len(registry)} benchmark entries against the samples checkout")
+            return 0
         if args.command == "list":
             for name, entry in registry.items():
                 status = "ready" if not missing_required_paths(entry) else "missing assets"
                 print(
-                    f"{name:24} {status:14} frames={entry['defaultFrames']:4d}  "
+                    f"{name:24} {entry['tier']:8} {status:14} frames={entry['defaultFrames']:4d}  "
                     f"{entry['description']}"
                 )
             return 0

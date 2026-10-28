@@ -37,12 +37,14 @@ runner is complementary coverage, not a replacement for the aggregate.
 ## End-to-end performance registry
 
 [`benchmarks/manifest.json`](https://github.com/spiriMirror/libuipc/blob/main/benchmarks/manifest.json)
-is the repository-owned registry for large performance scenes. Implementations
+is the repository-owned registry for portable performance workloads. Implementations
 and assets remain in the tracked `libuipc-samples` submodule, avoiding a second
 copy in the core repository.
 
 ```shell
 python scripts/run_benchmark.py list
+python scripts/run_benchmark.py validate
+python scripts/run_benchmark.py run anisotropic-cloth-small
 python scripts/run_benchmark.py run rigid-wrecking-balls --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
@@ -50,13 +52,31 @@ python scripts/run_benchmark.py run mas-bunny --frames 100
 python scripts/run_benchmark.py run cube-wall-cloth --frames 100
 ```
 
-The four canonical workloads cover pure affine-body contact (sample 6), mixed
-FEM/cloth contact (88), stiff FEM with MAS (89), and a large affine-body wall
-coupled to cloth (93).
+Choose a workload by problem size and subsystem. No GPU model is prescribed;
+simulation requires a CUDA device supported by the installed build.
+
+| Tier | Workload | Scope | Default frames |
+|---|---|---|---:|
+| Small | `anisotropic-cloth-small` (95) | Three procedural cloth sheets, 243 vertices / 384 triangles, no contact | 30 |
+| Standard | `rigid-wrecking-balls` (6) | Affine-body contact | 120 |
+| Standard | `mas-bunny` (89) | One stiff FEM bunny with MAS and ground contact | 100 |
+| Stress | `stiff-gipc-case2` (88) | Two FEM bunnies and high-resolution cloth | 250 |
+| Stress | `cube-wall-cloth` (93) | 1920 affine bodies and high-resolution cloth | 100 |
+
+Tiers describe workloads, not hardware eligibility or speed targets. Start with
+the small workload; run larger scenes when relevant and within local resources.
+`--quick` reduces only the frame count to three: it is an execution smoke test,
+not a smaller mesh or a representative performance measurement. Init and GPU
+runtime overhead can dominate small scenes; report that limitation.
+
+Initialize the pinned samples with `git submodule update --init libuipc-samples`.
+`validate` checks the actual required files and Python syntax without importing
+uipc or requiring a GPU. Repository Contracts CI runs it against the pinned
+samples revision. `--dry-run` inspects an invocation without executing it.
 
 The canonical runner validates required assets, removes noncanonical tuning
 environment variables, launches the headless sample from its declared working
-directory, preserves the child return code, and writes repo/submodule commits,
+directory, preserves child failures, and writes repo/submodule commits,
 command, frame count, environment overrides, duration, and status to
 `output/benchmark-runs/`.
 The metadata also captures GPU/driver, CUDA compiler, Python/libuipc versions,
@@ -64,7 +84,10 @@ the full per-frame wall distribution, Newton/line-search/linear-solver counts,
 a final physical observable, approximate peak total-device memory, and the raw
 log.
 Timestamped records are retained; the un-suffixed JSON points to the latest
-run.
+run. A zero child exit without a `BENCHMARK_RESULT` containing the complete
+frame sequence and finite non-negative frame times is a runner failure; both
+the child status and validation error are archived. Completion
+does not imply convergence: inspect convergence and iteration-limit flags too.
 
 Each run fingerprints the selected interpreter's package before and after
 execution: `build_info()`, package path, Python source hashes, and SHA-256 hashes
@@ -103,28 +126,46 @@ Timer scopes synchronize nested GPU regions and therefore change wall time.
 Use them to attribute cost, not as a substitute for the Timer-free throughput
 result.
 
-## Current reference measurement
+## Same-environment comparisons
 
-The 2026-09-01 reference used an RTX 5090, driver 595.79, CUDA 13.2, Windows
-Release build, and three fresh processes per workload. The value below is the
-median of the three run means; ranges retain desktop/WDDM and dynamic-contact
-variability.
+The project standardizes workloads and reporting, not an absolute ms/frame
+target. GPU model, CPU/OS, driver, toolkit and build flags describe a result;
+they do not define the community's required computer. Historical measurements
+remain in the [performance archive](https://github.com/spiriMirror/libuipc/blob/main/agent_docs/performance/README.md)
+with their original environment and revisions. They are not current defaults
+or community regression thresholds.
 
-| Benchmark | Frames | Reference | Three-run range | Newton/frame | Linear iterations/frame |
-|---|---:|---:|---:|---:|---:|
-| `rigid-wrecking-balls` | 120 | 129.5 ms/frame | 126.4–131.3 | 3.95 | 107.3 |
-| `stiff-gipc-case2` | 250 | 201.1 ms/frame | 199.0–230.6 | 6.64 | 246.8 |
-| `mas-bunny` | 100 | 60.2 ms/frame | 60.1–62.0 | 4.67 | 358.8 |
-| `cube-wall-cloth` | 100 | 125.6 ms/frame | 121.8–165.0 | 5.13 | 200.1 |
+For a library change:
 
-All 12 runs completed and converged without an iteration-limit hit. These are
-machine-specific references, not portable pass/fail limits. Collision-rich
-final positions are envelopes rather than bitwise goldens. The complete method,
-memory ranges, numerical variability, run IDs, and stage diagnostics are in the
-[cross-domain baseline record](https://github.com/spiriMirror/libuipc/blob/main/agent_docs/performance/2026-09-01-cross-domain-baseline.md).
+1. Select a workload and freeze its sample revision, asset hashes, arguments,
+   frame count and environment. Record both library revisions and verify each
+   installed package against its intended build. The library revisions and
+   binary hashes may differ between the before/after runs, but must not change
+   during either run.
+2. Use the same machine/device, driver, toolkit, Python, Release build flags,
+   power settings and background-load conditions. Keep timer mode unchanged.
+   Changing `--env NO_MAS=1`, scene parameters or any of these conditions creates
+   a separate experiment; do not silently pool it with the original workload.
+3. Alternate at least three fresh-process runs per version. The registry times
+   every requested `advance()` + `retrieve()` frame (including any frame-validity
+   check) from frame 1, with no discarded
+   warmup frames; initialization, reporting and file output are outside that
+   interval. Use the same full frame window on both versions because contact
+   workloads evolve. Retain the timestamped JSON/log files for every run.
+4. Compare the distribution of run means and per-frame median/p95, reporting
+   relative change `(candidate / before - 1) * 100%` and repeat variation.
+   Check completion/convergence, Newton/line-search/linear counts and final
+   physical observables before attributing a change to throughput. Final
+   positions in contact scenes are not bitwise goldens. Memory samples are total
+   device usage and include other processes; they are not exact scene allocations.
 
-Use `--dry-run` to inspect a resolved invocation. Overrides such as
-`--env NO_MAS=1` are useful for A/B experiments, but they define a different
-variant and must not be compared as if they were the canonical configuration.
-Use `uipc.profile` baseline/check reports for repeated measurements, and never
-turn one machine's wall time into a universal correctness assertion.
+Portable CI checks the runner/submodule contract, not wall time. A dedicated
+GPU runner may maintain its own baseline and an explicitly chosen allowance
+based on repeated local measurements. Cross-machine results are useful reports,
+but do not constitute a regression gate for each other.
+
+For the separate `python -m uipc benchmark` scene runner, reuse the existing
+[baseline/check workflow](../tutorial/profiling.md#performance-regression-gates)
+with environment matching enabled. It consumes that runner's result directories;
+the registry JSON files described here use a different format and should be
+compared using the protocol above, not passed directly to `baseline/check`.

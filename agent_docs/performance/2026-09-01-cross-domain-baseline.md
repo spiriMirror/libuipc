@@ -1,13 +1,13 @@
-# 2026-09-01 — Cross-Domain Main Baseline
+# 2026-09-01 — Historical Cross-Domain Measurements
 
-- Status: Accepted as the current machine-specific reference
+- Status: Historical machine-specific measurement; not a community performance gate
 - Comparison: measurement-only; no simulation algorithm changed
 - libuipc commit: `3e08e005fbcacbf42799b6b8555521edc9b82462`
 - libuipc-samples commit: `8701983696dbf03855471646c478580f3b370279`
 
 ## Question
 
-What is the current end-to-end performance envelope on `refactor-main` after
+What was the end-to-end performance envelope on `refactor-main` on 2026-09-01 after
 the completed CUDA, solver, collision, shell, and default-configuration work?
 The previous documents mixed different revisions, frame windows, and scene
 parameters, so their 73/156/301 ms values are historical experiment evidence,
@@ -119,17 +119,19 @@ difference.
 
 ## Decision
 
-Use this record as the current human-reviewed reference for `refactor-main`.
-Future performance work must repeat the same manifest entry and frame count,
-compare structured iteration counts, and report three runs. A stable dedicated
-GPU runner may promote these values into an enforced `uipc.profile` baseline;
-the shared WDDM machine should retain ranges rather than a hard wall-time gate.
+Retain this record as evidence for the machine, revisions and frame windows
+listed above. The [community policy](README.md#community-benchmark-policy)
+supersedes its former designation as the current reference. Future performance
+work captures fresh before/after measurements on the contributor's own machine
+with matching workloads and settings. Do not reuse these numbers as another
+runner's regression thresholds or as hardware requirements.
 
 No simulation algorithm or scene parameter was changed by this baseline work.
 
 ## Reproduction and artifacts
 
-Throughput commands:
+Throughput commands at the recorded revisions (current revisions produce a
+new experiment, not a reproduction of these historical values):
 
 ```shell
 python scripts/run_benchmark.py run rigid-wrecking-balls

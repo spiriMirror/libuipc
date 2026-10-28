@@ -25,7 +25,7 @@ Recent important changes (README News):
 | `docs/` | mkdocs documentation source: `tutorial/ specification/ development/ build_install/ media/`, etc. |
 | `ports/` | vcpkg **overlay ports** (currently `tinygltf/`: pins the regenerated v2.9.6 tarball SHA512 that upstream vcpkg has stale; referenced via `overlay-ports` in the generated `vcpkg-configuration.json`) |
 | `scripts/` | Build helpers (`gen_vcpkg_json.py`, `after_build_pyuipc.py`, `build_docs.py`), symbolic derivation notebooks, and the tracked `SymEigen/` submodule |
-| `benchmarks/` | Versioned four-scene end-to-end benchmark manifest and reproducibility contract; implementations/assets remain in `libuipc-samples/` |
+| `benchmarks/` | Versioned small/standard/stress workloads and reproducibility contract; implementations/assets remain in `libuipc-samples/` |
 | `assets/` | Simulation mesh assets (`sim_data/{linemesh,tetmesh,trimesh}`) |
 | `libuipc-samples/` | Tracked git submodule containing the Python sample library (53 current example directories plus benchmarks/assets) |
 | `output/` | Simulation output directory (gitignored) |

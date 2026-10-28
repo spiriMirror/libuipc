@@ -57,16 +57,16 @@ tracking and CUDA stream explanations are corrected. This is documentation
 maintenance only; audit implementation findings and the pending GPU
 performance measurements below remain open.
 
-Performance follow-up, 2026-10-03: the owner prioritizes a fresh, matching-runtime
+Historical performance preparation, 2026-10-03: the owner prioritized a fresh, matching-runtime
 baseline and measured optimization; the audit-remediation stages remain deferred.
 The benchmark runner now supports isolated samples worktrees and pre/post hashes
 of declared inputs, installed native binaries, and Python package sources. This
 closes a measurement-provenance gap, not a simulation performance improvement.
 The Release/CUDA 13.2 CPython 3.14 baseline has been rebuilt, installed, and
 hash-matched to an isolated runtime snapshot (details in `handoff.md`). GPU
-measurements await the owner's completion of another GPU workload.
-The September reference below is not replaced until fresh uncontended GPU runs
-and repeated comparisons are available.
+measurements were deferred while another GPU workload was running. This dated
+environment is not a community requirement. The 2026-10-28 policy below replaces
+the former designation of the September record as the current reference.
 
 PR #494 scoped integration (2026-09-16) preserves the contributor's commits and
 retains explicit Python build requirements plus shared CMake/XMake stub generation.
@@ -195,25 +195,26 @@ These previously verified gaps are closed on `refactor-main` as of 2026-08-25:
   immutable vcpkg commit as the generated registry baseline. The repository
   contracts workflow rejects floating action and revision refs.
 
-## Current performance baseline
+## Community performance workflow
 
-The current machine-specific reference is the
-[2026-09-01 cross-domain baseline](performance/2026-09-01-cross-domain-baseline.md):
-RTX 5090, CUDA 13.2, Windows Release, three fresh processes per scene, canonical
-Timer-free throughput paths.
+Updated 2026-10-28: the project standardizes portable workloads, metrics and
+reproduction commands, with hardware recorded as metadata. There is no required
+GPU model or universal ms/frame target. Follow the
+[benchmark guide](../docs/development/testing_and_benchmarks.md) for small,
+standard and stress workloads and repeated same-machine before/after runs.
+The procedural small cloth workload has 243 vertices and 384 triangles; larger
+contact scenes retain their existing parameters. `--quick` shortens time only.
 
-| Benchmark | Frames | Reference mean | Three-run range | Newton/frame | PCG/frame |
-|---|---:|---:|---:|---:|---:|
-| pure ABD wrecking balls | 120 | 129.5 ms | 126.4–131.3 ms | 3.95 | 107.3 |
-| case2 FEM + cloth | 250 | 201.1 ms | 199.0–230.6 ms | 6.64 | 246.8 |
-| MAS bunny | 100 | 60.2 ms | 60.1–62.0 ms | 4.67 | 358.8 |
-| ABD wall + cloth | 100 | 125.6 ms | 121.8–165.0 ms | 5.13 | 200.1 |
+Samples/main now supplies the headless/reporting helper required by the root
+manifest, including sample 6's GUI-free path. Repository Contracts CI initializes
+the pinned samples and validates declared inputs and syntax without a GPU.
+The runner rejects incomplete/malformed frame results while archiving failures.
+No solver algorithm or material parameter changes are part of this update.
 
-All 12 throughput runs completed and converged without hitting iteration
-limits. Collision-rich scenes have trajectory and WDDM/dynamic-memory
-variability, so future work must compare three-run envelopes plus structured
-iteration counts. The older Stiff-GIPC ratios below have not been refreshed
-under this contract and must not be presented as current cross-project results.
+The [September measurements](performance/2026-09-01-cross-domain-baseline.md)
+and the older Stiff-GIPC ratios below remain historical evidence for their
+recorded environments and revisions. Neither defines current cross-project
+performance or a gate for another machine.
 
 ### Superseded Stiff-GIPC comparison context
 
@@ -466,7 +467,7 @@ assertions).
   interaction with stream capture in the test binary; if someone revisits,
   start from `scripts/run_sim_case_isolated.py` + a binary-search over
   engine-count.
-- **Performance work must start from the current four-scene baseline**: graph
+- **Performance work must start with fresh same-environment measurements of the relevant registered workloads**: graph
   replay, DCD distance fusion, SNK1, discard-aware growth, batched readbacks,
   and direct FEM/contact assembly are already included. The synchronized
   diagnostic has no single universal hotspot: rigid is global-solve/assembly
@@ -507,7 +508,7 @@ assertions).
 ## Samples submodule state (spiriMirror/libuipc-samples)
 
 The root repository tracks this repository as the `libuipc-samples/` submodule.
-It currently has 53 example directories; numbering is non-contiguous and two
+It currently has 54 example directories; numbering is non-contiguous and two
 directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
 reference.
 

@@ -25,8 +25,13 @@ Read the [owner working agreements](../../../agent_docs/rule.md) and
 
 ## Canonical Cross-Domain Benchmarks
 
-Use `python scripts/run_benchmark.py list` and `run <name>` for the four
-versioned scenes in `benchmarks/manifest.json`. Throughput runs keep
+Use `python scripts/run_benchmark.py validate`, `list` and `run <name>` for the
+five versioned workloads in `benchmarks/manifest.json`. Choose small, standard
+or stress by relevant problem size; `--quick` reduces frames, not mesh size or
+memory demand. No specific GPU model or absolute wall-time threshold is a
+community requirement. Collect fresh before/after measurements on the same
+machine with fixed workload inputs, driver, toolkit and build settings.
+Historical device measurements are evidence only. Throughput runs keep
 `UIPC_BENCHMARK_TIMERS=0`; collect synchronized Timer diagnostics separately.
 Use repeated fresh processes and inspect iteration counts as well as wall time.
 The runner records pre/post runtime and input hashes outside frame timing;

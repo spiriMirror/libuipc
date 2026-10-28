@@ -1,9 +1,10 @@
 # 2026-08-30 — Case2 CUDA Assembly Optimization Roll-up
 
 > Historical controlled A/B record. Its 60-frame wall values describe the
-> revisions and windows below, not the current main baseline. Use
-> [the 2026-09-01 cross-domain baseline](2026-09-01-cross-domain-baseline.md)
-> for current end-to-end reference values.
+> revisions and windows below. The
+> [2026-09-01 measurements](2026-09-01-cross-domain-baseline.md) are also historical.
+> Follow the [community benchmark policy](README.md#community-benchmark-policy)
+> for new same-environment comparisons.
 
 - Status: Accepted with wall-time caveats
 - Workload: samples `88_stiff_gipc_benchmark`, MAS, 60 measured frames
