@@ -32,6 +32,7 @@ must be calibrated from repeated measurements on that runner.
 
 | Record | Status | Scope |
 |---|---|---|
+| [2026-10-28 MAS local solve](2026-10-28-mas-local-solve.md) | Accepted scoped optimization | Remove redundant clear/atomics; local path and PCG gains, small end-to-end effect, existing bending-test failure documented |
 | [2026-09-01 cross-domain measurements](2026-09-01-cross-domain-baseline.md) | Historical measurement | Three-run ABD, FEM/MAS, cloth/contact envelope on the recorded machine and revisions |
 | [2026-08-30 case2 assembly roll-up](2026-08-30-case2-assembly-rollup.md) | Accepted with caveats | Buffer growth, collision readback, line-search aggregation, contact/FEM assembly, rejected split |
 | [`handoff.md`](../handoff.md) | Historical source | Earlier MAS, CUDA graph, CUB, DyTopo, lifecycle, and detailed command history |

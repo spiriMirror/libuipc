@@ -1,5 +1,23 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+MAS apply optimization (2026-10-28): each local-solve row has one writer, so
+the kernel now assigns its reduced `float3` directly and skips the redundant
+solution-buffer clear. It retains coarse residual atomics, solver settings,
+mixed precision and all material/scene parameters. In a controlled local
+comparison, the clear-plus-local-solve path improved by 23–30% for 3–512
+clusters, the enclosing MAS-bunny FusedPCG scope by 1.35%, and timer-free
+MAS-bunny throughput by 0.55%. Other complete scenes remained within repeat
+variation. These are experiment results, not community performance gates.
+See [the evidence record](performance/2026-10-28-mas-local-solve.md).
+
+**Existing aggregate failure found during this validation:**
+`86_discrete_shell_bending_stress_plastic_residual` produces approximately
+0.03314 rad, failing its two 0.05-rad-based residual assertions. Both the
+before and after backends give 94/95 passing simulation cases and
+14211/14213 passing assertions; the test uses the diagonal preconditioner.
+Investigate the test's loading/calibration and constitutive response separately.
+No threshold relaxation or material change was included in the MAS optimization.
+
 Directional Baraff-Witkin stretch added (2026-10-20): the new three-modulus
 overload independently controls Ka/Kb while retaining old APIs, defaults and
 serialized shared-stretch fallback. Energy, gradient and projected Hessian

@@ -1,5 +1,42 @@
 # Handoff — Current State of the Repo
 
+> **MAS local-solve optimization (2026-10-28)**: each cluster row already has a
+> single writer after its CUB reduction. Assign the resulting `float3` directly
+> and remove the preceding `multi_level_Z` clear. This removes one launch per
+> MAS application and three atomics per row, retaining multi-writer coarse
+> residual atomics, existing reductions, precision, partitions and solver/material
+> settings. Rejected inversion-layout experiments were confined to ignored
+> probes; no inversion code changed. See
+> [the scoped evidence record](performance/2026-10-28-mas-local-solve.md).
+>
+> CUDA-event probes measured 23–30% lower clear-plus-local-solve cost for
+> 3–512 clusters; paired stage profiles measured 1.35% lower MAS-bunny FusedPCG
+> time. Three full-window fresh-process runs per version gave 75.065 to 74.650
+> ms/frame (-0.55%) for MAS bunny. Case2, wall/cloth and the pure-ABD control
+> remained within repeat variation; no broad frame-rate claim is made. All
+> 24 throughput runs completed/converged with stable pre/post fingerprints.
+> Hardware details belong only to this experiment's metadata.
+>
+> Validation: exact before/after local results and independent dense references;
+> complete overwrite and converged-skip probes; memcheck zero errors and
+> racecheck zero hazards. CPU common/core/geometry passed, CUDA backend passed
+> 27 cases / 805 assertions, sanity checking 3 / 100, regression 1 / 4, and
+> 67 repository script tests passed. **The full simulation aggregate is not
+> fully green:** both before and after backends pass 94/95 cases and
+> 14211/14213 assertions. Case 86 stress-plastic bending fails two residual-angle
+> thresholds (about 0.03314 rad versus 0.05); it uses diagonal preconditioning
+> and also fails in isolation with the frozen before backend. No test threshold
+> or constitutive change was folded into this performance task; doc 09 tracks
+> the existing failure for separate investigation.
+>
+> Release build and uninstall-first installation succeeded in the selected
+> build environment and default CPython 3.12. Installed MAS/cloth GPU smoke
+> runs passed. Installed/backend build SHA-256 is
+> `30c01f5ea7117645496f5420b7138ee5bee0f9ba49695a31529a0569cc8ae251`.
+> Local evidence/snapshots are under `output/perf-2026-10-28/`; the samples
+> gitlink remains `77f4341`. Nsight hardware counters were unavailable, so the
+> record explicitly distinguishes CUDA-event timing from counter attribution.
+
 > **Community benchmark policy and runnable samples (2026-10-28)**: workload
 > definitions, metrics and reproduction commands are portable; GPU/CPU/driver
 > details are result metadata. Removed the designation of historical desktop
