@@ -2,7 +2,7 @@
 
 - Status: Accepted scoped optimization; unrelated baseline test failure retained
 - Before: `c20a5aa4033cf8eceeb49f3800594a76dd782cdb`
-- After: the commit containing this record
+- After: `23bdc4a3e29f3fd2785386505a107e4be76299ab`
 - Samples: `77f43414b649ad6c94387f367f2d0edabffa8a9f`
 - Scope: remove redundant work in MAS application; no material, solver
   tolerance, partition, precision, scene or public API changes
@@ -157,6 +157,53 @@ sanitizer checks, the enclosing PCG measurements and small MAS-bunny throughput
 benefit, with no new observed native test failures. It is not a broad frame-rate
 improvement. Keep the pre-existing bending-plasticity failure visible; larger
 optimizations require their own profiles and controlled before/after evidence.
+
+## Correctness follow-up (2026-10-29)
+
+A second source review checked the ownership and lifetime assumptions:
+
+- Level 1 starts at `bank_align(max(bank_align(partition_nodes), real_nodes))`;
+  subsequent levels add `bank_align(level_nodes)`. The terminal offset used
+  as `m_total_num_clusters` is therefore a multiple of 16. The local solve
+  launches complete 256-thread blocks, including all padding rows.
+- For block `b` and logical group `g`, only thread `16*g` writes row
+  `16*b+g`. These indices cover the active output range exactly once.
+- `multi_level_Z` is private to this engine. Its only consuming kernel is
+  prolongation, launched after the local solve on the same stream. Both read
+  the same convergence flag; the PCG flag update occurs after preconditioning.
+  A skipped application therefore does not consume stale intermediate data.
+
+The actual-kernel probe now pins its old source to `c20a5aa4`, rather than
+using a moving `HEAD`. At 1, 3, 31, 128 and 512 clusters, it additionally replays
+the same captured graph on a non-default stream through six applications,
+changing matrices and residuals, skipping converged applications, resuming
+without clearing the candidate output, and supplying zero residuals. Active
+outputs matched the old implementation componentwise and an independent
+double-precision dense reference; skipped outputs retained their previous
+values. The original NaN-prefill overwrite check also passed. Compute Sanitizer
+reported zero memcheck errors, zero racecheck hazards and zero initcheck errors
+for this expanded isolated probe.
+
+The frozen before and after packages each ran the actual MAS-bunny sample for
+60 frames with `linear_system/use_cuda_graph` set to 0, 1 and 2. All 360 frames
+completed and reported convergence without Newton or line-search limit hits;
+final centroids were finite. Logs confirmed actual block-graph capture in
+mode 1 and full-GPU while-loop capture in mode 2, without capture fallback.
+Backend hashes matched the original before/after records. This checks repeated
+real solves as well as the isolated output-buffer contract.
+
+No further production change was needed. These checks strengthen the evidence
+for this optimization, but do not establish universal or bitwise trajectory
+equivalence: they cover one CUDA/toolchain/GPU environment, and the sanitizer
+results apply to the isolated local-solve probe rather than the entire solver.
+The existing case 86 aggregate failure remains open. The previous full native
+aggregate was not repeated because production code and binaries were unchanged.
+
+Additional ignored artifacts under `output/perf-2026-10-28/` are
+`local-recheck.log`, `recheck-{memcheck,racecheck,initcheck}.log`,
+`recheck-graph-modes.json`, `recheck-{before,after}-graph{0,1,2}.log` and
+`recheck_graph_modes.py`. These are local validation artifacts, not new CI tests
+or community performance thresholds.
 
 ## Rejected alternatives
 

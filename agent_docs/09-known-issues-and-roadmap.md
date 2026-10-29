@@ -9,6 +9,10 @@ clusters, the enclosing MAS-bunny FusedPCG scope by 1.35%, and timer-free
 MAS-bunny throughput by 0.55%. Other complete scenes remained within repeat
 variation. These are experiment results, not community performance gates.
 See [the evidence record](performance/2026-10-28-mas-local-solve.md).
+The 2026-10-29 correctness follow-up additionally passed output/graph reuse,
+changing-input and convergence-transition probes with memcheck/racecheck/
+initcheck, plus 60-frame before/after MAS runs in each graph mode 0/1/2.
+These remain single-environment checks; production code is unchanged.
 
 **Existing aggregate failure found during this validation:**
 `86_discrete_shell_bending_stress_plastic_residual` produces approximately

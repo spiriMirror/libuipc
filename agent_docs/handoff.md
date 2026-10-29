@@ -1,5 +1,17 @@
 # Handoff — Current State of the Repo
 
+> **MAS correctness follow-up (2026-10-29)**: rechecked aligned hierarchy
+> offsets, unique row writers, convergence guards and same-stream consumption.
+> Expanded the actual-kernel probe to change matrices/residuals while reusing
+> the output and captured graph, including skip/resume and zero-input cases;
+> before/after comparisons and independent dense references passed. Memcheck,
+> racecheck and initcheck reported no errors/hazards in this isolated probe.
+> Both frozen backends completed/converged for 60 MAS-bunny frames in each
+> graph mode 0/1/2 (360 total), with actual capture confirmed for modes 1/2.
+> Production code/binaries are unchanged; this is additional single-environment
+> evidence, not a universal guarantee. The existing case 86 failure remains.
+> See [the follow-up record](performance/2026-10-28-mas-local-solve.md#correctness-follow-up-2026-10-29).
+
 > **MAS local-solve optimization (2026-10-28)**: each cluster row already has a
 > single writer after its CUB reduction. Assign the resulting `float3` directly
 > and remove the preceding `multi_level_Z` clear. This removes one launch per
