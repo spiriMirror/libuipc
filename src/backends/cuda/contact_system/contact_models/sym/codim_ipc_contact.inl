@@ -311,6 +311,18 @@ xi:
         + std::pow(x5, 2) * x6 - x5 * x7 + x7;
 }
 
+/* The barrier is defined piecewise -- b(D) = 0 for D >= (dHat+xi)^2. The symbolic log^2
+ * expressions below are only valid inside the active domain (for D > (dHat+xi)^2 they are small
+ * but nonzero). At the bound b, b' and b'' all vanish (high-order zero), so returning 0 there is
+ * the exact value, not an approximation, and it keeps energy/gradient/Hessian consistent when a
+ * pair that the collision filter classified as active is re-evaluated an ulp outside the domain. */
+template <typename T>
+__host__ __device__ bool barrier_inactive(const T& D, const T& dHat, const T& xi)
+{
+    const T upper = xi + dHat;  // same expression as D_range() in utils/codim_thickness.h
+    return D >= upper * upper;
+}
+
 /* Dispatcher: stiff log^2 barrier (Stiff-GIPC design). xi == 0 -> plain log^2 form;
  * xi > 0 -> log^2 on the thickness-shifted distance (D - xi^2), same active domain
  * (xi^2, (dHat+xi)^2) as the classic codim barrier. The classic log-with-thickness
@@ -318,7 +330,9 @@ xi:
 template <typename T>
 __host__ __device__ void KappaBarrier(T& R, const T& kappa, const T& D, const T& dHat, const T& xi)
 {
-    if(xi == 0.0)
+    if(barrier_inactive(D, dHat, xi))
+        R = T(0);
+    else if(xi == 0.0)
         KappaBarrierLog2(R, kappa, D, dHat);
     else
         KappaBarrierLog2WithThickness(R, kappa, D, dHat, xi);
@@ -326,7 +340,9 @@ __host__ __device__ void KappaBarrier(T& R, const T& kappa, const T& D, const T&
 template <typename T>
 __host__ __device__ void dKappaBarrierdD(T& R, const T& kappa, const T& D, const T& dHat, const T& xi)
 {
-    if(xi == 0.0)
+    if(barrier_inactive(D, dHat, xi))
+        R = T(0);
+    else if(xi == 0.0)
         dKappaBarrierLog2dD(R, kappa, D, dHat);
     else
         dKappaBarrierLog2WithThicknessdD(R, kappa, D, dHat, xi);
@@ -334,7 +350,9 @@ __host__ __device__ void dKappaBarrierdD(T& R, const T& kappa, const T& D, const
 template <typename T>
 __host__ __device__ void ddKappaBarrierddD(T& R, const T& kappa, const T& D, const T& dHat, const T& xi)
 {
-    if(xi == 0.0)
+    if(barrier_inactive(D, dHat, xi))
+        R = T(0);
+    else if(xi == 0.0)
         ddKappaBarrierLog2ddD(R, kappa, D, dHat);
     else
         ddKappaBarrierLog2WithThicknessddD(R, kappa, D, dHat, xi);
