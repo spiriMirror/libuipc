@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **Barrier upper-bound assert false positive (2026-10-31)**: pairs sitting
+> exactly at `d == d_hat` (faces placed `d_hat` apart, no load) made the energy
+> kernels abort with `is_active_D ... d^2(0.000000) out of range`. `d^2` was
+> `d_hat^2`, not 0: `filter_active` and the energy kernel evaluate `D` in
+> different translation units and disagree by 1-2 ulp at the bound (measured:
+> filter `D/d_hat^2 - 1 = -1.1e-16`, energy kernel `0`, same flag). The stiff
+> log^2 barrier and its first two derivatives vanish at the bound, so
+> `KappaBarrier`/`dKappaBarrierdD`/`ddKappaBarrierddD` now return 0 for
+> `D >= (d_hat+xi)^2` (its definition), and the four energy kernels assert only
+> `D > xi^2` (zero distance / penetration still aborts). Regression
+> `python/tests/sim_case/test_barrier_upper_bound.py` (`-m cuda`; two plates
+> `d_hat` apart, tilted pose, gravity off): unpatched main aborts in the first
+> `advance()` 3/3, patched passes 3/3; `test_contact_fd.py` 42/42 before and
+> after.
+
 > **PR #502 Eigen 5 header dependency (2026-10-20)**: Linux XMake uses Eigen
 > 5.0.1 and caught the BW formula header relying on callers to include
 > `Eigen/Geometry` before using `Vector3::cross`. Add that direct dependency

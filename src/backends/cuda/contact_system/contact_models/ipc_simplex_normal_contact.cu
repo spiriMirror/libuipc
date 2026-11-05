@@ -59,8 +59,12 @@ namespace
 
             Vector2 range = D_range(thickness, d_hat);
 
-            UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                               "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+            // Only the invariant D > xi^2 (no zero distance / penetration) is
+            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
+            // filter in a separate floating-point evaluation that can differ by an
+            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
+            UIPC_KERNEL_ASSERT(D > range(0),
+                               "PT[%d,%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
                                PT(0),
                                PT(1),
                                PT(2),
@@ -123,8 +127,12 @@ namespace
             Float D;
             distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
             Vector2 range = D_range(thickness, d_hat);
-            UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                               "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+            // Only the invariant D > xi^2 (no zero distance / penetration) is
+            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
+            // filter in a separate floating-point evaluation that can differ by an
+            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
+            UIPC_KERNEL_ASSERT(D > range(0),
+                               "EE[%d,%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
                                EE(0),
                                EE(1),
                                EE(2),
@@ -190,8 +198,12 @@ namespace
 
             Vector2 range = D_range(thickness, d_hat);
 
-            UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                               "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+            // Only the invariant D > xi^2 (no zero distance / penetration) is
+            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
+            // filter in a separate floating-point evaluation that can differ by an
+            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
+            UIPC_KERNEL_ASSERT(D > range(0),
+                               "PE[%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
                                PE(0),
                                PE(1),
                                PE(2),
@@ -240,8 +252,12 @@ namespace
 
             Vector2 range = D_range(thickness, d_hat);
 
-            UIPC_KERNEL_ASSERT(is_active_D(range, D),
-                               "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
+            // Only the invariant D > xi^2 (no zero distance / penetration) is
+            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
+            // filter in a separate floating-point evaluation that can differ by an
+            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
+            UIPC_KERNEL_ASSERT(D > range(0),
+                               "PP[%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
                                PP(0),
                                PP(1),
                                D,
