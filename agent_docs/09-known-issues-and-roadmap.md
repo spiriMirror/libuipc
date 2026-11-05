@@ -1,5 +1,16 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Issue #504 fixed by PR #505 (merged 2026-11-05): the IPC barrier and its first
+two distance derivatives return zero at/above `(xi + d_hat)^2`, while energy
+kernels retain the lower-bound check. Follow-up coverage directly exercises
+54 scalar inputs on host/device (757 assertions) and checks the two-plate
+scene's frame completion, convergence and finite state. The scene plus the
+existing contact finite-difference suite passed 43 tests; the CUDA backend
+passed 28 cases / 1562 assertions. The full simulation aggregate remains
+94/95 with only the existing case 86 plastic-bending residual failure;
+its approximately 0.03314-rad result fails two 0.05-rad-based assertions.
+This separate test/model issue was not changed by the contact fix.
+
 MAS apply optimization (2026-10-28): each local-solve row has one writer, so
 the kernel now assigns its reduced `float3` directly and skips the redundant
 solution-buffer clear. It retains coarse residual atomics, solver settings,
