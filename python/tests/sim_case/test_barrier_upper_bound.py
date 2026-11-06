@@ -62,6 +62,7 @@ def run_scene(workspace, frames=20):
     scene = Scene(config)
     scene.contact_tabular().default_model(0.0, 1e9)
     abd = AffineBodyConstitution()
+    geometry_ids = []
 
     # lower plate top face at z = 0, upper plate bottom face at z = d_hat
     for name, n, z0, z1, fixed in [("lower", 16, -0.01, 0.0, 1),
@@ -72,14 +73,27 @@ def run_scene(workspace, frames=20):
         abd.apply_to(sc, 1e8)
         scene.contact_tabular().default_element().apply_to(sc)
         view(sc.instances().find(builtin.is_fixed))[0] = fixed
-        scene.objects().create(name).geometries().create(sc)
+        obj = scene.objects().create(name)
+        obj.geometries().create(sc)
+        geometry_ids.extend(obj.geometries().ids())
 
     engine = Engine("cuda", workspace)
     world = World(engine)
     world.init(scene)
-    for _ in range(frames):
+    for frame in range(1, frames + 1):
         world.advance()
         world.retrieve()
+        assert world.frame() == frame
+        stats = engine.frame_stats()
+        assert stats["frame"] == frame
+        assert stats["completed"] and stats["converged"], stats
+        assert not stats["hit_newton_limit"], stats
+        assert not stats["hit_line_search_limit"], stats
+        for geometry_id in geometry_ids:
+            slot, _ = scene.geometries().find(geometry_id)
+            geometry = slot.geometry()
+            assert np.isfinite(view(geometry.positions())).all()
+            assert np.isfinite(view(geometry.transforms())).all()
 
 
 @pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)

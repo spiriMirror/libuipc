@@ -1,5 +1,28 @@
 # Handoff — Current State of the Repo
 
+> **Issue #504 / PR #505 regression coverage (2026-11-05)**: PR #505 was
+> merged into main as `b116f19b`; issue #504 is closed. The follow-up native
+> `ipc_barrier_upper_bound` test exercises the actual energy and first two
+> distance derivatives on host and device at 54 inputs: zero/nonzero thickness,
+> three activation distances, interior points, adjacent floating-point values
+> around the upper bound, the bound itself and a point farther outside. It
+> requires exact zero at/above the bound and preserves the active expressions.
+> The two-plate Python regression additionally checks every completed frame,
+> convergence, iteration limits, finite positions and finite ABD transforms.
+> CMake and XMake both discover the new CUDA test through their existing globs.
+>
+> Release validation on refactor-main with the merged fix: 757 focused native
+> assertions passed; the two-plate regression plus contact finite differences
+> passed 43 Python tests. CPU common/core/geometry passed, CUDA backend passed
+> 28 cases / 1562 assertions, sanity passed 3 / 100 and regression passed 1 / 4.
+> The full single-process simulation aggregate remains 94/95 cases and
+> 14211/14213 assertions: only the previously recorded case 86 plastic-bending
+> residual assertions fail (about 0.03314 rad versus 0.05). No existing threshold
+> was weakened. New Python validation used the freshly built package; this is
+> local CUDA validation, not a claim that the GPU-excluding wheel CI ran it.
+> Logs are under `output/review-504-505/`; build backend SHA-256:
+> `04457a33012326d15adb0cc56620843654b13389a2813085510818a3cbb20080`.
+
 > **Barrier upper-bound assert false positive (2026-10-31)**: pairs sitting
 > exactly at `d == d_hat` (faces placed `d_hat` apart, no load) made the energy
 > kernels abort with `is_active_D ... d^2(0.000000) out of range`. `d^2` was
