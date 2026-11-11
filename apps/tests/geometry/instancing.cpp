@@ -140,3 +140,34 @@ TEST_CASE("apply_transform preserves instance data within a linear allocation bu
         REQUIRE(original.instances().find<IndexT>("instance_id")->view()[i] == i + 7);
     }
 }
+
+TEST_CASE("apply_transform preserves instance attribute commit behavior", "[instance][apply_transform]")
+{
+    const vector<Vector3>  points     = {Vector3{0.0, 0.0, 0.0},
+                                         Vector3{1.0, 0.0, 0.0},
+                                         Vector3{0.0, 1.0, 0.0},
+                                         Vector3{0.0, 0.0, 1.0}};
+    const vector<Vector4i> tetrahedra = {Vector4i{0, 1, 2, 3}};
+    auto                   source     = tetmesh(points, tetrahedra);
+    source.instances().resize(2);
+    auto ids     = source.instances().create<IndexT>("static_instance_id", -1);
+    auto id_view = view(*ids);
+    id_view[0]   = 7;
+    id_view[1]   = 8;
+    REQUIRE_FALSE(ids->is_evolving());
+
+    auto expanded = apply_transform(source);
+    REQUIRE(expanded.size() == 2);
+    const auto& first  = expanded[0];
+    const auto& second = expanded[1];
+    REQUIRE(second.instances().find<IndexT>("static_instance_id")->view()[0] == 8);
+
+    auto commit = second - first;
+    REQUIRE(commit.is_valid());
+    auto updated = first;
+    updated.update_from(commit);
+    REQUIRE(updated.instances().find<IndexT>("static_instance_id")->view()[0] == 8);
+    REQUIRE(first.instances().find<IndexT>("static_instance_id")->view()[0] == 7);
+    REQUIRE(source.instances().find<IndexT>("static_instance_id")->view()[0] == 7);
+    REQUIRE(source.instances().find<IndexT>("static_instance_id")->view()[1] == 8);
+}

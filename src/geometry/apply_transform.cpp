@@ -18,6 +18,8 @@ vector<SimplicialComplex> apply_transform(const SimplicialComplex& complex)
 
     for(auto&& [i, R] : enumerate(Rs))
     {
+        // Keep attribute timestamps compatible with incremental geometry commits.
+        R.instances().resize(1);
         // copy the instance attributes
         R.instances().copy_from(complex.instances(), AttributeCopy::range(0, i, 1));
 
