@@ -181,6 +181,14 @@ that the CUDA backend has no dynamic Toolkit dependency. Neither proves
 driver/GPU execution. That needs a GPU runner/doctor probe before a release can
 be described as CUDA-validated.
 
+The Linux wheel `CIBW_BEFORE_ALL` installs OS build tools with CUDA repositories
+disabled for each `yum` invocation; the pinned image already contains the
+Toolkit. Each attempt clears cached metadata and forces a refresh. Installation
+is tried at most three times, waiting 10 and 20 seconds between attempts.
+AlmaLinux repositories remain enabled, and exhausted retries fail the job before
+vcpkg or project compilation. Repository configuration files and CUDA build
+settings are not changed by this retry loop.
+
 Pull requests that only change `docs/`, `agent_docs/`, README/license prose,
 editor metadata, xmake files, or the independent CMake/docs/xmake workflows are
 excluded from `python-wheels.yml`. The native CMake and xmake workflows also

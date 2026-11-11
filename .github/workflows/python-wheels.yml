@@ -172,9 +172,21 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}@sha256:0b99ea5d0e32f5ad49b02de2663520f17a8dafc8739365cd7463a82ed3f0590a"
           # Set up vcpkg inside the container before any builds
           # Clone vcpkg, bootstrap it, and install dependencies from vcpkg.json
-          CIBW_BEFORE_ALL: >
-            yum install -y git curl zip unzip tar gzip &&
-            cd /project &&
+          CIBW_BEFORE_ALL: |
+            set -eu
+            for attempt in 1 2 3; do
+              echo "Installing build tools (attempt $attempt/3)"
+              if yum --disablerepo='cuda*' clean all &&
+                 yum --disablerepo='cuda*' --refresh install -y git curl zip unzip tar gzip; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Failed to install build tools after three attempts" >&2
+                exit 1
+              fi
+              sleep "$((attempt * 10))"
+            done
+            cd /project
             if [ ! -d vcpkg ]; then
               git clone https://github.com/microsoft/vcpkg.git &&
               cd vcpkg &&

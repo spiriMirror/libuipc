@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
+> metadata and refreshes OS repositories before installing build tools, with
+> three attempts and 10/20-second backoff. CUDA repositories are disabled only
+> for those `yum` commands; the pinned image and CUDA compilation settings are
+> unchanged. Required AlmaLinux repositories stay enabled and permanent failure
+> stops the job before vcpkg initialization. Fault injection verified recovery
+> after two metadata failures and nonzero exit after three persistent failures;
+> the original command failed on the first transient error.
+
 > **XMake libdwarf startup failure (2026-11-11)**: constrain the non-Windows
 > `cpptrace.libdwarf` dependency to 2.3.2 until xmake-repo supports the CMake
 > install/export changes in 2.3.3. A clean XMake 3.0.5 build reproduced the CI
