@@ -1,5 +1,20 @@
 # Handoff — Current State of the Repo
 
+> **XMake libdwarf startup failure (2026-11-11)**: constrain the non-Windows
+> `cpptrace.libdwarf` dependency to 2.3.2 until xmake-repo supports the CMake
+> install/export changes in 2.3.3. A clean XMake 3.0.5 build reproduced the CI
+> failure: package metadata reported `shared=false`, but `libuipc_core.so`
+> required `libdwarf.so.2` and `xmake run common` failed before any tests ran.
+> The CMake/vcpkg baseline already resolves libdwarf 2.1.0; Windows cpptrace
+> does not depend on libdwarf. See doc 07 and the dependency-pin debt in doc 09.
+>
+> Validation used two separate empty package-install directories and XMake
+> 3.0.5 on Linux Release with the CUDA backend disabled. Before the constraint,
+> `common` failed to load with exit 127. After it, common passed 3 cases / 11
+> assertions, core passed 38 / 1288, and geometry passed 48 / 8912, including
+> the instance-expansion regressions. `libuipc_core.so` no longer has a
+> `DT_NEEDED` entry for libdwarf. CUDA and Windows were not rebuilt locally.
+
 > **Issue #504 / PR #505 regression coverage (2026-11-05)**: PR #505 was
 > merged into main as `b116f19b`; issue #504 is closed. The follow-up native
 > `ipc_barrier_upper_bound` test exercises the actual energy and first two

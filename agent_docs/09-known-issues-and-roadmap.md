@@ -447,6 +447,7 @@ assertions).
 | `ports/tinygltf` overlay (SHA512 of regenerated v2.9.6 tarball) | `ports/`, `scripts/gen_vcpkg_json.py` | microsoft/vcpkg fixes the tinygltf port hash |
 | `octree v2.5` | `src/geometry/xmake.lua` | xmake-repo layout stabilizes |
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
+| `cpptrace.libdwarf 2.3.2` (non-Windows) | `src/core/xmake.lua` | xmake-repo handles libdwarf 2.3.3+ static/shared install and export changes |
 
 ## Open issues
 
