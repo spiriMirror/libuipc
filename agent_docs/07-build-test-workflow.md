@@ -181,6 +181,14 @@ that the CUDA backend has no dynamic Toolkit dependency. Neither proves
 driver/GPU execution. That needs a GPU runner/doctor probe before a release can
 be described as CUDA-validated.
 
+The Linux wheel `CIBW_BEFORE_ALL` installs OS build tools with CUDA repositories
+disabled for each `yum` invocation; the pinned image already contains the
+Toolkit. Each attempt clears cached metadata and forces a refresh. Installation
+is tried at most three times, waiting 10 and 20 seconds between attempts.
+AlmaLinux repositories remain enabled, and exhausted retries fail the job before
+vcpkg or project compilation. Repository configuration files and CUDA build
+settings are not changed by this retry loop.
+
 Pull requests that only change `docs/`, `agent_docs/`, README/license prose,
 editor metadata, xmake files, or the independent CMake/docs/xmake workflows are
 excluded from `python-wheels.yml`. The native CMake and xmake workflows also
@@ -216,6 +224,21 @@ current pattern to follow:
    Fix: pinned `tinygltf <3` in `src/core/xmake.lua` (same idiom as the
    existing `dylib <3`).
 
+### XMake libdwarf dependency drift (2026-11)
+
+On non-Windows platforms, `src/core/xmake.lua` constrains
+`cpptrace.libdwarf` to 2.3.2. The xmake-repo recipe still passes
+`BUILD_SHARED` / `BUILD_NON_SHARED`, which libdwarf 2.3.3 removed. That release
+always installs its shared library and only installs the static archive with
+`INSTALL_STATIC_LIBRARIES=ON`. The resulting unexpected `libdwarf.so.2`
+dependency prevents `xmake run common` from starting on a clean Linux runner.
+Keep the version constraint until xmake-repo handles the new install/export
+layout and static/shared metadata. Do not hide the failure by skipping tests.
+
+The CMake path already resolves libdwarf 2.1.0 through the immutable vcpkg
+baseline in `scripts/gen_vcpkg_json.py`; it does not need a corresponding
+dependency change. Windows cpptrace uses `dbghelp` instead of libdwarf.
+
 ### Windows wheel CUDA device-link incident (2026-09)
 
 scikit-build-core selected the Visual Studio generator for Windows wheels. The
@@ -241,9 +264,9 @@ device-linked successfully. GitHub CMake, XMake, and repository-contract runs
 then passed, followed by a manual non-publishing cibuildwheel run whose complete
 Windows/Linux CPython 3.10–3.14 matrix passed 10/10.
 
-**Standing debt**: remove the `ports/tinygltf` overlay and relax the two
-xmake pins once upstream (microsoft/vcpkg, xmake-repo) fixes them. Workflow
-actions are pinned to reviewed full commit SHAs; the vcpkg executable revision
+**Standing debt**: remove the `ports/tinygltf` overlay and relax the
+XMake compatibility pins once upstream (microsoft/vcpkg, xmake-repo) fixes them.
+Workflow actions are pinned to reviewed full commit SHAs; the vcpkg executable revision
 matches `scripts/gen_vcpkg_json.py`'s `dd3097e...` registry baseline, including
 the Linux wheel container clone. `scripts/check_workflow_pins.py` prevents
 floating action/revision refs from returning. Local clang-format matching CI's

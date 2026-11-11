@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
+repository metadata returned HTTP 404 before project compilation. The workflow
+now clears metadata, refreshes required OS repositories, temporarily excludes
+the unused CUDA repository, and retries installation three times. A persistent
+required-repository outage still fails the job; it is not treated as a passing
+wheel build. The pinned manylinux/CUDA image is unchanged.
+
 Issue #504 fixed by PR #505 (merged 2026-11-05): the IPC barrier and its first
 two distance derivatives return zero at/above `(xi + d_hat)^2`, while energy
 kernels retain the lower-bound check. Follow-up coverage directly exercises
@@ -447,6 +454,7 @@ assertions).
 | `ports/tinygltf` overlay (SHA512 of regenerated v2.9.6 tarball) | `ports/`, `scripts/gen_vcpkg_json.py` | microsoft/vcpkg fixes the tinygltf port hash |
 | `octree v2.5` | `src/geometry/xmake.lua` | xmake-repo layout stabilizes |
 | `tinygltf <3` | `src/core/xmake.lua` | xmake-repo v3 include layout decided / our includes updated |
+| `cpptrace.libdwarf 2.3.2` (non-Windows) | `src/core/xmake.lua` | xmake-repo handles libdwarf 2.3.3+ static/shared install and export changes |
 
 ## Open issues
 

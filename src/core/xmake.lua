@@ -5,6 +5,11 @@ add_requires(
     "spdlog[shared,header_only=n,fmt_external=y]"
 )
 
+if not is_plat("windows") then
+    -- libdwarf 2.3.3 removed the static/shared options used by xmake-repo.
+    add_requireconfs("cpptrace.libdwarf", {override = true, version = "2.3.2"})
+end
+
 -- Pin fmt to 12.1.0: 12.2.0's long double hexfloat path fails under nvcc (fallback uint128 lacks operator~)
 if is_plat("windows") then
     -- https://forums.developer.nvidia.com/t/utf-8-option-for-the-host-function-in-cuda-msvc/312739
