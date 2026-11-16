@@ -17,35 +17,6 @@ using namespace uipc::core;
 using namespace uipc::geometry;
 using namespace uipc::constitution;
 
-/**
- * @brief Energy-conservation testbench: a StableNeoHookean tetrahedron
- *        dropped onto an implicit ground plane under gravity.
- *
- * Per frame, the total elastic energy, the kinetic energy, the
- * gravitational potential energy and the contact (IPC barrier) energy
- * are written to `fem_energy.csv`. Both energy exports (FEMSystemFeature,
- * ContactSystemFeature) carry the solver's dt^2 incremental-potential
- * scaling and are divided by dt^2 here. SNK1 is nonzero at the rest state
- * by design; since the tet is in free fall on the first frame, its
- * elastic energy there is exactly that constant rest offset, which is
- * subtracted from the following frames.
- *
- * Expected behavior:
- * - free fall: a small constant drain of 1/2 m g^2 dt^2 per step, the
- *   BDF1 (backward Euler) discretization dissipation; the elastic column
- *   stays at ~0;
- * - impact: a larger drop, the numerical contact dissipation of the
- *   non-symplectic integrator (the barrier itself stores only ~J at
- *   rest here);
- * - rest: the tet stays squashed on the plane under its own weight.
- *
- * Read the CSV with e.g. pandas/matplotlib:
- *   df = pandas.read_csv("fem_energy.csv")
- *   df.plot(x="time", y=["elastic_energy", "kinetic_energy",
- *                        "potential_energy", "total_energy"])
- *
- * Ref: https://github.com/spiriMirror/libuipc/issues/344
- */
 int main()
 {
     Engine engine{"cuda"};
@@ -55,10 +26,9 @@ int main()
 
     const Float dt = 0.01_s;
 
-    auto config                             = Scene::default_config();
-    config["gravity"]                       = Vector3{0, -9.8, 0};
-    config["dt"]                            = dt;
-    config["contact"]["friction"]["enable"] = 0;  // frictionless bounce
+    auto config       = Scene::default_config();
+    config["gravity"] = Vector3{0, -9.8, 0};
+    config["dt"]      = dt;
 
     Scene scene{config};
 
@@ -75,7 +45,7 @@ int main()
     SimplicialComplex tet = tetmesh(Vs, Ts);
 
     const Float density = 1e3;
-    snh_constitution.apply_to(tet, ElasticModuli::youngs_poisson(1.0e4, 0.3), density);
+    snh_constitution.apply_to(tet, ElasticModuli::youngs_poisson(1e4, 0.3), density);
 
     // frictionless contact with the implicit ground
     auto default_contact = scene.contact_tabular().default_element();
@@ -85,7 +55,6 @@ int main()
     label_surface(tet);
     label_triangle_orient(tet);
 
-    // per-vertex masses, matching the backend mass assembly:
     // mass = mass_density * lumped vertex volume (tet volume / 4)
     vector<Float> vertex_mass(4);
     {
@@ -136,9 +105,7 @@ int main()
     Float    export_seconds = 0.0;
     uint64_t export_calls   = 0;
 
-    // SNK1's constant rest-energy offset (nonzero at rest by design). The tet
-    // is in free fall on the first frame, so its elastic energy there is
-    // exactly the offset; subtract it from the following frames.
+    // have to account for a constant rest-energy offset (SNK1 is nonzero at rest).
     Float elastic_offset = 0.0;
 
     const int total_frames = 300;
@@ -152,8 +119,7 @@ int main()
         auto positions = view(*state_geo.vertices().find<Vector3>(builtin::position));
         auto velocities = view(*state_geo.vertices().find<Vector3>(builtin::velocity));
 
-        // per-element elastic energy, dt^2-scaled like the solver's
-        // incremental potential
+        // per-element elastic energy (dt^2-scaled)
         Geometry energy_geo;
         auto     t0 = std::chrono::steady_clock::now();
         fem_system->fem_energy(snh_constitution, energy_geo);
@@ -176,10 +142,7 @@ int main()
             potential_energy += vertex_mass[i] * 9.8 * positions[i].y();
         }
 
-        // contact (IPC barrier) energy of the contact pairs, via
-        // ContactSystemFeature. The exported values are the solver's
-        // dt^2-scaled incremental-potential energies, so divide by dt^2 to
-        // make them comparable with the physical energies above.
+        // contact (IPC barrier) energy of the contact pairs
         Float contact_energy = 0.0;
         for(auto&& prim_type : contact_types)
         {
@@ -191,7 +154,7 @@ int main()
                 contact_energy += std::accumulate(ev.begin(), ev.end(), 0.0);
             }
         }
-        contact_energy /= dt * dt;
+        contact_energy /= dt * dt;  // exported values are scaled by dt^2
 
         const Float total_energy =
             elastic_energy + kinetic_energy + potential_energy + contact_energy;

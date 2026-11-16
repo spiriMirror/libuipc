@@ -23,10 +23,7 @@ Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x2, const Vect
     return Ds;
 }
 
-/**
- * @brief Central finite-difference derivative of the exported energy w.r.t.
- *        one vertex coordinate, evaluated through the state accessor.
- */
+// Central FD derivative of the exported energy w.r.t. one vertex coordinate.
 template <typename EnergyFn>
 Float fd_energy_derivative(EnergyFn&& energy_at, vector<Vector3> positions, IndexT vertex, IndexT dim, Float h)
 {
@@ -37,10 +34,7 @@ Float fd_energy_derivative(EnergyFn&& energy_at, vector<Vector3> positions, Inde
     return (e_plus - e_minus) / (2 * h);
 }
 
-/**
- * @brief Central finite-difference column of an exported Hessian block:
- *        d(grad_{row}) / d(x_{col}[s]), evaluated through the state accessor.
- */
+// Central FD column of an exported Hessian block: d(grad_row)/d(x_col[s]).
 template <typename GradientFn>
 Vector3 fd_gradient_derivative(GradientFn&&    gradient_at,
                                vector<Vector3> positions,
@@ -137,12 +131,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
         return view(*energy_geo.instances().find<Float>("energy"))[0];
     };
 
-    // ------------------------------------------------------------------
-    // 1) at the rest state, the exported elastic energy is rigid-motion
-    //    invariant (translation and rotation leave E unchanged), matches the
-    //    analytic SNK1 rest energy times the dt^2 incremental-potential
-    //    scaling, and the topology uses the global FEM vertex ids
-    // ------------------------------------------------------------------
+    // 1) rest state: rigid-motion invariance, analytic SNK1 energy, topology
     {
         Geometry energy_geo;
         fem_system->fem_energy(snh, energy_geo);
@@ -166,9 +155,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
             x = R * x;
         CHECK(energy_at(rotated) == Catch::Approx(rest_energy).epsilon(1e-9));
 
-        // SNK1 is nonzero at the rest state by design:
-        // Psi(I) = mu^2 / (2 * lambda_hat) with lambda_hat = lambda + mu;
-        // the export carries the solver's dt^2 scaling
+        // SNK1 is nonzero at rest by design: Psi(I) = mu^2 / (2 * (lambda + mu))
         CHECK(rest_energy > 0);
         const Float rest_volume =
             std::abs(Ds(Vs[0], Vs[1], Vs[2], Vs[3]).determinant()) / 6.0;
@@ -180,7 +167,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
             mu * mu / (2 * (lambda + mu)) * rest_volume * dt * dt;
         CHECK(rest_energy == Catch::Approx(expected_rest_energy).epsilon(1e-9));
 
-        // restore the reference state before the next sections
+        // restore the reference state
         for(int i = 0; i < 4; ++i)
             state_pos[i] = positions[i];
         fem_state->copy_from(state_geo);
@@ -197,10 +184,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
     for(int i = 0; i < 4; ++i)
         positions[i] = state_pos[i];
 
-    // ------------------------------------------------------------------
-    // 2) per-element energy: positive, and recomputed at the *current*
-    //    positions (a state perturbation must change it)
-    // ------------------------------------------------------------------
+    // 2) per-element energy: positive, recomputed at the current positions
     Float deformed_energy = energy_at(positions);
     CHECK(deformed_energy > 0);
 
@@ -209,15 +193,13 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
         perturbed[1] += Vector3{1e-3, 1e-3, 1e-3};
         CHECK(energy_at(perturbed) != deformed_energy);
 
-        // restore the reference state before the next sections
+        // restore the reference state
         for(int i = 0; i < 4; ++i)
             state_pos[i] = positions[i];
         fem_state->copy_from(state_geo);
     }
 
-    // ------------------------------------------------------------------
     // 3) per-element gradient matches the finite differences of the energy
-    // ------------------------------------------------------------------
     Geometry grad_geo;
     fem_system->fem_gradient(snh, grad_geo);
     REQUIRE(grad_geo.instances().size() == 4);
@@ -241,15 +223,12 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
         }
     }
 
-    // the finite-difference probes leave the backend state perturbed;
-    // restore it before comparing at the same reference state
+    // restore the state perturbed by the finite-difference probes
     for(int i = 0; i < 4; ++i)
         state_pos[i] = positions[i];
     fem_state->copy_from(state_geo);
 
-    // ------------------------------------------------------------------
     // 4) per-vertex aggregated gradient equals the sum of the doublets
-    // ------------------------------------------------------------------
     fem_system->fem_vertex_gradient(snh, state_geo);
     {
         auto vert_grad = view(*state_geo.vertices().find<Vector3>("gradient"));
@@ -257,10 +236,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
             CHECK(vert_grad[v].isApprox(gradient[v], 1e-9));
     }
 
-    // ------------------------------------------------------------------
-    // 5) Hessian triplets: 10 upper-triangular blocks for one tet, and the
-    //    blocks match finite differences of the exported gradient
-    // ------------------------------------------------------------------
+    // 5) Hessian triplets match finite differences of the gradient
     auto gradient_at = [&](const vector<Vector3>& pos) -> vector<Vector3>
     {
         for(int i = 0; i < 4; ++i)
@@ -315,7 +291,7 @@ TEST_CASE("94_fem_data_export_snh", "[fem]")
         }
     }
 
-    // restore the state we perturbed during the finite-difference probes
+    // restore the state perturbed by the finite-difference probes
     for(int i = 0; i < 4; ++i)
         state_pos[i] = positions[i];
     fem_state->copy_from(state_geo);
@@ -378,11 +354,7 @@ TEST_CASE("94_fem_data_export_spring", "[fem]")
         return view(*energy_geo.instances().find<Float>("energy"))[0];
     };
 
-    // ------------------------------------------------------------------
     // 1) energy: zero at rest, analytic value when stretched
-    //    E = 0.5 * kappa * ((l - L0) / L0)^2 * (L0 * pi * r^2),
-    //    dt^2-scaled by the incremental-potential convention
-    // ------------------------------------------------------------------
     CHECK(std::abs(energy_at(positions)) < 1e-10);
 
     const Float     dt        = 0.01;  // the default config dt
@@ -409,9 +381,7 @@ TEST_CASE("94_fem_data_export_spring", "[fem]")
         CHECK(topo_view[0][1] == 1);
     }
 
-    // ------------------------------------------------------------------
     // 2) gradient vs finite differences, at the stretched state
-    // ------------------------------------------------------------------
     Geometry grad_geo;
     fem_system->fem_gradient(spring, grad_geo);
     REQUIRE(grad_geo.instances().size() == 2);
@@ -433,15 +403,12 @@ TEST_CASE("94_fem_data_export_spring", "[fem]")
             CHECK(fd == Catch::Approx(gradient[v][d]).epsilon(1e-4).margin(1e-6));
         }
 
-    // the finite-difference probes leave the backend state perturbed;
-    // restore it before comparing at the same reference state
+    // restore the state perturbed by the finite-difference probes
     for(int i = 0; i < 2; ++i)
         state_pos[i] = stretched[i];
     fem_state->copy_from(state_geo);
 
-    // ------------------------------------------------------------------
     // 3) per-vertex aggregated gradient equals the sum of the doublets
-    // ------------------------------------------------------------------
     fem_system->fem_vertex_gradient(spring, state_geo);
     {
         auto vert_grad = view(*state_geo.vertices().find<Vector3>("gradient"));
@@ -449,9 +416,7 @@ TEST_CASE("94_fem_data_export_spring", "[fem]")
             CHECK(vert_grad[v].isApprox(gradient[v], 1e-9));
     }
 
-    // ------------------------------------------------------------------
     // 4) hessian: 3 upper-triangular blocks, symmetric, one FD spot-check
-    // ------------------------------------------------------------------
     Geometry hess_geo;
     fem_system->fem_hessian(spring, hess_geo);
     REQUIRE(hess_geo.instances().size() == 3);
