@@ -138,6 +138,7 @@ class FiniteElementExtraConstitution : public SimSystem
     virtual void do_build() override final;
 
     friend class FiniteElementElastics;
+    friend class FEMExporterManager;
     void report_extent(ReportExtentInfo& info);
     void compute_energy(FiniteElementElastics::ComputeEnergyInfo& info);
     void compute_gradient_hessian(FiniteElementElastics::ComputeGradientHessianInfo& info);

@@ -408,6 +408,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FEMTimeIntegrator;
 
     friend class FiniteElementStateAccessorFeatureOverrider;
+    friend class FEMExporterManager;
     friend class FEMExternalForceManager;
 
     friend class SimEngine;
