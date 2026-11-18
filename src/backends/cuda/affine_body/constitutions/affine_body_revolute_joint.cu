@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: cached constant joint Hessians, warp-cooperative
- * joint-limit Hessian assembly, side-stream launches as a leading producer and
- * one-warp launch shapes.
+ * joint-limit Hessian assembly, side-stream launches and one-warp launch
+ * shapes.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -952,7 +952,7 @@ Edge             = ({}, {}))",
         auto k       = affine_body_revolute_joint_compute_energy_kernel;
         int  n       = (int)body_ids.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_positions.cview(),
                 strength_ratio.cview(),
@@ -1378,7 +1378,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         auto k = affine_body_driving_revolute_joint_compute_energy_kernel;
         int  n = (int)is_constrained.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1715,7 +1715,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         auto k        = affine_body_revolute_joint_limit_compute_energy_kernel;
         int  n        = (int)lowers.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),

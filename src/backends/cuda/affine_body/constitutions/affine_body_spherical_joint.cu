@@ -234,7 +234,7 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_spherical_joint_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 strength_ratios.cview(),

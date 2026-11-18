@@ -150,7 +150,7 @@ class ARAP final : public AffineBodyConstitution
         if(n > 0)
         {
             auto k = arap_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.energies(), info.qs(), kappas.cview(), info.volumes(), info.dt(), n);
         }
     }

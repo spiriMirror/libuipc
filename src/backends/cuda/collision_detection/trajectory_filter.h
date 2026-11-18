@@ -1,6 +1,6 @@
 /*
- * NVIDIA contributions: detection-skin and two-phase active-set filtering
- * interfaces.
+ * NVIDIA contributions: detection-skin, two-phase active-set filtering,
+ * side-stream and read-back interfaces.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -45,6 +45,11 @@ class TrajectoryFilter : public SimSystem
     // DetectInfo::skin(), or when the filter keeps no candidates between
     // calls (see GlobalTrajectoryFilter::reuse_candidates).
     virtual bool do_supports_detect_skin() const noexcept { return false; }
+    // True when the filter's two-phase filter_active and its filter_toi may
+    // run on a side stream beside the other filters: the filter launches all
+    // of that work on the info's stream (FilterActiveInfo::stream(),
+    // FilterTOIInfo::stream()) and shares no buffer with another filter.
+    virtual bool do_runs_beside() const noexcept { return false; }
 
     // Optional two-phase do_filter_active(), so that one host synchronization
     // serves every filter: the launch enqueues the work and the copies of its
@@ -59,6 +64,7 @@ class TrajectoryFilter : public SimSystem
     friend class GlobalTrajectoryFilter;
 
     bool supports_detect_skin() const noexcept;
+    bool runs_beside() const noexcept { return do_runs_beside(); }
     void detect(GlobalTrajectoryFilter::DetectInfo& info);
     void filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info);
     bool launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info);

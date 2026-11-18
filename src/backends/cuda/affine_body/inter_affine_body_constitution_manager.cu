@@ -190,7 +190,7 @@ void InterAffineBodyConstitutionManager::Impl::compute_energy(ABDLineSearchRepor
     auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        EnergyInfo this_info{this, c->m_index, dt, info.energies()};
+        EnergyInfo this_info{this, c->m_index, dt, info.energies(), info.side_streams()};
         c->compute_energy(this_info);
     }
 }

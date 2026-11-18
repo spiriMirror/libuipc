@@ -111,6 +111,22 @@ class Stream
     cudaStream_t m_handle = nullptr;
 };
 
+// Two side-stream helpers follow. Both are non-blocking and ordered only by
+// their fork and join calls, so everything a side stream reads or writes must
+// be enqueued between the two.
+// - SideStreams: a pool, created once at the greatest stream priority, for
+//   the fan-out of independent producers: fork() orders every stream after
+//   the origin, next() hands them out round-robin (LazySideStream: a producer
+//   takes one on its first launch only), keep_handed_out() leaves the streams
+//   handed out so far to their long chains, join() and join_next() gather
+//   them back. Used by the linear-system and DyTopo assembly, the PCG
+//   preconditioner segments and the line-search energies.
+// - SideStream: one stream at the default priority, created on first use,
+//   for a single chain beside its parent: fork() (or mark() and later
+//   fork_marked(), to start from an earlier point of the parent) and join().
+//   Used by the trajectory filter's PT chains, the FEM prelaunch, the MAS
+//   Hessian clear and the line-search prologue.
+
 // Non-blocking side streams for fork/join concurrency next to an origin
 // stream (normally the legacy default stream). They perform no implicit
 // synchronization with the legacy stream: work on them is ordered only by
@@ -163,8 +179,9 @@ class SideStreams
         CUDA_TOOL_CHECK(cudaEventRecord(m_origin_event, origin));
         for(auto s : m_streams)
             CUDA_TOOL_CHECK(cudaStreamWaitEvent(s, m_origin_event, 0));
-        m_next = 0;
-        m_kept = 0;
+        m_next   = 0;
+        m_joined = 0;
+        m_kept   = 0;
     }
 
     // Side stream `i` alone waits for the work enqueued on `origin` so far.
@@ -208,40 +225,69 @@ class SideStreams
         }
     }
 
+    // join() restricted to the side streams that next() handed out since
+    // the last fork() or join_next() (all of them once next() went round):
+    // enough when everything since then was launched on streams from next().
+    void join_next(cudaStream_t waiter = default_stream())
+    {
+        if(m_kept != 0)  // the cursor skips kept streams: join them all
+        {
+            join(waiter);
+            m_joined = m_next;
+            return;
+        }
+        SizeT count = std::min(m_next - m_joined, m_streams.size());
+        for(SizeT k = 0; k < count; ++k)
+        {
+            SizeT i = (m_joined + k) % m_streams.size();
+            if(m_streams[i] == waiter)
+                continue;
+            CUDA_TOOL_CHECK(cudaEventRecord(m_events[i], m_streams[i]));
+            CUDA_TOOL_CHECK(cudaStreamWaitEvent(waiter, m_events[i], 0));
+        }
+        m_joined = m_next;
+    }
+
   private:
     std::vector<cudaStream_t> m_streams;
     std::vector<cudaEvent_t>  m_events;
     cudaEvent_t               m_origin_event = nullptr;
     SizeT                     m_next         = 0;
-    SizeT m_kept = 0;  // leading streams next() skips (keep_handed_out())
+    SizeT m_joined = 0;  // next() count at the last join_next()
+    SizeT m_kept   = 0;  // leading streams next() skips (keep_handed_out())
 };
 
 // Launch stream of one producer: the next side stream, taken on first use so
 // producers that launch nothing do not occupy one, or the default stream
-// without side streams. Not copyable: every launch of the producer must go
-// to the same stream.
+// without side streams. With `after`, the side stream waits for that event
+// once taken (instead of a fork() of the side streams). Not copyable: every
+// launch of the producer must go to the same stream.
 class LazySideStream
 {
   public:
-    explicit LazySideStream(SideStreams* side_streams = nullptr) noexcept
+    explicit LazySideStream(SideStreams* side_streams = nullptr, cudaEvent_t after = nullptr) noexcept
         : m_side_streams(side_streams)
+        , m_after(after)
     {
     }
     LazySideStream(const LazySideStream&)            = delete;
     LazySideStream& operator=(const LazySideStream&) = delete;
 
-    cudaStream_t get() const noexcept
+    cudaStream_t get() const
     {
         if(m_side_streams)
         {
             m_stream       = m_side_streams->next();
             m_side_streams = nullptr;
+            if(m_after)
+                CUDA_TOOL_CHECK(cudaStreamWaitEvent(m_stream, m_after, 0));
         }
         return m_stream;
     }
 
   private:
     mutable SideStreams* m_side_streams = nullptr;
+    cudaEvent_t          m_after        = nullptr;
     mutable cudaStream_t m_stream       = default_stream();
 };
 

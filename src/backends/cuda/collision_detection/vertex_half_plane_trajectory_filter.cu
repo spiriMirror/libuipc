@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: two-phase active-set filtering.
+ * NVIDIA contributions: TOI filtering on a launch stream and two-phase
+ * active-set filtering.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -98,6 +99,7 @@ void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(FilterActiveInfo& 
 bool VertexHalfPlaneTrajectoryFilter::do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
 {
     FilterActiveInfo this_info{&m_impl};
+    this_info.m_stream = info.stream();
     return do_launch_filter_active(this_info);
 }
 
@@ -112,8 +114,10 @@ void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(GlobalTrajectoryFi
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
 {
     FilterTOIInfo this_info{&m_impl};
-    this_info.m_alpha = info.alpha();
-    this_info.m_toi   = info.toi();
+    this_info.m_alpha     = info.alpha();
+    this_info.m_toi       = info.toi();
+    this_info.m_positions = info.positions();
+    this_info.m_stream    = info.stream();
     do_filter_toi(this_info);
 }
 
@@ -225,6 +229,16 @@ void VertexHalfPlaneTrajectoryFilter::FilterActiveInfo::PHs(cuda_tool::CBufferVi
 cuda_tool::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
+}
+
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::positions() const noexcept
+{
+    return m_positions;
+}
+
+cudaStream_t VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::stream() const noexcept
+{
+    return m_stream;
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_clear_friction_candidates()

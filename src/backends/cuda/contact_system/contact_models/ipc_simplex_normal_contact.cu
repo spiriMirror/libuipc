@@ -1,8 +1,8 @@
 /*
  * NVIDIA contributions: contact-type dispatch/grouping, optimized Hessian
- * assembly and fused normal-energy launch integration; assembly launches on
- * the provided streams; the one-warp-per-block full-Hessian assembly with its
- * reported block count.
+ * assembly and fused normal-energy launch integration; assembly and energy
+ * launches on the provided streams; the prelaunched trial energy and the
+ * one-warp-per-block full-Hessian assembly with its reported block count.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -270,9 +270,21 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         require<IPCPipelineFlag>();
     }
 
+    // A trial energy is launched by the capacity of the pending active set
+    // before the read-back of its counts.
+    virtual bool do_report_prelaunch_energy_extent(GlobalContactManager::PrelaunchEnergyExtentInfo& info) override
+    {
+        const auto& pending = pending_active_set();
+        if(!pending.PT_count)
+            return false;
+        info.pending_energy_count(pending.PTs.size() + pending.EEs.size()
+                                  + pending.PEs.size() + pending.PPs.size());
+        return true;
+    }
+
     virtual void do_compute_energy(EnergyInfo& info) override
     {
-        launch_ipc_simplex_normal_contact_energy(IPCSimplexNormalContactEnergyLaunchInfo{
+        IPCSimplexNormalContactEnergyLaunchInfo launch_info{
             .contact_tabular     = info.contact_tabular(),
             .contact_element_ids = info.contact_element_ids(),
             .positions           = info.positions(),
@@ -283,11 +295,22 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .EEs                 = info.EEs(),
             .PEs                 = info.PEs(),
             .PPs                 = info.PPs(),
-            .PT_energies         = info.PT_energies(),
-            .EE_energies         = info.EE_energies(),
-            .PE_energies         = info.PE_energies(),
-            .PP_energies         = info.PP_energies(),
-            .dt                  = info.dt()});
+            .energies            = info.energies(),
+            .dt                  = info.dt(),
+            .stream              = info.stream()};
+        if(info.prelaunch())
+        {
+            const auto& pending  = pending_active_set();
+            launch_info.PTs      = pending.PTs;
+            launch_info.EEs      = pending.EEs;
+            launch_info.PEs      = pending.PEs;
+            launch_info.PPs      = pending.PPs;
+            launch_info.PT_count = pending.PT_count;
+            launch_info.EE_count = pending.EE_count;
+            launch_info.PE_count = pending.PE_count;
+            launch_info.PP_count = pending.PP_count;
+        }
+        launch_ipc_simplex_normal_contact_energy(launch_info);
     }
 
     virtual SizeT do_report_assembly_blocks() override

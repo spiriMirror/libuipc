@@ -1,10 +1,12 @@
 /*
- * NVIDIA contributions: blockwise ABD Hessian emission; side-stream and
- * prelaunched assembly of the kinetic, shape and reporter producers (leading
- * chains first), Hessian gathers with one thread per 3x3 block, device-side
- * run counts with batched read-backs for the DyTopo body-pair aggregation; the
- * body-pair aggregation in one block for small entry counts and the aggregated
- * DyTopo blocks placed last with a late count read-back.
+ * NVIDIA contributions: blockwise ABD Hessian emission and fused
+ * preconditioner integration; side-stream and prelaunched assembly of the
+ * kinetic, shape and reporter producers (leading chains first, one-warp launch
+ * shapes), Hessian gathers with one thread per 3x3 block, device-side run
+ * counts with batched read-backs for the DyTopo body-pair aggregation, and the
+ * deferred solution retrieval; the body-pair aggregation in one block for
+ * small entry counts and the aggregated DyTopo blocks placed last with a late
+ * count read-back.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -1292,6 +1294,13 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 {
     using namespace cuda_tool;
 
+    UIPC_ASSERT(!abd().solution_pending, "a deferred ABD retrieval was never collected");
+    if(info.deferred())
+    {
+        abd().pending_solution = info.solution();
+        abd().solution_pending = true;
+        return;
+    }
     auto dq = abd().body_id_to_dq.view();
     {
         auto k = abd_linear_subsystem_retrieve_solution_kernel;

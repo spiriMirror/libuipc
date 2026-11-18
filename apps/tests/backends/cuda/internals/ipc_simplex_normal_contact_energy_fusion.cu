@@ -42,7 +42,9 @@ struct Counts
     int pp = 0;
 };
 
-__global__ void normal_energy_oracle_pt_kernel(IPCSimplexNormalContactEnergyLaunchInfo info, int n)
+__global__ void normal_energy_oracle_pt_kernel(IPCSimplexNormalContactEnergyLaunchInfo info,
+                                               BufferView<Float> Es,
+                                               int               n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n)
@@ -67,10 +69,12 @@ __global__ void normal_energy_oracle_pt_kernel(IPCSimplexNormalContactEnergyLaun
     Float       d_hat     = PT_d_hat(
         info.d_hats(PT(0)), info.d_hats(PT(1)), info.d_hats(PT(2)), info.d_hats(PT(3)));
     Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
-    info.PT_energies(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
+    Es(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
 }
 
-__global__ void normal_energy_oracle_ee_kernel(IPCSimplexNormalContactEnergyLaunchInfo info, int n)
+__global__ void normal_energy_oracle_ee_kernel(IPCSimplexNormalContactEnergyLaunchInfo info,
+                                               BufferView<Float> Es,
+                                               int               n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n)
@@ -98,12 +102,14 @@ __global__ void normal_energy_oracle_ee_kernel(IPCSimplexNormalContactEnergyLaun
                                    info.thicknesses(EE(3)));
     Float       d_hat     = EE_d_hat(
         info.d_hats(EE(0)), info.d_hats(EE(1)), info.d_hats(EE(2)), info.d_hats(EE(3)));
-    Vector4i flag       = distance::edge_edge_distance_flag(E0, E1, E2, E3);
-    info.EE_energies(i) = mollified_EE_barrier_energy(
+    Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
+    Es(i)         = mollified_EE_barrier_energy(
         flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
 }
 
-__global__ void normal_energy_oracle_pe_kernel(IPCSimplexNormalContactEnergyLaunchInfo info, int n)
+__global__ void normal_energy_oracle_pe_kernel(IPCSimplexNormalContactEnergyLaunchInfo info,
+                                               BufferView<Float> Es,
+                                               int               n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n)
@@ -124,10 +130,12 @@ __global__ void normal_energy_oracle_pe_kernel(IPCSimplexNormalContactEnergyLaun
                                    info.thicknesses(PE(2)));
     Float d_hat = PE_d_hat(info.d_hats(PE(0)), info.d_hats(PE(1)), info.d_hats(PE(2)));
     Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
-    info.PE_energies(i) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
+    Es(i)         = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
 }
 
-__global__ void normal_energy_oracle_pp_kernel(IPCSimplexNormalContactEnergyLaunchInfo info, int n)
+__global__ void normal_energy_oracle_pp_kernel(IPCSimplexNormalContactEnergyLaunchInfo info,
+                                               BufferView<Float> Es,
+                                               int               n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i >= n)
@@ -143,27 +151,31 @@ __global__ void normal_energy_oracle_pp_kernel(IPCSimplexNormalContactEnergyLaun
     Float thickness = PP_thickness(info.thicknesses(PP(0)), info.thicknesses(PP(1)));
     Float    d_hat = PP_d_hat(info.d_hats(PP(0)), info.d_hats(PP(1)));
     Vector2i flag  = distance::point_point_distance_flag(Pa, Pb);
-    info.PP_energies(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
+    Es(i)          = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
 }
 
-void launch_four_kernel_oracle(const IPCSimplexNormalContactEnergyLaunchInfo& info)
+void launch_four_kernel_oracle(const IPCSimplexNormalContactEnergyLaunchInfo& info,
+                               BufferView<Float> PT_Es,
+                               BufferView<Float> EE_Es,
+                               BufferView<Float> PE_Es,
+                               BufferView<Float> PP_Es)
 {
     int n = static_cast<int>(info.PTs.size());
     if(n > 0)
         normal_energy_oracle_pt_kernel<<<best_grid_dim(n, normal_energy_oracle_pt_kernel), best_block_dim(normal_energy_oracle_pt_kernel), 0, nullptr>>>(
-            info, n);
+            info, PT_Es, n);
     n = static_cast<int>(info.EEs.size());
     if(n > 0)
         normal_energy_oracle_ee_kernel<<<best_grid_dim(n, normal_energy_oracle_ee_kernel), best_block_dim(normal_energy_oracle_ee_kernel), 0, nullptr>>>(
-            info, n);
+            info, EE_Es, n);
     n = static_cast<int>(info.PEs.size());
     if(n > 0)
         normal_energy_oracle_pe_kernel<<<best_grid_dim(n, normal_energy_oracle_pe_kernel), best_block_dim(normal_energy_oracle_pe_kernel), 0, nullptr>>>(
-            info, n);
+            info, PE_Es, n);
     n = static_cast<int>(info.PPs.size());
     if(n > 0)
         normal_energy_oracle_pp_kernel<<<best_grid_dim(n, normal_energy_oracle_pp_kernel), best_block_dim(normal_energy_oracle_pp_kernel), 0, nullptr>>>(
-            info, n);
+            info, PP_Es, n);
 }
 
 template <typename T>
@@ -250,7 +262,9 @@ class EnergyFixture
         d_d_hats.copy_from(d_hats.data(), d_hats.size());
     }
 
-    void compare(Counts counts)
+    // pad: with device counts, each list holds that many more pairs past
+    // its count (the launch is sized by the lists, as by a capacity)
+    void compare(Counts counts, int pad = -1)
     {
         REQUIRE(counts.pt >= 0);
         REQUIRE(counts.ee >= 0);
@@ -265,49 +279,77 @@ class EnergyFixture
         resize_and_copy_prefix(d_EEs, EEs, counts.ee);
         resize_and_copy_prefix(d_PEs, PEs, counts.pe);
         resize_and_copy_prefix(d_PPs, PPs, counts.pp);
-        resize_outputs(reference_PT, fused_PT, counts.pt);
-        resize_outputs(reference_EE, fused_EE, counts.ee);
-        resize_outputs(reference_PE, fused_PE, counts.pe);
-        resize_outputs(reference_PP, fused_PP, counts.pp);
+        resize_outputs(reference_PT, counts.pt, Float{-111.0});
+        resize_outputs(reference_EE, counts.ee, Float{-111.0});
+        resize_outputs(reference_PE, counts.pe, Float{-111.0});
+        resize_outputs(reference_PP, counts.pp, Float{-111.0});
+        auto reference_info = make_info(fused);
+        launch_four_kernel_oracle(reference_info,
+                                  reference_PT.view(),
+                                  reference_EE.view(),
+                                  reference_PE.view(),
+                                  reference_PP.view());
 
-        auto reference_info =
-            make_info(reference_PT, reference_EE, reference_PE, reference_PP);
-        auto fused_info = make_info(fused_PT, fused_EE, fused_PE, fused_PP);
-        launch_four_kernel_oracle(reference_info);
+        const int total = counts.pt + counts.ee + counts.pe + counts.pp;
+        if(pad >= 0)
+        {
+            resize_and_copy_prefix(d_PTs, PTs, counts.pt + pad);
+            resize_and_copy_prefix(d_EEs, EEs, counts.ee + pad);
+            resize_and_copy_prefix(d_PEs, PEs, counts.pe + pad);
+            resize_and_copy_prefix(d_PPs, PPs, counts.pp + pad);
+            std::vector<IndexT> host_counts = {
+                counts.pt, counts.ee, counts.pe, counts.pp};
+            device_counts.resize(4);
+            device_counts.view().copy_from(host_counts.data());
+        }
+        const int capacity = total + (pad >= 0 ? 4 * pad : 0);
+        resize_outputs(fused, capacity, Float{-222.0});
+        auto fused_info = make_info(fused);
+        if(pad >= 0)
+        {
+            fused_info.PT_count = device_counts.data();
+            fused_info.EE_count = device_counts.data() + 1;
+            fused_info.PE_count = device_counts.data() + 2;
+            fused_info.PP_count = device_counts.data() + 3;
+        }
         launch_ipc_simplex_normal_contact_energy(fused_info);
-        compare_buffer(reference_PT, fused_PT);
-        compare_buffer(reference_EE, fused_EE);
-        compare_buffer(reference_PE, fused_PE);
-        compare_buffer(reference_PP, fused_PP);
+
+        std::vector<Float> fused_host;
+        fused.copy_to(fused_host);
+        int offset = 0;
+        compare_range(reference_PT, fused_host, offset);
+        compare_range(reference_EE, fused_host, offset);
+        compare_range(reference_PE, fused_host, offset);
+        compare_range(reference_PP, fused_host, offset);
+        REQUIRE(offset == total);
+        // nothing past the counts' energies is written
+        for(int i = total; i < capacity; ++i)
+            REQUIRE(fused_host[i] == Float{-222.0});
     }
 
   private:
-    static void resize_outputs(DeviceBuffer<Float>& reference, DeviceBuffer<Float>& fused, int count)
+    static void resize_outputs(DeviceBuffer<Float>& buffer, int count, Float poison)
     {
-        reference.resize(count);
-        fused.resize(count);
+        buffer.resize(count);
         if(count > 0)
-        {
-            reference.fill(Float{-111.0});
-            fused.fill(Float{-222.0});
-        }
+            buffer.fill(poison);
     }
 
-    static void compare_buffer(DeviceBuffer<Float>& reference, DeviceBuffer<Float>& fused)
+    static void compare_range(DeviceBuffer<Float>&      reference,
+                              const std::vector<Float>& fused,
+                              int&                      offset)
     {
         std::vector<Float> reference_host;
-        std::vector<Float> fused_host;
         reference.copy_to(reference_host);
-        fused.copy_to(fused_host);
-        REQUIRE(reference_host == fused_host);
-        for(Float energy : fused_host)
+        std::vector<Float> fused_range(fused.begin() + offset,
+                                       fused.begin() + offset + reference_host.size());
+        REQUIRE(reference_host == fused_range);
+        for(Float energy : fused_range)
             REQUIRE(std::isfinite(energy));
+        offset += static_cast<int>(reference_host.size());
     }
 
-    IPCSimplexNormalContactEnergyLaunchInfo make_info(DeviceBuffer<Float>& pt_energy,
-                                                      DeviceBuffer<Float>& ee_energy,
-                                                      DeviceBuffer<Float>& pe_energy,
-                                                      DeviceBuffer<Float>& pp_energy)
+    IPCSimplexNormalContactEnergyLaunchInfo make_info(DeviceBuffer<Float>& energies)
     {
         return IPCSimplexNormalContactEnergyLaunchInfo{
             .contact_tabular     = contact_tabular.view(),
@@ -320,10 +362,7 @@ class EnergyFixture
             .EEs                 = d_EEs.view(),
             .PEs                 = d_PEs.view(),
             .PPs                 = d_PPs.view(),
-            .PT_energies         = pt_energy.view(),
-            .EE_energies         = ee_energy.view(),
-            .PE_energies         = pe_energy.view(),
-            .PP_energies         = pp_energy.view(),
+            .energies            = energies.view(),
             .dt                  = Float{0.1}};
     }
 
@@ -345,10 +384,8 @@ class EnergyFixture
     DeviceBuffer<Float>          reference_EE;
     DeviceBuffer<Float>          reference_PE;
     DeviceBuffer<Float>          reference_PP;
-    DeviceBuffer<Float>          fused_PT;
-    DeviceBuffer<Float>          fused_EE;
-    DeviceBuffer<Float>          fused_PE;
-    DeviceBuffer<Float>          fused_PP;
+    DeviceBuffer<Float>          fused;
+    DeviceBuffer<IndexT>         device_counts;
 };
 }  // namespace
 
@@ -396,5 +433,13 @@ TEST_CASE("IPC simplex normal-contact four-launch oracle matches fused energy",
         fixture.compare(Counts{.pt = 5, .ee = 4, .pe = 3, .pp = 2});
         fixture.compare(Counts{});
         fixture.compare(Counts{.pt = 1, .ee = 2, .pe = 3, .pp = 4});
+    }
+    SECTION("launch by capacity reads the device counts")
+    {
+        fixture.compare(Counts{}, 3);
+        fixture.compare(Counts{.pt = 2, .ee = 3, .pe = 4, .pp = 5}, 0);
+        fixture.compare(Counts{.pt = 2, .ee = 3, .pe = 4, .pp = 5}, 7);
+        fixture.compare(Counts{.pt = 2, .pe = 3}, 5);
+        fixture.compare(Counts{.pt = 255, .ee = 1, .pe = 1, .pp = 256}, 64);
     }
 }

@@ -1,6 +1,7 @@
 /*
  * NVIDIA contributions: the DeviceReduce::Sum regression test for an empty
- * reused reduction range, and the PinnedHostBuffer read-back test.
+ * reused reduction range, and the PinnedHostBuffer read-back and
+ * device_allocation_epoch tests.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -120,6 +121,45 @@ TEST_CASE("cuda_tool DeviceVector growth policies", "[cuda][cuda_tool][buffer]")
         values.resize_discard(11);
         REQUIRE(values.capacity() == 11);
     }
+}
+
+TEST_CASE("cuda_tool device_allocation_epoch counts allocations, frees and moves",
+          "[cuda][cuda_tool][buffer]")
+{
+    using uipc::backend::cuda_tool::device_allocation_epoch;
+
+    auto epoch  = device_allocation_epoch();
+    auto bumped = [&]
+    {
+        auto now  = device_allocation_epoch();
+        bool diff = now != epoch;
+        epoch     = now;
+        return diff;
+    };
+
+    DeviceBuffer<int> values;
+    REQUIRE_FALSE(bumped());
+    values.resize(4);  // allocates
+    REQUIRE(bumped());
+    values.resize(2);  // within the allocation
+    values.resize(4, 3);
+    values.resize_discard(1);
+    REQUIRE_FALSE(bumped());
+    values.resize(100);  // grows
+    REQUIRE(bumped());
+
+    DeviceBuffer<int> moved{std::move(values)};
+    REQUIRE(bumped());
+    values = std::move(moved);
+    REQUIRE(bumped());
+    values.release();
+    REQUIRE(bumped());
+
+    {
+        DeviceVar<int> var;
+        REQUIRE(bumped());
+    }
+    REQUIRE(bumped());  // freed
 }
 
 TEST_CASE("cuda_tool DeviceReduce Sum writes zero for an empty reused range", "[cuda][cuda_tool][reduce]")

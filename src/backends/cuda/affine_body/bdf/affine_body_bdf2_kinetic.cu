@@ -110,7 +110,7 @@ class AffineBodyBDF2Kinetic final : public AffineBodyKinetic
         if(n > 0)
         {
             auto k = affine_body_bdf2_kinetic_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.is_fixed().cview(),
                 info.external_kinetic().cview(),
                 info.qs().cview(),

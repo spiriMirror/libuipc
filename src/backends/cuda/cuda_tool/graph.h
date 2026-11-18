@@ -1,6 +1,7 @@
 /*
- * NVIDIA contributions: the WHILE-loop launch without a host wait, the
- * invalidated-capture fallback and shared stream and instantiation helpers.
+ * NVIDIA contributions: non-blocking graph launches, in-place recapture, the
+ * WHILE-loop launch, the invalidated-capture fallback and shared stream and
+ * instantiation helpers.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -61,6 +62,7 @@
 // ---------------------------------------------------------------------------
 #include <cuda_runtime.h>
 #include <string>
+#include <utility>
 
 namespace uipc::backend::cuda_tool
 {
@@ -192,6 +194,79 @@ class GraphCapture
         return Result::Ok;
     }
 
+    // capture() for a graph whose launches may have changed: a new capture
+    // updates the instantiated graph in place (cudaGraphExecUpdate) when it
+    // has the same topology, which costs less than a new instantiation, and
+    // is instantiated otherwise. Without an instantiated graph it is
+    // capture(). Failures disable the instance as in capture(), and a body
+    // that throws on a valid capture leaves it as capture() does.
+    template <typename F>
+    Result recapture(F&& body)
+    {
+        if(m_disabled || !m_exec)
+            return capture(std::forward<F>(body));
+
+        cudaGraph_t graph = nullptr;
+        cudaError_t err =
+            cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
+        if(err != cudaSuccess)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::BeginCaptureFailed);
+        }
+        bool captured = false;
+        try
+        {
+            captured = details::run_capture_body(
+                m_capture_stream, &graph, [&] { body(m_capture_stream); });
+        }
+        catch(...)
+        {
+            // As in capture(): the instance keeps the graph of the ended
+            // capture (reset() frees it) and no instantiated graph, so
+            // ready() turns false and the stale graph cannot be replayed.
+            reset_graph();
+            m_graph = graph;
+            throw;
+        }
+        if(!captured)
+        {
+            if(graph)
+                cudaGraphDestroy(graph);
+            reset_graph();
+            return fail(Result::CaptureInvalidated);
+        }
+        err = cudaStreamEndCapture(m_capture_stream, &graph);
+        if(err != cudaSuccess || graph == nullptr)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::CaptureInvalidated);
+        }
+
+#if CUDART_VERSION >= 12000
+        cudaGraphExecUpdateResultInfo info;
+        if(cudaGraphExecUpdate(m_exec, graph, &info) == cudaSuccess)
+        {
+            cudaGraphDestroy(m_graph);
+            m_graph = graph;
+            return Result::Ok;
+        }
+        cudaGetLastError();
+#endif
+        reset_graph();
+        m_graph = graph;
+        err     = details::instantiate(&m_exec, m_graph);
+        if(err != cudaSuccess)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::InstantiateFailed);
+        }
+        return Result::Ok;
+    }
+
     // Replay the captured graph on an internal blocking stream and wait for
     // completion. (A blocking stream does NOT wait for legacy-default-stream
     // work — make sure any async H2D feeding the graph has completed, e.g. by
@@ -201,6 +276,14 @@ class GraphCapture
         details::create_blocking_stream(m_launch_stream);
         cudaGraphLaunch(m_exec, m_launch_stream);
         cudaStreamSynchronize(m_launch_stream);
+    }
+
+    // Enqueue the captured graph on `stream` without waiting for it: it runs
+    // after the work enqueued on `stream` so far, and work enqueued on
+    // `stream` afterwards runs after it.
+    cudaError_t launch(cudaStream_t stream)
+    {
+        return cudaGraphLaunch(m_exec, stream);
     }
 
     bool ready() const { return m_exec != nullptr; }

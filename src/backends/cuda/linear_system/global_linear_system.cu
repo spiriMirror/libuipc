@@ -5,12 +5,12 @@
  * streams and prelaunched producers, the FEM gather beside the legacy stream
  * and its in-place writes, batched count read-backs, preconditioner reuse on
  * odd Newton iterations, parallel PCG preconditioner branches (also in the
- * setup chain) and the preconditioner preparation beside the conversion; the
- * in-place lead's elastic producers prelaunched right after the contact
- * assembly launch and held to the SMs the contact blocks leave, late Hessian
- * blocks counted after the rest of the assembly is issued and placed behind
- * it, the preconditioner preparation from the DyTopo hook and the one-kernel
- * triplet clear.
+ * setup chain), the preconditioner preparation beside the conversion and the
+ * deferred solution retrieval; the in-place lead's elastic producers
+ * prelaunched right after the contact assembly launch and held to the SMs the
+ * contact blocks leave, late Hessian blocks counted after the rest of the
+ * assembly is issued and placed behind it, the preconditioner preparation from
+ * the DyTopo hook and the one-kernel triplet clear.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -350,7 +350,7 @@ void GlobalLinearSystem::prelaunch_assembly(bool contact_launched)
         m_impl.prepare_preconditioners();
 }
 
-void GlobalLinearSystem::solve()
+void GlobalLinearSystem::solve(bool defer_retrieve)
 {
     m_impl.last_solve_iterations = 0;
     m_impl.last_solve_pending    = false;
@@ -372,7 +372,7 @@ void GlobalLinearSystem::solve()
     if(m_impl.need_debug_dump) [[unlikely]]
         _dump_x();
 
-    m_impl.distribute_solution();
+    m_impl.distribute_solution(defer_retrieve);
 }
 
 Float GlobalLinearSystem::diag_norm()
@@ -1064,7 +1064,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
     }
 }
 
-void GlobalLinearSystem::Impl::distribute_solution()
+void GlobalLinearSystem::Impl::distribute_solution(bool deferred)
 {
     auto diag_subsystem_view = diag_subsystems.view();
     auto diag_dof_counts     = diag_dof_offsets_counts.counts();
@@ -1075,6 +1075,7 @@ void GlobalLinearSystem::Impl::distribute_solution()
     {
         SolutionInfo info{this};
         info.m_solution = x.view().subview(diag_dof_offsets[i], diag_dof_counts[i]);
+        info.m_deferred = deferred;
         diag_subsystem->retrieve_solution(info);
     }
 }

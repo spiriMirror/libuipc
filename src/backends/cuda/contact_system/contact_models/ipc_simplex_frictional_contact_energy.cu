@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: fusion of the existing PT/EE/PE/PP frictional
- * contact-energy launches, contact-type dispatch, launch-interface extraction
- * and zero-work handling; the lagged friction quantities.
+ * contact-energy launches, contact-type dispatch, launch-interface
+ * extraction and zero-work handling.
  *
  * The per-contact energy computations are adapted from libuipc's
  * ipc_simplex_frictional_contact.cu; those pre-existing portions retain
@@ -314,10 +314,11 @@ void launch_ipc_simplex_frictional_contact_energy(const IPCSimplexFrictionalCont
             .PEs                 = info.PEs,
             .PPs                 = info.PPs,
             .lagged              = info.lagged,
-            .dt                  = info.dt});
+            .dt                  = info.dt,
+            .stream              = info.stream});
 
     constexpr int BlockSize = 64;
-    ipc_simplex_frictional_contact_energy_kernel<<<pp_end / BlockSize + (pp_end % BlockSize != 0), BlockSize, 0, nullptr>>>(
+    ipc_simplex_frictional_contact_energy_kernel<<<pp_end / BlockSize + (pp_end % BlockSize != 0), BlockSize, 0, info.stream>>>(
         info.contact_tabular.viewer(),
         info.contact_element_ids,
         info.positions,

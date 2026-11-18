@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: side-stream assembly interfaces.
+ * NVIDIA contributions: side-stream assembly and energy interfaces.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -99,16 +99,23 @@ class VertexHalfPlaneNormalContact : public ContactReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl) noexcept
+        EnergyInfo(Impl* impl, const GlobalContactManager::EnergyInfo* base = nullptr) noexcept
             : BaseInfo(impl)
+            , m_base(base)
         {
         }
 
         cuda_tool::BufferView<Float> energies() const noexcept;
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
+        }
 
       private:
         friend class VertexHalfPlaneNormalContact;
-        cuda_tool::BufferView<Float> m_energies;
+        const GlobalContactManager::EnergyInfo* m_base = nullptr;
+        cuda_tool::BufferView<Float>            m_energies;
     };
 
     class Impl

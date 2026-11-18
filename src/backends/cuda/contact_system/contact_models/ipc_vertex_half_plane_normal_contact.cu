@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: assembly launches on the provided streams.
+ * NVIDIA contributions: assembly and energy launches on the provided streams.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -141,7 +141,7 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
         using namespace cuda_tool;
 
         if(info.PHs().size() > 0)
-            do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(), do_compute_energy_kernel), cuda_tool::best_block_dim(do_compute_energy_kernel), 0, nullptr>>>(
+            do_compute_energy_kernel<<<cuda_tool::best_grid_dim((int)info.PHs().size(), do_compute_energy_kernel), cuda_tool::best_block_dim(do_compute_energy_kernel), 0, info.stream()>>>(
                 info.energies().viewer(),
                 info.PHs().viewer(),
                 half_plane->positions().viewer(),

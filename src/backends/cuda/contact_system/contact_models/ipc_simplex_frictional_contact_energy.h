@@ -82,6 +82,9 @@ struct IPCSimplexFrictionalContactEnergyLaunchInfo
 
     Float eps_velocity = 0.0;
     Float dt           = 0.0;
+
+    // Stream of the launch.
+    cudaStream_t stream = cuda_tool::default_stream();
 };
 
 // Launch one kernel over the contiguous PT | EE | PE | PP range. Empty

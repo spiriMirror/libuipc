@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: stream plumbing of the prelaunched FEM assembly.
+ * NVIDIA contributions: stream plumbing of the prelaunched FEM assembly and
+ * the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -35,7 +36,7 @@ void Codim1DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
 void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
 {
     Codim1DConstitution::ComputeEnergyInfo this_info{
-        this, m_index_in_dim, info.dt(), info.energies()};
+        this, m_index_in_dim, info.dt(), info.energies(), &info};
     do_compute_energy(this_info);
 }
 

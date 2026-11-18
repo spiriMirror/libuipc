@@ -1,6 +1,6 @@
 /*
  * NVIDIA contributions: interfaces for detection skins, two-phase active-set
- * filtering and the in-kernel TOI minimum.
+ * filtering, the in-kernel TOI minimum and read-back buffers.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -44,8 +44,8 @@ class EasyVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajecto
 
         cuda_tool::DeviceVar<IndexT> num_collisions;
         IndexT                       h_num_collisions;
-        // num_collisions, copied behind the query
-        cuda_tool::PinnedHostBuffer<IndexT> num_collisions_host;
+        // num_collisions, published behind the query (cuda_tool::ReadbackBuffer)
+        cuda_tool::ReadbackBuffer<IndexT> num_collisions_readback;
 
         /**
          * @brief [Vertex-HalfPlane] pairs
@@ -78,5 +78,8 @@ class EasyVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajecto
     {
         return true;
     }
+    // filter_active and filter_toi read the positions and write only this
+    // filter's buffers, all on the info's stream.
+    virtual bool do_runs_beside() const noexcept override { return true; }
 };
 }  // namespace uipc::backend::cuda

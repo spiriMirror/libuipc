@@ -262,7 +262,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
         if(n > 0)
         {
             auto k = soft_transform_constraint_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.substep_ratio(),
                 constrained_bodies.view(),
                 info.qs(),

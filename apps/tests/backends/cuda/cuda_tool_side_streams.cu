@@ -201,3 +201,104 @@ TEST_CASE("cuda_tool SideStreams::keep_handed_out keeps the streams of long chai
     REQUIRE(side.next() == side[1]);
     side.join();
 }
+
+TEST_CASE("cuda_tool SideStreams join_next joins the streams handed out since the last join",
+          "[cuda][cuda_tool][stream]")
+{
+    SideStreams side;
+    side.create(3);
+
+    DeviceBuffer<int> parts(5 * N);
+    DeviceBuffer<int> sum(N);
+
+    for(int round = 1; round <= 4; ++round)
+    {
+        side_streams_test_fill_kernel<<<GridDim, BlockDim>>>(sum.data(), 0, N, 0);
+        side.fork();
+
+        // first group: streams 0 and 1, read by the legacy stream after its join
+        for(int i = 0; i < 2; ++i)
+            side_streams_test_fill_kernel<<<GridDim, BlockDim, 0, side.next()>>>(
+                parts.data() + i * N, round * (i + 1), N, SpinCycles);
+        side.join_next();
+        for(int i = 0; i < 2; ++i)
+            side_streams_test_add_kernel<<<GridDim, BlockDim>>>(
+                parts.data() + i * N, sum.data(), N);
+
+        // second group wraps round: streams 2, 0 and 1
+        for(int i = 2; i < 5; ++i)
+            side_streams_test_fill_kernel<<<GridDim, BlockDim, 0, side.next()>>>(
+                parts.data() + i * N, round * (i + 1), N, SpinCycles);
+        side.join_next();
+        for(int i = 2; i < 5; ++i)
+            side_streams_test_add_kernel<<<GridDim, BlockDim>>>(
+                parts.data() + i * N, sum.data(), N);
+
+        // nothing handed out since the last join: a no-op
+        side.join_next();
+
+        std::vector<int> host;
+        sum.copy_to(host);
+        for(int j = 0; j < N; ++j)
+            REQUIRE(host[j] == 15 * round);
+    }
+}
+
+TEST_CASE("cuda_tool SideStreams join_next joins kept streams too", "[cuda][cuda_tool][stream]")
+{
+    SideStreams side;
+    side.create(4);
+
+    DeviceBuffer<int> parts(4 * N);
+    for(int round = 1; round <= 3; ++round)
+    {
+        side.fork();
+        // two long chains keep their streams; the other producers share the rest
+        for(int i = 0; i < 2; ++i)
+            side_streams_test_fill_kernel<<<GridDim, BlockDim, 0, side.next()>>>(
+                parts.data() + i * N, round * (i + 1), N, SpinCycles);
+        side.keep_handed_out();
+        for(int i = 2; i < 4; ++i)
+            side_streams_test_fill_kernel<<<GridDim, BlockDim, 0, side.next()>>>(
+                parts.data() + i * N, round * (i + 1), N, SpinCycles);
+        side.join_next();
+
+        std::vector<int> host;
+        parts.copy_to(host);
+        for(int i = 0; i < 4; ++i)
+            for(int j = 0; j < N; ++j)
+                REQUIRE(host[i * N + j] == round * (i + 1));
+    }
+}
+
+TEST_CASE("cuda_tool LazySideStream waits for its event once it takes a stream",
+          "[cuda][cuda_tool][stream]")
+{
+    SideStreams side;
+    side.create(2);
+
+    cudaEvent_t ready = nullptr;
+    CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&ready, cudaEventDisableTiming));
+
+    DeviceBuffer<int> a(N);
+    DeviceBuffer<int> b(N);
+    for(int round = 1; round <= 3; ++round)
+    {
+        // no fork(): the producer is ordered by the event alone
+        side_streams_test_fill_kernel<<<GridDim, BlockDim>>>(a.data(), round, N, SpinCycles);
+        CUDA_TOOL_CHECK(cudaEventRecord(ready, nullptr));
+
+        LazySideStream producer{&side, ready};
+        cudaStream_t   s = producer.get();
+        REQUIRE((s == side[0] || s == side[1]));
+        REQUIRE(producer.get() == s);
+        side_streams_test_scale_kernel<<<GridDim, BlockDim, 0, s>>>(
+            a.data(), b.data(), 2, N, SpinCycles);
+        side.join();
+        std::vector<int> host;
+        b.copy_to(host);
+        for(int j = 0; j < N; ++j)
+            REQUIRE(host[j] == 2 * round);
+    }
+    CUDA_TOOL_CHECK(cudaEventDestroy(ready));
+}

@@ -1,6 +1,6 @@
 /*
- * NVIDIA contributions: side-stream interfaces and the lagged friction cache
- * state.
+ * NVIDIA contributions: side-stream interfaces, the lagged friction cache
+ * state and the prelaunched trial energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -120,9 +120,16 @@ class SimplexFrictionalContact : public ContactReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl) noexcept
+        EnergyInfo(Impl* impl, const GlobalContactManager::EnergyInfo* base = nullptr) noexcept
             : BaseInfo(impl)
+            , m_base(base)
         {
+        }
+
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
         }
 
         cuda_tool::BufferView<Float> friction_PT_energies() const noexcept
@@ -144,10 +151,11 @@ class SimplexFrictionalContact : public ContactReporter
 
       private:
         friend class SimplexFrictionalContact;
-        cuda_tool::BufferView<Float> m_PT_energies;
-        cuda_tool::BufferView<Float> m_EE_energies;
-        cuda_tool::BufferView<Float> m_PE_energies;
-        cuda_tool::BufferView<Float> m_PP_energies;
+        const GlobalContactManager::EnergyInfo* m_base = nullptr;
+        cuda_tool::BufferView<Float>            m_PT_energies;
+        cuda_tool::BufferView<Float>            m_EE_energies;
+        cuda_tool::BufferView<Float>            m_PE_energies;
+        cuda_tool::BufferView<Float>            m_PP_energies;
     };
 
     class Impl
@@ -209,6 +217,8 @@ class SimplexFrictionalContact : public ContactReporter
 
   private:
     virtual void do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info) override final;
+    virtual bool do_report_prelaunch_energy_extent(
+        GlobalContactManager::PrelaunchEnergyExtentInfo& info) override final;
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;
     virtual void do_report_gradient_hessian_extent(
         GlobalContactManager::GradientHessianExtentInfo& info) override final;

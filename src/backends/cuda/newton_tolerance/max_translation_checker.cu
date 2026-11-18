@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: tolerance-check work launched on the line-search
+ * prologue stream and the read-back of its residual through mapped memory.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <newton_tolerance/newton_tolerance_checker.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <uipc/geometry/attribute_slot.h>
@@ -18,6 +43,8 @@ class MaxTranslationChecker : public NewtonToleranceChecker
     Float                                   rel_tol               = 0.0;
     Float                                   abs_tol               = 0.0;
     SizeT                                   frame                 = 0;
+    // stored by the launched reduction (no copy follows it on the mapped path)
+    cuda_tool::ReadbackBuffer<Float> launched_res;
 
     void do_build(BuildInfo& info) override
     {
@@ -38,6 +65,14 @@ class MaxTranslationChecker : public NewtonToleranceChecker
         frame = info.frame();
     }
 
+    void do_launch_check(LaunchCheckInfo& info) override
+    {
+        launched_res.resize_discard(1);
+        vertex_manager->launch_axis_max_displacement(
+            cuda_tool::VarView<Float>{launched_res.device_data()}, info.stream());
+        launched_res.enqueue_copy(info.stream());
+    }
+
     void do_check(CheckResultInfo& info) override
     {
         // scene-relative mode (Stiff-GIPC convention):
@@ -46,7 +81,8 @@ class MaxTranslationChecker : public NewtonToleranceChecker
         if(velocity_tol_relative > 0.0)
             vel_tol = velocity_tol_relative * vertex_manager->scene_diagonal();
         abs_tol          = vel_tol * dt_attr->view()[0];
-        res              = vertex_manager->compute_axis_max_displacement();
+        res              = info.launched() ? launched_res[0] :
+                                             vertex_manager->compute_axis_max_displacement();
         auto newton_iter = info.newton_iter();
         if(newton_iter == 0)
             res0 = res;  // record the initial residual

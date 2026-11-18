@@ -1042,7 +1042,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = external_articulation_constraint_compute_energy_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.energies(),
                 joint_joint_id_to_mass.cview(),
                 joint_joint_id_to_joint_ij.cview(),

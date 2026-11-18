@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: shared-workspace material PSD projection and
- * gradient-only launch selection; launches on the provided assembly streams
- * with one-warp launch shapes.
+ * gradient-only launch selection; launches on the provided assembly and energy
+ * streams with one-warp launch shapes.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -186,7 +186,7 @@ class OrthoPotential final : public AffineBodyConstitution
         auto k = ortho_potential_compute_energy_kernel;
         int  n = (int)body_count;
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.energies(), info.qs(), kappas.cview(), info.volumes(), info.dt(), n);
     }
 

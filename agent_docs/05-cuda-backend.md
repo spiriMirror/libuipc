@@ -90,13 +90,16 @@ Pipeline
     │   ├── Compute DyTopo Effect          (conditional: Assemble → Distribute)
     │   ├── Solve Global Linear System     (Build → PCG: Apply Preconditioner + SpMV)
     │   └── Line Search
+    │       ├── Compute Feasible Step      (side stream, beside the detection)
     │       ├── Detect Trajectory Cand.    (skipped while k > 0 reuses candidates)
-    │       ├── Compute Energy             (initial E0)
-    │       ├── Filter CCD TOI
+    │       ├── Compute Energy             (initial E0; reused for k > 0)
+    │       ├── Filter CCD TOI             (side stream, beside E0 and the first trial step)
     │       ├── Compute CFL Condition
     │       └── Line Search Iteration      (LOOP: Filter Contact Cand. → Compute Energy)
     └── Update Velocity
 ```
+
+The line search halves `alpha` until the trial energy does not exceed `E0`.
 
 Only the pre-Newton pass runs DCD detection. Iteration `k > 0` starts from the
 active set that the last line-search trial of iteration `k - 1` filtered from
@@ -130,9 +133,9 @@ it, since `s <= d_hat / 2` keeps its first advancement step above the initial
 `toc` of 1.1; a held pair that a fresh pass would drop is inert for the same
 reasons. Filter TOI therefore returns the same minimum bit for bit and the
 active sets are the same multisets, possibly in another order. The `max |dx|`
-readback is shared with the velocity tolerance check
-(`GlobalVertexManager` caches it until the displacements are collected again).
-Iterations
+readback is shared with the serial velocity tolerance check
+(`GlobalVertexManager` caches it until the displacements are collected again);
+with the prologue overlap the check reduces on its own stream. Iterations
 with small steps reuse, typically the last ones of a frame (the converged
 step is below `velocity_tol * dt`). The skin trades skipped passes against
 longer candidate lists: a larger skin lets more iterations reuse, but every
@@ -152,7 +155,8 @@ that the DCD pass would have made. The compare is by value: a NaN counts as a
 change and signed zeros compare equal, because the half-plane vertex reporter
 rewrites its fixed plane points (read by no filter) every frame, restoring a
 `-0.0` coordinate that `step_forward` had turned into `+0.0`. So every frame
-requests a topology rebuild. The stackless BVH filter honours every eighth
+requests a topology rebuild (iteration 0 another one when it re-detects after
+a truncated feasible step). The stackless BVH filter honours every eighth
 request (`TopologyRebuildPeriod`)
 and otherwise refits the kept trees and keeps the Morton orders of its
 queries: the candidate multisets do not depend on the topology, which only
@@ -173,8 +177,122 @@ built) still runs the DCD pass on every reusing frame, continues from its
 result and throws a `SimEngineException` unless the sorted multisets match;
 the `frame-start active-set reuse` backend test runs in this mode and also
 checks that state-accessor writes and a recover force the DCD pass.
+The same reasoning lets iteration `k > 0` skip its initial energy
+evaluation: nothing between the last line-search trial of iteration `k - 1`
+and `E_0` of iteration `k` moves a vertex, runs `filter_active`, or changes
+kappa or the friction candidates, so `E_0` is that trial's energy. It is
+reused while the animation substep ratio is unchanged (with
+`scene.animator().substep(n)`, n > 1, the ratio grows during the first
+iterations) and recomputed when
+`line_search/report_energy` asks for one log entry per evaluation. A converged
+trial that terminates the Newton loop still steps and filters the active set
+(the next frame records friction candidates from it), but its energy is never
+read and is not computed. A reporter that keeps per-Newton state entering
+its energy would invalidate this reuse.
 
-The default simplex filter and
+### Line-search prologue overlap
+
+The copies that open a line search run as one `cuda_tool::CopyBatch` kernel
+on the legacy stream: the displacement copies of the vertex reporters
+(`GlobalVertexManager::collect_vertex_displacements(copies)`: half planes
+zero theirs through `VertexDisplacementInfo::zero_displacements()`; ABD and
+FEM compute theirs with their own kernels before them, see below) and the
+start point (`LineSearcher::record_start_point(copies)`: ABD `q_temp = q`,
+FEM `x_temps = xs` through `RecordInfo::copies()`;
+`GlobalVertexManager::record_start_point(copies)`: `safe_positions =
+positions`). None of the ranges overlaps and none is a source of another, so
+the batch writes the bytes of the five separate copies, fills and kernels it
+replaces. The overloads without a batch (AL-IPC) launch their own.
+
+In the IPC Newton loop the solve defers the ABD and FEM retrievals
+(`GlobalLinearSystem::solve(true)`, `SolutionInfo::deferred()`: the subsystem
+keeps the solution view and launches nothing): the vertex reporters then
+compute the step and the displacements in one kernel each
+(`affine_body_vertex_reporter_retrieve_displacements_kernel`: thread i stores
+body i's `dq = -x` and vertex i's `J * dq` from the same values;
+`FiniteElementVertexReporter_retrieve_displacements_kernel`: `dxs = -x` and
+the displacement), the same arithmetic as the two retrieval kernels and the
+displacement kernel or copy they replace. Both fold their displacements into
+the per-axis maximum |d| (`VertexDisplacementInfo::axis_max()`,
+`global_geometry/axis_max.h`: warp maximum, then `atomicMax` on the bits of
+the non-negative double, exact in any order, into one of two slots used in
+turn; the first taker clears the other for the next collection). When every
+reporter took the slot or zeroed its range, `compute_axis_max_displacement()`
+and `launch_axis_max_displacement()` publish the slot with one one-thread
+kernel instead of the CUB reduction (two kernels); otherwise they reduce as
+before. Nothing reads `dq`/`dxs` between the solve and the collection; a
+deferred retrieval that was never collected trips an assertion at the next
+retrieval. AL-IPC keeps the separate retrievals.
+
+Every trial steps forward the same way: the IPC Newton loop collects the
+vertex positions (`GlobalVertexManager::step_forward(StepBatch&)`) and the
+reporters' DOFs (`LineSearcher::step_forward(StepBatch&)`, reached through
+`StepInfo::batch()`: ABD `q = q_temp + alpha * dq` except fixed bodies, FEM
+`xs = x_temps + alpha * dxs`) into one `StepBatch` (`line_search/step_batch.h`)
+and launches one kernel instead of three. Each element is computed by the
+same expression as in the separate kernels (the positions through
+`step_position()`, which never fuses `alpha * dx` into an FMA; the DOFs as
+`x0 + alpha * dx`, contracted to DFMA there and here alike), so the bytes are
+those of the separate kernels. A reporter that steps without a batch (AL-IPC)
+launches its own kernel. A new reporter with DOFs must add them to the batch
+when `StepInfo::batch()` is set.
+
+Before its first trial the line search needs the feasible step over the
+active set, the trajectory candidates, the CCD TOI of the capped step and the
+Newton tolerance checks; each of the short ones ends in a host read.
+`SimEngine::advance()` runs the short ones on the line searcher's prologue
+stream (`LineSearcher::m_prologue_stream`, a `cuda_tool::SideStream`) beside
+the long ones on the legacy stream:
+
+- Right after the start point is recorded,
+  `GlobalContactManager::launch_feasible_step(stream)` and
+  `NewtonToleranceManager::launch_check(stream)` enqueue the feasible-step CCD
+  and the checkers' device work, whose kernels store their results into
+  read-back buffers (`cuda_tool::ReadbackBuffer`, mapped host memory: the
+  feasible step's minimum TOI, the max-translation residual, and the ABD
+  flag through a copy kernel), so no device-to-host copy holds the prologue
+  stream between its kernels, while the legacy stream decides whether the
+  held trajectory candidates can be kept. `finish_feasible_step()` then only
+  waits for the side stream, and the trajectory detection runs over the
+  feasible step, as in the serial order (a detection over the full step
+  beside the feasible step would change the filter's state, its BVH topology
+  requests and stored pairs, whenever the step truncates). A detection calls
+  `GlobalTrajectoryFilter::DetectInfo::before_read_back()` right before it
+  waits for the read-back of its candidate counts (again when a refresh
+  repeats the read-back): the Newton loop forks the TOI's stream there, after
+  the detection's work, so the TOI is launched without waiting for that
+  read-back. An iteration that keeps the held trajectory candidates (they
+  cover any step `alpha <= 1`) detects nothing and only waits for the
+  feasible step.
+- `GlobalTrajectoryFilter::launch_filter_toi(alpha, stream)` computes the TOI
+  from the recorded start positions (`safe_positions`, bitwise the current
+  positions until a trial steps) while the legacy stream evaluates `E_0` when
+  it is not reused and steps the first trial forward (and its energy
+  producers that read only the stepped DOFs are launched, see the energy
+  aggregation below). `finish_filter_toi()` waits for the side stream. The
+  first trial's `filter_active` runs only after that, once the TOI and the
+  CFL condition kept the step: a step beyond the TOI may penetrate, and
+  `filter_active` asserts a penetration-free state. When the TOI or the CFL
+  condition shortens the step, the launched producers are joined and the
+  loop steps to the first trial again; every trial is recomputed from the
+  recorded start point and no energy was reduced for the discarded one, so
+  it leaves no trace.
+- The next `NewtonToleranceManager::check()` waits for the side stream once;
+  checkers that implement `do_launch_check()` then only read their copied
+  results (`CheckResultInfo::launched()`), the others do all of their work in
+  `do_check()` as before.
+
+Every `TrajectoryFilter::do_filter_toi` puts all of its launches, CUB calls
+and fills on `FilterTOIInfo::stream()` (or on a stream that it orders after
+that stream and joins back into it before it returns, as the simplex
+filter's EE launch below) and reads `FilterTOIInfo::positions()`
+(the swept step's start positions; the serial `filter_toi(alpha)` used by
+AL-IPC passes the current positions on the default stream). Host values reach
+device memory on the side stream through fill kernels, because a pageable
+host-to-device copy may wait for the stream; the TOI slot itself
+(`FilterTOIInfo::toi()`) is a read-back (`GlobalTrajectoryFilter::Impl::tois`,
+a `cuda_tool::ReadbackBuffer`), so a host value goes there only through
+`cuda_tool::store_value()` (the simplex filter without candidates). The default simplex filter and
 the easy vertex half-plane filter take their TOI minimum inside their TOI
 kernels (`collision_detection/filters/toi_min.h`) instead of a
 `DeviceReduce::Min` after them (two kernels and two host dispatches): each
@@ -183,10 +301,16 @@ slot, and the last block to finish writes the minimum and resets the slot.
 The half-plane filter has one TOI launch, whose last block finishes. The
 simplex filter's four launches (`filter_toi_k1-k4`: PP, PE, PT, EE) all count
 their blocks into the slot (`TOIMinSlot::blocks`, the sum of their grids), so
-the last block of all of them finishes. The minimum of
+the last block of all of them finishes, and the EE launch runs beside the
+other three on a stream of the filter (`toi_side`, ordered after
+`FilterTOIInfo::stream()` by an event and joined back into it) instead of
+after them (the PT and EE kernels are latency-bound with few blocks and had
+run one after the other). The minimum of
 values without NaN is unique up to the sign of zero, so the result has
 `DeviceReduce::Min`'s bytes in any arrival order (`TOI minimum` backend test,
-with the launches in stream order).
+with the launches in stream order). The overlap is off with
+`extras/debug/dump_surface` (a repeated trial would dump twice) and without
+line-search trials.
 
 Preconditioner reuse across Newton iterations is **opt-in and off by
 default** (`linear_system/keep_preconditioner`, default 0). With the key set
@@ -220,16 +344,145 @@ Top-level line-search reporters do not download independent scalar totals.
 `LineSearcher` assigns one contiguous device slot to every ABD, FEM, or DyTopo
 reporter. Reporters launch their component reductions asynchronously and write
 their final value into that slot. A final CUB sum reads the reporter slots and
-writes to a distinct aggregate slot; one contiguous D2H transfer then returns
-the individual values plus the total. This preserves reporter-specific finite
-checks and diagnostic output while reducing the normal energy pass to one host
-synchronization.
+writes the total: for a trial (`compute_energy()`) into a read-back buffer
+(`m_total_energy`, see "Read-backs"), for `E_0` into a distinct aggregate slot
+copied with the reporters' values. A finite total implies finite reporter
+energies (a NaN or an infinity among the addends makes the sum NaN or
+infinite), so a trial copies and checks the individual values only when its
+total is not finite or `line_search/report_energy` is on: the same checks fail
+with the same messages, and the normal energy pass is one host
+synchronization with no copy after the sum.
 
 ABD and FEM still require separate reductions for their physical energy
 components, but named one-thread combine kernels add those device scalars
 without an intervening host read. DyTopo's CUB reduction writes directly into
 its assigned slot. Keep every CUB input and output range disjoint, including
 the final reporter-total reduction.
+
+The energy producers of one evaluation run concurrently, in two parts.
+The fixed part is every reporter whose energy does not read the trial's
+active contact set (`LineSearchReporter::do_reads_active_set()` returns
+false: ABD and FEM; the default is true): `LineSearcher` forks its own four
+`cuda_tool::SideStreams` (`m_fixed_streams`) from the legacy stream and hands
+them to those reporters (`ComputeEnergyInfo::side_streams()`). Each fixed
+reporter then reduces on a reduce stream of its own (`m_fixed_reduce_streams`,
+one per reporter, cycled if there are more than four), which joins only the
+side streams that reporter's producers took (`SideStreams::join_next()`
+right after its `do_compute_energy`): `do_reduce_energy` runs with
+`ComputeEnergyInfo::stream()` set to that stream, so the fixed-body kinetic
+fix, the CUB reductions and the combine kernels of one reporter start as soon
+as its own producers finish, not after the other reporter's. The reduce
+streams and the side streams are then joined (into the origin stream when
+capturing, else into `m_fixed_reduce_streams[0]`, where an event marks the
+end of the fixed part). The other reporters (DyTopo) take four more side streams
+(`m_energy_streams`), forked when their producers launch; `LineSearcher`
+joins only the streams handed out (`SideStreams::join_next()`) and reduces
+them on the legacy stream (`stream()` is the legacy stream for them); the
+legacy stream then waits for the fixed part's event and runs the final sum.
+In `do_compute_energy` ABD, FEM and DyTopo give every producer (kinetic
+term, constitution, joint or constraint, contact model) its own
+`cuda_tool::LazySideStream` through the producer's `ComputeEnergyInfo` or
+`EnergyInfo::stream()`. Most energy kernels are small FP64 kernels
+(ortho, joints, contact, SNH) that keep only a few SMs busy, so concurrent
+producers spread over the SMs instead of running
+back to back; the ABD kinetic, ortho and joint ones launch one-warp blocks
+(see the launch-shape exceptions), so none of them waits for a whole free SM.
+The per-element energies and every reduction input, size and order are
+unchanged, so each evaluation is bitwise the serial one; only independent
+reductions run on different streams. A producer must launch everything on the
+stream it was handed; one that ignores it (the AL contact models still do)
+runs on the legacy stream: the fixed part's reductions then wait for the
+legacy stream as well (such a launch invalidates a capture of the fixed
+part, and the graph stays off for the engine), and the DyTopo reductions
+follow the join on it.
+
+The contact energies of a trial are prelaunched: when the trial's energy
+follows its `filter_active` (an evaluated trial, and the first trial of an
+overlapped line search, whose prelaunch `discard_energy()` drops when the
+converged trial is not evaluated), `SimEngine::advance()` passes
+`filter_active` a `before_sync` callback. Once the legacy-stream filters'
+two-phase work is enqueued, `GlobalTrajectoryFilter::filter_active()` records
+an event (`Impl::filtered`) behind it and calls
+`LineSearcher::prelaunch_energy()` with it; only then does it launch the
+filters that run beside (the half-plane filter), whose work the legacy stream
+waits for (`Impl::side_filtered`) behind the prelaunched energies, and the
+host waits for those two events instead of the legacy stream (no prelaunched
+energy reads the half-plane pairs; the half-plane energies are launched after
+the read-back). Until its finish, the simplex filter publishes the
+pending active set (`SimplexTrajectoryFilter::pending_active_set()`: the four
+lists at their capacity and the device addresses of their counts, which the
+compaction also stores into `selected_counts`). `DyTopoEffectLineSearchReporter`
+launches the leading DyTopo reporters that report a prelaunch extent
+(`DyTopoEffectReporter::do_report_prelaunch_energy_extent`), up to the first
+whose count is pending on the device (the offsets after it are known only
+after the read-back): the simplex frictional contact (the frame start's
+pairs, its usual launch) on a side stream that waits for the event, and the
+IPC simplex normal contact by the capacity of the pending lists on the legacy
+stream (the fused kernel takes the device counts and stops at them). After
+the read-back, `compute_energy(false)` joins those side streams, sizes and
+offsets every reporter on the host as before and keeps the prelaunched
+ranges when the offsets and counts confirm them and the energy buffer did
+not grow (`EnergyInfo::prelaunched()`: the reporter only takes its ranges);
+otherwise it launches every reporter again behind the prelaunch. The later
+reporters (the half-plane contacts) launch on the legacy stream, and the
+reductions run on the host-known sizes as before, so every energy, its
+position and every sum are those of the serial evaluation.
+
+The fixed part is launched right after a trial steps forward
+(`LineSearcher::launch_energy()`), before the trial's `filter_active`: for
+the first trial of an overlapped line search (see the prologue overlap
+above) its host launches run while the GPU computes the CCD TOI, and for
+every evaluated trial its GPU work runs beside `filter_active`; a restored
+or a terminated trial does not launch it. `compute_energy()` and
+`launch_initial_energy()` launch it (through `enqueue_energy()`) when nothing
+was launched (an evaluated `E_0`, the AL pipeline). When the step is
+truncated (TOI, CFL) or the converged trial ends the Newton loop,
+`discard_energy()` makes the legacy stream wait for the launched part before
+anything it reads is overwritten.
+
+An evaluated `E_0` of the IPC Newton loop is only launched
+(`LineSearcher::launch_initial_energy()`: the evaluation, then a copy of every
+reporter energy and the total into page-locked memory and an event on the
+legacy stream). The host steps the first trial and launches its energy
+meanwhile; `E_0` is read (`initial_energy()`: the event, then the same finite
+checks as `compute_energy()`) where it is first used, the first trial's
+`E <= E_0` test, whose own read-back has already waited for the copy in
+stream order, or after a line search that evaluated no trial. Every write to
+the energy slots and every stepped DOF comes after the copy on the legacy
+stream (the trial's producers fork from it after the step), so `E_0` is
+bitwise the synchronous evaluation. With `line_search/report_energy` the
+evaluation stays synchronous.
+
+The fixed part runs as a cached CUDA graph, kept across frames. Its launches
+take by value only `dt`, the animation substep ratio (it enters the soft
+position/transform constraint energies), constants and extents (element
+counts, energy ranges); everything else they read is device memory. The only
+extents that change between frames are the animator constraints' energy
+counts (the constraints rebuild their lists in `step()`), and a buffer keeps
+its device memory until it is reallocated, freed or moved. So the graph is
+keyed (`LineSearcher::FixedKey`) on `dt`, the substep ratio,
+`GlobalAnimator::energy_extent_generation()` (bumped by `step()` when an
+animator's per-constraint energy counts, `Animator::do_energy_counts()`,
+change) and `cuda_tool::device_allocation_epoch()` (bumped by every
+allocation, free and move of a `DeviceVar`/`DeviceVector`, so the key changes
+only when a buffer is reallocated). Per key the first evaluation launches
+directly (it
+sizes every buffer and grows the CUB workspaces of the reduce streams, which
+the graph keeps and nothing else uses; the key is taken again after it, so
+its own allocations are in the capture), the second captures the same
+launches (`cuda_tool::GraphCapture::recapture()`: `cudaGraphExecUpdate` when
+the topology is unchanged) and replays the graph, and later ones, in any
+frame, replay it (one `cudaGraphLaunch` instead of the producers' launches
+and the stream event calls; E_0 no longer launches directly and the first
+trial no longer captures every frame). The graph holds the direct launches'
+kernels,
+parameters and dependencies, so its results are bitwise those of the direct
+launches. A fixed energy producer must keep that contract: a by-value
+argument that changes between frames beyond `dt`, the substep ratio and the
+reported energy counts needs its own key entry. A fixed reporter must not
+read anything back to the host. A producer that launches on the legacy stream
+invalidates the capture (the capture stream is blocking): the graph is then
+disabled for the engine's lifetime and every evaluation launches directly.
 
 `Engine::frame_stats()` / Python `Engine.frame_stats()` is the stable
 machine-readable complement to the Timer tree. CUDA returns schema v1 with the
@@ -410,6 +663,33 @@ AL-IPC passes the shared negative disabled threshold in both normal and
 frictional contact. Its `need_mollify()` result is therefore always false, and
 every AL pair follows the corresponding ordinary EE path.
 
+### Read-backs
+
+The Newton loop's small read-backs (the TOI per filter, the simplex filter's
+compacted active-set counts, the trial energy total, the judge counts, the
+BCOO converter's counts, the axis maximum displacement, the DyTopo
+distribution's selected counts) are stored by their
+producer into a `cuda_tool::ReadbackBuffer`: the producing kernel or CUB call
+writes `device_data()`, `enqueue_copy(s)` follows it on its stream `s`, and
+the host reads `data()` only after synchronizing `s` (never polling). With
+mapped read-backs (`cuda_tool::mapped_readbacks()`: the device maps
+page-locked host memory into the unified address space) `device_data()` is the
+device address of host memory allocated with
+`cudaHostAlloc(cudaHostAllocMapped)` (cached, not write-combined) and `enqueue_copy()` enqueues nothing: a device-to-host
+copy after a kernel waits for the copy engine to take over from the kernel,
+2-8 us each time the host leads, and the producer's own stores avoid it.
+Otherwise `device_data()` is device memory and `enqueue_copy()` is that copy.
+Both paths read back the producer's bytes (`readback_buffer` test). Rules:
+the producer and every later use of the value on the device keep a device
+copy where the device needs it (the BCOO k3 kernel stores its counts both into
+the converter's `DeviceVar` and the read-back); a host value goes into a
+read-back slot only through `store_value()` (a host-to-device copy into
+mapped host memory is undefined behaviour); a device array that another path
+produced (the `DeviceSelect::If` fallback of the compaction) reaches the host
+elements through `copy_from()`; a buffer is not reallocated between its
+producer and the read (it only grows, and the sites size it before
+launching).
+
 ## Cross-domain performance measurement
 
 Use the [portable workload guide](../docs/development/testing_and_benchmarks.md)
@@ -528,8 +808,20 @@ the PT pairs' blocks first), each thread doing what its own kernel did.
 (the default simplex filter and the easy vertex half-plane filter) launch its
 work and read back its counts, synchronizes once, and then lets them size
 their active lists; the half-plane filter still grows and reruns its query
-when the count exceeds the buffer.
-Filters without the two phases run
+when the count exceeds the buffer. A filter whose `do_runs_beside()` returns
+true (the easy vertex half-plane filter) launches its two-phase
+`filter_active` and its `filter_toi` on a side stream
+(`GlobalTrajectoryFilter::Impl::filter_active_side` / `filter_toi_side`,
+handed over as `FilterActiveInfo::stream()` / `FilterTOIInfo::stream()`)
+beside the other filters, which are launched first on the legacy (TOI)
+stream: the side stream waits for the parent stream's work so far
+(`SideStream::mark()` / `fork_marked()`) and is joined back before the one
+synchronization, so the half-plane TOI kernel no longer leads the TOI chain.
+On that side stream the half-plane filter clears its count with a memset
+(not a pageable host-to-device copy) and publishes it into its
+`ReadbackBuffer` with a copy kernel (no device-to-host copy behind the
+query). Such a filter must put all of that work on the info's stream and share no
+buffer with another filter. Filters without the two phases run
 `do_filter_active` whole afterwards. Every line-search trial thus waits once
 for its active set instead of once per filter. The public `InfoStacklessBVH::detect/query`
 methods remain synchronous for independent callers;
@@ -676,7 +968,12 @@ tile offsets and writes the counts and the containment flags into the query
 count array, and one scatter launch (each warp looks at about four tiles spread
 over the array at once) writes the kept pairs of each tile that keeps any in
 order, as `DeviceSelect::Flagged` would. The judged lists keep the query format, so the
-cover remap rewrites them as before. Two boxes that overlap lie in overlapping grown
+cover remap rewrites them as before, but right after the scatter and before the
+counts' read-back: `cover_remap_judged_kernel` takes each segment's count (and
+the cover-T pairs' offset) from the scan's per-list counts on the device and
+covers them in one grid-stride launch, writing the same pairs to the same
+places as `cover_remap_pairs_kernel`, and the host waits for an event recorded
+before it. Two boxes that overlap lie in overlapping grown
 copies, so every pair the queries would judge is stored and the candidate
 multisets equal those of the queries; only their order changes. The judged
 lists are written before the containment flags arrive (they ride in the count
@@ -1405,15 +1702,16 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 | File | Contents |
 |---|---|
-| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStreams` (non-blocking fork/join streams with events; `keep_handed_out()` leaves the streams handed out so far to their producers, and `next()` then cycles over the others until the next `fork()`) and `LazySideStream` (one producer's stream, taken on first use), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events; `mark()` and `fork_marked()` split `fork()` into recording the parent's point and waiting for it) |
+| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStreams` (non-blocking fork/join streams with events; `join_next()` joins only the streams handed out by `next()` since the last fork or `join_next()`; `keep_handed_out()` leaves the streams handed out so far to their producers, and `next()` then cycles over the others until the next `fork()`) and `LazySideStream` (one producer's stream, taken on first use), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events; `mark()` and `fork_marked()` split `fork()` into recording the parent's point and waiting for it) |
 | `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`, `Dense/CDense` (scalar viewers), `ViewerBase`, `Extent2D`, `Buffer2DView`, `Dense1D/Dense2D` (with `make_dense_1d/2d`) |
 | `launch.h` | `best_block_dim/best_grid_dim` (occupancy-based block size / grid computation); `spread_block_dim/spread_grid_dim` (one-warp blocks for FP64-heavy per-item kernels over short lists) |
-| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. `PinnedHostBuffer` is a page-locked host array whose `copy_from` enqueues a device-to-host copy without blocking, so several small read-backs share one stream synchronization (a copy into pageable memory waits for the stream on its own). `ReadbackBuffer` holds read-backs whose producer stores them directly: `device_data()` is where the producer stores, `enqueue_copy(s)` follows it, `data()` is read after synchronizing `s`; `mapped_readbacks()` decides the path. |
+| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. `PinnedHostBuffer` is a page-locked host array whose `copy_from` enqueues a device-to-host copy without blocking, so several small read-backs share one stream synchronization (a copy into pageable memory waits for the stream on its own). `ReadbackBuffer` holds read-backs whose producer stores them directly (see "Read-backs" below): `device_data()` is where the producer stores, `enqueue_copy(s)` follows it, `data()` is read after synchronizing `s`; `mapped_readbacks()` decides the path, and `store_value()` stores a host value into device memory or a read-back slot. `device_allocation_epoch()` counts every allocation, free and move of a `DeviceVar`/`DeviceVector` (work recorded with buffer pointers, such as a cached graph, stays valid while it is unchanged). |
+| `copy_batch.h` | `CopyBatch` collects device-to-device copies and zero fills of non-overlapping ranges (`copy()`, `zero()`) and enqueues them with `launch()` as one kernel over 8-byte words (a range that is not made of whole words gets its own `cudaMemcpyAsync`/`cudaMemsetAsync`): the same bytes, one launch. Used for the copies that open a line search |
 | `cub.h` | Thin wrappers (pointer-style) for `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` + warp-level cub headers; **temporary storage uses a stream-level workspace cache** (`details::cub_temp_storage`, grows 2× on demand, reused across calls — per-call cudaMalloc/cudaFree costs ~10-100µs each and implicitly synchronizes with the device, which once caused a ~15%/frame performance regression in the 6_wrecking_balls scene). Each wrapper calls CUB once, on the stream's whole workspace (`details::run_with_temp_storage`): CUB returns `cudaErrorInvalidValue` before it launches anything when the storage is too small, and only then is the size queried, the workspace grown and the call repeated (a separate size query would repeat the dispatch's host work, about 2.5 µs per call). Every call's error is checked, so a wrapper's callable returns CUB's `cudaError_t` |
 | `linear_system.h` + `linear_reduction.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + full set of views (Triplet/Doublet/DenseVector/BCOO) + `LinearSystemContext`; dot/norm use named partial-reduction kernels, persistent geometrically grown partial/result buffers, the per-stream CUB workspace, and scaled-square norm accumulation without cuBLAS |
 | `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`). The family originated in the MUDA migration; current `svd/pd` use `algorithm/qr_svd.hpp` with signed-SVD fixup and native float/double precision. |
 | `debug.h` | `debug_sync_all/check_finite` + the `UIPC_KERNEL_ASSERT/ERROR/WARN` macro family (gated by `uipc::RUNTIME_CHECK`) |
-| `graph.h` | `GraphCapture`: self-contained CUDA-graph block capture/replay (capture body on a capture stream, replay via `launch_sync()`; permanent fallback on capture failure, also when the body throws on an invalidated capture; a body that throws on a valid capture rethrows and leaves no instantiated graph). `GraphWhile`: setup chain plus WHILE conditional node, replayed by `launch_sync()` or, without waiting, by `launch()` on `launch_stream()`. Instantiation API is selected by `CUDART_VERSION` (`cudaGraphInstantiateWithFlags` ≥11.4 through 13.x, legacy 5-arg form below), so the same source builds across CUDA 11/12/13 |
+| `graph.h` | `GraphCapture`: self-contained CUDA-graph block capture/replay (capture body on a capture stream, replay via `launch_sync()` or, without waiting, `launch(stream)`; `recapture()` updates an instantiated graph in place with `cudaGraphExecUpdate` when the new capture keeps its topology; permanent fallback on capture failure, also when the body throws on an invalidated capture; a body that throws on a valid capture rethrows and leaves no instantiated graph, in `capture()` and `recapture()` alike). `GraphWhile`: setup chain plus WHILE conditional node, replayed by `launch_sync()` or, without waiting, by `launch()` on `launch_stream()`. Instantiation API is selected by `CUDART_VERSION` (`cudaGraphInstantiateWithFlags` ≥11.4 through 13.x, legacy 5-arg form below), so the same source builds across CUDA 11/12/13 |
 | `logger.h` | `LoggerViewer` (in-kernel `cout <<`, device printf) + `KernelCout` |
 | `atomic.h` | Scalar `atomic_add/atomic_exch` |
 

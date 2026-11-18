@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: fusion of the existing PT/EE/PE/PP normal
- * contact-energy launches, contact-type dispatch, launch-interface extraction
- * and zero-work handling.
+ * contact-energy launches, contact-type dispatch, launch-interface
+ * extraction, zero-work handling and the launch by capacity.
  *
  * The per-contact energy computations are adapted from libuipc's
  * ipc_simplex_normal_contact.cu; those pre-existing portions retain their
@@ -51,17 +51,25 @@ namespace
         cuda_tool::CBufferView<Vector4i>  EEs,
         cuda_tool::CBufferView<Vector3i>  PEs,
         cuda_tool::CBufferView<Vector2i>  PPs,
-        cuda_tool::BufferView<Float>      PT_Es,
-        cuda_tool::BufferView<Float>      EE_Es,
-        cuda_tool::BufferView<Float>      PE_Es,
-        cuda_tool::BufferView<Float>      PP_Es,
+        cuda_tool::BufferView<Float>      Es,
         Float                             dt,
         IndexT                            pt_end,
         IndexT                            ee_end,
         IndexT                            pe_end,
-        IndexT                            pp_end)
+        IndexT                            pp_end,
+        const IndexT*                     PT_count,
+        const IndexT*                     EE_count,
+        const IndexT*                     PE_count,
+        const IndexT*                     PP_count)
     {
         IndexT idx = blockIdx.x * blockDim.x + threadIdx.x;
+        if(PT_count)  // launched by capacity
+        {
+            pt_end = *PT_count;
+            ee_end = pt_end + *EE_count;
+            pe_end = ee_end + *PE_count;
+            pp_end = pe_end + *PP_count;
+        }
         if(idx >= pp_end)
             return;
 
@@ -111,7 +119,7 @@ namespace
                                    range(1));
             }
 
-            PT_Es(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
+            Es(idx) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
         }
         else if(idx < ee_end)
         {
@@ -161,7 +169,7 @@ namespace
                                    range(1));
             }
 
-            EE_Es(i) = mollified_EE_barrier_energy(
+            Es(idx) = mollified_EE_barrier_energy(
                 flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
         }
         else if(idx < pe_end)
@@ -199,7 +207,7 @@ namespace
                                    range(1));
             }
 
-            PE_Es(i) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
+            Es(idx) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
         }
         else
         {
@@ -232,7 +240,7 @@ namespace
                                    range(1));
             }
 
-            PP_Es(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
+            Es(idx) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
         }
     }
 }  // namespace
@@ -248,8 +256,13 @@ void launch_ipc_simplex_normal_contact_energy(const IPCSimplexNormalContactEnerg
     if(pp_end == 0)
         return;
 
+    UIPC_ASSERT(info.energies.size() == static_cast<SizeT>(pp_end),
+                "energy size mismatch, expected {}, got {}",
+                pp_end,
+                info.energies.size());
+
     constexpr int BlockSize = 64;
-    ipc_simplex_normal_contact_energy_kernel<<<pp_end / BlockSize + (pp_end % BlockSize != 0), BlockSize, 0, nullptr>>>(
+    ipc_simplex_normal_contact_energy_kernel<<<pp_end / BlockSize + (pp_end % BlockSize != 0), BlockSize, 0, info.stream>>>(
         info.contact_tabular.viewer(),
         info.contact_element_ids,
         info.positions,
@@ -260,14 +273,15 @@ void launch_ipc_simplex_normal_contact_energy(const IPCSimplexNormalContactEnerg
         info.EEs,
         info.PEs,
         info.PPs,
-        info.PT_energies,
-        info.EE_energies,
-        info.PE_energies,
-        info.PP_energies,
+        info.energies,
         info.dt,
         pt_end,
         ee_end,
         pe_end,
-        pp_end);
+        pp_end,
+        info.PT_count,
+        info.EE_count,
+        info.PE_count,
+        info.PP_count);
 }
 }  // namespace uipc::backend::cuda

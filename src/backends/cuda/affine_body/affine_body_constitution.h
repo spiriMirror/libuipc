@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream interfaces for the prelaunched assembly.
+ * NVIDIA contributions: side-stream interfaces for the prelaunched assembly
+ * and the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -90,6 +91,9 @@ class AffineBodyConstitution : public SimSystem
         auto energies() const noexcept { return base_info->energies(); }
 
         auto dt() const noexcept { return base_info->dt(); }
+
+        // Every launch of the constitution's energy goes to this stream.
+        auto stream() const noexcept { return base_info->stream(); }
 
       private:
         ABDLineSearchReporter::ComputeEnergyInfo* base_info = nullptr;

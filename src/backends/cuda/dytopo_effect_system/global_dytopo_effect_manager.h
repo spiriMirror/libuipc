@@ -1,8 +1,8 @@
 /*
  * NVIDIA contributions: interfaces for raw-entry distribution, side-stream
- * assembly, batched count read-backs and the prelaunch hook; for the packed
- * distribution, the hook after the leading assembly launches and the one-warp
- * assembly-block count.
+ * assembly, batched count read-backs, the prelaunch hook and prelaunched
+ * energies; for the packed distribution, the hook after the leading assembly
+ * launches and the one-warp assembly-block count.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -101,16 +101,55 @@ class GlobalDyTopoEffectManager final : public SimSystem
         SizeT m_energy_count = 0;
     };
 
+    // The extent of a trial energy launched before the read-back of the
+    // trial's active-set counts (DyTopoEffectLineSearchReporter, see
+    // GlobalTrajectoryFilter::filter_active's before_sync): the count the
+    // energy will report, or, for an energy count that the pending
+    // filter_active completes on the device, an upper bound of it.
+    class PrelaunchEnergyExtentInfo
+    {
+      public:
+        void energy_count(SizeT count) noexcept { m_count = count; }
+        void pending_energy_count(SizeT capacity) noexcept
+        {
+            m_count   = capacity;
+            m_pending = true;
+        }
+
+      private:
+        friend class DyTopoEffectLineSearchReporter;
+        SizeT m_count   = 0;
+        bool  m_pending = false;
+    };
+
     class EnergyInfo
     {
       public:
+        explicit EnergyInfo(cuda_tool::SideStreams* side_streams = nullptr,
+                            cudaEvent_t             after = nullptr) noexcept
+            : m_stream(side_streams, after)
+        {
+        }
+
         cuda_tool::BufferView<Float> energies() const { return m_energies; }
         bool                         is_initial() const { return m_is_initial; }
+        // Stream for every launch of the reporter's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
+        // Launched before the count read-back (the reporter reported a
+        // prelaunch extent): energies() spans the reported count, or the
+        // capacity of a pending count.
+        bool prelaunch() const noexcept { return m_prelaunch; }
+        // That launch computed this evaluation's energies already: the
+        // reporter only takes its ranges and launches nothing.
+        bool prelaunched() const noexcept { return m_prelaunched; }
 
       private:
         friend class DyTopoEffectLineSearchReporter;
         cuda_tool::BufferView<Float> m_energies;
-        bool                         m_is_initial = false;
+        bool                         m_is_initial  = false;
+        bool                         m_prelaunch   = false;
+        bool                         m_prelaunched = false;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     using ClassifyInfo = DyTopoClassifyInfo;

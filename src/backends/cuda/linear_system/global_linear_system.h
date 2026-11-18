@@ -2,9 +2,10 @@
  * NVIDIA contributions: interfaces and state for fused iteration, blockwise
  * assembly and layout generation; for the block-diagonal PCG step, assembly
  * side streams, the prelaunched and in-place FEM assembly, batched read-backs,
- * preconditioner reuse and parallel PCG segment streams; for the
- * elastic-producer prelaunch right after the contact assembly launch, late
- * Hessian blocks and the preconditioner preparation from the DyTopo hook.
+ * preconditioner reuse, parallel PCG segment streams and the deferred solution
+ * retrieval; for the elastic-producer prelaunch right after the contact
+ * assembly launch, late Hessian blocks and the preconditioner preparation from
+ * the DyTopo hook.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -449,11 +450,17 @@ class GlobalLinearSystem : public SimSystem
         }
 
         CDenseVectorView solution() { return m_solution; }
+        // The engine collects the vertex displacements right after this
+        // solve: a subsystem may leave its retrieval to its vertex
+        // reporter's report_displacements() (one kernel for both), which
+        // then must run before anything reads the retrieved step.
+        bool deferred() const noexcept { return m_deferred; }
 
       private:
         friend class Impl;
         CDenseVectorView m_solution;
-        Impl*            m_impl = nullptr;
+        Impl*            m_impl     = nullptr;
+        bool             m_deferred = false;
     };
 
   private:
@@ -484,7 +491,7 @@ class GlobalLinearSystem : public SimSystem
         void _clear_triplets();
         void _assemble_preconditioner();
         void solve_linear_system();
-        void distribute_solution();
+        void distribute_solution(bool deferred = false);
         // late blocks (DiagExtentInfo::late_extent()): their total count,
         // then their assembly behind the other blocks
         SizeT _report_late_extents();
@@ -716,8 +723,9 @@ class GlobalLinearSystem : public SimSystem
     // DyTopo hook once the contact assembly is enqueued (false without DyTopo)
     void prelaunch_assembly(bool contact_launched);
 
-    // only be called by SimEngine::do_advance()
-    void solve();
+    // only be called by SimEngine::do_advance(); defer_retrieve: the
+    // displacements are collected right after (SolutionInfo::deferred())
+    void solve(bool defer_retrieve = false);
 
     // only be called by SimEngine::do_advance()
     Float diag_norm();

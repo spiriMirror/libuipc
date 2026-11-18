@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: side-stream launches and producer ordering of the
+ * NVIDIA contributions: side-stream launches and one-warp launch shapes of the
  * animator constraints.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
@@ -170,7 +170,8 @@ void AffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, dt, info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, dt, info.energies(), info.side_streams()};
         constraint->compute_energy(this_info);
     }
 }

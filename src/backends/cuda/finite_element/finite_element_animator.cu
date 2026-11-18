@@ -185,7 +185,8 @@ void FiniteElementAnimator::compute_energy(FEMLineSearchSubreporter::ComputeEner
     using namespace cuda_tool;
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, info.dt(), info.energies(), info.side_streams()};
         constraint->compute_energy(this_info);
     }
 }

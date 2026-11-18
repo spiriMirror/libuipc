@@ -37,12 +37,21 @@ struct IPCSimplexNormalContactEnergyLaunchInfo
     cuda_tool::CBufferView<Vector3i> PEs;
     cuda_tool::CBufferView<Vector2i> PPs;
 
-    cuda_tool::BufferView<Float> PT_energies;
-    cuda_tool::BufferView<Float> EE_energies;
-    cuda_tool::BufferView<Float> PE_energies;
-    cuda_tool::BufferView<Float> PP_energies;
+    // PT | EE | PE | PP energies, contiguous
+    cuda_tool::BufferView<Float> energies;
+
+    // Optional, all four or none: the device counts of a launch by capacity.
+    // Only the leading pairs of each list, as many as its count, are then
+    // evaluated, into the leading range of the energies.
+    const IndexT* PT_count = nullptr;
+    const IndexT* EE_count = nullptr;
+    const IndexT* PE_count = nullptr;
+    const IndexT* PP_count = nullptr;
 
     Float dt = 0.0;
+
+    // Stream of the launch.
+    cudaStream_t stream = cuda_tool::default_stream();
 };
 
 // Launch one kernel over the contiguous PT | EE | PE | PP range. Empty

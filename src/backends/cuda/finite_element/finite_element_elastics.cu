@@ -1,6 +1,6 @@
 /*
  * NVIDIA contributions: stream plumbing and direct gradients of the
- * prelaunched FEM assembly.
+ * prelaunched FEM assembly and the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -158,13 +158,14 @@ void FiniteElementElastics::Impl::compute_energy(FEMLineSearchReporter::ComputeE
     auto offset        = 0;
     for(auto&& [I, c] : enumerate(constitutions))
     {
-        ComputeEnergyInfo this_info{this, I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{this, I, info.dt(), info.energies(), info.side_streams()};
         c->compute_energy(this_info);
     }
     offset += constitutions.size();
     for(auto&& [I, c] : enumerate(extras))
     {
-        ComputeEnergyInfo this_info{this, offset + I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{
+            this, offset + I, info.dt(), info.energies(), info.side_streams()};
         c->compute_energy(this_info);
     }
     offset += extras.size();

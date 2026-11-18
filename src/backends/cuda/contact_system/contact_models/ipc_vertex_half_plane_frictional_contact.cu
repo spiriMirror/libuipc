@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: assembly launches on the provided streams.
+ * NVIDIA contributions: assembly and energy launches on the provided streams.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -160,20 +160,20 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                 cuda_tool::best_grid_dim((int)info.friction_PHs().size(), do_compute_energy_kernel),
                 cuda_tool::best_block_dim(do_compute_energy_kernel),
                 0,
-                nullptr>>>(info.energies().viewer(),
-                           info.friction_PHs().viewer(),
-                           half_plane->positions().viewer(),
-                           half_plane->normals().viewer(),
-                           info.contact_tabular().viewer(),
-                           info.contact_element_ids().viewer(),
-                           info.positions().viewer(),
-                           info.prev_positions().viewer(),
-                           info.thicknesses().viewer(),
-                           info.eps_velocity(),
-                           info.d_hats().viewer(),
-                           info.half_plane_vertex_offset(),
-                           info.dt(),
-                           (int)info.friction_PHs().size());
+                info.stream()>>>(info.energies().viewer(),
+                                 info.friction_PHs().viewer(),
+                                 half_plane->positions().viewer(),
+                                 half_plane->normals().viewer(),
+                                 info.contact_tabular().viewer(),
+                                 info.contact_element_ids().viewer(),
+                                 info.positions().viewer(),
+                                 info.prev_positions().viewer(),
+                                 info.thicknesses().viewer(),
+                                 info.eps_velocity(),
+                                 info.d_hats().viewer(),
+                                 info.half_plane_vertex_offset(),
+                                 info.dt(),
+                                 (int)info.friction_PHs().size());
     }
 
     virtual void do_assemble(ContactInfo& info) override

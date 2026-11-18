@@ -32,6 +32,7 @@ struct CompactActiveList
     IndexT*       count;  // device: number of kept elements
     int           n;
     int           ints;
+    IndexT*       count_copy = nullptr;  // optional: the count stored here too
 };
 
 // Longest list compact_active_lists() takes.

@@ -2,7 +2,8 @@
  * NVIDIA contributions: compact radix-key ranges, sentinel handling and
  * symmetric-to-general sparse conversion changes; the upper-triangle
  * conversion without compaction (convert_upper), the reduction into an
- * uncleared output and device-side counts.
+ * uncleared output and device-side counts stored directly into read-back
+ * buffers.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -373,12 +374,16 @@ namespace
             counts->upper_count = tail ? i : n;
     }
 
-    // MatrixConverter::convert_upper #3: unique count from the segment index
+    // MatrixConverter::convert_upper #3: unique count from the segment index;
+    // the counts also go to the host's read-back slot
     __global__ void matrix_converter_convert_upper_k3_kernel(
-        cuda_tool::CBufferView<int> segments, cuda_tool::Dense<MatrixConverterUpperCounts> counts)
+        cuda_tool::CBufferView<int>                  segments,
+        cuda_tool::Dense<MatrixConverterUpperCounts> counts,
+        cuda_tool::Dense<MatrixConverterUpperCounts> readback)
     {
         const int upper      = counts->upper_count;
         counts->unique_count = upper > 0 ? segments(upper - 1) + 1 : 0;
+        *readback            = *counts;
     }
 
     // MatrixConverter::convert_upper #4: unpack the ij of every segment head,
@@ -1019,10 +1024,14 @@ void MatrixConverter<T, N>::convert_upper(const cuda_tool::DeviceTripletMatrix<T
     // segment index of every sorted triplet (the tail forms the last segment)
     DeviceScan().InclusiveSum(heads.data(), segments.data(), n);
 
+    upper_counts_readback.resize_discard(1);
     matrix_converter_convert_upper_k3_kernel<<<1, 1, 0, nullptr>>>(
-        segments.cview(), upper_counts.viewer());
-
-    const MatrixConverterUpperCounts h_counts = upper_counts;
+        segments.cview(),
+        upper_counts.viewer(),
+        cuda_tool::Dense<MatrixConverterUpperCounts>{upper_counts_readback.device_data()});
+    upper_counts_readback.enqueue_copy(nullptr);
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
+    const MatrixConverterUpperCounts h_counts = upper_counts_readback[0];
 
     to.resize_triplets_discard(h_counts.unique_count);
 

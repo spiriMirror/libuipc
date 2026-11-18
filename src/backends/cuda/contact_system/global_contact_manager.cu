@@ -1,6 +1,8 @@
 /*
- * NVIDIA contributions: the contact-tabular version and one-warp launch shapes
- * of the feasible-step kernels.
+ * NVIDIA contributions: the feasible-step CCD on the line-search prologue
+ * stream, the contact-tabular version, one-warp launch shapes of the
+ * feasible-step kernels and the read-back of their minimum through mapped
+ * memory.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -42,6 +44,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <numeric>
 #include <cmath>
+#include <utility>
 #include <cuda_tool/cub.h>
 
 namespace uipc::backend
@@ -568,12 +571,28 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
 Float GlobalContactManager::Impl::compute_feasible_step()
 {
-    if(!global_trajectory_filter)
+    launch_feasible_step(cuda_tool::default_stream());
+    return finish_feasible_step();
+}
+
+Float GlobalContactManager::Impl::finish_feasible_step()
+{
+    if(!std::exchange(feasible_pending, false))
         return 1.0;
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(feasible_stream));
+    Float h_min = min_feasible_toi[0];
+    return h_min < 1.0 ? h_min : 1.0;
+}
+
+void GlobalContactManager::Impl::launch_feasible_step(cudaStream_t stream)
+{
+    feasible_pending = false;
+    if(!global_trajectory_filter)
+        return;
 
     auto simplex = global_trajectory_filter->find<SimplexTrajectoryFilter>();
     if(!simplex)
-        return 1.0;
+        return;
 
     // Stiff-GIPC slackness: keep >= 20% of every active pair's current gap
     constexpr Float eta = 0.2;
@@ -590,7 +609,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     SizeT n_pt = PTs.size(), n_ee = EEs.size(), n_pe = PEs.size(), n_pp = PPs.size();
     SizeT total = n_pt + n_ee + n_pe + n_pp;
     if(total == 0)
-        return 1.0;
+        return;
 
     feasible_tois.resize_discard(total);
     SizeT off = 0;
@@ -599,7 +618,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PT_kernel;
         int  n = (int)n_pt;
-        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PTs, positions, displacements, thicknesses, feasible_tois.view(off, n_pt), eta, n);
     }
     off += n_pt;
@@ -608,7 +627,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_EE_kernel;
         int  n = (int)n_ee;
-        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             EEs, positions, displacements, thicknesses, feasible_tois.view(off, n_ee), eta, n);
     }
     off += n_ee;
@@ -617,7 +636,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PE_kernel;
         int  n = (int)n_pe;
-        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PEs, positions, displacements, thicknesses, feasible_tois.view(off, n_pe), eta, n);
     }
     off += n_pe;
@@ -626,13 +645,16 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PP_kernel;
         int  n = (int)n_pp;
-        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PPs, positions, displacements, thicknesses, feasible_tois.view(off, n_pp), eta, n);
     }
 
-    cuda_tool::DeviceReduce().Min(feasible_tois.data(), min_feasible_toi.data(), total);
-    Float h_min = min_feasible_toi;
-    return h_min < 1.0 ? h_min : 1.0;
+    min_feasible_toi.resize_discard(1);
+    cuda_tool::DeviceReduce(stream).Min(
+        feasible_tois.data(), min_feasible_toi.device_data(), total);
+    min_feasible_toi.enqueue_copy(stream);
+    feasible_stream  = stream;
+    feasible_pending = true;
 }
 
 }  // namespace uipc::backend::cuda
@@ -660,6 +682,16 @@ Float GlobalContactManager::compute_cfl_condition()
 Float GlobalContactManager::compute_feasible_step()
 {
     return m_impl.compute_feasible_step();
+}
+
+void GlobalContactManager::launch_feasible_step(cudaStream_t stream)
+{
+    m_impl.launch_feasible_step(stream);
+}
+
+Float GlobalContactManager::finish_feasible_step()
+{
+    return m_impl.finish_feasible_step();
 }
 
 

@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: assembly launch on the provided stream.
+ * NVIDIA contributions: assembly and line-search energy launches on the
+ * provided stream.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -240,7 +241,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
         int  n = (int)info.energies().size();
         if(n > 0)
         {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 hinges.view(),
                 bending_stiffnesses.view(),
                 info.thicknesses(),

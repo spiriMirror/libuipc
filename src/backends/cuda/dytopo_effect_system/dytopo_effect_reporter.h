@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: one-warp assembly-block report interfaces.
+ * NVIDIA contributions: the prelaunched energy extent and one-warp
+ * assembly-block report interfaces.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -60,6 +61,10 @@ class DyTopoEffectReporter : public SimSystem
         GlobalDyTopoEffectManager::GradientHessianExtentInfo& info) = 0;
     virtual void do_assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info) = 0;
     virtual void do_compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info) = 0;
+    // Optional: report the extent of a prelaunched trial energy and return
+    // true; the energy is then launched with EnergyInfo::prelaunch() and,
+    // after the count read-back, taken with EnergyInfo::prelaunched().
+    virtual bool do_report_prelaunch_energy_extent(GlobalDyTopoEffectManager::PrelaunchEnergyExtentInfo& info);
     // Optional: the one-warp blocks of the latency-bound assembly kernels the
     // next do_assemble() launches for the current active set (default 0).
     virtual SizeT                do_report_assembly_blocks();
@@ -71,6 +76,7 @@ class DyTopoEffectReporter : public SimSystem
     void init();  // only be called by GlobalDyTopoEffectManager
     void do_build() final override;
     void report_energy_extent(GlobalDyTopoEffectManager::EnergyExtentInfo& info);
+    bool report_prelaunch_energy_extent(GlobalDyTopoEffectManager::PrelaunchEnergyExtentInfo& info);
     SizeT report_assembly_blocks();
     void report_gradient_hessian_extent(GlobalDyTopoEffectManager::GradientHessianExtentInfo& info);
     void  assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info);

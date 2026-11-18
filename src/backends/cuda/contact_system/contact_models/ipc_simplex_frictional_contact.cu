@@ -1,8 +1,8 @@
 /*
  * NVIDIA contributions: contact-type dispatch/grouping, optimized Hessian
- * assembly and fused friction-energy launch integration; assembly launches on
- * the provided streams and the per-frame cache of the lagged friction
- * quantities.
+ * assembly and fused friction-energy launch integration; assembly and energy
+ * launches on the provided streams and the per-frame cache of the lagged
+ * friction quantities.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -401,7 +401,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
             .lagged              = lagged.view(),
             .update_lagged       = update,
             .eps_velocity        = info.eps_velocity(),
-            .dt                  = info.dt()});
+            .dt                  = info.dt(),
+            .stream              = info.stream()});
     }
 
     virtual void do_assemble(ContactInfo& info) override

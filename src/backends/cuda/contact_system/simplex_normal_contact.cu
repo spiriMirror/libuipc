@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream assembly launches.
+ * NVIDIA contributions: side-stream assembly and energy launches and the
+ * prelaunched trial energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -63,9 +64,16 @@ void SimplexNormalContact::do_report_energy_extent(GlobalContactManager::EnergyE
 
 void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{&m_impl, &info};
 
-    auto energies = info.energies();
+    auto energies         = info.energies();
+    this_info.m_energies  = energies;
+    this_info.m_prelaunch = info.prelaunch();
+    if(info.prelaunch())
+    {
+        do_compute_energy(this_info);
+        return;
+    }
 
     SizeT offset = 0;
 
@@ -90,7 +98,8 @@ void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& i
                 energies.size(),
                 offset);
 
-    do_compute_energy(this_info);
+    if(!info.prelaunched())  // else the prelaunch computed them
+        do_compute_energy(this_info);
 }
 
 void SimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
@@ -195,6 +204,11 @@ cuda_tool::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_t
     return m_impl->global_contact_manager->contact_tabular();
 }
 
+
+auto SimplexNormalContact::pending_active_set() const -> const SimplexTrajectoryFilter::PendingActiveSet&
+{
+    return m_impl.simplex_trajectory_filter->pending_active_set();
+}
 
 cuda_tool::CBufferView<Vector4i> SimplexNormalContact::PTs() const
 {

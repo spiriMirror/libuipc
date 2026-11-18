@@ -171,7 +171,8 @@ void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnerg
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, dt, info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, dt, info.energies(), info.side_streams()};
         constraint->compute_energy(this_info);
     }
 }

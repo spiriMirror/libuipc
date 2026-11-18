@@ -992,7 +992,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         auto k       = affine_body_prismatic_joint_compute_energy_kernel;
         int  n       = (int)body_ids.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),
@@ -1337,7 +1337,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
         auto k = affine_body_driving_prismatic_joint_compute_energy_kernel;
         int  n = (int)is_constrained.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 is_constrained.cview(),
                 is_passive.cview(),
@@ -1717,7 +1717,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         auto k = affine_body_prismatic_joint_limit_compute_energy_kernel;
         int  n = (int)ref_qs.size();
         if(n > 0)
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 prismatic_joint->rest_cs.cview(),
                 prismatic_joint->rest_ts.cview(),

@@ -1,6 +1,6 @@
 /*
- * NVIDIA contributions: side-stream assembly launches and invalidation of the
- * lagged friction cache.
+ * NVIDIA contributions: side-stream assembly and energy launches,
+ * invalidation of the lagged friction cache and the prelaunched trial energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -70,9 +70,20 @@ void SimplexFrictionalContact::do_report_energy_extent(GlobalContactManager::Ene
                       + m_impl.PP_count);
 }
 
+bool SimplexFrictionalContact::do_report_prelaunch_energy_extent(GlobalContactManager::PrelaunchEnergyExtentInfo& info)
+{
+    // The friction pairs are the frame start's: a trial's energy count is
+    // known before its active set is, and its launch is the usual one.
+    GlobalContactManager::EnergyExtentInfo extent;
+    do_report_energy_extent(extent);
+    info.energy_count(m_impl.PT_count + m_impl.EE_count + m_impl.PE_count
+                      + m_impl.PP_count);
+    return true;
+}
+
 void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{&m_impl, &info};
 
     auto energies = info.energies();
 
@@ -99,7 +110,8 @@ void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInf
                 energies.size(),
                 offset);
 
-    do_compute_energy(this_info);
+    if(!info.prelaunched())  // else the prelaunch computed them
+        do_compute_energy(this_info);
 }
 
 void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)

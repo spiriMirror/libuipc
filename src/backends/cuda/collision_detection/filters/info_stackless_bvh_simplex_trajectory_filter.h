@@ -1,9 +1,10 @@
 /*
  * NVIDIA contributions: state and interfaces for the contact-tabular vertex
  * cover, concurrent tree chains, stored-pair judging and skins, BVH topology
- * retention, the fused detect prefix, the in-kernel TOI minimum and batched
- * count read-backs; for the certified cover EE screens and the kept-tile
- * scatter.
+ * retention, the fused detect prefix, the in-kernel TOI minimum and read-back
+ * buffers; for the certified cover EE screens, the kept-tile scatter, the
+ * detection hook before the candidate-count read-back and the EE TOI launch
+ * beside the other TOI launches.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -41,6 +42,7 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
 {
   public:
     using SimplexTrajectoryFilter::SimplexTrajectoryFilter;
+    ~InfoStacklessBVHSimplexTrajectoryFilter() override;
 
     class Impl
     {
@@ -217,13 +219,22 @@ class InfoStacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFi
         cuda_tool::DeviceBuffer<float4> f32_ends;
 
         // Four query counts (plus the cover-tree PT count and the three escape
-        // flags) and four compacted PP/PE/PT/EE counts are each downloaded in
-        // one transfer.
-        cuda_tool::DeviceBuffer<IndexT> query_counts;
+        // flags) and four compacted PP/PE/PT/EE counts are each read back at
+        // once. The judge scan and the compaction store theirs into read-back
+        // buffers (cuda_tool::ReadbackBuffer); query_counts serves the direct
+        // queries' count kernel and selected_counts DeviceSelect::If (lists
+        // longer than CompactActiveListMaxSize), both followed by a copy.
+        cuda_tool::DeviceBuffer<IndexT>   query_counts;
+        cuda_tool::ReadbackBuffer<IndexT> judged_counts;
+        cudaEvent_t judged = nullptr;  // after the judged counts' read-back copy
         // The TOI minimum's slot (toi_min.h): key, finished blocks.
         cuda_tool::DeviceBuffer<unsigned long long> toi_min_slot;
-        cuda_tool::DeviceBuffer<IndexT>             selected_counts;
-        cuda_tool::PinnedHostBuffer<IndexT>         selected_counts_host;
+        // the EE TOI launch runs here, beside the other TOI launches
+        cudaStream_t                      toi_side = nullptr;
+        cudaEvent_t                       toi_fork = nullptr;
+        cudaEvent_t                       toi_join = nullptr;
+        cuda_tool::DeviceBuffer<IndexT>   selected_counts;
+        cuda_tool::ReadbackBuffer<IndexT> selected_counts_readback;
 
         cuda_tool::DeviceBuffer<Vector4i> temp_PTs;
         cuda_tool::DeviceBuffer<Vector4i> temp_EEs;

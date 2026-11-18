@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: shared-workspace PSD projection, material derivative
  * reuse and gradient-only evaluation paths; launches on the provided stream
- * for the prelaunched FEM assembly.
+ * for the prelaunched FEM assembly and the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -454,7 +454,7 @@ class StressPlasticDiscreteShellBending final : public FiniteElementExtraConstit
         int  n = (int)info.energies().size();
         if(n > 0)
         {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 stencils.view(),
                 bending_stiffnesses.view(),
                 theta_bars.view(),

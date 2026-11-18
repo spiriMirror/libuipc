@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream assembly interfaces.
+ * NVIDIA contributions: side-stream assembly and energy interfaces and the
+ * prelaunched trial energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -114,9 +115,16 @@ class SimplexNormalContact : public ContactReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl) noexcept
+        EnergyInfo(Impl* impl, const GlobalContactManager::EnergyInfo* base = nullptr) noexcept
             : BaseInfo(impl)
+            , m_base(base)
         {
+        }
+
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
         }
 
         cuda_tool::BufferView<Float> PT_energies() const noexcept
@@ -135,13 +143,26 @@ class SimplexNormalContact : public ContactReporter
         {
             return m_PP_energies;
         }
+        // PT | EE | PE | PP energies, contiguous
+        cuda_tool::BufferView<Float> energies() const noexcept
+        {
+            return m_energies;
+        }
+        // A trial energy launched before the read-back of the trial's
+        // active-set counts (see the protected interface): energies() spans
+        // the capacity of the pending active set, and the per-type energies
+        // are empty.
+        bool prelaunch() const noexcept { return m_prelaunch; }
 
       private:
         friend class SimplexNormalContact;
-        cuda_tool::BufferView<Float> m_PT_energies;
-        cuda_tool::BufferView<Float> m_EE_energies;
-        cuda_tool::BufferView<Float> m_PE_energies;
-        cuda_tool::BufferView<Float> m_PP_energies;
+        const GlobalContactManager::EnergyInfo* m_base = nullptr;
+        cuda_tool::BufferView<Float>            m_PT_energies;
+        cuda_tool::BufferView<Float>            m_EE_energies;
+        cuda_tool::BufferView<Float>            m_PE_energies;
+        cuda_tool::BufferView<Float>            m_PP_energies;
+        cuda_tool::BufferView<Float>            m_energies;
+        bool                                    m_prelaunch = false;
     };
 
     class Impl
@@ -212,7 +233,16 @@ class SimplexNormalContact : public ContactReporter
     cuda_tool::CDoubletVectorView<Float, 3> PP_gradients() const;
     cuda_tool::CTripletMatrixView<Float, 3> PP_hessians() const;
 
+    // The active set of the trial's pending filter_active (see
+    // SimplexTrajectoryFilter::pending_active_set).
+    const SimplexTrajectoryFilter::PendingActiveSet& pending_active_set() const;
+
   protected:
+    // A subclass whose do_compute_energy launches with
+    // EnergyInfo::prelaunch() by the pending active set (its lists at
+    // capacity, its counts on the device) may override
+    // do_report_prelaunch_energy_extent and report the pending count of
+    // their capacity.
     virtual void do_build(BuildInfo& info)           = 0;
     virtual void do_compute_energy(EnergyInfo& info) = 0;
     virtual void do_assemble(ContactInfo& info)      = 0;

@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: shared-workspace shell PSD projection, energy-launch
  * specialization and gradient-only launch selection; launches on the provided
- * stream for the prelaunched FEM assembly.
+ * stream for the prelaunched FEM assembly and the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -161,7 +161,7 @@ void launch_neo_hookean_shell_2d_energy(const NeoHookeanShell2DEnergyLaunchInfo&
         return;
 
     constexpr int BlockSize = 64;
-    NeoHookeanShell2D_do_compute_energy_kernel<<<(n + BlockSize - 1) / BlockSize, BlockSize, 0, nullptr>>>(
+    NeoHookeanShell2D_do_compute_energy_kernel<<<(n + BlockSize - 1) / BlockSize, BlockSize, 0, info.stream>>>(
         info.lambdas,
         info.mus,
         info.rest_areas,
@@ -321,7 +321,8 @@ class NeoHookeanShell2D final : public Codim2DConstitution
             .indices                     = info.indices(),
             .positions                   = info.xs(),
             .inverse_rest_shape_matrices = inv_B_matrices.cview(),
-            .dt                          = info.dt()});
+            .dt                          = info.dt(),
+            .stream                      = info.stream()});
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override

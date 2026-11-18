@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: the report of one-warp assembly blocks.
+ * NVIDIA contributions: the prelaunched energy extent and the report of
+ * one-warp assembly blocks.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -49,6 +50,11 @@ void DyTopoEffectReporter::report_energy_extent(GlobalDyTopoEffectManager::Energ
     do_report_energy_extent(info);
 }
 
+bool DyTopoEffectReporter::do_report_prelaunch_energy_extent(GlobalDyTopoEffectManager::PrelaunchEnergyExtentInfo&)
+{
+    return false;
+}
+
 SizeT DyTopoEffectReporter::do_report_assembly_blocks()
 {
     return 0;
@@ -57,6 +63,11 @@ SizeT DyTopoEffectReporter::do_report_assembly_blocks()
 SizeT DyTopoEffectReporter::report_assembly_blocks()
 {
     return do_report_assembly_blocks();
+}
+
+bool DyTopoEffectReporter::report_prelaunch_energy_extent(GlobalDyTopoEffectManager::PrelaunchEnergyExtentInfo& info)
+{
+    return do_report_prelaunch_energy_extent(info);
 }
 
 void DyTopoEffectReporter::report_gradient_hessian_extent(GlobalDyTopoEffectManager::GradientHessianExtentInfo& info)

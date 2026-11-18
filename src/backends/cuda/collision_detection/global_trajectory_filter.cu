@@ -1,8 +1,10 @@
 /*
  * NVIDIA contributions: line-search trajectory-filter lifecycle and
  * active-contact count integration; frame-start active-set reuse with its
- * validation mode, trajectory-candidate reuse within a detection skin and
- * two-phase active-set filtering with one synchronization for all filters.
+ * validation mode, trajectory-candidate reuse within a detection skin, TOI and
+ * two-phase active-set filtering on side streams, batched, copy-free
+ * read-backs, the count read-back behind prelaunched work and the detection
+ * hook before the candidate-count read-back.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -111,6 +113,14 @@ namespace
 
 REGISTER_SIM_SYSTEM(GlobalTrajectoryFilter);
 
+GlobalTrajectoryFilter::~GlobalTrajectoryFilter()
+{
+    if(m_impl.filtered)
+        cudaEventDestroy(m_impl.filtered);
+    if(m_impl.side_filtered)
+        cudaEventDestroy(m_impl.side_filtered);
+}
+
 void GlobalTrajectoryFilter::do_build()
 {
     auto& config               = world().scene().config();
@@ -139,8 +149,9 @@ void GlobalTrajectoryFilter::add_filter(TrajectoryFilter* filter)
 void GlobalTrajectoryFilter::Impl::init()
 {
     auto filter_view = filters.view();
-    tois.resize(filter_view.size());
-    h_tois.resize(filter_view.size());
+    tois.resize_discard(filter_view.size());
+    CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&filtered, cudaEventDisableTiming));
+    CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&side_filtered, cudaEventDisableTiming));
 
     detect_skin_supported =
         std::ranges::all_of(filter_view,
@@ -166,7 +177,10 @@ Float GlobalTrajectoryFilter::Impl::candidate_skin()
     return CandidateSkinRatio * min_d_hat;
 }
 
-void GlobalTrajectoryFilter::detect(Float alpha, bool reuse_bvh_topology, bool reusable)
+void GlobalTrajectoryFilter::detect(Float alpha,
+                                    bool  reuse_bvh_topology,
+                                    bool  reusable,
+                                    const std::function<void()>& before_read_back)
 {
     Float skin = reusable && alpha > 0.0 ? m_impl.candidate_skin() : 0.0;
     for(auto filter : m_impl.filters.view())
@@ -175,6 +189,7 @@ void GlobalTrajectoryFilter::detect(Float alpha, bool reuse_bvh_topology, bool r
         info.m_alpha              = alpha;
         info.m_reuse_bvh_topology = reuse_bvh_topology;
         info.m_skin               = skin;
+        info.m_before_read_back   = &before_read_back;
         filter->detect(info);
     }
     m_impl.held_skin = skin;
@@ -200,7 +215,7 @@ bool GlobalTrajectoryFilter::reuse_candidates(Float axis_motion) const
     return m_impl.held_skin > 0.0 && axis_motion * max_relative_motion <= m_impl.held_skin;
 }
 
-void GlobalTrajectoryFilter::filter_active()
+void GlobalTrajectoryFilter::filter_active(const std::function<void(cudaEvent_t)>& before_sync)
 {
     if(m_impl.global_contact_manager->cfl_enabled())
     {
@@ -214,14 +229,58 @@ void GlobalTrajectoryFilter::filter_active()
     auto filter_view = m_impl.filters.view();
     m_impl.filter_active_launched.assign(filter_view.size(), 0);
     bool launched = false;
+    // The filters on the legacy stream are launched first, then
+    // before_sync's work behind them (they lead the trial's critical
+    // chain); the ones that run beside (runs_beside(): the half-plane
+    // filter) take a side stream ordered after the legacy stream's work
+    // before the filters (the step), joined back after before_sync's work.
+    bool beside =
+        std::any_of(filter_view.begin(),
+                    filter_view.end(),
+                    [](TrajectoryFilter* f) { return f->runs_beside(); });
+    if(beside)
+        m_impl.filter_active_side.mark(cuda_tool::default_stream());
     for(auto&& [i, filter] : enumerate(filter_view))
     {
+        if(filter->runs_beside())
+            continue;
         FilterActiveInfo info(&m_impl);
         m_impl.filter_active_launched[i] = filter->launch_filter_active(info);
         launched |= m_impl.filter_active_launched[i] != 0;
     }
+    // (every filter beside launches, see below)
+    const bool sync_events = (launched || beside) && before_sync;
+    if(sync_events)
+    {
+        CUDA_TOOL_CHECK(cudaEventRecord(m_impl.filtered, nullptr));
+        before_sync(m_impl.filtered);
+    }
+    if(beside)
+    {
+        cudaStream_t side = m_impl.filter_active_side.fork_marked();
+        for(auto&& [i, filter] : enumerate(filter_view))
+        {
+            if(!filter->runs_beside())
+                continue;
+            FilterActiveInfo info(&m_impl);
+            info.m_stream = side;
+            m_impl.filter_active_launched[i] = filter->launch_filter_active(info);
+            UIPC_ASSERT(m_impl.filter_active_launched[i],
+                        "{} runs beside but has no two-phase filter_active",
+                        filter->name());
+            launched = true;
+        }
+        CUDA_TOOL_CHECK(cudaEventRecord(m_impl.side_filtered, side));
+        CUDA_TOOL_CHECK(cudaStreamWaitEvent(cuda_tool::default_stream(), m_impl.side_filtered, 0));
+    }
 
-    if(launched)
+    if(sync_events)
+    {
+        CUDA_TOOL_CHECK(cudaEventSynchronize(m_impl.filtered));
+        if(beside)
+            CUDA_TOOL_CHECK(cudaEventSynchronize(m_impl.side_filtered));
+    }
+    else if(launched)
         CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
 
     for(auto&& [i, filter] : enumerate(filter_view))
@@ -236,25 +295,61 @@ void GlobalTrajectoryFilter::filter_active()
 
 Float GlobalTrajectoryFilter::Impl::filter_toi(Float alpha)
 {
-    auto filter_view = filters.view();
-    for(auto&& [i, filter] : enumerate(filter_view))
-    {
-        FilterTOIInfo info;
-        info.m_toi   = cuda_tool::VarView<Float>{tois.data() + i};
-        info.m_alpha = alpha;
-        filter->filter_toi(info);
-    }
-    tois.view().copy_to(h_tois.data());
+    launch_filter_toi(alpha, global_vertex_manager->positions(), cuda_tool::default_stream());
+    return finish_filter_toi();
+}
 
+void GlobalTrajectoryFilter::Impl::launch_filter_toi(Float alpha,
+                                                     cuda_tool::CBufferView<Vector3> positions,
+                                                     cudaStream_t stream)
+{
+    auto filter_view = filters.view();
+    // As in filter_active(), the filters that run beside take a side stream
+    // ordered after `stream`'s work so far, joined back before the TOIs'
+    // read-back.
+    bool beside =
+        std::any_of(filter_view.begin(),
+                    filter_view.end(),
+                    [](TrajectoryFilter* f) { return f->runs_beside(); });
+    if(beside)
+        filter_toi_side.mark(stream);
+    for(int pass = 0; pass < (beside ? 2 : 1); ++pass)
+    {
+        cudaStream_t s = pass == 0 ? stream : filter_toi_side.fork_marked();
+        for(auto&& [i, filter] : enumerate(filter_view))
+        {
+            if(filter->runs_beside() != (pass == 1))
+                continue;
+            FilterTOIInfo info;
+            info.m_toi   = cuda_tool::VarView<Float>{tois.device_data() + i};
+            info.m_alpha = alpha;
+            info.m_positions = positions;
+            info.m_stream    = s;
+            filter->filter_toi(info);
+        }
+    }
+    if(beside)
+        filter_toi_side.join(stream);
+    tois.enqueue_copy(stream);
+    toi_stream = stream;
+}
+
+Float GlobalTrajectoryFilter::Impl::finish_filter_toi()
+{
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(toi_stream));
     if constexpr(uipc::RUNTIME_CHECK)
     {
-        for(auto&& [i, toi] : enumerate(h_tois))
+        auto filter_view = filters.view();
+        for(SizeT i = 0; i < tois.size(); ++i)
         {
-            UIPC_ASSERT(toi > 0.0f, "Invalid toi[{}] value: {}", filter_view[i]->name(), toi);
+            UIPC_ASSERT(tois[i] > 0.0f,
+                        "Invalid toi[{}] value: {}",
+                        filter_view[i]->name(),
+                        tois[i]);
         }
     }
 
-    auto min_toi = *std::min_element(h_tois.begin(), h_tois.end());
+    auto min_toi = *std::min_element(tois.data(), tois.data() + tois.size());
 
     return min_toi < 1.0 ? min_toi : 1.0;
 }
@@ -262,6 +357,18 @@ Float GlobalTrajectoryFilter::Impl::filter_toi(Float alpha)
 Float GlobalTrajectoryFilter::filter_toi(Float alpha)
 {
     return m_impl.filter_toi(alpha);
+}
+
+void GlobalTrajectoryFilter::launch_filter_toi(Float alpha, cudaStream_t stream)
+{
+    // The line search starts from the recorded start point: its positions
+    // equal the current positions until the first trial steps forward.
+    m_impl.launch_filter_toi(alpha, m_impl.global_vertex_manager->safe_positions(), stream);
+}
+
+Float GlobalTrajectoryFilter::finish_filter_toi()
+{
+    return m_impl.finish_filter_toi();
 }
 
 void GlobalTrajectoryFilter::record_friction_candidates()

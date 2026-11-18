@@ -287,7 +287,8 @@ touching that area; several of these have bitten us more than once.
     `GraphCapture`/`GraphWhile::capture` catch that, end the capture (which
     takes every joined stream out of capture mode) and take the same
     fallback. An exception on a valid capture is rethrown once the capture
-    is ended. An invalidated capture into a conditional node's body
+    is ended; `GraphCapture::recapture()` then also drops its instantiated
+    graph, as `capture()` does, so the stale graph is not replayed. An invalidated capture into a conditional node's body
     (`cudaStreamBeginCaptureToGraph`, the WHILE loop body) leaves the parent
     graph unsafe to destroy on CUDA 13.4: the body graph handle turns
     invalid, and `cudaGraphDestroy` of the parent (or `cudaGraphDestroyNode`

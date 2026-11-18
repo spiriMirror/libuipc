@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: stream interface of the prelaunched FEM assembly.
+ * NVIDIA contributions: stream interfaces of the prelaunched FEM assembly and
+ * the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -112,6 +113,8 @@ class FiniteElementExtraConstitution : public SimSystem
         }
 
         auto energies() const noexcept { return base_info->energies(); }
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept { return base_info->stream(); }
 
       private:
         FiniteElementElastics::ComputeEnergyInfo* base_info = nullptr;

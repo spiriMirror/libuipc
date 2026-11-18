@@ -1,6 +1,7 @@
 /*
  * NVIDIA contributions: stream and direct-gradient interfaces of the
- * prelaunched FEM assembly; the grid cap of the gradient and Hessian launch.
+ * prelaunched FEM assembly and the line-search energy; the grid cap of the
+ * gradient and Hessian launch.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -70,11 +71,16 @@ class FiniteElementElastics final : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energies)
+        ComputeEnergyInfo(Impl*                        impl,
+                          SizeT                        index,
+                          Float                        dt,
+                          cuda_tool::BufferView<Float> energies,
+                          cuda_tool::SideStreams*      side_streams = nullptr)
             : m_impl(impl)
             , m_index(index)
             , m_dt(dt)
             , m_energies(energies)
+            , m_stream(side_streams)
         {
         }
 
@@ -84,12 +90,15 @@ class FiniteElementElastics final : public SimSystem
             return m_energies.subview(offset, count);
         }
         auto dt() const noexcept { return m_dt; }
+        // Stream for every launch of this constitution's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
 
       private:
         Impl*                        m_impl  = nullptr;
         SizeT                        m_index = 0;
         Float                        m_dt    = 0.0;
         cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     class ComputeGradientHessianInfo

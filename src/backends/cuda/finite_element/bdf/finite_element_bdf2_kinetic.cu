@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: assembly launches on the provided streams.
+ * NVIDIA contributions: assembly and energy launches on the provided streams.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -117,7 +117,7 @@ class FiniteElementBDF2Kinetic final : public FiniteElementKinetic
         int  n = (int)info.xs().size();
         if(n > 0)
         {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.is_fixed().cview(),
                 info.xs().cview(),
                 info.x_tildes().cview(),

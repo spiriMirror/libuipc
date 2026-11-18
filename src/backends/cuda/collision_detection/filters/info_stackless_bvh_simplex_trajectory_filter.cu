@@ -5,10 +5,13 @@
  * queries from a contact-tabular vertex cover, concurrent tree chains on side
  * streams, stored-pair judging with per-group skins and FP32 inputs, detection
  * skins for candidate reuse, BVH topology retention across frames, the fused
- * detect prefix, the four-list active-set compaction, one-warp CCD launch
- * shapes, the in-kernel TOI minimum and batched count read-backs; whole-warp
+ * detect prefix, the four-list active-set compaction and its pending active
+ * set, one-warp CCD launch shapes, the in-kernel TOI minimum, TOI filtering
+ * on a launch stream and batched, copy-free count read-backs; whole-warp
  * judging of the stored cover EE pairs by call site with certified FP32 bound
- * and gap screens and a one-pass judge scan with a kept-tile scatter.
+ * and gap screens, a one-pass judge scan with a kept-tile scatter, the cover
+ * remap and the detection hook before the candidate-count read-back, and the
+ * EE TOI launch beside the other TOI launches.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -890,6 +893,47 @@ namespace
         IndexT   a = query_ids(p[0]);
         IndexT   b = leaf_ids.size() > 0 ? leaf_ids(p[1]) : p[1];
         pairs(i)   = (ordered && b < a) ? Vector2i{b, a} : Vector2i{a, b};
+    }
+
+    // cover_remap_pairs_kernel on the first *count pairs of `in`, written to
+    // `out` from *offset on (null: 0). The counts are the judge scan's on the
+    // device, so the remaps of a judged detect follow its scatter before the
+    // host reads them back: one launch, a grid-stride loop per segment.
+    struct InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_segment
+    {
+        const Vector2i* in;
+        const IndexT*   query_ids;
+        const IndexT*   leaf_ids;  // null: the leaves already are primitive ids
+        bool            ordered;
+        Vector2i*       out;
+        const int*      count;
+        const int*      offset;
+    };
+
+    struct InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_segments
+    {
+        InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_segment segment[3];
+        int segments = 0;
+    };
+
+    __global__ void InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_judged_kernel(
+        InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_segments remaps)
+    {
+        const int stride = static_cast<int>(gridDim.x * blockDim.x);
+        for(int s = 0; s < remaps.segments; ++s)
+        {
+            const auto& S  = remaps.segment[s];
+            const int   n  = *S.count;
+            const int   at = S.offset ? *S.offset : 0;
+            for(int i = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x); i < n;
+                i += stride)
+            {
+                Vector2i p = S.in[i];
+                IndexT   a = S.query_ids[p[0]];
+                IndexT   b = S.leaf_ids ? S.leaf_ids[p[1]] : p[1];
+                S.out[at + i] = (S.ordered && b < a) ? Vector2i{b, a} : Vector2i{a, b};
+            }
+        }
     }
 
     // A query edge of S_E meets leaf edge j. A leaf outside S_E is reached only
@@ -2161,7 +2205,11 @@ namespace
                 dst[k] = src[k];
         }
         if(threadIdx.x == 0 && begin + CompactActiveThreads >= L.n)
+        {
             *L.count = before + kept;
+            if(L.count_copy)
+                *L.count_copy = before + kept;
+        }
     }
 
     __global__ void InfoStacklessBVHSimplexTrajectoryFilter_collect_query_counts_kernel(
@@ -2493,6 +2541,16 @@ namespace
 }  // namespace
 
 REGISTER_SIM_SYSTEM(InfoStacklessBVHSimplexTrajectoryFilter);
+
+InfoStacklessBVHSimplexTrajectoryFilter::~InfoStacklessBVHSimplexTrajectoryFilter()
+{
+    if(m_impl.judged)
+        cudaEventDestroy(m_impl.judged);
+    if(m_impl.toi_fork)
+        cudaEventDestroy(m_impl.toi_fork);
+    if(m_impl.toi_join)
+        cudaEventDestroy(m_impl.toi_join);
+}
 
 bool compact_active_lists(const std::array<CompactActiveList, 4>& lists, cudaStream_t stream)
 {
@@ -3456,12 +3514,13 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info, boo
             judge(4, {}, {}, pt_pred);  // empty
         }
 
+        judged_counts.resize_discard(8);
         InfoStacklessBVHSimplexTrajectoryFilter_judge_scan_kernel<<<1, JudgeScanThreads>>>(
             lists,
             judge_tile_counts.view(),
             judge_tile_offsets.view(),
             stored_escaped.view(),
-            query_counts.view(),
+            cuda_tool::BufferView<IndexT>{judged_counts.device_data(), 8},
             judge_ee_queue_counts.data());
         if(tiles > 0)
         {
@@ -3472,9 +3531,49 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info, boo
             InfoStacklessBVHSimplexTrajectoryFilter_judge_scatter_kernel<<<scatter_blocks, JudgeTile>>>(
                 lists, judge_tile_counts.view(), judge_tile_offsets.view(), tiles);
         }
+        judged_counts.enqueue_copy(nullptr);
+        if(!judged)
+            CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&judged, cudaEventDisableTiming));
+        CUDA_TOOL_CHECK(cudaEventRecord(judged, nullptr));
 
+        // The cover remaps (see remap below) follow before the read-back.
+        InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_segments remaps;
+        auto remap = [&](ThisBVH::QueryBuffer& in,
+                         const IndexT*         query_ids,
+                         const IndexT*         leaf_ids,
+                         bool                  ordered,
+                         ThisBVH::QueryBuffer& out,
+                         const int*            offset)
+        {
+            remaps.segment[remaps.segments++] = {in.m_pairs.data(),
+                                                 query_ids,
+                                                 leaf_ids,
+                                                 ordered,
+                                                 out.m_pairs.data(),
+                                                 in.m_cpNum.data(),
+                                                 offset};
+        };
+        if(cover_EE)
+            remap(candidate_AllE_AllE_pairs, cover_edges.ids.data(), nullptr, true, candidate_AllE_AllE_pairs, nullptr);
+        if(cover_PT)
+        {
+            auto& PT = candidate_AllP_AllT_pairs;
+            remap(PT, cover_points.ids.data(), nullptr, false, PT, nullptr);
+            remap(candidate_AllP_CoverT_pairs,
+                  cover_points.ids.data() + cover_points.count,
+                  cover_triangles.ids.data(),
+                  false,
+                  PT,
+                  PT.m_cpNum.data());
+        }
+        if(remaps.segments > 0)
+            InfoStacklessBVHSimplexTrajectoryFilter_cover_remap_judged_kernel<<<judge_sm_count, 256>>>(
+                remaps);
+
+        info.before_read_back();
+        CUDA_TOOL_CHECK(cudaEventSynchronize(judged));
         std::array<IndexT, 8> host_counts{};
-        query_counts.copy_to(host_counts.data());
+        std::copy(judged_counts.data(), judged_counts.data() + 8, host_counts.begin());
         return host_counts;
     };
 
@@ -3613,6 +3712,7 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info, boo
             | lbvh_T_cover.prepare_query_result(candidate_AllP_CoverT_pairs,
                                                 host_counts[4]);
         UIPC_ASSERT(!grew, "Judged stored pairs exceed their candidate lists");
+        return;  // judge_stored() remapped the cover pairs
     }
     IndexT covert_count = host_counts[4];
 
@@ -3773,19 +3873,27 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::launch_filter_active(FilterA
         static_assert(sizeof(Vector2i) == 2 * sizeof(IndexT)
                       && sizeof(Vector3i) == 3 * sizeof(IndexT)
                       && sizeof(Vector4i) == 4 * sizeof(IndexT));
+        // The compaction stores the counts into the read-back buffer, and
+        // into selected_counts for the pending active set below.
+        selected_counts_readback.resize_discard(4);
         auto list = [this](int l, auto& in, auto& out, int ints)
         {
             return CompactActiveList{reinterpret_cast<const IndexT*>(in.data()),
                                      reinterpret_cast<IndexT*>(out.data()),
-                                     selected_counts.data() + l,
+                                     selected_counts_readback.device_data() + l,
                                      static_cast<int>(in.size()),
-                                     ints};
+                                     ints,
+                                     selected_counts.data() + l};
         };
-        if(!compact_active_lists({list(0, temp_PPs, PPs, 2),
-                                  list(1, temp_PEs, PEs, 3),
-                                  list(2, temp_PTs, PTs, 4),
-                                  list(3, temp_EEs, EEs, 4)},
-                                 nullptr))
+        if(compact_active_lists({list(0, temp_PPs, PPs, 2),
+                                 list(1, temp_PEs, PEs, 3),
+                                 list(2, temp_PTs, PTs, 4),
+                                 list(3, temp_EEs, EEs, 4)},
+                                nullptr))
+        {
+            selected_counts_readback.enqueue_copy(nullptr);
+        }
+        else
         {
             DeviceSelect().If(temp_PPs.data(),
                               PPs.data(),
@@ -3810,21 +3918,32 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::launch_filter_active(FilterA
                               selected_counts.data() + 3,
                               temp_EEs.size(),
                               InfoStacklessBVHSimplexTrajectoryFilter_filter_active_EE_pred{});
+            selected_counts_readback.copy_from(0, selected_counts.cview(), nullptr);
         }
-
         // read by finish_filter_active after the caller's synchronization
-        selected_counts_host.resize_discard(4);
-        selected_counts_host.copy_from(selected_counts.cview());
+
+        // Until then, the lists at their capacity and the counts on the
+        // device (selected_counts: PP, PE, PT, EE).
+        PendingActiveSet pending;
+        pending.PTs      = PTs.cview();
+        pending.EEs      = EEs.cview();
+        pending.PEs      = PEs.cview();
+        pending.PPs      = PPs.cview();
+        pending.PT_count = selected_counts.data() + 2;
+        pending.EE_count = selected_counts.data() + 3;
+        pending.PE_count = selected_counts.data() + 1;
+        pending.PP_count = selected_counts.data();
+        info.pending(pending);
     }
 }
 
 void InfoStacklessBVHSimplexTrajectoryFilter::Impl::finish_filter_active(FilterActiveInfo& info)
 {
     {
-        IndexT PP_count = selected_counts_host[0];
-        IndexT PE_count = selected_counts_host[1];
-        IndexT PT_count = selected_counts_host[2];
-        IndexT EE_count = selected_counts_host[3];
+        IndexT PP_count = selected_counts_readback[0];
+        IndexT PE_count = selected_counts_readback[1];
+        IndexT PT_count = selected_counts_readback[2];
+        IndexT EE_count = selected_counts_readback[3];
 
         PPs.resize_discard(PP_count);
         PEs.resize_discard(PE_count);
@@ -3904,7 +4023,9 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
 
     UIPC_ASSERT(offset == toi_size, "size mismatch");
 
-    // The last launch (of a non-empty list) finishes the minimum (toi_min.h).
+    // Every launch counts its blocks and the last block of all of them
+    // finishes the minimum (toi_min.h), so the EE launch, the longest with
+    // PT, runs on a side stream beside the others.
     TOIMinSlot slot{toi_min_slot.data(), toi_min_slot.data() + 1};
     const std::array<SizeT, 4> sizes{candidate_AllP_CodimP_pairs.size(),
                                      candidate_CodimP_AllE_pairs.size(),
@@ -3913,8 +4034,23 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
     int                        last = -1;
     for(int l = 0; l < 4; ++l)
         if(sizes[l] > 0)
+        {
             last = l;
-    auto out = [&](int l) { return l == last ? info.toi().data() : nullptr; };
+            slot.blocks += cuda_tool::spread_grid_dim(static_cast<int>(sizes[l]));
+        }
+    auto out = [&](int) { return info.toi().data(); };
+    if(!toi_side)
+    {
+        CUDA_TOOL_CHECK(cudaStreamCreateWithFlags(&toi_side, cudaStreamNonBlocking));
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&toi_fork, cudaEventDisableTiming));
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&toi_join, cudaEventDisableTiming));
+    }
+    const bool ee_beside = sizes[3] > 0;
+    if(ee_beside)
+    {
+        CUDA_TOOL_CHECK(cudaEventRecord(toi_fork, info.stream()));
+        CUDA_TOOL_CHECK(cudaStreamWaitEvent(toi_side, toi_fork, 0));
+    }
 
     // AllP and CodimP
     {
@@ -3922,7 +4058,7 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
         if(n > 0)
         {
             auto k = InfoStacklessBVHSimplexTrajectoryFilter_filter_toi_k1_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 PP_tois,
                 candidate_AllP_CodimP_pairs.view(),
                 info.codim_vertices(),
@@ -3945,7 +4081,7 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
         if(n > 0)
         {
             auto k = InfoStacklessBVHSimplexTrajectoryFilter_filter_toi_k2_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 PE_tois,
                 candidate_CodimP_AllE_pairs.view(),
                 info.codim_vertices(),
@@ -3968,7 +4104,7 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
         if(n > 0)
         {
             auto k = InfoStacklessBVHSimplexTrajectoryFilter_filter_toi_k3_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 PT_tois,
                 candidate_AllP_AllT_pairs.view(),
                 info.surf_vertices(),
@@ -3991,7 +4127,7 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
         if(n > 0)
         {
             auto k = InfoStacklessBVHSimplexTrajectoryFilter_filter_toi_k4_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, toi_side>>>(
                 EE_tois,
                 candidate_AllE_AllE_pairs.view(),
                 info.surf_edges(),
@@ -4007,7 +4143,14 @@ void InfoStacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& in
         }
     }
 
+    if(ee_beside)
+    {
+        CUDA_TOOL_CHECK(cudaEventRecord(toi_join, toi_side));
+        CUDA_TOOL_CHECK(cudaStreamWaitEvent(info.stream(), toi_join, 0));
+    }
+
+    // The TOI slot may be mapped host memory (a cuda_tool::ReadbackBuffer).
     if(last < 0)
-        info.toi().fill(large_enough_toi);
+        cuda_tool::store_value(info.toi().data(), large_enough_toi, info.stream());
 }
 }  // namespace uipc::backend::cuda

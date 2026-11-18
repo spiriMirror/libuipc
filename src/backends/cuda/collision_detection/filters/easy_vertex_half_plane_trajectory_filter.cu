@@ -1,6 +1,7 @@
 /*
- * NVIDIA contributions: two-phase active-set filtering with batched count
- * read-backs and the in-kernel TOI minimum.
+ * NVIDIA contributions: two-phase active-set filtering on a side stream,
+ * batched count read-backs, the in-kernel TOI minimum and copy-free
+ * read-backs.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -261,13 +262,14 @@ void EasyVertexHalfPlaneTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::query_active(FilterActiveInfo& info)
 {
-    num_collisions = 0;
+    // a memset, not a pageable host-to-device copy (which may wait for the stream)
+    CUDA_TOOL_CHECK(cudaMemsetAsync(num_collisions.data(), 0, sizeof(IndexT), info.stream()));
 
     int n = static_cast<int>(info.surf_vertices().size());
     if(n > 0)
     {
         auto k = EasyVertexHalfPlaneTrajectoryFilter_filter_active_kernel;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
             num_collisions.viewer(),
             info.half_plane_vertex_offset(),
             info.surf_vertices(),
@@ -289,13 +291,18 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::query_active(FilterActiveInfo& i
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::launch_filter_active(FilterActiveInfo& info)
 {
     query_active(info);
-    num_collisions_host.resize_discard(1);
-    num_collisions_host.copy_from(cuda_tool::CBufferView<IndexT>{num_collisions.data(), 1});
+    // the count is published into the read-back buffer by a copy kernel, not
+    // read back by a device-to-host copy behind the query
+    num_collisions_readback.resize_discard(1);
+    cuda_tool::BufferLaunch(info.stream())
+        .copy(cuda_tool::BufferView<IndexT>{num_collisions_readback.device_data(), 1},
+              cuda_tool::CBufferView<IndexT>{num_collisions.data(), 1});
+    num_collisions_readback.enqueue_copy(info.stream());
 }
 
 void EasyVertexHalfPlaneTrajectoryFilter::Impl::finish_filter_active(FilterActiveInfo& info)
 {
-    h_num_collisions = num_collisions_host[0];
+    h_num_collisions = num_collisions_readback[0];
 
     if(h_num_collisions > PHs.size())
     {
@@ -327,13 +334,15 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     int n = static_cast<int>(info.surf_vertices().size());
     if(n == 0)
     {
-        info.toi().fill(1.1f);
-        DeviceReduce().Min(tois.data(), info.toi().data(), 0);
+        // A kernel fill: a pageable host-to-device copy may wait for the stream.
+        BufferLaunch(info.stream())
+            .fill(cuda_tool::BufferView<Float>{info.toi().data(), 1}, Float(1.1f));
+        DeviceReduce(info.stream()).Min(tois.data(), info.toi().data(), 0);
     }
     else  // the kernel also writes the minimum (toi_min.h)
     {
         auto k = EasyVertexHalfPlaneTrajectoryFilter_filter_toi_kernel;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
             info.surf_vertices(),
             info.half_plane_vertex_offset(),
             info.positions(),

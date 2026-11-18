@@ -1,9 +1,10 @@
 /*
  * NVIDIA contributions: prelaunched FEM assembly beside the DyTopo work, the
  * gather beside the legacy stream, row-index-only triplet clears, the
- * shortened assembly tail and in-place writes into the global system; the
- * in-place prelaunch split around the contact launch, with the grid-capped
- * elastic producers issued right after the contact assembly kernels.
+ * shortened assembly tail, in-place writes into the global system and the
+ * deferred solution retrieval; the in-place prelaunch split around the contact
+ * launch, with the grid-capped elastic producers issued right after the
+ * contact assembly kernels.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -1065,6 +1066,13 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 {
     using namespace cuda_tool;
 
+    UIPC_ASSERT(!fem().solution_pending, "a deferred FEM retrieval was never collected");
+    if(info.deferred())
+    {
+        fem().pending_solution = info.solution();
+        fem().solution_pending = true;
+        return;
+    }
     auto dxs = fem().dxs.view();
 
     auto k = FEMLinearSubsystem_retrieve_solution_kernel;

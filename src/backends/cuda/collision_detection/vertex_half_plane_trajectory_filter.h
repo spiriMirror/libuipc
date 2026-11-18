@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: two-phase active-set filtering interfaces.
+ * NVIDIA contributions: launch-stream, two-phase active-set filtering and
+ * read-back interfaces.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -90,6 +91,12 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
          * @brief Candidate vertex-half-plane pairs.
          */
         void PHs(cuda_tool::CBufferView<Vector2i> Ps) noexcept;
+        // Every launch of the two-phase filter_active goes to this stream.
+        cudaStream_t stream() const noexcept { return m_stream; }
+
+      private:
+        friend class VertexHalfPlaneTrajectoryFilter;
+        cudaStream_t m_stream = cuda_tool::default_stream();
     };
 
     class FilterTOIInfo : public DetectInfo
@@ -98,10 +105,16 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         using DetectInfo::DetectInfo;
 
         cuda_tool::VarView<Float> toi() noexcept;
+        // Start positions of the swept step (not always the current ones).
+        cuda_tool::CBufferView<Vector3> positions() const noexcept;
+        // Every launch of the TOI work goes to this stream.
+        cudaStream_t stream() const noexcept;
 
       private:
         friend class VertexHalfPlaneTrajectoryFilter;
-        cuda_tool::VarView<Float> m_toi;
+        cuda_tool::VarView<Float>       m_toi;
+        cuda_tool::CBufferView<Vector3> m_positions;
+        cudaStream_t                    m_stream = cuda_tool::default_stream();
     };
 
     class BuildInfo

@@ -32,7 +32,8 @@ struct NeoHookeanShell2DEnergyLaunchInfo
     cuda_tool::CBufferView<Vector3i>  indices;
     cuda_tool::CBufferView<Vector3>   positions;
     cuda_tool::CBufferView<Matrix2x2> inverse_rest_shape_matrices;
-    Float                             dt = 0.0;
+    Float                             dt     = 0.0;
+    cudaStream_t                      stream = nullptr;
 };
 
 // Production launch path for Neo-Hookean shell energy. A zero-sized indices

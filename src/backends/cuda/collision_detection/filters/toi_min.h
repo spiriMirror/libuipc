@@ -28,13 +28,17 @@ namespace uipc::backend::cuda
 // key into the filter's slot; the filter's last TOI launch (the finishing
 // one) also counts its blocks, and its last block writes the minimum to the
 // output and resets the slot. Launches of one filter run in stream order, so
-// the finishing launch sees the earlier launches' keys. The minimum of values
+// the finishing launch sees the earlier launches' keys. With `blocks` set, the
+// launches may run concurrently: each passes the output, every block counts,
+// and the last of those `blocks` blocks finishes. The minimum of values
 // without NaN is unique up to the sign of zero, so it equals
 // DeviceReduce::Min over the same values.
 struct TOIMinSlot
 {
     unsigned long long* key;  // the running minimum's key, TOIMinIdentity between uses
     unsigned long long* done;  // blocks of the finishing launch that are done, 0 between uses
+    // blocks of all launches that finish together (0: the finishing launch's own)
+    unsigned long long blocks = 0;
 };
 
 // Larger than the key of any value (also +inf); the two words of a slot start
@@ -75,7 +79,8 @@ __device__ inline void toi_min_block(unsigned long long key, TOIMinSlot slot, do
     if(threadIdx.x == 0)
     {
         __threadfence();
-        if(atomicAdd(slot.done, 1ull) == gridDim.x - 1)  // the last block
+        const unsigned long long blocks = slot.blocks ? slot.blocks : gridDim.x;
+        if(atomicAdd(slot.done, 1ull) == blocks - 1)  // the last block
         {
             // no value at all: DBL_MAX, as DeviceReduce::Min for an empty input
             const unsigned long long k = atomicExch(slot.key, TOIMinIdentity);

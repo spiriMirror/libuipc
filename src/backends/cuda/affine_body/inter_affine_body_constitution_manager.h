@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream interfaces for the assembly.
+ * NVIDIA contributions: side-stream interfaces for the assembly and the
+ * line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -111,16 +112,24 @@ class InterAffineBodyConstitutionManager final : public SimSystem
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl, IndexT index, Float dt, cuda_tool::BufferView<Float> energy)
+        EnergyInfo(Impl*                        impl,
+                   IndexT                       index,
+                   Float                        dt,
+                   cuda_tool::BufferView<Float> energy,
+                   cuda_tool::SideStreams*      side_streams = nullptr)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
+            , m_stream(side_streams)
         {
         }
         cuda_tool::BufferView<Float> energies() const noexcept;
+        // Stream for every launch of this constitution's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
 
       private:
         friend class InterAffineBodyConstitutionManager;
         cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     class GradientHessianInfo : public BaseInfo

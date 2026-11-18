@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: compact radix-key and symmetric-to-general conversion
- * interfaces and state; the convert_upper interface and its device-side
- * counts.
+ * interfaces and state; the convert_upper interface, its device-side counts
+ * and read-back state.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -175,7 +175,10 @@ class MatrixConverter
     cuda_tool::DeviceBuffer<int> sorted_partition_input;
     cuda_tool::DeviceBuffer<int> sorted_partition_output;
 
-    cuda_tool::DeviceVar<MatrixConverterUpperCounts> upper_counts;
+    // convert_upper's counts: read on the device by its later kernels; k3
+    // also stores them into the read-back buffer for the host
+    cuda_tool::DeviceVar<MatrixConverterUpperCounts>      upper_counts;
+    cuda_tool::ReadbackBuffer<MatrixConverterUpperCounts> upper_counts_readback;
 
   public:
     void  reserve_ratio(Float ratio) { m_reserve_ratio = ratio; }

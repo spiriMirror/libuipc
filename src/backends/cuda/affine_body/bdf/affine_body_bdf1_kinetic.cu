@@ -112,7 +112,7 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
         if(n > 0)
         {
             auto k = affine_body_bdf1_kinetic_compute_energy_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.is_fixed().cview(),
                 info.external_kinetic().cview(),
                 info.qs().cview(),

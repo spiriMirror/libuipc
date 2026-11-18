@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: side-stream assembly launches.
+ * NVIDIA contributions: side-stream assembly and energy launches.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -85,7 +85,7 @@ void VertexHalfPlaneFrictionalContact::do_compute_energy(GlobalContactManager::E
 {
     using namespace cuda_tool;
 
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{&m_impl, &info};
     this_info.m_energies = info.energies();
     m_impl.energies      = this_info.m_energies;
 

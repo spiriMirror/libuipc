@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: stream interfaces of the prelaunched FEM assembly.
+ * NVIDIA contributions: stream interfaces of the prelaunched FEM assembly
+ * and the line-search energy.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -67,16 +68,24 @@ class Codim2DConstitution : public FiniteElementConstitution
         ComputeEnergyInfo(Codim2DConstitution*         impl,
                           SizeT                        index_in_dim,
                           Float                        dt,
-                          cuda_tool::BufferView<Float> energies)
+                          cuda_tool::BufferView<Float> energies,
+                          const FiniteElementConstitution::ComputeEnergyInfo* base = nullptr)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
+            , m_base(base)
         {
         }
 
         auto energies() const noexcept { return m_energies; }
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
+        }
 
       private:
-        cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float>                        m_energies;
+        const FiniteElementConstitution::ComputeEnergyInfo* m_base = nullptr;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo

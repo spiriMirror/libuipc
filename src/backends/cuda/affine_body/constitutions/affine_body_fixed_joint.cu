@@ -368,7 +368,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_fixed_joint_compute_energy_kernel;
-            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),

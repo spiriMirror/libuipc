@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream interfaces of the inter-body constraints.
+ * NVIDIA contributions: side-stream and energy-count interfaces of the
+ * inter-body constraints.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -103,16 +104,24 @@ class InterAffineBodyAnimator final : public Animator
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energy)
+        ComputeEnergyInfo(Impl*                        impl,
+                          SizeT                        index,
+                          Float                        dt,
+                          cuda_tool::BufferView<Float> energy,
+                          cuda_tool::SideStreams*      side_streams = nullptr)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
+            , m_stream(side_streams)
         {
         }
         cuda_tool::BufferView<Float> energies() const noexcept;
+        // Stream for every launch of this constraint's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
 
       private:
         friend class InterAffineBodyAnimator;
         cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     class GradientHessianInfo : public BaseInfo
@@ -214,8 +223,12 @@ class InterAffineBodyAnimator final : public Animator
 
     Impl m_impl;
 
-    virtual void do_init() override;
-    virtual void do_step() override;
-    virtual void do_build(BuildInfo& info) override;
+    virtual void               do_init() override;
+    virtual void               do_step() override;
+    virtual void               do_build(BuildInfo& info) override;
+    virtual span<const IndexT> do_energy_counts() const noexcept override
+    {
+        return m_impl.constraint_energy_offsets_counts.counts();
+    }
 };
 }  // namespace uipc::backend::cuda

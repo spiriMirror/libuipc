@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: displacement zeroing through the batched copies.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 #include <implicit_geometry/half_plane.h>
 #include <implicit_geometry/half_plane_body_reporter.h>
@@ -67,7 +91,7 @@ void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::Verte
 void HalfPlaneVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
 {
     // Now, we only support fixed half plane
-    info.displacements().fill(Vector3::Zero());
+    info.zero_displacements();
 }
 
 void HalfPlaneVertexReporter::do_report_count(GlobalVertexManager::VertexCountInfo& info)
