@@ -1,6 +1,6 @@
 /*
  * NVIDIA contributions: the DeviceReduce::Sum regression test for an empty
- * reused reduction range.
+ * reused reduction range, and the PinnedHostBuffer read-back test.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -35,6 +35,7 @@ namespace
 using uipc::backend::cuda_tool::DeviceBuffer;
 using uipc::backend::cuda_tool::DeviceReduce;
 using uipc::backend::cuda_tool::DeviceVar;
+using uipc::backend::cuda_tool::PinnedHostBuffer;
 
 TEST_CASE("cuda_tool DeviceVector growth policies", "[cuda][cuda_tool][buffer]")
 {
@@ -140,5 +141,33 @@ TEST_CASE("cuda_tool DeviceReduce Sum writes zero for an empty reused range", "[
     values.copy_from(second.data(), second.size());
     reduce.Sum(values.data(), sum.data(), values.size());
     REQUIRE(static_cast<double>(sum) == 4.5);
+}
+TEST_CASE("cuda_tool PinnedHostBuffer gathers several read-backs for one synchronization",
+          "[cuda][cuda_tool][buffer]")
+{
+    DeviceBuffer<int> first;
+    DeviceBuffer<int> second;
+    first.resize(3, 4);
+    second.resize(2, -6);
+
+    PinnedHostBuffer<int> host;
+    host.resize_discard(5);
+    host.copy_from(first.cview());
+    host.copy_from(3, second.cview());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
+    REQUIRE(std::vector<int>(host.data(), host.data() + host.size())
+            == std::vector<int>{4, 4, 4, -6, -6});
+
+    // growing discards, shrinking keeps the allocation
+    const int* data = host.data();
+    host.resize_discard(2);
+    REQUIRE(host.data() == data);
+    REQUIRE(host.size() == 2);
+    REQUIRE_THROWS(host.copy_from(1, first.cview()));
+    host.resize_discard(8);
+    host.copy_from(5, first.cview());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
+    REQUIRE(host[5] == 4);
+    REQUIRE(host[7] == 4);
 }
 }  // namespace

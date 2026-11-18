@@ -1,6 +1,6 @@
 /*
  * NVIDIA contributions: scene-bounds reduction initialization and
- * inactive-lane handling.
+ * inactive-lane handling, and rank-ordered Morton-code ties in the LBVH build.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -333,7 +333,12 @@ namespace
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if(idx >= n)
             return;
-        metrics(idx) = idx != n - 1 ? 32 - __clz(codes(idx) ^ codes(idx + 1)) : 33;
+        // Equal Morton codes are ordered by rank (key = code << 32 | rank), otherwise
+        // every tie gives metric 0 and the tree degenerates into a chain.
+        metrics(idx) = idx != n - 1 ? (codes(idx) != codes(idx + 1) ?
+                                           64 - __clz(codes(idx) ^ codes(idx + 1)) :
+                                           32 - __clz(idx ^ (idx + 1))) :
+                                      65;
     }
 
     __global__ void InfoStacklessBVHV0_buildIntNodes_kernel(

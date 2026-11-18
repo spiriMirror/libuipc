@@ -1,6 +1,7 @@
 /*
  * NVIDIA contributions: ELF hidden visibility on kernel launch helpers to
- * prevent cross-module interposition.
+ * prevent cross-module interposition, and the one-warp
+ * spread_block_dim/spread_grid_dim launch shapes.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -67,5 +68,18 @@ int best_grid_dim(int n, Kernel kernel, size_t shared_mem_size = 0)
 {
     int bd = best_block_dim(kernel, shared_mem_size);
     return (n + bd - 1) / bd;
+}
+
+// One-warp blocks for kernels whose threads each run a long, independent FP64
+// computation over a list of a few thousand items or fewer (the CCD and
+// active-set filters). GB20x issues FP64 at 1/64 of the FP32 rate per SM, so
+// the occupancy-maximizing block of several hundred threads leaves such a
+// list on one to a few SMs; one-warp blocks spread it over the SMs. Only the
+// launch shape changes: every thread computes exactly what it did before.
+constexpr int spread_block_dim = 32;
+
+inline int spread_grid_dim(int n)
+{
+    return (n + spread_block_dim - 1) / spread_block_dim;
 }
 }  // namespace uipc::backend::cuda_tool

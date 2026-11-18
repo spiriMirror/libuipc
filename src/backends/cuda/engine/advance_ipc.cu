@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: reuse of trajectory candidates and of the frame-start
+ * active set, and trajectory BVH refit for the whole Newton loop.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <sim_engine.h>
 #include <uipc/common/range.h>
 #include <global_geometry/global_vertex_manager.h>
@@ -25,23 +50,47 @@ void SimEngine::advance()
     *                                  Function Shortcuts
     ***************************************************************************************/
 
-    auto detect_dcd_candidates = [this]
+    auto detect_dcd_candidates = [this](bool reuse_bvh_topology)
     {
         if(m_global_trajectory_filter)
         {
             Timer timer{"Detect DCD Candidates"};
-            m_global_trajectory_filter->detect(0.0);
+            m_global_trajectory_filter->detect(0.0, reuse_bvh_topology);
             m_global_trajectory_filter->filter_active();
         }
     };
 
-    auto detect_trajectory_candidates = [this](Float alpha)
+    // The previous frame's last line-search trial filtered its active set at
+    // the positions it left behind. While they are unchanged at the
+    // frame start, that active set is the one the DCD pass would build.
+    auto reuse_active_set = [this]
+    {
+        return m_global_trajectory_filter
+               && m_global_trajectory_filter->reuse_active_set();
+    };
+
+    auto record_active_set = [this]
+    {
+        if(m_global_trajectory_filter)
+            m_global_trajectory_filter->record_active_set();
+    };
+
+    auto detect_trajectory_candidates = [this](Float alpha, bool reuse_bvh_topology)
     {
         if(m_global_trajectory_filter)
         {
             Timer timer{"Detect Trajectory Candidates"};
-            m_global_trajectory_filter->detect(alpha);
+            m_global_trajectory_filter->detect(alpha, reuse_bvh_topology, true);
         }
+    };
+
+    // The trajectory candidates of an earlier iteration of this frame serve
+    // a step over which every vertex stays within axis_motion per axis of the
+    // swept segment they were detected for.
+    auto reuse_trajectory_candidates = [this](Float axis_motion)
+    {
+        return m_global_trajectory_filter
+               && m_global_trajectory_filter->reuse_candidates(axis_motion);
     };
 
     auto filter_dcd_candidates = [this]
@@ -331,7 +380,10 @@ void SimEngine::advance()
             m_time_integrator_manager->predict_dof();
 
             // 3. Adaptive Parameter Calculation
-            detect_dcd_candidates();
+            bool reused_active_set    = reuse_active_set();
+            m_frame_active_set_reused = reused_active_set;
+            if(!reused_active_set)
+                detect_dcd_candidates(false);
             compute_adaptive_kappa();
 
             // 4. Nonlinear-Newton Iteration
@@ -341,6 +393,12 @@ void SimEngine::advance()
             auto newton_min_iter = m_newton_min_iter->view()[0];
             beta                 = 1.0;
             IndexT newton_iter   = 0;
+
+            // Per-axis bound of the distance from the iteration's start point
+            // to the swept segment of the last trajectory detection: zero after
+            // a detecting iteration (the accepted position lies on that
+            // segment), growing by the accepted step of every reusing one.
+            Float candidate_drift = 0.0;
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
@@ -351,9 +409,11 @@ void SimEngine::advance()
                 compute_animation_substep_ratio(newton_iter);
 
 
-                // 2) Build Collision Pairs
-                if(newton_iter > 0)
-                    detect_dcd_candidates();
+                // 2) Collision pairs: iteration 0 uses the active set of the frame
+                //    start (DCD pass or reused). Later iterations reuse the previous
+                //    trajectory candidates: they cover the swept segment
+                //    x_k -> x_k + alpha*dx_k, which contains the accepted position,
+                //    and the last line-search trial already ran filter_active there.
 
 
                 // 3) Compute Dynamic Topo Effect Gradient and Hessian => G:Vector3, H:Matrix3x3
@@ -399,7 +459,34 @@ void SimEngine::advance()
                     // (fewer candidates than over the full step)
                     alpha = feasible_step(alpha);
 
-                    detect_trajectory_candidates(alpha);
+                    // Iterations k > 0 keep the trajectory candidates while the
+                    // drift plus this step (at most max |dx| per axis, alpha <= 1)
+                    // stays inside the detection skin; the max |dx| readback is
+                    // shared with the velocity tolerance check.
+                    Float axis_max_disp     = 0.0;
+                    bool  reused_candidates = false;
+                    if(newton_iter > 0 && m_global_trajectory_filter)
+                    {
+                        axis_max_disp =
+                            m_global_vertex_manager->compute_axis_max_displacement();
+                        reused_candidates =
+                            reuse_trajectory_candidates(candidate_drift + axis_max_disp);
+                    }
+
+                    if(reused_candidates)
+                    {
+                        ++m_frame_trajectory_reuses;
+                    }
+                    else
+                    {
+                        // The trajectory BVH keeps the topology of the frame
+                        // start and is refitted: iteration 0 builds it when the
+                        // frame start skipped the DCD pass, which otherwise
+                        // builds it.
+                        bool rebuild_bvh = newton_iter == 0 && reused_active_set;
+                        detect_trajectory_candidates(alpha, !rebuild_bvh);
+                        candidate_drift = 0.0;
+                    }
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
@@ -453,6 +540,11 @@ void SimEngine::advance()
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
                     check_line_search_iter(line_search_iter, E0, last_E);
 
+                    // The last trial moved every vertex by at most
+                    // alpha * max |dx| per axis.
+                    if(reused_candidates)
+                        candidate_drift += m_frame_last_line_search_alpha * axis_max_disp;
+
                     // newton/min_iter is a pure hard floor (default 0 = off);
                     // the semi-implicit Kmin lives in newton/semi_implicit/K_min
                     bool terminated = converged && (newton_iter >= newton_min_iter);
@@ -463,6 +555,9 @@ void SimEngine::advance()
                     }
                 }
             }
+
+            // The positions are those of the last filter_active.
+            record_active_set();
 
             // 5. Update Velocity => v = (x - x_0) / dt
             m_state = SimEngineState::UpdateVelocity;

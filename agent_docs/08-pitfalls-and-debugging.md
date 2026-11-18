@@ -234,7 +234,10 @@ touching that area; several of these have bitten us more than once.
 
 - Kernel launch block sizes come from `cuda_tool::best_block_dim(kernel)`
   with a **per-kernel-address** occupancy cache (see the suite-pollution
-  entry above — never key it by type).
+  entry above — never key it by type). FP64-heavy per-item kernels over
+  short lists (CCD filters) use `cuda_tool::spread_block_dim` instead: the
+  occupancy block size packs a few thousand such threads onto a handful of
+  SMs, whose 1/64-rate FP64 pipes then serialize them.
 - **CUDA-graph capture traps** (learned the hard way in the FusedPCG graph
   work):
   - A captured graph bakes every kernel's **by-value arguments** — including

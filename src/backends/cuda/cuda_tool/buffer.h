@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: PinnedHostBuffer.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <cuda_tool/stream.h>
 #include <cuda_tool/view.h>
@@ -388,6 +412,68 @@ class DeviceVector
 // muda used DeviceBuffer as a fixed-size array; map it to the same implementation.
 template <typename T>
 using DeviceBuffer = DeviceVector<T>;
+
+// Page-locked host array for small device-to-host read-backs. A copy into it
+// does not block the host (a copy into pageable memory waits for the stream),
+// so several read-backs can be enqueued and then waited for with one stream
+// synchronization before the host reads the elements.
+template <typename T>
+class PinnedHostBuffer
+{
+  public:
+    PinnedHostBuffer() = default;
+    ~PinnedHostBuffer() { release(); }
+    PinnedHostBuffer(const PinnedHostBuffer&)            = delete;
+    PinnedHostBuffer& operator=(const PinnedHostBuffer&) = delete;
+
+    // Grows only; the contents are not preserved when the buffer grows.
+    void resize_discard(size_t n)
+    {
+        if(n > m_capacity)
+        {
+            release();
+            CUDA_TOOL_CHECK(cudaMallocHost(reinterpret_cast<void**>(&m_data),
+                                           n * sizeof(T)));
+            m_capacity = n;
+        }
+        m_size = n;
+    }
+    void release()
+    {
+        if(m_data)
+            cudaFreeHost(m_data);
+        m_data     = nullptr;
+        m_size     = 0;
+        m_capacity = 0;
+    }
+
+    size_t   size() const noexcept { return m_size; }
+    T*       data() noexcept { return m_data; }
+    const T* data() const noexcept { return m_data; }
+    T&       operator[](size_t i) noexcept { return m_data[i]; }
+    const T& operator[](size_t i) const noexcept { return m_data[i]; }
+
+    // Enqueue the copy of `src` into elements [offset, offset + src.size())
+    // on `s` without waiting for it.
+    void copy_from(size_t offset, CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        if(offset + src.size() > m_size)
+            throw std::length_error{"PinnedHostBuffer::copy_from: out of range"};
+        if(src.size())
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_data + offset, src.data(), src.size() * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+    // Enqueue the copy of `src` into the first src.size() elements.
+    void copy_from(CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        copy_from(0, src, s);
+    }
+
+  private:
+    T*     m_data     = nullptr;
+    size_t m_size     = 0;
+    size_t m_capacity = 0;
+};
 
 // 2D / 3D dense buffers -----------------------------------------------------
 template <typename T>
