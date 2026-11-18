@@ -1,8 +1,35 @@
+/*
+ * NVIDIA contributions: shared-workspace PSD projection and gradient-only
+ * bending evaluation; launches on the provided stream for the prelaunched FEM
+ * assembly.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <utils/material_gradient_hessian_launch.h>
 #include <finite_element/finite_element_extra_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <finite_element/constitutions/discrete_shell_bending_function.h>
 #include <numbers>
-#include <utils/make_spd.h>
+#include <utils/fixed_bank_soa_evd.h>
 #include <utils/matrix_assembler.h>
 #include <kernel_cout.h>
 
@@ -61,6 +88,7 @@ namespace
         energies(I) = E * V_bar * dt * dt;
     }
 
+    template <bool GradientOnly>
     __global__ void DiscreteShellBending_do_compute_gradient_hessian_kernel(
         cuda_tool::BufferView<Vector4i>        stencils,
         cuda_tool::BufferView<Float>           bending_stiffnesses,
@@ -72,7 +100,6 @@ namespace
         cuda_tool::DoubletVectorView<Float, 3> G3s,
         cuda_tool::TripletMatrixView<Float, 3> H3x3s,
         Float                                  dt,
-        bool                                   gradient_only,
         int                                    n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -92,25 +119,77 @@ namespace
 
         Float Vdt2 = V_bar * dt * dt;
 
-        Vector12    G12;
-        Matrix12x12 H12x12;
+        if constexpr(GradientOnly)
+        {
+            Vector12 G12;
+            DSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
+            G12 *= Vdt2;
+            DoubletVectorAssembler DVA{G3s};
+            DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
+        }
+        else
+        {
+            constexpr int    SharedLanePitch = 16;
+            __shared__ Float shared_h[12 * 12 * SharedLanePitch];
 
-        DSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
-        G12 *= Vdt2;
-        DoubletVectorAssembler DVA{G3s};
-        DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
+            Vector12                             G12;
+            FixedBankSoAMap<12, SharedLanePitch> H12x12(shared_h + threadIdx.x);
+            DSB::d2Edx2(G12, H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
 
-        if(gradient_only)
-            return;
+            G12 *= Vdt2;
+            DoubletVectorAssembler DVA{G3s};
+            DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
 
-        DSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
-        H12x12 *= Vdt2;
-        make_spd(H12x12);
-
-        TripletMatrixAssembler TMA{H3x3s};
-        TMA.half_block<StencilSize>(I * HalfHessianSize).write(stencil, H12x12);
+            H12x12 *= Vdt2;
+            Vector12 eigen_values;
+            selfadjoint_evd_fixed_bank_shared<12>(H12x12, eigen_values);
+            TripletMatrixAssembler TMA{H3x3s};
+            TMA.half_block<StencilSize>(I * HalfHessianSize)
+                .write_psd_from_eigendecomposition(stencil, H12x12, eigen_values);
+        }
     }
 }  // namespace
+
+void launch_discrete_shell_bending_gradient_hessian(const BendingGradientHessianLaunchInfo& info)
+{
+    int n = (int)info.stencils.size();
+    if(n <= 0)
+        return;
+
+    if(info.gradient_only)
+    {
+        auto k = DiscreteShellBending_do_compute_gradient_hessian_kernel<true>;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream>>>(
+            info.stencils,
+            info.stiffnesses,
+            info.theta_bars,
+            info.h_bars,
+            info.volumes,
+            info.rest_lengths,
+            info.positions,
+            info.gradients,
+            info.hessians,
+            info.dt,
+            n);
+    }
+    else
+    {
+        auto k = DiscreteShellBending_do_compute_gradient_hessian_kernel<false>;
+        constexpr int BlockSize = 16;
+        k<<<(n + BlockSize - 1) / BlockSize, BlockSize, 0, info.stream>>>(
+            info.stencils,
+            info.stiffnesses,
+            info.theta_bars,
+            info.h_bars,
+            info.volumes,
+            info.rest_lengths,
+            info.positions,
+            info.gradients,
+            info.hessians,
+            info.dt,
+            n);
+    }
+}
 
 class DiscreteShellBending final : public FiniteElementExtraConstitution
 {
@@ -319,24 +398,20 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        auto k = DiscreteShellBending_do_compute_gradient_hessian_kernel;
-        int  n = (int)stencils.size();
-        if(n > 0)
-        {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                stencils.view(),
-                bending_stiffnesses.view(),
-                theta_bars.view(),
-                h_bars.view(),
-                V_bars.view(),
-                rest_lengths.view(),
-                info.xs(),
-                info.gradients(),
-                info.hessians(),
-                info.dt(),
-                info.gradient_only(),
-                n);
-        }
+        launch_discrete_shell_bending_gradient_hessian(
+            BendingGradientHessianLaunchInfo{stencils.view(),
+                                             bending_stiffnesses.view(),
+                                             theta_bars.view(),
+                                             h_bars.view(),
+                                             V_bars.view(),
+                                             rest_lengths.view(),
+                                             info.xs(),
+                                             info.gradients(),
+                                             info.hessians(),
+                                             info.dt(),
+                                             info.gradient_only(),
+                                             {},
+                                             info.stream()});
     }
 };
 

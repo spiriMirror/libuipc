@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: prelaunch hooks for the contact-independent assembly.
+ * NVIDIA contributions: prelaunch hooks for the contact-independent assembly
+ * and hooks for late Hessian blocks.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -88,6 +89,15 @@ void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info
     do_report_extent(info);
 }
 
+void DiagLinearSubsystem::do_prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info)
+{
+}
+
+void DiagLinearSubsystem::prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info)
+{
+    do_prepare_prelaunch(info);
+}
+
 void DiagLinearSubsystem::do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
 {
 }
@@ -105,6 +115,27 @@ void DiagLinearSubsystem::assemble(GlobalLinearSystem::DiagInfo& info)
                 enum_flags_name(info.component_flags()));
 
     do_assemble(info);
+}
+
+void DiagLinearSubsystem::do_report_late_extent(GlobalLinearSystem::LateExtentInfo& info)
+{
+}
+
+void DiagLinearSubsystem::report_late_extent(GlobalLinearSystem::LateExtentInfo& info)
+{
+    do_report_late_extent(info);
+}
+
+void DiagLinearSubsystem::do_assemble_late(GlobalLinearSystem::DiagInfo& info)
+{
+    UIPC_ASSERT(info.hessians().triplet_count() == 0,
+                "{} reported late Hessian blocks but does not assemble them",
+                name());
+}
+
+void DiagLinearSubsystem::assemble_late(GlobalLinearSystem::DiagInfo& info)
+{
+    do_assemble_late(info);
 }
 
 void DiagLinearSubsystem::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)

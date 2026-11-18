@@ -1,5 +1,7 @@
-# NVIDIA contributions: Windows builds without the tests under internals/,
-# which link against symbols the backend DLL does not export.
+# NVIDIA contributions: the project src include path for CUDA backend
+# regression tests using implementation headers, and Windows builds without the
+# tests under internals/, which link against symbols the backend DLL does not
+# export.
 #
 # The NVIDIA notice applies to the contributions described above, not to the
 # pre-existing libuipc or other contributors' code.
@@ -44,6 +46,7 @@ if(WIN32)
 endif()
 uipc_add_test(backend_cuda ${SOURCE})
 target_link_libraries(backend_cuda PRIVATE uipc::backend::cuda)
+target_include_directories(backend_cuda PRIVATE "${PROJECT_SOURCE_DIR}/src")
 target_compile_options(backend_cuda PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028>)
 

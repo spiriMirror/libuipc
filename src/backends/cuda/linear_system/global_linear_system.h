@@ -1,6 +1,7 @@
 /*
  * NVIDIA contributions: interfaces and state for assembly side streams and the
- * prelaunched contact-independent producers.
+ * prelaunched and in-place FEM assembly; for the elastic-producer prelaunch
+ * right after the contact assembly launch and late Hessian blocks.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -55,6 +56,7 @@ class GlobalLinearSystem : public SimSystem
 
   public:
     using SimSystem::SimSystem;
+    ~GlobalLinearSystem() override;
     using TripletMatrixView = cuda_tool::TripletMatrixView<Float, 3>;
     using CBCOOMatrixView   = cuda_tool::CBCOOMatrixView<Float, 3>;
     using DenseVectorView   = cuda_tool::DenseVectorView<Float>;
@@ -67,10 +69,15 @@ class GlobalLinearSystem : public SimSystem
     {
       public:
         void extent(SizeT dof_count) noexcept { m_dof_count = dof_count; }
+        // The subsystem's prelaunch can write its prefix of the global
+        // system in place (PrelaunchInfo::in_place_hessians()). The first
+        // diag subsystem that asks gets the first triplet range.
+        void prelaunch_in_place() noexcept { m_prelaunch_in_place = true; }
 
       private:
         friend class Impl;
-        SizeT m_dof_count = 0;
+        SizeT m_dof_count          = 0;
+        bool  m_prelaunch_in_place = false;
     };
 
     class InitDofInfo
@@ -91,6 +98,13 @@ class GlobalLinearSystem : public SimSystem
         bool           gradient_only() const { return m_gradient_only; }
         ComponentFlags component_flags() const { return m_component_flags; }
         void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
+        // More Hessian blocks, whose count the device determines: the
+        // subsystem reports it in do_report_late_extent() and writes every
+        // one of them in do_assemble_late(), both called after each
+        // subsystem's do_assemble() is issued. Late blocks go behind all the
+        // extent() blocks, so those are placed and written before the count
+        // comes back.
+        void late_extent() noexcept { m_late = true; }
 
       private:
         friend class Impl;
@@ -98,6 +112,20 @@ class GlobalLinearSystem : public SimSystem
         SizeT          m_dof_count       = 0;
         SizeT          m_block_count     = 0;
         bool           m_gradient_only   = false;
+        bool           m_late            = false;
+    };
+
+    class LateExtentInfo
+    {
+      public:
+        void extent(SizeT hessian_block_count) noexcept
+        {
+            m_block_count = hessian_block_count;
+        }
+
+      private:
+        friend class Impl;
+        SizeT m_block_count = 0;
     };
 
     class PrelaunchInfo
@@ -106,10 +134,62 @@ class GlobalLinearSystem : public SimSystem
         // Side streams for the contact-independent producers launched ahead
         // of the DyTopo computation; joined by the next assembly.
         cuda_tool::SideStreams* side_streams() const { return m_side_streams; }
+        // True when the call comes from DyTopo once it has launched its
+        // contact assembly (and before it synchronizes with it); false in
+        // prepare_prelaunch() and when there is no DyTopo computation. A
+        // subsystem that must start after the contact kernels prelaunches
+        // only when this is true.
+        bool contact_launched() const { return m_contact_launched; }
+        // True when the call comes from prelaunch_ahead(), right after the
+        // latency-bound contact launch (the in-place lead only): the lead may
+        // issue its elastic producers ahead of the rest of the DyTopo work,
+        // held to elastic_block_cap() blocks of one SM each, so the contact
+        // blocks keep the other SMs. The lead is called again once the contact
+        // is launched (contact_launched()), to finish such a prelaunch or,
+        // when it wrote nothing in place here, to prelaunch as usual.
+        bool ahead_of_contact() const { return m_ahead_of_contact; }
+        int  elastic_block_cap() const { return m_elastic_block_cap; }
+        int  sm_count() const { return m_sm_count; }
+        // The next (prelaunched) assembly of this subsystem writes every one
+        // of the first `count` triplets of its range, unwritten slots as the
+        // clear's (-1, -1, 0), so the global clear skips them.
+        void fully_written_triplets(SizeT count) noexcept
+        {
+            m_fully_written_triplets = count;
+        }
+
+        // In-place prelaunch (InitDofExtentInfo::prelaunch_in_place()): true
+        // when the subsystem may write the first `count` triplets of its
+        // range and its gradient range of the global system directly, so
+        // that assemble() neither gathers nor adds them. The layout is the
+        // previous assembly's; the global system falls back to a full
+        // assemble() when it changes.
+        bool in_place_available() const noexcept;
+        // Its first `count` triplets (global block indices, as
+        // DiagInfo::hessians()); the capacity is ensured. Calling it commits
+        // the subsystem to the in-place path for this assembly.
+        TripletMatrixView in_place_hessians(SizeT count);
+        // Its range of the global gradient. The global assembly does not
+        // clear it after an in-place prelaunch: the subsystem clears it.
+        DenseVectorView in_place_gradients();
+        // The subsystem's blocked DoF offset (global block index of its
+        // first DoF block) in the in-place views.
+        int in_place_block_offset() const;
+        // Every in-place write is enqueued on `stream` before this call:
+        // the global system waits for that point before it reads A or b,
+        // and before it reallocates them.
+        void in_place_done(cudaStream_t stream);
 
       private:
         friend class Impl;
-        cuda_tool::SideStreams* m_side_streams = nullptr;
+        cuda_tool::SideStreams* m_side_streams           = nullptr;
+        bool                    m_contact_launched       = false;
+        bool                    m_ahead_of_contact       = false;
+        int                     m_elastic_block_cap      = 0;
+        int                     m_sm_count               = 0;
+        SizeT                   m_fully_written_triplets = 0;
+        Impl*                   m_impl                   = nullptr;
+        bool                    m_in_place_lead          = false;
     };
 
     class ComputeGradientInfo
@@ -328,13 +408,20 @@ class GlobalLinearSystem : public SimSystem
       public:
         void init();
 
-        void prelaunch_assembly();
+        void prepare_prelaunch(SizeT beside_blocks = 0);
+        void prelaunch_ahead();
+        void prelaunch_assembly(bool contact_launched);
         void build_linear_system();
         bool _update_subsystem_extent();
         void _assemble_linear_system();
+        void _clear_triplets();
         void _assemble_preconditioner();
         void solve_linear_system();
         void distribute_solution();
+        // late blocks (DiagExtentInfo::late_extent()): their total count,
+        // then their assembly behind the other blocks
+        SizeT _report_late_extents();
+        void  _assemble_late();
 
         Float reserve_ratio = 1.1;
 
@@ -374,6 +461,43 @@ class GlobalLinearSystem : public SimSystem
         // DiagInfo::side_streams) and local preconditioner assembly.
         cuda_tool::SideStreams assembly_streams;
         bool                   assembly_prelaunched = false;
+        bool                   prelaunch_prepared   = false;
+        // the in-place lead prelaunched ahead of the contact assembly
+        bool lead_ahead = false;
+        // prepare_prelaunch()'s beside_blocks, for prelaunch_ahead()
+        SizeT ahead_blocks = 0;
+        int   sm_count     = 0;
+        // per diag subsystem: prefix of its triplet range its prelaunched
+        // assembly writes in full (PrelaunchInfo::fully_written_triplets)
+        std::vector<SizeT> diag_fully_written_triplets;
+
+        // In-place prelaunch (PrelaunchInfo::in_place_hessians()): the diag
+        // subsystem (local index) whose triplet range goes first, so its
+        // prefix sits at a position that does not depend on the other
+        // subsystems' (contact-dependent) counts; -1 without one.
+        IndexT in_place_lead = -1;
+        // A previous assembly fixed the lead's DoF range and block offset.
+        bool in_place_ready = false;
+        // This assembly's prelaunch wrote in place (in_place_event marks it).
+        bool        in_place_written = false;
+        bool        in_place_waited  = false;
+        cudaEvent_t in_place_event   = nullptr;
+        // The DoF layout changed after an in-place prelaunch: the lead
+        // assembles in full instead (DiagInfo::prelaunched() is false).
+        bool in_place_discarded = false;
+        // Subsystem triplet offsets (the lead's range first, then the others
+        // in subsystem order) and the subsystems in triplet order.
+        std::vector<IndexT> triplet_offsets;
+        std::vector<SizeT>  triplet_order;
+        // The legacy stream waits for the in-place writes (once per assembly).
+        void wait_in_place();
+        // Per diag subsystem (local index): this assembly has late blocks
+        // (DiagExtentInfo::late_extent()), and their reported count. They
+        // follow the triplet_order ranges, in subsystem order.
+        std::vector<char>  diag_late;
+        std::vector<SizeT> diag_late_counts;
+        bool               late_pending  = false;
+        bool               late_reported = false;
 
         bool  initialized           = false;
         bool  empty_system          = true;
@@ -431,6 +555,7 @@ class GlobalLinearSystem : public SimSystem
     friend class GlobalPreconditioner;
     friend class GlobalDiffSimManager;
     friend class CurrentFrameDiffDofReporter;
+    friend class InPlacePrelaunchTestAccess;
 
     void add_subsystem(DiagLinearSubsystem* subsystem);
     void add_subsystem(OffDiagLinearSubsystem* subsystem);
@@ -442,8 +567,25 @@ class GlobalLinearSystem : public SimSystem
     void init();
 
     // only be called by SimEngine::do_advance(), before the DyTopo effect of
-    // the Newton iteration whose system solve() then assembles
-    void prelaunch_assembly();
+    // the Newton iteration whose system solve() then assembles: sizes the
+    // prelaunched producers' buffers and forks the side streams from the
+    // legacy stream (prelaunch_assembly() does it when this was not called).
+    // beside_blocks: one-warp blocks of the latency-bound DyTopo assembly
+    // kernels to come (GlobalDyTopoEffectManager::assembly_blocks()). When
+    // nonzero, the in-place lead may prelaunch in prelaunch_ahead(), right
+    // after them, its elastic producers held to the SMs those blocks leave
+    // (at least half).
+    void prepare_prelaunch(SizeT beside_blocks = 0);
+
+    // only be called by SimEngine::do_advance(), from the DyTopo hook once
+    // the latency-bound assembly kernels are launched (before the others)
+    void prelaunch_ahead();
+
+    // only be called by SimEngine::do_advance(), once per Newton iteration
+    // after prepare_prelaunch() and before solve(): launches the
+    // contact-independent producers, with contact_launched = true from the
+    // DyTopo hook once the contact assembly is enqueued (false without DyTopo)
+    void prelaunch_assembly(bool contact_launched);
 
     // only be called by SimEngine::do_advance()
     void solve();

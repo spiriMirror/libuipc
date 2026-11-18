@@ -1,9 +1,10 @@
 /*
  * NVIDIA contributions: blockwise ABD Hessian emission; side-stream and
- * prelaunched assembly of the kinetic, shape and reporter producers, Hessian
- * gathers with one thread per 3x3 block, device-side run counts with batched
- * read-backs for the DyTopo body-pair aggregation, and the body-pair
- * aggregation in one block for small entry counts.
+ * prelaunched assembly of the kinetic, shape and reporter producers (leading
+ * chains first), Hessian gathers with one thread per 3x3 block, device-side
+ * run counts with batched read-backs for the DyTopo body-pair aggregation; the
+ * body-pair aggregation in one block for small entry counts and the aggregated
+ * DyTopo blocks placed last with a late count read-back.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -45,6 +46,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <utility>
 
 namespace uipc::backend::cuda
 {
@@ -668,6 +670,12 @@ void launch_abd_reporter_hessian_blocks(cuda_tool::TripletMatrixView<Float, 3> d
 
 REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
+ABDLinearSubsystem::~ABDLinearSubsystem()
+{
+    if(m_impl.dytopo_body_pair_count_event)
+        cudaEventDestroy(m_impl.dytopo_body_pair_count_event);
+}
+
 // ref: https://github.com/spiriMirror/libuipc/issues/271
 constexpr U64 ABDLinearSubsystemUID = 0ull;
 
@@ -746,6 +754,11 @@ SizeT ABDLinearSubsystem::Impl::_prepare_dytopo_body_pair_aggregation()
 
     if(receiver_count == 0)
         return 0;
+    if(!dytopo_body_pair_count_event)
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&dytopo_body_pair_count_event,
+                                                 cudaEventDisableTiming));
+    dytopo_body_pair_count_readback.resize_discard(2);
+    const cuda_tool::BufferView<int> counts{dytopo_body_pair_count_readback.device_data(), 2};
 
     UIPC_ASSERT(receiver_count <= static_cast<SizeT>(std::numeric_limits<int>::max()),
                 "ABD DyTopo receiver count {} exceeds the CUDA kernel index range",
@@ -770,7 +783,6 @@ SizeT ABDLinearSubsystem::Impl::_prepare_dytopo_body_pair_aggregation()
         loose_resize(dytopo_body_pair_offsets, receiver_count, reserve_ratio);
         loose_resize(dytopo_body_pair_block_counts, receiver_count, reserve_ratio);
         loose_resize(dytopo_body_pair_block_offsets, receiver_count, reserve_ratio);
-        dytopo_body_pair_count_readback.resize_discard(2);
         abd_dytopo_body_pairs_one_block_kernel<<<1, ABDBodyPairThreads>>>(
             dytopo_effect_receiver->hessians(),
             abd().vertex_id_to_body_id.cview(),
@@ -782,9 +794,11 @@ SizeT ABDLinearSubsystem::Impl::_prepare_dytopo_body_pair_aggregation()
             dytopo_body_pair_offsets.view(),
             dytopo_body_pair_block_counts.view(),
             dytopo_body_pair_block_offsets.view(),
-            dytopo_body_pair_count_readback.view(),
+            counts,
             static_cast<int>(receiver_count));
-        return _finish_dytopo_body_pair_aggregation();
+        dytopo_body_pair_count_readback.enqueue_copy();
+        CUDA_TOOL_CHECK(cudaEventRecord(dytopo_body_pair_count_event, nullptr));
+        return receiver_count;
     }
 
     loose_resize(dytopo_body_pair_keys_input, receiver_count, reserve_ratio);
@@ -842,22 +856,22 @@ SizeT ABDLinearSubsystem::Impl::_prepare_dytopo_body_pair_aggregation()
     DeviceScan().ExclusiveSum(dytopo_body_pair_block_counts.data(),
                               dytopo_body_pair_block_offsets.data(),
                               n);
-    dytopo_body_pair_count_readback.resize_discard(2);
     abd_dytopo_body_pair_total_block_count_kernel<<<1, 1>>>(
         dytopo_body_pair_block_counts.cview(),
         dytopo_body_pair_block_offsets.cview(),
         dytopo_unique_body_pair_count_dev.cviewer(),
-        dytopo_body_pair_count_readback.view(),
+        counts,
         n);
-    return _finish_dytopo_body_pair_aggregation();
+    dytopo_body_pair_count_readback.enqueue_copy();
+    CUDA_TOOL_CHECK(cudaEventRecord(dytopo_body_pair_count_event, nullptr));
+    return receiver_count;
 }
 
 SizeT ABDLinearSubsystem::Impl::_finish_dytopo_body_pair_aggregation()
 {
-    std::array<int, 2> counts{};
-    dytopo_body_pair_count_readback.copy_to(counts.data());
-    const int pair_count  = counts[0];
-    const int block_count = counts[1];
+    CUDA_TOOL_CHECK(cudaEventSynchronize(dytopo_body_pair_count_event));
+    const int pair_count  = dytopo_body_pair_count_readback[0];
+    const int block_count = dytopo_body_pair_count_readback[1];
     UIPC_ASSERT(pair_count >= 0, "ABD DyTopo body-pair run count must be nonnegative");
     UIPC_ASSERT(block_count >= 0, "ABD DyTopo aggregated block count must be nonnegative");
     dytopo_unique_body_pair_count = static_cast<SizeT>(pair_count);
@@ -897,12 +911,14 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     }
 
 
-    SizeT dytopo_H3x3_count = 0;
-    if(dytopo_effect_receiver && !info.gradient_only())
-        dytopo_H3x3_count = _prepare_dytopo_body_pair_aggregation();
+    // The aggregated DyTopo blocks: late, their count comes back from the
+    // device while the other subsystems' assembly is issued.
+    if(dytopo_effect_receiver && !info.gradient_only()
+       && _prepare_dytopo_body_pair_aggregation() > 0)
+        info.late_extent();
 
 
-    auto H3x3_count = H12x12_count * (4 * 4) + dytopo_H3x3_count;
+    auto H3x3_count = H12x12_count * (4 * 4);
 
     if(info.gradient_only())
     {
@@ -912,6 +928,11 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     }
 
     info.extent(H3x3_count, dof_count);
+}
+
+void ABDLinearSubsystem::Impl::report_late_extent(GlobalLinearSystem::LateExtentInfo& info)
+{
+    info.extent(_finish_dytopo_body_pair_aggregation());
 }
 
 void ABDLinearSubsystem::Impl::_report_reporter_extents(bool gradient_only)
@@ -944,21 +965,38 @@ void ABDLinearSubsystem::Impl::_prepare_reporter_buffers()
     reporter_hessians.resize_triplets_discard(reporter_hessian_offsets_counts.total_count());
 }
 
-void ABDLinearSubsystem::Impl::prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
+void ABDLinearSubsystem::Impl::prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info)
 {
     // Kinetic, shape and reporter terms read only the Newton iterate and
     // write ABD-private buffers, and the reporter extents do not depend on
-    // contact, so they can run alongside the DyTopo computation. Side stream
-    // 0 carries the kinetic/shape chain that assemble() continues.
-    auto side_streams = info.side_streams();
+    // contact, so they can run alongside the DyTopo computation. The side
+    // streams fork here, before the DyTopo assembly is enqueued on the legacy
+    // stream, so that prelaunch_assembly() can issue the producers after it
+    // without making them wait for it.
     _report_reporter_extents(false);
     _prepare_reporter_buffers();
     prelaunched_gradient_count = reporter_gradients.doublet_count();
     prelaunched_hessian_count  = reporter_hessians.triplet_count();
 
-    side_streams->fork();
-    _compute_kinetic_shape(false, side_streams->next());
-    _launch_reporters(false, side_streams);
+    info.side_streams()->fork();
+    prelaunch_forked = true;
+}
+
+void ABDLinearSubsystem::Impl::prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
+{
+    // Launch once per prepare_prelaunch(), whichever call comes first.
+    if(!std::exchange(prelaunch_forked, false))
+        return;
+    // Side stream 0 carries the kinetic/shape chain that assemble() continues.
+    // The leading producers (long per-joint eigensolve chains) launch first,
+    // each on a stream of its own, then the kinetic/shape chain, then the
+    // other producers, on the streams the long chains leave free.
+    auto         side_streams         = info.side_streams();
+    cudaStream_t kinetic_shape_stream = side_streams->next();
+    _launch_reporters(false, side_streams, ProducerSet::Leading);
+    side_streams->keep_handed_out();
+    _compute_kinetic_shape(false, kinetic_shape_stream);
+    _launch_reporters(false, side_streams, ProducerSet::Others);
 }
 
 void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
@@ -1027,11 +1065,29 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     if(has_complement)
         _assemble_reporters(hess_offset, info, gather_stream);
 
-    // 2) Dynamic Topology Effect
-    _assemble_dytopo_effect(hess_offset, info, gather_stream);
+    // 2) Dynamic Topology Effect (the Hessian blocks in assemble_late())
+    _assemble_dytopo_gradients(info, gather_stream);
 
     UIPC_ASSERT(hess_offset == info.hessians().triplet_count(),
                 "Hessian size mismatch: expected {}, got {}",
+                info.hessians().triplet_count(),
+                hess_offset);
+}
+
+void ABDLinearSubsystem::Impl::assemble_late(GlobalLinearSystem::DiagInfo& info)
+{
+    // the aggregated DyTopo blocks, on the gathers' stream (after the
+    // reporters' additions to the diagonal Hessian)
+    cudaStream_t stream       = nullptr;
+    auto         side_streams = info.side_streams();
+    if(side_streams && side_streams->size())
+        stream = (*side_streams)[0];
+
+    IndexT hess_offset = 0;
+    _assemble_dytopo_effect(hess_offset, info, stream);
+
+    UIPC_ASSERT(hess_offset == info.hessians().triplet_count(),
+                "Late Hessian size mismatch: expected {}, got {}",
                 info.hessians().triplet_count(),
                 hess_offset);
 }
@@ -1100,12 +1156,13 @@ void ABDLinearSubsystem::Impl::_assemble_kinetic_shape(IndexT& hess_offset,
 }
 
 void ABDLinearSubsystem::Impl::_launch_reporters(bool gradient_only,
-                                                 cuda_tool::SideStreams* side_streams)
+                                                 cuda_tool::SideStreams* side_streams,
+                                                 ProducerSet producers)
 {
     // Fill TripletMatrix and DoubletVector
     for(auto& R : reporters.view())
     {
-        AssembleInfo assemble_info{this, R->m_index, gradient_only, side_streams};
+        AssembleInfo assemble_info{this, R->m_index, gradient_only, side_streams, producers};
         R->assemble(assemble_info);
     }
 }
@@ -1142,9 +1199,8 @@ void ABDLinearSubsystem::Impl::_assemble_reporters(IndexT& offset,
     }
 }
 
-void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
-                                                       GlobalLinearSystem::DiagInfo& info,
-                                                       cudaStream_t stream)
+void ABDLinearSubsystem::Impl::_assemble_dytopo_gradients(GlobalLinearSystem::DiagInfo& info,
+                                                          cudaStream_t stream)
 {
     using namespace cuda_tool;
 
@@ -1169,10 +1225,15 @@ void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
             vertex_offset,
             n);
     }
+}
 
-    if(info.gradient_only())
-        return;
+void ABDLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& offset,
+                                                       GlobalLinearSystem::DiagInfo& info,
+                                                       cudaStream_t stream)
+{
+    using namespace cuda_tool;
 
+    auto  vertex_offset = affine_body_vertex_reporter->vertex_offset();
     SizeT dytopo_effect_hessian_count = 0;
     if(dytopo_effect_receiver)
         dytopo_effect_hessian_count = dytopo_effect_receiver->hessians().triplet_count();
@@ -1283,6 +1344,16 @@ void ABDLinearSubsystem::do_report_extent(GlobalLinearSystem::DiagExtentInfo& in
     m_impl.report_extent(info);
 }
 
+void ABDLinearSubsystem::do_report_late_extent(GlobalLinearSystem::LateExtentInfo& info)
+{
+    m_impl.report_late_extent(info);
+}
+
+void ABDLinearSubsystem::do_prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info)
+{
+    m_impl.prepare_prelaunch(info);
+}
+
 void ABDLinearSubsystem::do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
 {
     m_impl.prelaunch_assembly(info);
@@ -1291,6 +1362,11 @@ void ABDLinearSubsystem::do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo
 void ABDLinearSubsystem::do_assemble(GlobalLinearSystem::DiagInfo& info)
 {
     m_impl.assemble(info);
+}
+
+void ABDLinearSubsystem::do_assemble_late(GlobalLinearSystem::DiagInfo& info)
+{
+    m_impl.assemble_late(info);
 }
 
 void ABDLinearSubsystem::do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
@@ -1338,17 +1414,25 @@ void ABDLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInf
 ABDLinearSubsystem::AssembleInfo::AssembleInfo(Impl*  impl,
                                                IndexT index,
                                                bool   gradient_only,
-                                               cuda_tool::SideStreams* side_streams) noexcept
+                                               cuda_tool::SideStreams* side_streams,
+                                               ProducerSet producers) noexcept
     : m_impl(impl)
     , m_index(index)
     , m_gradient_only(gradient_only)
     , m_side_streams(side_streams)
+    , m_producers(producers)
 {
 }
 
 cuda_tool::SideStreams* ABDLinearSubsystem::AssembleInfo::side_streams() const noexcept
 {
     return m_side_streams;
+}
+
+bool ABDLinearSubsystem::AssembleInfo::launches(bool leading) const noexcept
+{
+    return m_producers == ProducerSet::All
+           || (m_producers == ProducerSet::Leading) == leading;
 }
 
 cuda_tool::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradients() const

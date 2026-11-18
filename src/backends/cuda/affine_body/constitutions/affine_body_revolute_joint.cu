@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: cached constant joint Hessians, warp-cooperative
- * joint-limit Hessian assembly, side-stream launches and one-warp launch
- * shapes.
+ * joint-limit Hessian assembly, side-stream launches as a leading producer and
+ * one-warp launch shapes.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -1783,6 +1783,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }
+
+    // Its Hessian is a 12x12 warp eigensolve per joint, one of the longest
+    // producer chains of the assembly.
+    bool do_leads_assembly() const noexcept override { return true; }
 };
 REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointLimit);
 

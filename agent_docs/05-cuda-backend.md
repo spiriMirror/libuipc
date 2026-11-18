@@ -230,9 +230,16 @@ collected doublets/triplets, so `_assemble` forks up to four
 `cuda_tool::SideStreams` and gives each reporter its own through
 `GradientHessianInfo::stream()`; the contact reporters pass it to their
 assembly launches (`IPCSimplex*ContactAssemblyLaunchInfo::stream`). The
-legacy stream joins the side streams before the distribution reads the
-collected entries. The frictional assembly thus runs beside the normal
-assembly.
+reporters with latency-bound assembly kernels lead the critical path, so
+those that report one-warp assembly blocks
+(`DyTopoEffectReporter::do_report_assembly_blocks()`, nonzero for the IPC
+simplex normal contact's full-Hessian launch) are launched before the others,
+each group keeping its order, and the
+`ComputeDyTopoEffectInfo::after_leading_launch()` hook runs between the two
+groups (see the FEM in-place prelaunch). The legacy stream joins the side
+streams before the distribution reads the collected entries. The frictional
+assembly thus runs beside the latency-bound normal assembly, launched after
+it.
 
 `GlobalDyTopoEffectManager` assembles raw doublets/triplets and hands each
 `DyTopoEffectReceiver` the entries in its reported range without sorting or
@@ -249,9 +256,16 @@ more go through a sort, a run-length encoding and two scans (about ten
 launches and four CUB calls) with the run count kept on the device: the scans
 cover all receiver slots, the slots past the run count holding zeros. Both
 paths give the same integers, and the run count and the aggregated block
-count come back in one read-back. The final `GlobalLinearSystem` conversion
-sorts and reduces every global triplet, so an intermediate sort/reduce would
-only change the summation order.
+count come back in one read-back (a `ReadbackBuffer` and an event, no stream
+synchronization). The aggregated blocks are late blocks
+(`DiagExtentInfo::late_extent()`): the global system places and assembles
+every other range first and only then asks for their count
+(`do_report_late_extent()`, which waits for the event) and puts them behind
+all the other blocks (`do_assemble_late()`, on the gathers' side stream, after
+the reporters' diagonal additions), so the clears and the other subsystems'
+assembly are issued while the grouping runs. The final `GlobalLinearSystem`
+conversion sorts and reduces every global triplet, so an intermediate
+sort/reduce would only change the summation order.
 
 The distribution selects every receiver's entries in one packed pass per
 entry kind (`_distribute_packed()`): a kernel per kind gives each collected
@@ -272,6 +286,7 @@ every receiver whose field is set, at the offset in that field: the same
 copies to the same positions as a compaction per receiver. This replaces the
 per-receiver selections (a flag kernel and a scan each) and the per-receiver
 fills issued one by one after the read-back.
+
 For each receiver the manager selects the gradient doublets with `i` in the
 gradient range and the Hessian triplets with `(i, j)` in the Hessian ranges.
 Classification by range, not by sortedness, is what
@@ -723,7 +738,16 @@ to vertex space without constructing dense `dF/dx` or a full `12x12` element
 Hessian. `fem_utils.h` provides the tetrahedron shape gradients plus direct
 `B^T g` and `B_l^T H B_r` helpers. The kernel writes four gradient doublets and
 the ten upper-triangular `3x3` Hessian triplets directly, preserving the global
-index ordering used by `TripletMatrixAssembler::half_block`. The dense and
+index ordering used by `TripletMatrixAssembler::half_block`. It visits the
+blocks by the global-index rank of their left vertex (the one with the smaller
+global index) and forms the products `shape_gradient(k) * ddEddF(3k+a, 3l+b)`
+once per left vertex for all of its blocks: every block adds the same terms in
+the same order as `fem::project_F_hessian_block` and is stored at the same
+offset with the same indices, so the Hessian is bitwise unchanged with 486
+fewer DMULs per tetrahedron (4771 -> 4285 FP64 instructions). The
+direct-gradient kernels of the in-place prelaunch (see the assembly side
+streams) share this device code and add the gradient into b instead of writing
+doublets. The dense and
 block formulas have backend regression coverage. On RTX 5090 this reduced the
 kernel stack from 6440 to 1320 bytes/thread and Nsight Systems time from 1.795
 to 1.047 ms/call.
@@ -737,7 +761,16 @@ about 70%. The uniform `gradient_only` decision is compile-time specialized
 instead, giving lightweight gradient variants without changing the full
 Hessian launch topology. Resource counts alone are therefore insufficient:
 validate launch restructuring with both kernel profiles and the enclosing
-stage timer.
+stage timer. The normal contact's full-Hessian launch runs one-warp blocks,
+each contact type's range padded to whole blocks so that no block mixes types
+(`IPCSimplexNormalContactFullHessianBlockSize`): GB20x issues an FP64 warp
+instruction at the same cost however many lanes are active, so whole warps
+give this latency-bound kernel the latency of the former eight-lane blocks on
+a quarter of the SMs, with a quarter of the FP64 issue.
+`IPCSimplexNormalContact::do_report_assembly_blocks()` reports those blocks
+for the DyTopo launch order and the elastic producer's grid cap (see the
+assembly side streams); the gradient-only variant keeps contiguous ranges and
+the occupancy block.
 
 IPC simplex friction is lagged: the closest-point weights, the 3x2 tangent
 basis, the normal force (a barrier derivative) and, for EE, the mollifier
@@ -770,8 +803,8 @@ constraints) takes one stream on its first launch through
 `cuda_tool::LazySideStream` and must put all of its launches there. The ABD
 gathers (reporter and DyTopo atomics onto the kinetic/shape stores) run on
 side stream 0 after `fork_one(0)` from the legacy stream and a `join` of the
-other side streams, while the coupling assembly and the FEM
-assembly continue on the legacy stream;
+other side streams, while the coupling assembly and the non-prelaunched FEM
+assembly continue on the legacy stream (the prelaunched FEM: see below);
 `_assemble_linear_system` joins all side streams before the BCOO
 conversion. The two 12x12-block gathers (kinetic/shape and reporters) run one
 thread per 3x3 block (`affine_body/abd_hessian_blocks.h`, 16 threads per
@@ -791,19 +824,170 @@ because it then runs entirely on the legacy stream before the gathers' fork.
 A FEM producer must launch on its stream (see the FEM prelaunch below: on
 the legacy stream it would race with the FEM-local clear).
 
-The IPC Newton loop calls `GlobalLinearSystem::prelaunch_assembly()` before
-`Compute DyTopo Effect`, so contact-independent producers overlap the DyTopo
-computation. A diag subsystem may implement `do_prelaunch_assembly()`; the
-following assembly then sees `DiagInfo::prelaunched()`. ABD reports and sizes
-its reporter ranges there (they do not depend on contact), forks the side
-streams, and launches the kinetic and shape terms on side stream 0
+The IPC Newton loop calls `GlobalLinearSystem::prepare_prelaunch()` before
+`Compute DyTopo Effect`, with the one-warp blocks of the latency-bound DyTopo
+assembly kernels to come (`GlobalDyTopoEffectManager::assembly_blocks()`),
+and `prelaunch_assembly(true)` from the DyTopo
+manager's `ComputeDyTopoEffectInfo::after_assembly_launch()` hook, once the
+DyTopo reporters' assembly kernels are launched and before their
+distribution synchronizes with them (without DyTopo it calls
+`prelaunch_assembly(false)` instead), so contact-independent producers
+overlap the DyTopo computation. In between, the manager's
+`after_leading_launch()` hook calls `prelaunch_ahead()` (the FEM in-place
+prelaunch issued ahead, below). A diag subsystem may implement
+`do_prepare_prelaunch()` and `do_prelaunch_assembly()`
+(`PrelaunchInfo::contact_launched()` tells the DyTopo call apart,
+`ahead_of_contact()` the call from `prelaunch_ahead()`, which only the
+in-place lead receives); the
+following assembly then sees `DiagInfo::prelaunched()`. ABD reports and
+sizes its reporter ranges in the preparation (they do not depend on contact)
+and forks the side streams there, before the DyTopo assembly kernels are
+enqueued on the legacy stream; the prelaunch then launches kinetic and shape
+terms on side stream 0
 (`ABDLinearSubsystem::ComputeGradientHessianInfo::stream()`) and the
-reporters on the others. Its assembly then only adds the kinetic/shape stores
-and the gathers on side stream 0 after `fork_one(0)` from the legacy stream,
-which has cleared A and b by then. DyTopo synchronizations stay on the legacy
-stream and never wait for the linear system's assembly side streams. Paths
-without the call (AL advance, gradient-only assembly) launch the producers
-inside the assembly as before.
+reporters on the others. The leading producers go first: a constitution
+or constraint whose `do_leads_assembly()` returns true (the revolute joint
+limit and the external articulation, whose 12x12 warp eigensolves make them
+the longest chains) is launched by a first pass of the reporters
+(`AssembleInfo` with `ABDLinearSubsystem::ProducerSet::Leading`; reporters
+launch only the producers `AssembleInfo::launches()` accepts), each on a
+side stream of its own; `SideStreams::keep_handed_out()` then keeps those
+streams and side stream 0 to their chains, the kinetic/shape terms follow
+on side stream 0, and a second pass (`ProducerSet::Others`) spreads the
+short producers over the remaining streams, so none of them queues behind
+a long chain. Launched last, a long chain can still run when the elastic FEM
+kernel starts, which then shares SMs with it. Paths that assemble without a prelaunch use `ProducerSet::All`. The legacy-stream DyTopo chain is the longer one,
+so its kernels are issued first and the producers' launch time is spent while
+the contact assembly runs instead of in front of it; the producers wait for the same legacy-stream work as before.
+Its assembly then only adds the kinetic/shape stores and the gathers on side
+stream 0 after `fork_one(0)` from the legacy stream, which has cleared A
+and b by then. DyTopo synchronizations stay on the legacy stream and never
+wait for the linear system's assembly side streams. Paths without the call
+(AL advance, gradient-only assembly) launch the producers inside the
+assembly as before.
+
+FEM acts only in the calls from DyTopo (in the earlier `prelaunch_ahead()`
+one only in place, see below): it launches its kinetic and reporter
+producers (elastics, animator constraints) there on its own
+`cuda_tool::SideStream`. The stream's start point is marked
+(`SideStream::mark()`) in `do_prepare_prelaunch()`, before the DyTopo work is
+enqueued: from there (`fork_marked()`) run the FEM-local clear, the kinetic
+term and the reporters whose `do_launches_beside_contact()` returns true (the
+animator's per-vertex constraints), beside the contact assembly kernels,
+whose launches precede theirs on the host, so the contact blocks are placed
+first. The stream then forks again from the legacy stream, after the contact
+assembly kernels, and the other reporters (the elastics) follow. This fork
+lets the elastic producer start as soon as the contact kernels end instead of
+behind the light producers (the contact kernels run slightly longer beside
+them); where the in-place prelaunch applies, it issues the elastic producer
+ahead instead (below).
+The producers read only the Newton
+iterate and the frame's animation targets and write FEM-private buffers: the
+gradients as before and the Hessians into a FEM-local triplet matrix whose
+slots are first marked unwritten by their row index (-1) only: the gather
+turns a slot that stays unwritten into the global clear's `(-1, -1, 0)` and
+reads columns and values of written slots only, so values and columns need
+no clear (filling the values, the largest array, would sit at the head of
+this stream in front of the elastic producer). The fork point matters:
+an elastic producer such as `StableNeoHookean3D` fills each SM with one
+256-thread, 255-register block, so dispatched beside the contact assembly
+it holds back the latency-bound contact kernels; started after them it runs
+while the legacy stream distributes the contact entries; held to the SMs the
+contact blocks leave, it can run beside them (the in-place prelaunch issued
+ahead, below). (The FEM-local
+clear does not move ahead of the contact launch either: a fill still
+running when the contact kernel starts skews its blocks over the SMs.) FEM
+reports its triplets as fully written (`PrelaunchInfo::fully_written_triplets`),
+so the global clear skips that prefix of the FEM range.
+
+From the second assembly on, the FEM prelaunch writes the global system in
+place (`InitDofExtentInfo::prelaunch_in_place()`, then
+`PrelaunchInfo::in_place_available()`, `in_place_hessians()`,
+`in_place_gradients()`, `in_place_done()`). The global system puts the
+in-place subsystem's triplet range first (the other ranges follow in
+subsystem order, then the late blocks of each subsystem in subsystem order;
+DoF order and subsystem indices are unchanged, no `(row, col)` key is shared
+across subsystems and a subsystem's late blocks stay behind its others, so
+the conversion's stable sort puts the same entries in the same order under
+every key and the reduction reads the same sequence: converting copies in the
+same and in the former order gives the same indices and the same rate of
+last-bit value differences, which come from the reduction's atomic
+cross-warp partial sums in either order), so the FEM prefix sits at triplet 0
+whatever the contact-dependent counts of the other subsystems are. A late
+subsystem writes every one of its late blocks (the global clear does not
+cover them); when they do not fit the triplet capacity, the global system
+waits for the other blocks and grows the matrix keeping them. On the FEM stream the
+prelaunch marks the prefix slots unwritten (row -1), clears the FEM range of
+b (an event records it; the legacy stream waits for it before it adds the
+DyTopo gradients), and launches the kinetic term and the beside-contact
+reporters with global Hessian views; after the contact fork the elastic
+producers follow, and `StableNeoHookean3D` adds its element gradients
+straight into b (`AssembleInfo::direct_gradients()`; atomics, skipping fixed
+vertices; a constitution that does not do so writes doublets, which
+`FiniteElementElastics` adds after it). The kinetic and beside-contact
+gradients are added on a second stream forked after the contact assembly,
+beside the elastic producer (added before the fork they held SMs from the
+contact kernels). A fix-up kernel then applies the gather's two rules in
+place (an unwritten slot becomes `(-1, -1, 0)`, a block touching a fixed
+vertex 0 or I). `assemble()` writes only the DyTopo terms; the legacy stream
+waits for the FEM stream (`in_place_done()`'s event) only at the end of the
+global assembly, before the conversion, instead of before a gather. If the
+DoF layout changed since the previous assembly, the global system waits for
+the in-place writes and the FEM subsystem assembles in full; a triplet
+capacity growth after the prelaunch copies the prefix (it waits first). The
+Hessian is bitwise the gathered one; the FEM gradient is a sum of the same
+terms in another atomic order (atomic-order class, `rule.md` rule 16).
+
+The in-place prelaunch can also be issued ahead. When `prepare_prelaunch()`
+was given contact blocks, `prelaunch_ahead()` (from the
+`after_leading_launch()` hook, once the reporters with one-warp assembly
+blocks, the IPC simplex normal contact, are launched and before the other
+DyTopo reporters, behind whose kernels the elastic producer would find no SM
+free) calls the in-place lead with `PrelaunchInfo::ahead_of_contact()` and a
+grid cap for its elastic producers, `elastic_block_cap()`, that is
+`max(SMs / 2, SMs - contact blocks)`. FEM goes ahead only in place and only
+when one round of 256-thread blocks covers the largest 3D constitution
+(`ceil(elements / 256)` at most the SM count; every 3D constitution launches
+its own producer); otherwise it prelaunches in the later call as above.
+Going ahead, the FEM stream starts from the marked point, marks the prefix
+slots unwritten, clears the FEM range of b and runs the elastic producers
+beside the contact kernels: `StableNeoHookean3D` keeps its grid within the cap
+(`FEMLinearSubsystem::AssembleInfo::block_cap()`), so it takes the SMs the
+contact blocks leave, and the other elastic producers launch their usual
+grids. The later call (`prelaunch_assembly(true)`) issues the rest: the
+kinetic term, the beside-contact reporters and their gradient additions on a
+second stream that starts from the clears, then on the FEM stream the
+remaining doublet additions, the join of the second stream, the fix-up and
+`in_place_done()`. When its 256-thread grid exceeds the cap,
+`StableNeoHookean3D` launches the narrowest of 384, 416, 448 and 480 threads
+per block that covers its elements in one round within the cap
+(`StableNeoHookean3D_compute_direct_gradient_hessian_wide_kernel<Wide>`,
+`__launch_bounds__(Wide, 1)`, so that one block still fills an SM: a round on
+a full SM is bound by its FP64 pipe and lasts in proportion to the block
+width); a cap that would need wider blocks keeps the 256-thread kernel, which
+then loops over the elements with `block_cap()` blocks. Every element runs
+the same code in every variant. The `in_place_prelaunch` backend test drives
+this call too
+(its test lead writes its whole prefix there) and requires the bytes of
+`assemble()`.
+
+**FEM stream contract (required).** FEM producers take their stream from
+`FEMLinearSubsystem::ComputeGradientHessianInfo::stream()`,
+`FEMLinearSubsystem::AssembleInfo::stream()`,
+`FiniteElementElastics::ComputeGradientHessianInfo::stream()` (also through
+the 1D/2D/3D constitution infos) and
+`FiniteElementAnimator::ComputeGradientHessianInfo::stream()` (the 2D
+shells and bending use `BendingGradientHessianLaunchInfo::stream` and
+`NeoHookeanShellGradientHessianLaunchInfo::stream`). Every launch of a FEM
+producer must go to that stream: the slot marking runs before them and the
+fix-up after them on it, so a producer launched on the legacy stream would
+race with both and silently lose or mis-fix Hessian blocks (with
+legacy-stream shell producers `fem_mas_soft_vertex_stitch_regression` saw
+triplets with a row index and a cleared column index). The in-place
+prelaunch checks this whenever the producers' extents change: it launches
+them while a blocking stream captures (`LegacyStreamCheck`), so a launch
+into the legacy stream fails and the assertion names the contract.
+
 The heavy joint Hessian kernels (external articulation
 `external_articulation_constraint_compute_gradient_hessian_k2_kernel`,
 revolute joint limit, prismatic joint and prismatic joint limit `..._k2_kernel`)
@@ -982,7 +1166,7 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 | File | Contents |
 |---|---|
-| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStreams` (non-blocking fork/join streams with events) and `LazySideStream` (one producer's stream, taken on first use), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events) |
+| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStreams` (non-blocking fork/join streams with events; `keep_handed_out()` leaves the streams handed out so far to their producers, and `next()` then cycles over the others until the next `fork()`) and `LazySideStream` (one producer's stream, taken on first use), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events; `mark()` and `fork_marked()` split `fork()` into recording the parent's point and waiting for it) |
 | `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`, `Dense/CDense` (scalar viewers), `ViewerBase`, `Extent2D`, `Buffer2DView`, `Dense1D/Dense2D` (with `make_dense_1d/2d`) |
 | `launch.h` | `best_block_dim/best_grid_dim` (occupancy-based block size / grid computation); `spread_block_dim/spread_grid_dim` (one-warp blocks for FP64-heavy per-item kernels over short lists) |
 | `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. `PinnedHostBuffer` is a page-locked host array whose `copy_from` enqueues a device-to-host copy without blocking, so several small read-backs share one stream synchronization (a copy into pageable memory waits for the stream on its own). `ReadbackBuffer` holds read-backs whose producer stores them directly: `device_data()` is where the producer stores, `enqueue_copy(s)` follows it, `data()` is read after synchronizing `s`; `mapped_readbacks()` decides the path. |

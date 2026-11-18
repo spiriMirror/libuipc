@@ -54,7 +54,26 @@ struct IPCSimplexNormalContactAssemblyLaunchInfo
     cudaStream_t stream = nullptr;
 };
 
-// The production dispatcher: full Hessians use CTA8/type-padded ranges;
+// Full-Hessian launch: one-warp blocks, each type's range padded to whole
+// blocks, so no block mixes contact types. GB20x issues an FP64 warp
+// instruction at the same cost however many lanes are active, so whole warps
+// take a quarter of the FP64 issue of eight-lane blocks for the same
+// latency-bound kernel, on a quarter of the SMs (the rest stay free for the
+// elastic producer, see GlobalLinearSystem::prelaunch_ahead()).
+constexpr int IPCSimplexNormalContactFullHessianBlockSize = 32;
+
+// Blocks of the full-Hessian launch for these contact counts.
+inline SizeT ipc_simplex_normal_contact_full_hessian_blocks(SizeT pt_count,
+                                                            SizeT ee_count,
+                                                            SizeT pe_count,
+                                                            SizeT pp_count)
+{
+    constexpr SizeT B = IPCSimplexNormalContactFullHessianBlockSize;
+    return (pt_count + B - 1) / B + (ee_count + B - 1) / B
+           + (pe_count + B - 1) / B + (pp_count + B - 1) / B;
+}
+
+// The production dispatcher: full Hessians use CTA32/type-padded ranges;
 // gradient-only uses contiguous ranges and never accesses Hessian views.
 UIPC_BACKEND_API void launch_ipc_simplex_normal_contact_assembly(
     const IPCSimplexNormalContactAssemblyLaunchInfo& info);

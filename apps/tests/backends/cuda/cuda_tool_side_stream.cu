@@ -18,6 +18,7 @@
 // cuda_tool::SideStream, one non-blocking stream beside a parent stream:
 // fork() orders it after the work enqueued on the parent so far and join()
 // orders the parent after the work enqueued on it.
+// mark() and fork_marked() fork from an earlier point of the parent.
 // Slow kernels make a missing dependency visible as a wrong value.
 
 #include <app/app.h>
@@ -89,5 +90,31 @@ TEST_CASE("cuda_tool SideStream forks from its parent and joins it", "[cuda][cud
             REQUIRE(h[i] == 3 * round);
         REQUIRE(side.fork() == s);  // one stream, created on first use
         side.join();
+    }
+}
+
+TEST_CASE("cuda_tool SideStream::fork_marked starts after the marked point", "[cuda][cuda_tool][stream]")
+{
+    cuda_tool::SideStream        side;
+    cuda_tool::DeviceBuffer<int> a(N);
+    cuda_tool::DeviceBuffer<int> b(N);
+    cuda_tool::DeviceBuffer<int> c(N);
+
+    for(int round = 1; round <= 3; ++round)
+    {
+        side_stream_test_fill_kernel<<<GridDim, BlockDim>>>(a.data(), round, N, SpinCycles);
+        side.mark();  // the point after the fill of a
+        side_stream_test_fill_kernel<<<GridDim, BlockDim>>>(c.data(), 10 * round, N, 0);
+        cudaStream_t s = side.fork_marked();
+        side_stream_test_scale_kernel<<<GridDim, BlockDim, 0, s>>>(
+            a.data(), b.data(), 5, N, SpinCycles);
+        side.join();
+        auto hb = host_of(b);
+        auto hc = host_of(c);
+        for(int i = 0; i < N; ++i)
+        {
+            REQUIRE(hb[i] == 5 * round);
+            REQUIRE(hc[i] == 10 * round);
+        }
     }
 }

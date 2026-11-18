@@ -38,6 +38,7 @@ __host__ __device__ inline T arg(const std::complex<T>& z)
 }
 #endif
 #include <uipc/common/type_define.h>
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <cstdio>
@@ -154,7 +155,7 @@ class SideStreams
     cudaStream_t operator[](SizeT i) const noexcept { return m_streams[i]; }
 
     // Every side stream waits for the work enqueued on `origin` so far, and
-    // the round-robin cursor of next() restarts.
+    // the round-robin cursor of next() restarts (over all streams).
     void fork(cudaStream_t origin = default_stream())
     {
         if(m_streams.empty())
@@ -163,6 +164,7 @@ class SideStreams
         for(auto s : m_streams)
             CUDA_TOOL_CHECK(cudaStreamWaitEvent(s, m_origin_event, 0));
         m_next = 0;
+        m_kept = 0;
     }
 
     // Side stream `i` alone waits for the work enqueued on `origin` so far.
@@ -178,7 +180,19 @@ class SideStreams
     {
         if(m_streams.empty())
             return default_stream();
-        return m_streams[m_next++ % m_streams.size()];
+        SizeT shared = m_streams.size() - m_kept;
+        if(shared == 0)
+            return m_streams[m_next++ % m_streams.size()];
+        return m_streams[m_kept + (m_next++ - m_kept) % shared];
+    }
+
+    // The streams next() handed out since the last fork() stay with their
+    // producers (long chains): until the next fork(), next() cycles over
+    // the other streams only (over all of them when none is left).
+    void keep_handed_out() noexcept
+    {
+        m_kept = std::min(m_next, m_streams.size());
+        m_next = m_kept;
     }
 
     // `waiter` waits for the work enqueued on every side stream so far. A
@@ -199,6 +213,7 @@ class SideStreams
     std::vector<cudaEvent_t>  m_events;
     cudaEvent_t               m_origin_event = nullptr;
     SizeT                     m_next         = 0;
+    SizeT m_kept = 0;  // leading streams next() skips (keep_handed_out())
 };
 
 // Launch stream of one producer: the next side stream, taken on first use so
@@ -253,6 +268,15 @@ class SideStream
 
     cudaStream_t fork(cudaStream_t parent = default_stream())
     {
+        mark(parent);
+        return fork_marked();
+    }
+
+    // fork() in two halves: mark() records the work enqueued on `parent`
+    // so far, and fork_marked() orders the stream after that point, even
+    // when `parent` has received more work in between.
+    void mark(cudaStream_t parent = default_stream())
+    {
         if(!m_stream)
         {
             CUDA_TOOL_CHECK(cudaStreamCreateWithFlags(&m_stream, cudaStreamNonBlocking));
@@ -260,6 +284,10 @@ class SideStream
             CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&m_join, cudaEventDisableTiming));
         }
         CUDA_TOOL_CHECK(cudaEventRecord(m_fork, parent));
+    }
+
+    cudaStream_t fork_marked()
+    {
         CUDA_TOOL_CHECK(cudaStreamWaitEvent(m_stream, m_fork, 0));
         return m_stream;
     }

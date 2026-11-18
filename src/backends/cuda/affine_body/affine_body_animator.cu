@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream launches of the animator constraints.
+ * NVIDIA contributions: side-stream launches and producer ordering of the
+ * animator constraints.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -176,6 +177,9 @@ void AffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo
 
 void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info)
 {
+    // Body constraints are short producers: none leads.
+    if(!info.launches(false))
+        return;
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {

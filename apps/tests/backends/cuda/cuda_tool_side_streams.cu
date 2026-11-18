@@ -168,3 +168,36 @@ TEST_CASE("cuda_tool LazySideStream takes a stream on first use", "[cuda][cuda_t
     REQUIRE(none.next() == nullptr);
     none.join();
 }
+
+TEST_CASE("cuda_tool SideStreams::keep_handed_out keeps the streams of long chains",
+          "[cuda][cuda_tool][stream]")
+{
+    SideStreams side;
+    side.create(4);
+    side.fork();
+
+    // two long chains take streams 0 and 1 and keep them
+    REQUIRE(side.next() == side[0]);
+    REQUIRE(side.next() == side[1]);
+    side.keep_handed_out();
+    // the other producers cycle over streams 2 and 3 only
+    REQUIRE(side.next() == side[2]);
+    REQUIRE(side.next() == side[3]);
+    REQUIRE(side.next() == side[2]);
+    side.join();
+
+    // the next fork() hands out every stream again
+    side.fork();
+    for(int i = 0; i < 4; ++i)
+        REQUIRE(side.next() == side[i]);
+    side.join();
+
+    // with every stream kept, next() cycles over all of them
+    side.fork();
+    for(int i = 0; i < 4; ++i)
+        side.next();
+    side.keep_handed_out();
+    REQUIRE(side.next() == side[0]);
+    REQUIRE(side.next() == side[1]);
+    side.join();
+}

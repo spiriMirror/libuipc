@@ -1,6 +1,8 @@
 /*
  * NVIDIA contributions: interfaces for raw-entry distribution, side-stream
- * assembly and batched count read-backs; for the packed distribution.
+ * assembly, batched count read-backs and the prelaunch hook; for the packed
+ * distribution, the hook after the leading assembly launches and the one-warp
+ * assembly-block count.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -31,6 +33,7 @@
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <dytopo_effect_system/dytopo_classify_info.h>
+#include <functional>
 
 namespace uipc::backend::cuda
 {
@@ -142,11 +145,26 @@ class GlobalDyTopoEffectManager final : public SimSystem
         {
             m_component_flags = v;
         }
+        // Called once the reporters' assembly kernels are launched and
+        // before the distribution synchronizes with them: work launched here
+        // is dispatched after the contact assembly and overlaps it.
+        void after_assembly_launch(std::function<void()> f) noexcept
+        {
+            m_after_assembly_launch = std::move(f);
+        }
+        // Called once the latency-bound assembly kernels (reporters with
+        // assembly blocks, launched first) are launched, before the others.
+        void after_leading_launch(std::function<void()> f) noexcept
+        {
+            m_after_leading_launch = std::move(f);
+        }
 
       private:
         friend class Impl;
-        bool                 m_gradient_only   = false;
-        EnergyComponentFlags m_component_flags = EnergyComponentFlags::All;
+        bool                  m_gradient_only   = false;
+        EnergyComponentFlags  m_component_flags = EnergyComponentFlags::All;
+        std::function<void()> m_after_assembly_launch;
+        std::function<void()> m_after_leading_launch;
     };
 
     class Impl
@@ -229,6 +247,10 @@ class GlobalDyTopoEffectManager final : public SimSystem
     };
 
     void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
+
+    // One-warp blocks of the latency-bound assembly kernels the next
+    // compute_dytopo_effect() launches (DyTopoEffectReporter hints).
+    SizeT assembly_blocks();
 
   protected:
     virtual void do_build() override;

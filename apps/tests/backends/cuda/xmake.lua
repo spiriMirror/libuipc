@@ -22,6 +22,9 @@ target("backend_cuda")
     -- use cuda_tool launch/dense math (needs extended lambdas + relaxed
     -- constexpr), and CUDA >= 13 CCCL requires the conforming MSVC preprocessor.
     add_cuflags("--extended-lambda", "--expt-relaxed-constexpr")
+    -- parity with CMakeLists.txt: the tests include CUDA backend
+    -- implementation headers, which include <backends/common/...> from src/.
+    add_includedirs(path.join(os.projectdir(), "src"))
     if is_plat("windows") then
         add_cuflags("-Xcompiler=/Zc:preprocessor")
     end

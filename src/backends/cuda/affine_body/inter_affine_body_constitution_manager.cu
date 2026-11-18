@@ -1,5 +1,5 @@
 /*
- * NVIDIA contributions: side-stream launches.
+ * NVIDIA contributions: side-stream launches and leading-producer ordering.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -225,6 +225,8 @@ void InterAffineBodyConstitutionManager::Impl::compute_gradient_hessian(ABDLinea
     auto  constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
+        if(!info.launches(c->leads_assembly()))
+            continue;
         GradientHessianInfo this_info{this,
                                       c->m_index,
                                       dt,

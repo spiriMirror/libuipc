@@ -1,7 +1,8 @@
 /*
  * NVIDIA contributions: reuse of trajectory candidates and of the frame-start
  * active set, trajectory BVH refit for the whole Newton loop and the
- * prelaunched assembly hook.
+ * prelaunched assembly hooks; the elastic-producer prelaunch right after the
+ * contact assembly launch.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -122,10 +123,24 @@ void SimEngine::advance()
         // compute the dytopo effect gradient and hessian, containing:
         // 1) contact effect from contact pairs
         // 2) other dynamic topo effects, e.g. point picker, vertex stitch ...
+        // The contact-independent assembly producers are issued once the
+        // DyTopo assembly kernels are enqueued: those lead the critical path,
+        // and the producers run beside them and the contact distribution on
+        // the side streams (ABD's were forked by prepare_prelaunch(); FEM's
+        // light producers start from a point marked before the DyTopo work).
         if(m_global_dytopo_effect_manager)
         {
             Timer timer{"Compute DyTopo Effect"};
-            m_global_dytopo_effect_manager->compute_dytopo_effect();
+            GlobalDyTopoEffectManager::ComputeDyTopoEffectInfo info;
+            info.after_leading_launch(
+                [this] { m_global_linear_system->prelaunch_ahead(); });
+            info.after_assembly_launch(
+                [this] { m_global_linear_system->prelaunch_assembly(true); });
+            m_global_dytopo_effect_manager->compute_dytopo_effect(info);
+        }
+        else
+        {
+            m_global_linear_system->prelaunch_assembly(false);
         }
     };
 
@@ -421,7 +436,12 @@ void SimEngine::advance()
                 //    - Contact Effect
                 //    - Other DyTopo Effects
                 //    Contact-independent assembly producers run alongside.
-                m_global_linear_system->prelaunch_assembly();
+                //    The FEM elastic producer may go right after the contact
+                //    assembly kernels, beside them (prelaunch_ahead()).
+                m_global_linear_system->prepare_prelaunch(
+                    m_global_dytopo_effect_manager ?
+                        m_global_dytopo_effect_manager->assembly_blocks() :
+                        0);
                 m_state = SimEngineState::ComputeDyTopoEffect;
                 compute_dytopo_effect();
 

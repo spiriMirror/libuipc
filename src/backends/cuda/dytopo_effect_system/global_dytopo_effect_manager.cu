@@ -1,8 +1,10 @@
 /*
  * NVIDIA contributions: distribution of raw entries to several receivers,
- * side-stream reporter assembly and batched count read-backs; the packed
- * selection, scan and fill of all receivers' entries in one pass per entry
- * kind with the gradient selection on a side stream.
+ * side-stream reporter assembly, batched count read-backs and the prelaunch
+ * hook; the packed selection, scan and fill of all receivers' entries in one
+ * pass per entry kind with the gradient selection on a side stream, reporters
+ * with one-warp assembly blocks launched first with a hook after them, and
+ * their total block count.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -25,7 +27,9 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <cstdint>
+#include <numeric>
 #include <sim_engine.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
 #include <dytopo_effect_system/dytopo_effect_reporter.h>
@@ -357,6 +361,8 @@ void GlobalDyTopoEffectManager::Impl::init(WorldVisitor& world)
 void GlobalDyTopoEffectManager::Impl::compute_dytopo_effect(ComputeDyTopoEffectInfo& info)
 {
     _assemble(info);
+    if(info.m_after_assembly_launch)
+        info.m_after_assembly_launch();
     auto receivers = dytopo_effect_receivers.view();
     if(receivers.size() == 1)
     {
@@ -444,10 +450,25 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
         collected_dytopo_effect_hessian.reshape(vertex_count, vertex_count);
     }
 
-    // collect: reporters write disjoint ranges, each on its own side stream
+    // collect: reporters write disjoint ranges, each on its own side stream.
+    // Those with latency-bound assembly kernels (report_assembly_blocks())
+    // launch first: they lead the critical path.
+    auto               reporters = dytopo_effect_reporters.view();
+    std::vector<SizeT> launch_order(reporters.size());
+    std::iota(launch_order.begin(), launch_order.end(), SizeT{0});
+    const SizeT leading =
+        std::ranges::stable_partition(
+            launch_order,
+            [&](SizeT i) { return reporters[i]->report_assembly_blocks() > 0; })
+            .begin()
+        - launch_order.begin();
     assembly_streams.fork();
-    for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
+    for(SizeT k = 0; k < launch_order.size(); ++k)
     {
+        if(k == leading && info.m_after_leading_launch)
+            info.m_after_leading_launch();
+        const SizeT i        = launch_order[k];
+        auto        reporter = reporters[i];
         if(!has_flags(info.m_component_flags, reporter->component_flags()))
             continue;
 
@@ -464,6 +485,8 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 
         reporter->assemble(info);
     }
+    if(leading == launch_order.size() && info.m_after_leading_launch)
+        info.m_after_leading_launch();
     // the distribution reads every reporter's range
     assembly_streams.join();
 }
@@ -867,6 +890,14 @@ void GlobalDyTopoEffectManager::init()
 void GlobalDyTopoEffectManager::compute_dytopo_effect(ComputeDyTopoEffectInfo& info)
 {
     m_impl.compute_dytopo_effect(info);
+}
+
+SizeT GlobalDyTopoEffectManager::assembly_blocks()
+{
+    SizeT blocks = 0;
+    for(auto&& reporter : m_impl.dytopo_effect_reporters.view())
+        blocks += reporter->report_assembly_blocks();
+    return blocks;
 }
 
 void GlobalDyTopoEffectManager::compute_dytopo_effect()

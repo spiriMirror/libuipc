@@ -1,6 +1,6 @@
 /*
  * NVIDIA contributions: prelaunch interfaces for the contact-independent
- * assembly.
+ * assembly and interfaces for late Hessian blocks.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -62,10 +62,20 @@ class DiagLinearSubsystem : public SimSystem
     // Optionally launch, on info.side_streams(), producers of the next
     // assembly that read no DyTopo (contact) results; do_assemble() then sees
     // DiagInfo::prelaunched() and must not launch them again.
+    // do_prepare_prelaunch() runs first, before the DyTopo work is enqueued:
+    // it sizes the producers' buffers and forks the side streams, so that the
+    // launches themselves may be issued after the DyTopo assembly kernels.
+    virtual void do_prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info);
     virtual void do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info)           = 0;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) = 0;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
+    // Late blocks (GlobalLinearSystem::DiagExtentInfo::late_extent()): their
+    // count, which may wait for the device, once every subsystem's
+    // do_assemble() is issued; then do_assemble_late() writes every one of
+    // them (DiagInfo::hessians() is their range).
+    virtual void do_report_late_extent(GlobalLinearSystem::LateExtentInfo& info);
+    virtual void do_assemble_late(GlobalLinearSystem::DiagInfo& info);
 
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
     virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
@@ -81,8 +91,11 @@ class DiagLinearSubsystem : public SimSystem
     void receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info);
 
     void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+    void prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info);
     void prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
     void assemble(GlobalLinearSystem::DiagInfo& info);
+    void report_late_extent(GlobalLinearSystem::LateExtentInfo& info);
+    void assemble_late(GlobalLinearSystem::DiagInfo& info);
     void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
     void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 

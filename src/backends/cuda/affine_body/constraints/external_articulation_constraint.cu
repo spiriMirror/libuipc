@@ -2,7 +2,7 @@
  * NVIDIA contributions: shared-workspace PSD projection and blockwise
  * articulation Hessian assembly; one joint pair per block, warp-cooperative
  * Hessian assembly (warp Jacobi PSD projection and entry-parallel J^T H J),
- * side-stream launches and one-warp launch shapes.
+ * side-stream launches as a leading producer and one-warp launch shapes.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -589,6 +589,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     }
 
     U64 get_uid() const noexcept override { return ConstraintUID; }
+
+    // Its Hessian is a 12x12 warp eigensolve per joint pair, one of the
+    // longest producer chains of the assembly.
+    bool do_leads_assembly() const noexcept override { return true; }
 
     static auto get_revolute_basis(const geometry::SimplicialComplex* L,
                                    IndexT                             L_inst_id,

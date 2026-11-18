@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: side-stream launches of the inter-body constraints.
+ * NVIDIA contributions: side-stream launches and producer ordering of the
+ * inter-body constraints.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -180,6 +181,8 @@ void InterAffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::Assem
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
+        if(!info.launches(constraint->leads_assembly()))
+            continue;
         GradientHessianInfo this_info{&m_impl,
                                       constraint->m_index,
                                       dt,

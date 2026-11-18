@@ -1,7 +1,8 @@
 /*
  * NVIDIA contributions: contact-type dispatch/grouping, optimized Hessian
  * assembly and fused normal-energy launch integration; assembly launches on
- * the provided streams.
+ * the provided streams; the one-warp-per-block full-Hessian assembly with its
+ * reported block count.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -74,7 +75,7 @@ namespace
         if(idx >= n)
             return;
 
-        constexpr int    SharedLanePitch = 8;
+        constexpr int SharedLanePitch = IPCSimplexNormalContactFullHessianBlockSize;
         __shared__ Float shared_h[GradientOnly ? 1 : 12 * 12 * SharedLanePitch];
 
         using namespace sym::codim_ipc_simplex_contact;
@@ -289,6 +290,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .dt                  = info.dt()});
     }
 
+    virtual SizeT do_report_assembly_blocks() override
+    {
+        return ipc_simplex_normal_contact_full_hessian_blocks(
+            PTs().size(), EEs().size(), PEs().size(), PPs().size());
+    }
+
     virtual void do_assemble(ContactInfo& info) override
     {
         launch_ipc_simplex_normal_contact_assembly(IPCSimplexNormalContactAssemblyLaunchInfo{
@@ -344,7 +351,7 @@ void launch_ipc_simplex_normal_contact_assembly(const IPCSimplexNormalContactAss
                 IndexMax);
     const auto total = static_cast<IndexT>(total_wide);
 
-    constexpr int FullHessianBlockSize = 8;
+    constexpr int FullHessianBlockSize = IPCSimplexNormalContactFullHessianBlockSize;
     const auto padded_layout = make_contact_type_block_layout<FullHessianBlockSize>(
         pt_count, ee_count, pe_count, pp_count);
 

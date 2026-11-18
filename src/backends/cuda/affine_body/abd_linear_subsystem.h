@@ -1,7 +1,8 @@
 /*
  * NVIDIA contributions: interfaces supporting the blockwise ABD assembly path,
- * the side-stream and prelaunched producer assembly and the batched count
- * read-backs.
+ * the side-stream and prelaunched producer assembly (producer sets, leading
+ * producers), the batched count read-backs and the aggregated DyTopo blocks
+ * placed last with a late count read-back.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -40,6 +41,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 {
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
+    ~ABDLinearSubsystem() override;
 
     cuda_tool::CBufferView<Matrix12x12> diag_hessian() const noexcept
     {
@@ -102,13 +104,24 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
     class Impl;
 
+    // The producers one assemble() call of a reporter launches: every one,
+    // or (prelaunched assembly) the leading ones (long per-joint eigensolve
+    // chains), which go first, and then the others.
+    enum class ProducerSet
+    {
+        All,
+        Leading,
+        Others
+    };
+
     class AssembleInfo
     {
       public:
         AssembleInfo(Impl*                   impl,
                      IndexT                  index,
                      bool                    gradient_only,
-                     cuda_tool::SideStreams* side_streams = nullptr) noexcept;
+                     cuda_tool::SideStreams* side_streams = nullptr,
+                     ProducerSet producers = ProducerSet::All) noexcept;
         cuda_tool::DoubletVectorView<Float, 12>     gradients() const;
         cuda_tool::TripletMatrixView<Float, 12, 12> hessians() const;
         bool gradient_only() const noexcept;
@@ -116,6 +129,9 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         // legacy default stream). Each producer must keep all of its
         // launches on one stream, e.g. through cuda_tool::LazySideStream.
         cuda_tool::SideStreams* side_streams() const noexcept;
+        // Whether this call launches a producer that leads (`leading`) or
+        // not: every producer is launched by exactly one call per assembly.
+        bool launches(bool leading) const noexcept;
 
       private:
         friend class ABDLinearSubsystem;
@@ -124,6 +140,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         IndexT                  m_index         = ~0;
         bool                    m_gradient_only = false;
         cuda_tool::SideStreams* m_side_streams  = nullptr;
+        ProducerSet             m_producers     = ProducerSet::All;
     };
 
     class Impl
@@ -131,19 +148,24 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
       public:
         void init();
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+        void report_late_extent(GlobalLinearSystem::LateExtentInfo& info);
 
         void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
         void receive_init_dof_info(WorldVisitor& w, GlobalLinearSystem::InitDofInfo& info);
 
-        void prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
-        void assemble(GlobalLinearSystem::DiagInfo& info);
-        void _report_reporter_extents(bool gradient_only);
-        void _prepare_reporter_buffers();
-        void _compute_kinetic_shape(bool gradient_only, cudaStream_t stream);
-        void _assemble_kinetic_shape(IndexT&                       offset,
-                                     GlobalLinearSystem::DiagInfo& info,
-                                     cudaStream_t                  stream);
-        void _launch_reporters(bool gradient_only, cuda_tool::SideStreams* side_streams);
+        void  prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info);
+        void  prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
+        void  assemble(GlobalLinearSystem::DiagInfo& info);
+        void  assemble_late(GlobalLinearSystem::DiagInfo& info);
+        void  _report_reporter_extents(bool gradient_only);
+        void  _prepare_reporter_buffers();
+        void  _compute_kinetic_shape(bool gradient_only, cudaStream_t stream);
+        void  _assemble_kinetic_shape(IndexT&                       offset,
+                                      GlobalLinearSystem::DiagInfo& info,
+                                      cudaStream_t                  stream);
+        void  _launch_reporters(bool                    gradient_only,
+                                cuda_tool::SideStreams* side_streams,
+                                ProducerSet producers = ProducerSet::All);
         void  _assemble_reporters(IndexT&                       offset,
                                   GlobalLinearSystem::DiagInfo& info,
                                   cudaStream_t                  stream);
@@ -151,8 +173,11 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
                                       GlobalLinearSystem::DiagInfo& info,
                                       cudaStream_t                  stream);
         SizeT _prepare_dytopo_body_pair_aggregation();
-        // reads back the two totals and sizes the run arrays
+        // waits for the two totals the preparation stores (it returns the
+        // receiver entry count, 0: nothing launched) and sizes the run arrays
         SizeT _finish_dytopo_body_pair_aggregation();
+        // the DyTopo gradients (the aggregated Hessian blocks are late)
+        void _assemble_dytopo_gradients(GlobalLinearSystem::DiagInfo& info, cudaStream_t stream);
 
         void  accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void  retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
@@ -174,6 +199,9 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         cuda_tool::DeviceDoubletVector<Float, 12>     reporter_gradients;
         SizeT prelaunched_gradient_count = 0;
         SizeT prelaunched_hessian_count  = 0;
+        // prepare_prelaunch() forked the side streams; the next
+        // prelaunch_assembly() launches the producers
+        bool prelaunch_forked = false;
 
         // intermediate gradient/hessian buffers for kinetic/shape
         cuda_tool::DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
@@ -196,11 +224,14 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         cuda_tool::DeviceBuffer<int>           dytopo_body_pair_block_offsets;
         cuda_tool::DeviceVar<int> dytopo_unique_body_pair_count_dev;
         // {unique body-pair count, aggregated block count}, read back once
-        cuda_tool::DeviceBuffer<int> dytopo_body_pair_count_readback;
-        SizeT                        dytopo_prepared_receiver_count = 0;
-        SizeT                        dytopo_unique_body_pair_count  = 0;
-        SizeT                        dytopo_aggregated_block_count  = 0;
-        int                          dytopo_body_pair_col_bits      = 1;
+        // the event marks them stored (late blocks: the count is asked for
+        // after the other subsystems' assembly is issued)
+        cuda_tool::ReadbackBuffer<int> dytopo_body_pair_count_readback;
+        cudaEvent_t                    dytopo_body_pair_count_event   = nullptr;
+        SizeT                          dytopo_prepared_receiver_count = 0;
+        SizeT                          dytopo_unique_body_pair_count  = 0;
+        SizeT                          dytopo_aggregated_block_count  = 0;
+        int                            dytopo_body_pair_col_bits      = 1;
 
         // diag hessian for preconditioner
         cuda_tool::DeviceBuffer<Matrix12x12> diag_hessian;
@@ -218,8 +249,11 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
 
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
+    virtual void do_report_late_extent(GlobalLinearSystem::LateExtentInfo& info) override;
+    virtual void do_prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info) override;
     virtual void do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
+    virtual void do_assemble_late(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;
