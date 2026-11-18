@@ -997,6 +997,9 @@ void ABDLinearSubsystem::Impl::prelaunch_assembly(GlobalLinearSystem::PrelaunchI
     side_streams->keep_handed_out();
     _compute_kinetic_shape(false, kinetic_shape_stream);
     _launch_reporters(false, side_streams, ProducerSet::Others);
+    // The gathers on side stream 0 read every reporter range: it waits for
+    // the producers here, beside the DyTopo work, not in assemble().
+    side_streams->join(kinetic_shape_stream);
 }
 
 void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
@@ -1053,13 +1056,17 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 
     // The gathers add atomically onto the plain stores above and read every
     // reporter range: on side stream 0 they wait for the legacy stream and
-    // all reporters, and the global system joins them before the conversion.
+    // all reporters (after a prelaunch, side stream 0 already does), and the
+    // global system joins them before the conversion.
     cudaStream_t gather_stream = nullptr;
     if(side_streams && side_streams->size())
     {
         gather_stream = (*side_streams)[0];
-        side_streams->fork_one(0);
-        side_streams->join(gather_stream);
+        if(!prelaunched)
+        {
+            side_streams->fork_one(0);
+            side_streams->join(gather_stream);
+        }
     }
 
     if(has_complement)

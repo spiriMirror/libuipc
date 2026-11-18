@@ -1,8 +1,8 @@
 /*
  * NVIDIA contributions: reuse of trajectory candidates and of the frame-start
- * active set, trajectory BVH refit for the whole Newton loop and the
- * prelaunched assembly hooks; the elastic-producer prelaunch right after the
- * contact assembly launch.
+ * active set, trajectory BVH refit for the whole Newton loop, the prelaunched
+ * assembly hooks and the PCG iteration count read after the line search; the
+ * elastic-producer prelaunch right after the contact assembly launch.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -447,12 +447,12 @@ void SimEngine::advance()
 
 
                 // 4) Solve Global Linear System => dx = A^-1 * b
+                //    (the solver's iteration count is collected after the line
+                //    search, whose read-backs have waited for the solve)
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 {
                     Timer timer{"Solve Global Linear System"};
                     m_global_linear_system->solve();
-                    m_frame_linear_solver_iterations +=
-                        m_global_linear_system->last_solve_iterations();
                 }
 
 
@@ -559,6 +559,9 @@ void SimEngine::advance()
                         // If not success, then shrink alpha
                         alpha /= 2;
                     }
+
+                    m_frame_linear_solver_iterations +=
+                        m_global_linear_system->last_solve_iterations();
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
                     check_line_search_iter(line_search_iter, E0, last_E);

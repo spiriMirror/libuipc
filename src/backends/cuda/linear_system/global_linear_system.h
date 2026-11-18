@@ -1,7 +1,10 @@
 /*
- * NVIDIA contributions: interfaces and state for assembly side streams and the
- * prelaunched and in-place FEM assembly; for the elastic-producer prelaunch
- * right after the contact assembly launch and late Hessian blocks.
+ * NVIDIA contributions: interfaces and state for fused iteration, blockwise
+ * assembly and layout generation; for the block-diagonal PCG step, assembly
+ * side streams, the prelaunched and in-place FEM assembly, batched read-backs
+ * and parallel PCG segment streams; for the elastic-producer prelaunch right
+ * after the contact assembly launch, late Hessian blocks and the
+ * preconditioner preparation from the DyTopo hook.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -337,6 +340,63 @@ class GlobalLinearSystem : public SimSystem
         Impl*                       m_impl   = nullptr;
     };
 
+    class FusedPcgUpdateApplyDotInfo
+    {
+      public:
+        FusedPcgUpdateApplyDotInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
+
+        DenseVectorView             x() const { return m_x; }
+        CDenseVectorView            p() const { return m_p; }
+        DenseVectorView             r() const { return m_r; }
+        CDenseVectorView            Ap() const { return m_Ap; }
+        DenseVectorView             z() const { return m_z; }
+        cuda_tool::CVarView<Float>  rz() const { return m_rz; }
+        cuda_tool::CVarView<Float>  pAp() const { return m_pAp; }
+        cuda_tool::VarView<Float>   rz_new() const { return m_rz_new; }
+        cuda_tool::CVarView<IndexT> converged() const { return m_converged; }
+        cudaStream_t                stream() const noexcept { return m_stream; }
+
+      private:
+        friend class Impl;
+        DenseVectorView             m_x;
+        CDenseVectorView            m_p;
+        DenseVectorView             m_r;
+        CDenseVectorView            m_Ap;
+        DenseVectorView             m_z;
+        cuda_tool::CVarView<Float>  m_rz;
+        cuda_tool::CVarView<Float>  m_pAp;
+        cuda_tool::VarView<Float>   m_rz_new;
+        cuda_tool::CVarView<IndexT> m_converged;
+        cudaStream_t                m_stream = nullptr;
+        Impl*                       m_impl   = nullptr;
+    };
+
+    // The block-diagonal inverse behind a local preconditioner's fused
+    // update/apply/dot step, so one launch can serve several subsystems.
+    class FusedPcgDiagInverseInfo
+    {
+      public:
+        void block_12x12(cuda_tool::CBufferView<Matrix12x12> inverse) noexcept
+        {
+            m_block_size    = 12;
+            m_inverse_12x12 = inverse;
+        }
+        void block_3x3(cuda_tool::CBufferView<Matrix3x3> inverse) noexcept
+        {
+            m_block_size  = 3;
+            m_inverse_3x3 = inverse;
+        }
+
+      private:
+        friend class Impl;
+        int                                 m_block_size = 0;
+        cuda_tool::CBufferView<Matrix12x12> m_inverse_12x12;
+        cuda_tool::CBufferView<Matrix3x3>   m_inverse_3x3;
+    };
+
     class AccuracyInfo
     {
       public:
@@ -367,13 +427,17 @@ class GlobalLinearSystem : public SimSystem
         DenseVectorView  x() { return m_x; }
         CDenseVectorView b() { return m_b; }
         void iter_count(SizeT iter_count) { m_iter_count = iter_count; }
+        // The solve was only enqueued and its iteration count is read later
+        // through IterativeSolver::do_pending_iter_count().
+        void iter_count_pending() { m_iter_count_pending = true; }
 
       private:
         friend class Impl;
         DenseVectorView  m_x;
         CDenseVectorView m_b;
-        SizeT            m_iter_count = 0;
-        Impl*            m_impl       = nullptr;
+        SizeT            m_iter_count         = 0;
+        bool             m_iter_count_pending = false;
+        Impl*            m_impl               = nullptr;
     };
 
     class SolutionInfo
@@ -422,6 +486,10 @@ class GlobalLinearSystem : public SimSystem
         // then their assembly behind the other blocks
         SizeT _report_late_extents();
         void  _assemble_late();
+        // LocalPreconditioner::prepare_assembly(), once per assembly of the
+        // preconditioners
+        void prepare_preconditioners();
+        bool preconditioners_prepared = false;
 
         Float reserve_ratio = 1.1;
 
@@ -435,6 +503,10 @@ class GlobalLinearSystem : public SimSystem
 
         std::vector<int> accuracy_statisfied_flags;
         std::vector<int> no_precond_diag_subsystem_indices;
+
+        // Segment fusion may update x/r once per local preconditioner only
+        // when each subsystem has one owner. Fixed after initialization.
+        bool local_preconditioner_owners_unique = true;
 
         // Containers
         SimSystemSlotCollection<DiagLinearSubsystem>    diag_subsystems;
@@ -499,14 +571,36 @@ class GlobalLinearSystem : public SimSystem
         bool               late_pending  = false;
         bool               late_reported = false;
 
+        // One side stream per local preconditioner but the last: the fused
+        // PCG update/apply/dot segments are independent (disjoint DoF ranges,
+        // atomic r^T z), so a captured iteration runs them as parallel branches.
+        cuda_tool::SideStreams pcg_segment_streams;
+
         bool  initialized           = false;
         bool  empty_system          = true;
         SizeT last_solve_iterations = 0;
+        // The solver has not read the last iteration count back yet.
+        bool last_solve_pending = false;
+        // Changes whenever the per-subsystem DoF partition changes. CUDA
+        // graphs capture subview offsets/counts and local-preconditioner
+        // buffer pointers, so total DoF and global matrix pointers alone are
+        // not a sufficient graph validity key.
+        SizeT dof_layout_generation = 0;
 
         void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                   cuda_tool::CDenseVectorView<Float> r,
                                   cuda_tool::CVarView<IndexT>        converged,
                                   cudaStream_t stream = nullptr);
+        bool fused_pcg_update_apply_dot(cuda_tool::DenseVectorView<Float>  x,
+                                        cuda_tool::CDenseVectorView<Float> p,
+                                        cuda_tool::DenseVectorView<Float>  r,
+                                        cuda_tool::CDenseVectorView<Float> Ap,
+                                        cuda_tool::DenseVectorView<Float>  z,
+                                        cuda_tool::CVarView<Float>         rz,
+                                        cuda_tool::CVarView<Float>         pAp,
+                                        cuda_tool::VarView<Float>   rz_new,
+                                        cuda_tool::CVarView<IndexT> converged,
+                                        cudaStream_t                stream);
 
         void spmv(Float                              a,
                   cuda_tool::CDenseVectorView<Float> x,
@@ -516,6 +610,13 @@ class GlobalLinearSystem : public SimSystem
                       cuda_tool::DenseVectorView<Float>  y,
                       cuda_tool::VarView<Float>          d_dot,
                       cudaStream_t                       stream = nullptr);
+        void spmv_dot_pipelined(cuda_tool::CDenseVectorView<Float> x,
+                                cuda_tool::DenseVectorView<Float>  y,
+                                cuda_tool::VarView<Float>          d_dot,
+                                cuda_tool::DenseVectorView<Float>  next_y,
+                                cuda_tool::VarView<Float>          next_dot,
+                                cuda_tool::CVarView<IndexT>        converged,
+                                cudaStream_t                       stream);
 
         // data pointers of the assembled matrix buffers (row/col/value),
         // for the FusedPCG CUDA-graph validity key: a reassembly that
@@ -538,8 +639,12 @@ class GlobalLinearSystem : public SimSystem
     };
 
     SizeT dof_count() const;
-    SizeT last_solve_iterations() const noexcept;
-    void  compute_gradient(ComputeGradientInfo& info);
+    // Iteration count of the last solve. A solver may enqueue the solve
+    // without reading the count back; then this waits for that solve, so
+    // callers should ask after their next host synchronization.
+    SizeT last_solve_iterations();
+
+    void compute_gradient(ComputeGradientInfo& info);
 
     cuda_tool::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }
 
@@ -555,6 +660,8 @@ class GlobalLinearSystem : public SimSystem
     friend class GlobalPreconditioner;
     friend class GlobalDiffSimManager;
     friend class CurrentFrameDiffDofReporter;
+    friend class DuplicateLocalPreconditionerTestAccess;
+    friend class PreconditionerReuseTestAccess;
     friend class InPlacePrelaunchTestAccess;
 
     void add_subsystem(DiagLinearSubsystem* subsystem);

@@ -265,11 +265,15 @@ touching that area; several of these have bitten us more than once.
     The existing graph path retains a synchronous tolerance upload; do not
     remove it based on the obsolete contrary comment in `graph.h`. A new
     concurrency diagnosis must establish the actual streams and dependencies.
+    The mode-2 PCG graph is enqueued without a host wait and relies on this
+    rule: legacy-stream consumers of the solution wait for it, but a
+    consumer on a non-blocking side stream is ordered after the solve only
+    when it is forked from the legacy stream (as `SideStreams::fork` does).
   - A launch into the legacy default stream during capture invalidates the
     capture (detected at `cudaStreamEndCapture`) — use that as the automatic
     fallback signal for un-plumbed callees. A checked call on a captured
     stream after the invalidation fails and throws (e.g. the event record of
-    `SideStreams::join`):
+    `SideStreams::join` behind the fused PCG step's parallel segments):
     `GraphCapture`/`GraphWhile::capture` catch that, end the capture (which
     takes every joined stream out of capture mode) and take the same
     fallback. An exception on a valid capture is rethrown once the capture
@@ -299,7 +303,10 @@ touching that area; several of these have bitten us more than once.
     block replay**: per-iteration condition evaluation + body dispatch cost
     real microseconds; measured on ~85-iteration solves the block path (host
     check every 5) wins by ~10%. Graphs kill *launch* gaps, not *loop-control*
-    gaps — amortize the control decision over several iterations.
+    gaps — amortize the control decision over several iterations. The
+    FusedPCG WHILE body therefore runs two fused iterations per evaluation
+    and publishes the decision from the direction kernel (no separate
+    control node).
 - `DeviceVector::resize(n)` value-initializes the grown tail (thrust
   parity); `loose_resize_entries` deliberately does NOT initialize —
   see below.

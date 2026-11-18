@@ -217,7 +217,12 @@ many Newton iterations reused trajectory candidates (`trajectory_reuses`).
 `reset_frame_stats()` runs immediately
 after incrementing the frame; `completed` is set only after the end-of-frame
 iteration checks. `GlobalLinearSystem::last_solve_iterations()` transfers each
-solver's `SolvingInfo::iter_count` into the per-frame accumulator. Keep this
+solver's `SolvingInfo::iter_count` into the per-frame accumulator. A solver may
+instead report the count pending (`SolvingInfo::iter_count_pending()`, the
+mode-2 FusedPCG below): the solve is only enqueued, and
+`last_solve_iterations()` asks the solver's `do_pending_iter_count()`, which
+waits for that solve. The IPC Newton loop therefore collects the count after
+the line search, whose read-backs have already waited for the solve. Keep this
 contract host-only and cheap: profilers call it once per measured frame.
 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
@@ -264,7 +269,7 @@ every other range first and only then asks for their count
 all the other blocks (`do_assemble_late()`, on the gathers' side stream, after
 the reporters' diagonal additions), so the clears and the other subsystems'
 assembly are issued while the grouping runs. The final `GlobalLinearSystem`
-conversion sorts and reduces every global triplet, so an intermediate
+`convert_upper` pass sorts and reduces every global triplet, so an intermediate
 sort/reduce would only change the summation order.
 
 The distribution selects every receiver's entries in one packed pass per
@@ -398,10 +403,41 @@ local performance gate.
 ## Sparse linear-system storage: BCOO is the active solve path
 
 The production CUDA solve path does **not** currently solve a BSR matrix.
-`GlobalLinearSystem` assembles 3x3 block triplets, canonicalizes them to the
-symmetric upper triangle with `MatrixConverter::ge2sym`, and reduces duplicate
-entries into `DeviceBCOOMatrix<Scalar, 3> bcoo_A`. Both the standalone SpMV and
-the fused PCG SpMV/dot path call `rbk_sym_spmv*` with `bcoo_A.cview()`.
+`GlobalLinearSystem` assembles 3x3 block triplets and
+`MatrixConverter::convert_upper` canonicalizes them to the symmetric upper
+triangle (`row <= col` on the signed indices, so `(-1, j)` slots stay and
+`(i >= 0, -1)` go) and reduces duplicate entries into
+`DeviceBCOOMatrix<Scalar, 3> bcoo_A`. Both the standalone SpMV and the fused
+PCG SpMV/dot path call `rbk_sym_spmv*` with `bcoo_A.cview()`.
+
+`convert_upper` produces bitwise what `ge2sym(triplet_A)` followed by
+`convert(triplet_A, bcoo_A)` produced (the segmented reduction is the same, so
+only a segment spanning three or more warps keeps its usual atomic-order
+rounding), without compacting or copying the input blocks: lower triplets get a tail key one row code past the `-1` code, the
+stable radix sort keeps the upper triplets in ge2sym's order and moves the
+lower ones behind them, segment heads and one inclusive scan give each sorted
+triplet its BCOO index, and `FastSegmentalReduce` reads every block through
+the sort permutation. The upper-triplet and unique counts are computed on the
+device (`MatrixConverterUpperCounts`) and read back once per conversion, which
+is the only host synchronization left in `Convert To BCOO`. `ge2sym(triplet)`
+remains as the reference path of the regression test. The segmented
+reduction does not clear its output: the head of a segment within one
+32-triplet warp stores its sum, and the unpack kernel clears exactly the
+blocks the reduction adds to atomically (segments that span two warps, and
+the last one when the last warp is partial;
+`FastSegmentalReduce::reduce_uncleared`), which removes a fill of the whole
+output per conversion; the regression test stays bitwise.
+`FastSegmentalReduce`'s kernels reduce like the fused SpMV: one segment
+analysis per warp (`cuda_tool::warp_head_segments`) and, for all values of
+a lane in one loop (the nine entries of a 3x3 block), the steps of CUB's
+`WarpReduce::HeadSegmentedReduce` below the warp's longest segment (larger
+offsets change nothing in any lane), instead of one CUB reduction per
+entry and another for the packed flags; whether a segment continues across
+warps comes from its first and last lane. The sums and the stored or
+atomically added outputs are bitwise those of the former kernels
+(`fast_segmental_reduce_lean` test against copies of them: segments
+within a warp and over two and over three or more warps, partial last
+warps, a product-valued scalar op, int values, 64- and 128-thread blocks).
 
 `DeviceBSRMatrix` and BCOO-to-BSR conversion remain available in `cuda_tool`
 for converter coverage and future experiments, but no registered linear solver
@@ -803,7 +839,8 @@ constraints) takes one stream on its first launch through
 `cuda_tool::LazySideStream` and must put all of its launches there. The ABD
 gathers (reporter and DyTopo atomics onto the kinetic/shape stores) run on
 side stream 0 after `fork_one(0)` from the legacy stream and a `join` of the
-other side streams, while the coupling assembly and the non-prelaunched FEM
+other side streams (after a prelaunch, that join is issued at the end of the
+prelaunch, beside the DyTopo work), while the coupling assembly and the non-prelaunched FEM
 assembly continue on the legacy stream (the prelaunched FEM: see below);
 `_assemble_linear_system` joins all side streams before the BCOO
 conversion. The two 12x12-block gathers (kinetic/shape and reporters) run one
@@ -817,8 +854,22 @@ reporters' diagonal contributions stay atomic. The ABD-FEM coupling kernel
 (FP64-heavy threads) launches 64-thread blocks for the same reason: the
 occupancy block size of 512 put a few thousand of them on a few SMs. `_assemble_preconditioner` forks them again and hands each
 local preconditioner `LocalPreconditionerAssemblyInfo::stream()`; the ABD
-diagonal preconditioner uses it; the join comes before the solve.
-Side streams have no implicit synchronization with the
+diagonal inverse uses it, and so does the FEM MAS preconditioner's diagonal
+fallback for unpartitioned (e.g. Empty-constitution) vertices (identity fill
+plus a pass over the BCOO), which thereby runs beside the
+MAS cluster scatter and inversion that stay on the legacy stream; the join
+comes before the solve. In a Newton iteration that assembles the
+preconditioners, each local preconditioner's `do_prepare_assembly()` is
+called once before `Convert To BCOO` (it must not read the global matrix):
+from `GlobalLinearSystem::prelaunch_assembly()` (beside the DyTopo work, off
+the host's issue path of the assembly), or from `build_linear_system` when no
+prelaunch ran; the FEM MAS preconditioner clears its cluster
+Hessians there (`MASPreconditionerEngine::prepare_preconditioner()`, two
+memsets on a side stream of the engine forked from the legacy stream), so
+the clear runs beside the conversion, and
+`set_preconditioner()` joins that stream before the scatter instead of
+clearing (it clears inline when nothing was prepared, e.g. at the first
+assembly, which sizes the buffers). Side streams have no implicit synchronization with the
 legacy stream: an ABD producer that ignores its stream stays correct only
 because it then runs entirely on the legacy stream before the gathers' fork.
 A FEM producer must launch on its stream (see the FEM prelaunch below: on
@@ -988,6 +1039,25 @@ prelaunch checks this whenever the producers' extents change: it launches
 them while a blocking stream captures (`LegacyStreamCheck`), so a launch
 into the legacy stream fails and the assertion names the contract.
 
+### Warp-cooperative ABD diagonal inversion
+
+`ABDDiagPreconditioner::do_assemble` inverts each body's 12x12 diagonal
+Hessian block with one warp (`launch_abd_diag_inverse`,
+`affine_body/abd_diag_inverse.h`) instead of one thread running
+`cuda_tool::eigen::inverse`, whose serial elimination over a local-memory
+12x24 array made the launch latency-bound for a few dozen bodies. Lane `c`
+keeps column `c` of the augmented `[H | I]` in registers and performs exactly
+the serial routine's operations on it, in the same order (pivot repair, row
+division, `row += e * pivot_row` contractions); lane `i` broadcasts the pivot
+column. Because `m[i][i] = ep / ep` is exactly 1 after the row division of a
+finite pivot, the multiplier division is skipped for such pivots. The result
+is bitwise identical to `GaussEliminationInverse`. For a block without a
+usable pivot that routine returned an uninitialized matrix; the warp kernel
+stores the identity, as the subsystem does for fixed bodies. The
+`abd_diag_inverse` backend test compares both with `memcmp` on SPD, ABD-like,
+general, sparse, nearly singular and pivot-repair blocks. Keep the two
+routines in lockstep: any change to `GaussEliminationInverse` must be mirrored
+here.
 The heavy joint Hessian kernels (external articulation
 `external_articulation_constraint_compute_gradient_hessian_k2_kernel`,
 revolute joint limit, prismatic joint and prismatic joint limit `..._k2_kernel`)
@@ -1075,16 +1145,45 @@ case2-scale scenes). Two graph modes exist; `graph_mode` is auto-selected in
 `do_build` (logged at info level):
 
 - **mode 2 — full-GPU while-loop** (opt-in, toolkit AND driver ≥ CUDA 12.4):
-  the whole solve is ONE graph launch — setup chain (reset → r=b → precond →
-  p=z → rz=rᵀz → rz_tol=tol·|rz0| on device) → WHILE conditional node whose
-  body is one iteration + a control kernel that publishes convergence and
-  calls `cudaGraphSetConditional`. Exit happens at the exact convergence
-  iteration; zero D2H/H2D inside the loop; a single D2H at the end reads
-  back the iteration count. **Measured SLOWER than mode 1 on case2-scale
-  scenes (median ~226 vs ~203 ms/frame): the WHILE node's per-iteration
-  evaluation costs more than the amortized host check every 5 iterations —
-  so it is opt-in (`use_cuda_graph=2`), useful when freeing the CPU matters
-  more than raw frame time.**
+  the whole solve is ONE graph launch — setup chain (init: reset incl.
+  rz=0, x=0, r=b and the slot-0 clears → precond → p=z with rz=rᵀz in one
+  pass → rz_tol=tol·|rz0| on device; `do_solve` no longer clears x before
+  the launch, only the block-replay and plain paths do)
+  → WHILE conditional node whose body is two block-replay graph iterations,
+  one per ping-pong slot (pipelined SpMV, fused local-preconditioner
+  update/apply/dot, direction publication). The direction kernel's
+  publisher (block 0) also counts the iteration and calls
+  `cudaGraphSetConditional`: it publishes Converged (|rz_new| ≤ rz_tol),
+  Stopped (the max_iter−1-th iteration without convergence) or Running,
+  with the plain loop's decisions; any terminal state turns the rest of the
+  body into no-ops. rz and the iteration count are double-buffered by the
+  body slot (`m_while_rz`, `m_while_iter`: an iteration reads its slot and
+  publishes to the other), so every block computes beta and the decision
+  from the same scalars itself, bitwise the publisher's, and the WHILE
+  direction kernel needs no claim/countdown protocol (the block-replay
+  kernel keeps it, with its single rz). Its threads read z and p before
+  the barrier that publishes block 0's decision (they do not depend on it),
+  so those loads overlap the scalar work; the update is the same
+  expression on the same values (`fused_pcg_while_publication` test
+  against copies of the claim/countdown and the former slot-buffered
+  kernel).
+  Exit happens at the exact convergence iteration; zero D2H/H2D inside the
+  loop. The host does not wait for the graph (`GraphWhile::launch()` on its
+  blocking stream): legacy-stream work that consumes `x` waits for it by the
+  legacy-stream rule, the iteration count and state are copied into pinned
+  memory behind it (one copy: the publisher also writes the state it
+  returns next to the count, `m_while_out`), and `do_pending_iter_count()`
+  reads them when the frame
+  statistics ask (see `last_solve_iterations()` above). Work on non-blocking
+  streams must still be forked from the legacy stream to be ordered after the
+  solve. History: the first body (one
+  reference iteration, ~16 nodes, + a control kernel) **measured SLOWER
+  than mode 1 on case2-scale scenes (median ~226 vs ~203 ms/frame): the
+  WHILE node's per-iteration evaluation costs more than the amortized host
+  check every 5 iterations — so it is opt-in (`use_cuda_graph=2`), useful
+  when freeing the CPU matters more than raw frame time.** The current body
+  runs 7 kernels per iteration instead of the first body's 16 and evaluates
+  the WHILE condition once per two iterations.
 - **mode 1 — block replay (default)**: `check_interval` iterations captured
   per block via `cuda_tool::GraphCapture`, host convergence check between
   blocks (same cadence as the plain loop).
@@ -1099,10 +1198,34 @@ driver (≥12.4 for conditional nodes).
 Graph-stability design (no rebuilds from contact-pair fluctuation):
 - The SpMV triplet count lives on device (`triplet_count_dev`, uploaded once
   per assembly) and the launch grid is sized by the reserved triplet
-  CAPACITY; the kernel guards with the device count and reads the triplet
+  CAPACITY (128-thread blocks, each warp reducing its own 32 triplets, so
+  a call with nothing to do, the pipelined no-op slot, schedules a quarter
+  of the blocks it did with one warp per block; the y and pᵀAp atomics keep
+  their addends and only arrive in another order); the kernel guards with
+  the device count (read together with the converged flag) and reads the triplet
   arrays through raw pointers (`A.row_indices().data()` etc.) — the view's
   `A(i)` accessor asserts against the capture-time count and must NOT be
-  used for this.
+  used for this. The fused PCG always passes a = 1; `rbk_sym_spmv_dot*`
+  then launch the `UnitScale` instantiation, which skips every
+  multiplication by a (14 of the kernel's 77 FP64 instructions, 13 of about
+  55 executed per off-diagonal triplet: the 9 of `a * M^T`, the 3 of the
+  row-head `a * vec`, `2a`). GB20x runs FP64 at 1:64 and the kernel is
+  FP64-bound; x * 1 is exact, so y and pᵀAp are bitwise those of the
+  general kernel (its SASS is unchanged, and the remaining DFMA/DADD
+  sequence of the unit kernel is identical in order). Diagonal and
+  off-diagonal blocks share one pᵀAp path, `(i == j ? 1 : 2) * a *
+  x_i.dot(M x_j)` (x_i is x_j on the diagonal; the factor is exact), so a
+  warp holding both no longer issues two dot products. The three row
+  sums are one segment analysis per warp (CUB's ballot, tail flags and
+  segment ends; `cuda_tool::warp_head_segments`, shared with
+  `FastSegmentalReduce`) and the shuffle-down additions of CUB's
+  `HeadSegmentedReduce` at offsets 1, 2, 4, ... below the warp's longest
+  segment: a larger offset adds nothing in any lane, and the upper-BCOO
+  rows are a few blocks long, so the last one or two of the five steps
+  are skipped. One loop serves the three components so that their
+  shuffle-add chains interleave as in CUB's unrolled steps (three separate
+  loops measured slower). y and pᵀAp keep their bits
+  (`fused_pcg_spmv_pipeline` test against a copy of the former kernel).
 - rz_tol is device-side; the validity key is buffer pointers + N + max_iter.
   A matrix realloc (new pointers) still forces a rebuild.
 - Stream plumbing: `Spmv::rbk_sym_spmv_dot`, `GlobalLinearSystem::Impl`
@@ -1111,18 +1234,109 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
   all accept an optional launch stream (default = legacy default stream =
   unchanged behavior). The MAS preconditioner is plumbed too:
   `MASPreconditionerEngine::apply` and its three phases (restrict /
-  Schwarz local solve / prolongate) plus the unpartitioned-vertex diagonal
-  fallback in `FEMMASPreconditioner::do_apply` all launch on
+  Schwarz local solve / prolongate) all launch on
   `ApplyPreconditionerInfo::stream()`, so MAS scenes join the captured
-  graph instead of invalidating it. The engine's workspace buffers are
+  graph instead of invalidating it. `FEMMASPreconditioner::do_apply` hands
+  `apply()` the diagonal-fallback inverses, and the prolongation pass writes
+  z = D⁻¹r of the unpartitioned vertices with the expression of the
+  separate pass it replaced (bitwise, `mas_preconditioner_direct_store`
+  test). The graph iterations' fused
+  update/apply/dot step also covers unpartitioned (e.g. Empty-constitution)
+  vertices: `MASPreconditionerEngine::fused_pcg_update_apply_dot`
+  takes the diagonal-fallback inverses, and its final pass updates their
+  x/r, applies z = D⁻¹r and adds their rᵀz, so mixed MAS/diagonal coverage
+  takes three launches per iteration (restrict with the x/r update, local
+  solve, prolongate with rᵀz) instead of the seven of the reference update
+  → MAS apply → diagonal apply → dot sequence. The restriction accumulates
+  into the coarse residual levels; the Schwarz local solve clears them right
+  after reading them (`m_coarse_R_zero` tracks that invariant on the host;
+  each of its threads reads its 3x3 inverse block before the barrier that
+  shares the cluster's residuals, bitwise the former kernel by its device
+  test),
+  so no clear node precedes the restriction (`apply()` still clears once).
+  The restriction and the prolongation with rᵀz load their flag, partition
+  index and x/p/r/Ap operands before any store (the compiler otherwise
+  serializes load, update and store per component, as the vectors may
+  alias), and the restriction launches 64-thread blocks (four times as many
+  blocks, spread over more SMs); every value keeps its expression, and only the
+  arrival order of the coarse levels' float atomics and of the rᵀz block
+  sums changes (a device test on exactly representable data checks every
+  output bitwise against copies of the former kernels; the accuracy rule
+  covers the order).
+  With several local preconditioners (unique owners, e.g. ABD + FEM MAS) the
+  fused step forks every segment but the last onto
+  `GlobalLinearSystem::Impl::pcg_segment_streams`, so a captured iteration
+  runs them as parallel graph branches (disjoint DoF ranges; only the order
+  of the atomic rᵀz additions changes). `apply_preconditioner` forks the
+  same way when it runs on a launch stream of its own, i.e. in the captured
+  WHILE setup chain, which then applies the ABD preconditioner beside the
+  MAS passes (the ABD apply and the diagonal pass leave the setup chain's
+  serial path); the plain path keeps the serial sequence. The engine's workspace buffers are
   sized once at init from the mesh partition (contact does not recluster —
   collision-aware clustering is deliberately not ported), so the captured
   pointers stay valid as contact nnz fluctuates. The partition hierarchy is
   likewise constructed once in `init_matrix()` and reused by every Newton
   assembly; only the current BCOO Hessian scatter and cluster inversion are
   repeated. Scatter reads BCOO entries directly (there is no identity-index
-  staging buffer). The 48x48 Gauss-Jordan inversion synchronizes after the
-  pivot row is ready, but not between independent row updates.
+  staging buffer). An entry whose two nodes share a level-0 cluster is the
+  only one for its cluster slot (the upper BCOO has one entry per node pair
+  and `real_to_part` is a bijection), so it is stored as `0.0 + h`, bitwise
+  the atomic addition onto the cleared slot; coarser levels still add
+  atomically. On a coarse diagonal block (both nodes merged into one coarse
+  node) the scatter adds only the upper triangle, all the inversion reads:
+  an entry adds `H(i,j) + H(j,i)` (6 atomics instead of 18) and the
+  propagation of level-0 blocks skips the lower triangle (a fully connected
+  bank's warp sums 6 entries instead of 9); the debug dump mirrors the
+  upper triangle. The `mas_preconditioner_direct_store` test
+  checks the scatter against a Galerkin reference with exactly
+  representable blocks. Each 48x48 cluster matrix is inverted by sweeping its
+  pivots (Goodnight's sweep operator, no pivoting, zero diagonal entries of
+  padding nodes repaired to 1 first): sweeping pivot k maps the matrix to
+  `a_ij - a_ik a_kj / a_kk`, `a_ik / a_kk` and `-1 / a_kk`, and all pivots
+  leave `-A^{-1}`. The sweeps keep the matrix symmetric, so only its upper
+  triangle is kept, in registers. That is half the double-precision work of
+  the former Gauss-Jordan elimination of the full matrix, which bounds the
+  kernel on GPUs with low FP64 throughput. It reads only the upper triangle
+  of each diagonal 3x3 block (the elimination read the whole block, whose
+  lower half can differ from the transposed upper half by rounding) and
+  writes the lower half of each diagonal block of the float inverse from
+  the upper one, as the elimination did. The result is the same inverse to
+  rounding, not bitwise (`mas_cluster_inverse` test against a copy of the
+  former shared-memory elimination; inverse residual and a double
+  reference). One 96-thread block sweeps one cluster: the columns are
+  paired (c, 47 - c), each pair's 49 upper-triangle entries split over four
+  threads (13/12/12/12 registers); per pivot the holders publish column k,
+  the holder of `a_kk` alone computes `1 / a_kk`, threads 0..47 publish the
+  quotients, and every entry is updated with exactly the operations of the
+  former 24-thread layout (one thread per column pair, four clusters per
+  block), so the inverse is bitwise that layout's (test against a copy of
+  it on 10,002 clusters). With four times the warps per cluster the FP64
+  pipe stays busy.
+  The kernel is launch-bounded to 6 blocks per SM: an SM's registers are
+  split among its 4 warp schedulers, so at the 117 registers the compiler
+  picks otherwise (and still at 112) only 4 warps fit per scheduler, 5
+  blocks of 3 warps per SM, so a cluster count just above a multiple of that
+  leaves a nearly empty second wave. The bound keeps it at 96 registers (20
+  bytes per thread spill, two reloads per pivot): 5 warps per scheduler, 6
+  blocks per SM. Likewise the scatter's k2 pass is launch-bounded to 5 blocks
+  of 256 threads per SM (48 registers, one value spilled around a loop; 4
+  blocks per SM at the 52 registers the compiler picks otherwise).
+  Only the register allocation changes, so both stay bitwise (the tests
+  above).
+  The banks between level 0 and level 1 (present when unpartitioned
+  vertices make the FEM vertex count exceed the partitioned node count)
+  hold no Hessian entry and nothing reads what is
+  computed from their inverses, so `invert_cluster_matrices()` skips them;
+  their inverses keep the zeros of the allocation. Nothing writes their
+  residuals or reads their solutions either, so the Hessian clear, the
+  coarse-residual clears (which start at level 1) and the Schwarz local
+  solve (one 256-thread block per real cluster, none for an empty bank) skip
+  them as well; a
+  device test poisons the empty banks of every buffer with NaN and requires
+  z equal to a clean twin's and the NaN still in place afterwards.
+  `MASPreconditionerEngine::invert_cluster_matrices` also has a static
+  overload on explicit buffers (with an optional skipped range) for the
+  tests.
 - MAS activation (all-or-nothing, since 2026-08-23): scene config
   `linear_system/fem_preconditioner = "mas"` (default `"diag"`) selects the
   FEM local preconditioner. When on, `FEMMASPreconditioner::do_init`
@@ -1174,7 +1388,7 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 | `linear_system.h` + `linear_reduction.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + full set of views (Triplet/Doublet/DenseVector/BCOO) + `LinearSystemContext`; dot/norm use named partial-reduction kernels, persistent geometrically grown partial/result buffers, the per-stream CUB workspace, and scaled-square norm accumulation without cuBLAS |
 | `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`). The family originated in the MUDA migration; current `svd/pd` use `algorithm/qr_svd.hpp` with signed-SVD fixup and native float/double precision. |
 | `debug.h` | `debug_sync_all/check_finite` + the `UIPC_KERNEL_ASSERT/ERROR/WARN` macro family (gated by `uipc::RUNTIME_CHECK`) |
-| `graph.h` | `GraphCapture`: self-contained CUDA-graph block capture/replay (capture body on a capture stream, replay via `launch_sync()`; permanent fallback on capture failure, also when the body throws on an invalidated capture; a body that throws on a valid capture rethrows and leaves no instantiated graph). `GraphWhile`: setup chain plus WHILE conditional node, replayed by `launch_sync()`. Instantiation API is selected by `CUDART_VERSION` (`cudaGraphInstantiateWithFlags` ≥11.4 through 13.x, legacy 5-arg form below), so the same source builds across CUDA 11/12/13 |
+| `graph.h` | `GraphCapture`: self-contained CUDA-graph block capture/replay (capture body on a capture stream, replay via `launch_sync()`; permanent fallback on capture failure, also when the body throws on an invalidated capture; a body that throws on a valid capture rethrows and leaves no instantiated graph). `GraphWhile`: setup chain plus WHILE conditional node, replayed by `launch_sync()` or, without waiting, by `launch()` on `launch_stream()`. Instantiation API is selected by `CUDART_VERSION` (`cudaGraphInstantiateWithFlags` ≥11.4 through 13.x, legacy 5-arg form below), so the same source builds across CUDA 11/12/13 |
 | `logger.h` | `LoggerViewer` (in-kernel `cout <<`, device printf) + `KernelCout` |
 | `atomic.h` | Scalar `atomic_add/atomic_exch` |
 

@@ -22,6 +22,8 @@
 // the capture) fails the capture whether a later checked call then throws
 // or not, and the instance is disabled; GraphWhile abandons the parent
 // graph of a failed loop-body capture instead of destroying it.
+// GraphWhile::launch() enqueues the loop on its blocking stream without a
+// host wait.
 
 #include <app/app.h>
 #include <cuda_tool/cuda_tool.h>
@@ -51,6 +53,11 @@ __global__ void graph_test_step_kernel(int* counter, int limit, cudaGraphConditi
 {
     const int k = ++(*counter);
     cudaGraphSetConditional(handle, k < limit ? 1u : 0u);
+}
+
+__global__ void graph_test_copy_kernel(const int* src, int* dst)
+{
+    *dst = *src;
 }
 #endif
 
@@ -173,6 +180,52 @@ TEST_CASE("cuda_tool GraphWhile disables itself when its loop body capture fails
     cudaGetLastError();
     CUDA_TOOL_CHECK(cudaDeviceSynchronize());
     CUDA_TOOL_CHECK(cudaEventDestroy(event));
+    CUDA_TOOL_CHECK(cudaFree(counter));
+#endif
+}
+
+TEST_CASE("cuda_tool GraphWhile::launch enqueues the loop without a host wait", "[cuda][graph]")
+{
+#if CUDA_TOOL_GRAPH_WHILE
+    if(!cuda_tool::GraphWhile::runtime_supported())
+    {
+        WARN("conditional graph nodes need a CUDA 12.4 driver");
+        return;
+    }
+
+    int* counter = nullptr;
+    int* copy    = nullptr;
+    CUDA_TOOL_CHECK(cudaMalloc(&counter, sizeof(int)));
+    CUDA_TOOL_CHECK(cudaMalloc(&copy, sizeof(int)));
+
+    for(int limit : {1, 5, 37})
+    {
+        cuda_tool::GraphWhile g;
+        REQUIRE(g.launch_stream() == nullptr);
+        auto setup = [counter](cudaStream_t s, cudaGraphConditionalHandle)
+        { graph_test_reset_kernel<<<1, 1, 0, s>>>(counter); };
+        auto body = [counter, limit](cudaStream_t s, cudaGraphConditionalHandle handle)
+        { graph_test_step_kernel<<<1, 1, 0, s>>>(counter, limit, handle); };
+        REQUIRE(g.capture(setup, body) == cuda_tool::GraphWhile::Result::Ok);
+        REQUIRE(g.ready());
+
+        // twice, the second time over the first launch's result: the setup
+        // node resets the counter on every launch
+        for(int rep = 0; rep < 2; ++rep)
+        {
+            CUDA_TOOL_CHECK(g.launch());
+            REQUIRE(g.launch_stream() != nullptr);
+            // legacy-stream work enqueued after launch() runs after the graph
+            // (the launch stream is blocking)
+            graph_test_copy_kernel<<<1, 1>>>(counter, copy);
+            REQUIRE(read_back(copy) == limit);
+        }
+
+        CUDA_TOOL_CHECK(g.launch_sync());
+        REQUIRE(read_back(counter) == limit);
+    }
+
+    CUDA_TOOL_CHECK(cudaFree(copy));
     CUDA_TOOL_CHECK(cudaFree(counter));
 #endif
 }

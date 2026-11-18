@@ -1,6 +1,6 @@
 /*
- * NVIDIA contributions: the invalidated-capture fallback and shared stream and
- * instantiation helpers.
+ * NVIDIA contributions: the WHILE-loop launch without a host wait, the
+ * invalidated-capture fallback and shared stream and instantiation helpers.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -422,10 +422,23 @@ class GraphWhile
 #endif
     }
 
-    cudaError_t launch_sync()
+    // Enqueue the graph on the internal blocking stream without waiting for
+    // it: work enqueued afterwards on the legacy default stream waits for it,
+    // the host does not.
+    cudaError_t launch()
     {
         details::create_blocking_stream(m_launch_stream);
-        cudaGraphLaunch(m_exec, m_launch_stream);
+        return cudaGraphLaunch(m_exec, m_launch_stream);
+    }
+
+    // Stream of launch() (null before the first launch).
+    cudaStream_t launch_stream() const { return m_launch_stream; }
+
+    cudaError_t launch_sync()
+    {
+        cudaError_t err = launch();
+        if(err != cudaSuccess)
+            return err;
         return cudaStreamSynchronize(m_launch_stream);
     }
 
