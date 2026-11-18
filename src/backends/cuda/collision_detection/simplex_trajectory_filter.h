@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: active-contact counting and line-search trajectory
- * filtering interfaces; detection-skin and two-phase active-set filtering
- * interfaces.
+ * filtering interfaces; detection-skin, friction-candidate version and
+ * two-phase active-set filtering interfaces.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -175,6 +175,8 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         cuda_tool::DeviceBuffer<Vector4i> friction_EE;
         cuda_tool::DeviceBuffer<Vector3i> friction_PE;
         cuda_tool::DeviceBuffer<Vector2i> friction_PP;
+        // Incremented whenever the friction candidates are recorded or cleared.
+        SizeT friction_candidates_version = 0;
 
         cuda_tool::DeviceBuffer<Vector4i> recovered_PT;
         cuda_tool::DeviceBuffer<Vector4i> recovered_EE;
@@ -208,6 +210,9 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     cuda_tool::CBufferView<Vector4i> friction_EEs() const noexcept;
     cuda_tool::CBufferView<Vector3i> friction_PEs() const noexcept;
     cuda_tool::CBufferView<Vector2i> friction_PPs() const noexcept;
+    // Changes whenever the friction candidates (and the frame-start
+    // positions they were recorded at) change.
+    SizeT friction_candidates_version() const noexcept;
 
     virtual cuda_tool::CBufferView<Vector2i> candidate_PTs() const noexcept = 0;
     virtual cuda_tool::CBufferView<Vector2i> candidate_EEs() const noexcept = 0;

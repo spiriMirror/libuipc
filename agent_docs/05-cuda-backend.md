@@ -87,7 +87,7 @@ Pipeline
     ├── Compute External Force Accel.      (conditional)
     ├── Detect DCD Candidates              (conditional)
     ├── Newton Iteration                   (LOOP)
-    │   ├── Compute DyTopo Effect          (conditional: Assemble → Convert → Distribute)
+    │   ├── Compute DyTopo Effect          (conditional: Assemble → Distribute)
     │   ├── Solve Global Linear System     (Build → PCG: Apply Preconditioner + SpMV)
     │   └── Line Search
     │       ├── Detect Trajectory Cand.    (skipped while k > 0 reuses candidates)
@@ -222,11 +222,73 @@ contract host-only and cheap: profilers call it once per measured frame.
 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 
-### DyTopo single-receiver fast path
+### DyTopo distribution of raw entries
 
-`GlobalDyTopoEffectManager` normally assembles raw doublets/triplets, converts
-them to sorted unique BCOO storage, and then classifies/copies a subrange for
-each `DyTopoEffectReceiver`. There is a strict shortcut when all of these hold:
+The DyTopo reporters (normal and frictional contact of simplices and half
+planes, and any other DyTopo reporter) write disjoint ranges of the
+collected doublets/triplets, so `_assemble` forks up to four
+`cuda_tool::SideStreams` and gives each reporter its own through
+`GradientHessianInfo::stream()`; the contact reporters pass it to their
+assembly launches (`IPCSimplex*ContactAssemblyLaunchInfo::stream`). The
+legacy stream joins the side streams before the distribution reads the
+collected entries. The frictional assembly thus runs beside the normal
+assembly.
+
+`GlobalDyTopoEffectManager` assembles raw doublets/triplets and hands each
+`DyTopoEffectReceiver` the entries in its reported range without sorting or
+reducing them first. The receiver contract (`ClassifiedDyTopoEffectInfo`)
+allows duplicates in any order: FEM and ABD add gradients atomically, FEM
+copies its Hessian triplets into the global triplets, ABD aggregates its
+triplets per body pair (`abd_linear_subsystem_aggregate_dytopo_body_pairs_kernel`),
+and ABD-FEM writes four global blocks per triplet. ABD's `report_extent`
+groups the pairs. Up to `ABDBodyPairOneBlockMax` (3,072) receiver entries go
+through one 1024-thread block (`abd_dytopo_body_pairs_one_block_kernel`: a
+stable `cub::BlockRadixSort` of the same key bits, the runs from the sorted
+keys and two block scans);
+more go through a sort, a run-length encoding and two scans (about ten
+launches and four CUB calls) with the run count kept on the device: the scans
+cover all receiver slots, the slots past the run count holding zeros. Both
+paths give the same integers, and the run count and the aggregated block
+count come back in one read-back. The final `GlobalLinearSystem` conversion
+sorts and reduces every global triplet, so an intermediate sort/reduce would
+only change the summation order.
+
+The distribution selects every receiver's entries in one packed pass per
+entry kind (`_distribute_packed()`): a kernel per kind gives each collected
+entry a 64-bit word with a field of `64 / n` bits for each of the kind's `n`
+receivers, whose low bit flags the entry for that receiver, plus one trailing
+zero word, and one `DeviceScan::ExclusiveSum` over the words yields in every
+field that receiver's exclusive prefix sum, with its count in the last
+element: the same integers as a scan of its own flags, since no field
+overflows into the next. When both kinds are selected, the gradient kernel and
+its scan run on DyTopo side stream 0, forked from the legacy stream after the
+reporters' join, beside the Hessian ones, and the legacy stream waits for
+them (an event) before `GlobalDyTopoEffectManager_gather_packed_counts_kernel`
+stores every receiver's counts into a `ReadbackBuffer`, so the host issues no
+copy per count before its one synchronization (it leaves the synchronization
+earlier, with more lead at the BCOO conversion behind the FEM assembly).
+After the read-back one fill kernel per kind writes each selected entry to
+every receiver whose field is set, at the offset in that field: the same
+copies to the same positions as a compaction per receiver. This replaces the
+per-receiver selections (a flag kernel and a scan each) and the per-receiver
+fills issued one by one after the read-back.
+For each receiver the manager selects the gradient doublets with `i` in the
+gradient range and the Hessian triplets with `(i, j)` in the Hessian ranges.
+Classification by range, not by sortedness, is what
+routes mixed ABD/FEM coupling: diagonal and off-diagonal blocks go to different
+subsystems, and entries outside every range (for example of non-DOF half-plane
+vertices) are dropped. The packed pass takes up to four receivers per kind and
+eight in all, while each kind's entry count fits a field; otherwise every
+receiver has its own selection buffers: the manager first launches all
+selections (flag kernel, exclusive scan with one trailing zero for the
+total), stores all counts with one
+`GlobalDyTopoEffectManager_gather_counts_kernel` (up to 16; more fall back to
+one `copy_from()` each) and synchronizes once, then compacts each receiver's
+entries. Either way every receiver's entries keep their collected order and
+the receivers get them in the same order as before (one host round trip for
+all counts instead of one per receiver).
+
+A strict shortcut skips the selection when all of these hold:
 
 - exactly one receiver is registered;
 - it reports a diagonal gradient/Hessian range beginning at global vertex 0;
@@ -235,13 +297,8 @@ each `DyTopoEffectReceiver`. There is a strict shortcut when all of these hold:
 
 That range is the complete dynamic vertex prefix. Global vertices after it can
 be non-DOF implicit geometry (for example, half planes); their contact kernels
-differentiate only the dynamic vertex. The manager therefore passes the raw
-assembled views directly to the receiver. FEM and ABD subsystem assembly is
-linear, and the final `GlobalLinearSystem` `ge2sym` + `convert` pass already
-sorts and reduces the global triplets, so the intermediate conversion is
-mathematically redundant. Do not broaden this path to multiple receivers or
-non-diagonal ranges: mixed ABD/FEM coupling relies on the existing classifier
-to route diagonal and off-diagonal blocks to different subsystems.
+differentiate only the dynamic vertex. Every raw entry therefore belongs to the
+receiver, and the manager passes the assembled views directly.
 
 The diagram above describes the IPC path. `advance_al.cu` implements a separate
 AL-IPC active-set pipeline, but both paths call
@@ -654,6 +711,7 @@ FEMLineSearchReporter_step_forward_kernel
 
 - Launch block size is auto-selected by occupancy via `cuda_tool::best_block_dim(kernel)` (using the existing occupancy-based launch policy; atomic arrival order can still vary); the grid is computed by `cuda_tool::best_grid_dim(n, kernel)`. **The block-size cache is keyed by kernel function address** (`unordered_map<const void*, int>`); it must not be a `static` cache keyed by function-pointer type — different kernels with the same signature would share a cache entry, and cross-kernel block-size interference perturbs the atomic reduction order, which once caused a case 36 frame 17 line-search failure in the full test suite (not reproducible when run in isolation).
 - Exception: the CCD and active-set filter kernels (`InfoStacklessBVHSimplexTrajectoryFilter` `filter_active_k1`, `k2` and `k34` (PT and EE in one launch) and `filter_toi_k1-k4`, `GlobalContactManager`'s `compute_feasible_step_{PT,EE,PE,PP}`) launch one-warp blocks (`cuda_tool::spread_block_dim` = 32, `spread_grid_dim(n)`). Each thread runs a long FP64 computation (distance, CCD) on lists of a few hundred to a few thousand pairs, and GB20x issues FP64 at 1/64 of the FP32 rate per SM, so the occupancy block size (384-768 threads) left them on a handful of SMs. The per-thread code is unchanged and the outputs are bitwise identical (`ccd_launch_shape` test); the TOI minimum is exact (`toi_min.h`).
+- Exception: the ABD kinetic, joint and constraint producers of the assembly (BDF1 kinetic gradient/Hessian, the fixed joint, the revolute, prismatic and driving joints' k1/k2, the joint limits' k1, external articulation k1) and the ABD energy kernels of the line search's fixed part (BDF1 kinetic, ortho potential, the fixed, revolute and prismatic joints with their limits and driving joints, external articulation) also launch one-warp blocks; the spherical joint, ARAP, BDF2 kinetic and the soft transform constraint keep the occupancy block. They work on a few to a few dozen joints or bodies, so the occupancy block was a single block of 384-1024 threads with 52-128 registers per thread, which needs most of one SM's register file (the BDF1 kinetic gradient/Hessian: 896 threads x 68 registers, a whole SM) however few threads work. On the greatest-priority side streams such a block waits until an SM is free of the contact assembly's warps, and the block scheduler dispatches no later grid of the same priority meanwhile, so every producer behind it waits too. Each thread computes from its own index and writes its own slots; device code and outputs are unchanged (`abd_launch_shape` test).
 - Device fills and copies use the `cuda_tool` buffer/stream APIs; fill
   kernels appear as `details::buffer_fill_kernel<T>` in profiler output.
 - `_shorten_kernel_name()` in `python/src/uipc/profile/nsight.py` was originally used to extract the outer function name from `parallel_for_kernel<Lambda>`; with named kernels this proxy is no longer needed (the symbols are readable as-is).
@@ -680,6 +738,149 @@ instead, giving lightweight gradient variants without changing the full
 Hessian launch topology. Resource counts alone are therefore insufficient:
 validate launch restructuring with both kernel profiles and the enclosing
 stage timer.
+
+IPC simplex friction is lagged: the closest-point weights, the 3x2 tangent
+basis, the normal force (a barrier derivative) and, for EE, the mollifier
+decision depend only on the frame-start positions, kappa, `d_hat` and the
+thickness. `IPCSimplexFrictionalContact` keeps them per friction pair
+(`FrictionLagged`, contiguous PT | EE | PE | PP) and recomputes them in the
+first energy or assembly launch after `SimplexTrajectoryFilter` recorded new
+friction candidates (`friction_candidates_version()`, also bumped when the
+candidates are cleared) or the contact tabular changed
+(`GlobalContactManager::contact_tabular_version()`: the adaptive kappa
+evaluates the contacts with a test tabular, then writes the new kappa).
+Every later energy and assembly evaluation of the frame only forms the
+tangential relative displacement from the current positions. The
+`*_friction_lagged` and `*_friction_tan_rel_dx` functions split the old
+`*_friction_basis` in two, and both the recomputing and the cached overloads
+call them, so the cached path performs the same operations on the same
+inputs: the `ipc_simplex_frictional_contact_energy_fusion` test compares the
+production launch (fill, then reuse) with per-pair recomputation by `memcmp`.
+
+### Assembly side streams
+
+Joint and constraint producers are short dependency chains of one or a few
+blocks each, so `GlobalLinearSystem` owns six non-blocking, highest-priority
+`cuda_tool::SideStreams` that let them overlap instead of running back to
+back on the legacy stream. `DiagInfo::side_streams()` exposes them during
+`_assemble_linear_system` (it is null in the gradient-only path). The ABD
+subsystem forks them after its reporter buffers are sized; every ABD
+reporter producer (inter-body constitutions, inter-body and body
+constraints) takes one stream on its first launch through
+`cuda_tool::LazySideStream` and must put all of its launches there. The ABD
+gathers (reporter and DyTopo atomics onto the kinetic/shape stores) run on
+side stream 0 after `fork_one(0)` from the legacy stream and a `join` of the
+other side streams, while the coupling assembly and the FEM
+assembly continue on the legacy stream;
+`_assemble_linear_system` joins all side streams before the BCOO
+conversion. The two 12x12-block gathers (kinetic/shape and reporters) run one
+thread per 3x3 block (`affine_body/abd_hessian_blocks.h`, 16 threads per
+12x12 block in 64-thread blocks): with one thread per 12x12 block a few
+dozen bodies or reporters sat in one 256-thread block on one SM. Every
+coefficient sees the former arithmetic, so
+the triplets and stored diagonal blocks are bitwise unchanged
+(`abd_hessian_blocks` test against copies of the former kernels); the
+reporters' diagonal contributions stay atomic. The ABD-FEM coupling kernel
+(FP64-heavy threads) launches 64-thread blocks for the same reason: the
+occupancy block size of 512 put a few thousand of them on a few SMs. `_assemble_preconditioner` forks them again and hands each
+local preconditioner `LocalPreconditionerAssemblyInfo::stream()`; the ABD
+diagonal preconditioner uses it; the join comes before the solve.
+Side streams have no implicit synchronization with the
+legacy stream: an ABD producer that ignores its stream stays correct only
+because it then runs entirely on the legacy stream before the gathers' fork.
+A FEM producer must launch on its stream (see the FEM prelaunch below: on
+the legacy stream it would race with the FEM-local clear).
+
+The IPC Newton loop calls `GlobalLinearSystem::prelaunch_assembly()` before
+`Compute DyTopo Effect`, so contact-independent producers overlap the DyTopo
+computation. A diag subsystem may implement `do_prelaunch_assembly()`; the
+following assembly then sees `DiagInfo::prelaunched()`. ABD reports and sizes
+its reporter ranges there (they do not depend on contact), forks the side
+streams, and launches the kinetic and shape terms on side stream 0
+(`ABDLinearSubsystem::ComputeGradientHessianInfo::stream()`) and the
+reporters on the others. Its assembly then only adds the kinetic/shape stores
+and the gathers on side stream 0 after `fork_one(0)` from the legacy stream,
+which has cleared A and b by then. DyTopo synchronizations stay on the legacy
+stream and never wait for the linear system's assembly side streams. Paths
+without the call (AL advance, gradient-only assembly) launch the producers
+inside the assembly as before.
+The heavy joint Hessian kernels (external articulation
+`external_articulation_constraint_compute_gradient_hessian_k2_kernel`,
+revolute joint limit, prismatic joint and prismatic joint limit `..._k2_kernel`)
+run one joint (pair) per 32-thread block and let the warp's lanes share the
+joint's work. A scene has only a few joints, so the thread-per-joint versions
+ran one joint's serial FP64 chain per warp, and on GB20x FP64
+issues per warp instruction whatever the active lanes (a dependent DFMA chain
+runs at about 19 ns per instruction): a 12x12 Eigen `make_spd` alone took about
+350 us, a 24x24 `JT_H_J` about 55 us. In the warp kernels the generated
+derivative code (`dDeltaTheta_dQ`, `ddDeltaTheta_ddF`, `ddE01ddF01`, ...) still
+runs redundantly on every lane (no extra cost), while
+- the SPD projection is `warp_make_spd<N>` (`utils/warp_spd.h`): the
+  classical cyclic Jacobi eigensolver in its parallel (round-robin) ordering,
+  all in FP64: the rotation tangent is solved to double precision by two
+  Newton steps from an FP32 estimate (no double division or square root on
+  the critical path), the annihilated entry is set to zero and the diagonal
+  updated as `app - t apq`, `aqq + t apq`; the matrix is scaled exactly by a
+  power of two; it stops when the largest off-diagonal entry is below 2e-15
+  of the Frobenius norm or after 24 sweeps, with no "slow sweep" stop (nearly
+  degenerate clusters, e.g. the ortho-potential Hessian near a rotation,
+  converge linearly for a few sweeps first; a first version that stopped there
+  was 1e-7 off); from the fifth sweep on, a rotation whose entry is negligible
+  by Demmel and Veselic's relative criterion `|a_pq| <= 2^-53 sqrt(|a_pp a_qq|)`
+  is skipped and the entry set to zero (Rutishauser's skip with that
+  threshold; it moves `A` by at most one rounding of a diagonal entry). The
+  skip matters for exactly degenerate clusters: the revolute joint angle
+  Hessian (external articulation, revolute joint limit) has eigenvalues
+  `+-1/(2 rho)` about six times each; once their diagonal entries agree to the
+  last bit, rounding-sized entries between them drove 45-degree rotations that
+  kept stirring the cross-cluster couplings, which then only halved per
+  sweep, so such an eigensolve could run to the 24-sweep cap and stop short of
+  full accuracy; with the skip they converge in a few sweeps, and the
+  projection is closer to a long double reference on average in every test
+  class. `warp_make_spd` returns the sweeps it ran. Two details only make
+  the rounds shorter and keep the iteration bitwise (a backend test compares
+  every projection and sweep count with a copy of the former kernel): the
+  rotation scales `d`, `w` by one multiplication with the exact power of two
+  when the library `scalbn` would do the same (normal `m`, `|e| <= 216`; it
+  splits larger shifts), and the update of `A` evaluates the rotated entry
+  and Rutishauser's diagonal update for every lane and selects, instead of
+  branching per entry (the lanes of a warp take different branches). The
+  projection is
+  assembled from the side with the smaller eigenvalue mass,
+  `P = V max(L, 0) V^T` or `P = A - V min(L, 0) V^T`, so a
+  nearly PSD matrix keeps its own rounding; the input is read from its lower
+  triangle (as Eigen) and `P` is written exactly symmetric;
+- the `24x24` outer products, `J^T H J` maps (`utils/warp_joint_hessian.h`:
+  `basis_jt_h_j_entry` for the two-frames-per-body maps of the revolute limit
+  and external articulation, with the first frame's translation for the
+  external prismatic joint; `prismatic_jt_h_j_entry` for the prismatic joint
+  `F01` maps; `prismatic_e23_hessian_entry` for the q-independent orientation
+  term) and the three triplet blocks (`warp_write_half_block2`, same slots and
+  upper-triangle placement as `half_block<2>().write`) are entry-parallel.
+The result equals the former thread-serial kernels up to rounding (different
+eigensolver and summation order; the projection is 1-Lipschitz in the input):
+the `[warp_spd]` backend tests compare `warp_make_spd` with Eigen on random,
+rank-deficient, clustered, diagonal and nearly degenerate two-cluster matrices (N = 9, 12) and the
+revolute joint angle Hessians of the generated code (every projection must
+converge before the sweep cap, the clustered ones to 2e-15 of `|M|_F`), and the
+entry-parallel maps with the generated `JT_H_J` / `J01T_H01_J01` / `ddE23ddQ`.
+The same test measures each projection's error against a long double
+eigendecomposition on the host (`long_double_reference.cpp`) and requires the
+warp projection to be on average as accurate as Eigen's thread-serial
+`make_spd` and the fixed-bank variant it replaces (mean within 1.5x of the
+better of the two, worst case within 3x).
+
+The fixed-joint and revolute-joint Hessians do not change between Newton
+iterations: their constraint measures (`Fr`/`Ft`, `Faxis`) are linear in `q`
+and the energies quadratic in them, so the Hessian depends only on
+`kappa = strength_ratio * (m_i + m_j)` and the rest frames. Both constitutions
+keep a per-joint cache of the `24x24` Hessian together with the `kappa` it was
+computed with. The Hessian kernel recomputes a joint only when its current
+`kappa` differs bitwise from the cached one (the cache starts as NaN), so a
+change of strength ratio or body mass invalidates it; `do_init`, the only
+writer of the rest frames, resets the cache. The cached matrix goes through the
+same `half_block` write as a fresh one, so the assembled triplets are
+unchanged.
 
 ## FusedPCG CUDA graph modes (linear_system/use_cuda_graph, default 1)
 
@@ -781,10 +982,10 @@ Graph-stability design (no rebuilds from contact-pair fluctuation):
 
 | File | Contents |
 |---|---|
-| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events) |
+| `stream.h` | `CUDA_TOOL_CHECK` error checking, `default_stream`, `Stream` (`Stream::Default()`), `SideStreams` (non-blocking fork/join streams with events) and `LazySideStream` (one producer's stream, taken on first use), `SideStream` (owning non-blocking stream ordered against its parent stream only by `fork()`/`join()` events) |
 | `view.h` / `view_nd.h` | `CBufferView/BufferView/VarView/CVarView`, `Dense/CDense` (scalar viewers), `ViewerBase`, `Extent2D`, `Buffer2DView`, `Dense1D/Dense2D` (with `make_dense_1d/2d`) |
 | `launch.h` | `best_block_dim/best_grid_dim` (occupancy-based block size / grid computation); `spread_block_dim/spread_grid_dim` (one-warp blocks for FP64-heavy per-item kernels over short lists) |
-| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. `PinnedHostBuffer` is a page-locked host array whose `copy_from` enqueues a device-to-host copy without blocking, so several small read-backs share one stream synchronization (a copy into pageable memory waits for the stream on its own). |
+| `buffer.h` | `DeviceVector/DeviceBuffer/DeviceVar/DeviceBuffer2D`, `BufferLaunch`. `resize()` value-initializes growth; `resize_discard()` is for fully regenerated output and grows to 150% of the latest requirement; `resize_preserve()` retains the old logical range without initializing the new range. Exact and amortized preserve/discard reserve variants make ownership and growth policy explicit. `PinnedHostBuffer` is a page-locked host array whose `copy_from` enqueues a device-to-host copy without blocking, so several small read-backs share one stream synchronization (a copy into pageable memory waits for the stream on its own). `ReadbackBuffer` holds read-backs whose producer stores them directly: `device_data()` is where the producer stores, `enqueue_copy(s)` follows it, `data()` is read after synchronizing `s`; `mapped_readbacks()` decides the path. |
 | `cub.h` | Thin wrappers (pointer-style) for `DeviceReduce/Scan/Select/Partition/RadixSort/MergeSort/RunLengthEncode` + warp-level cub headers; **temporary storage uses a stream-level workspace cache** (`details::cub_temp_storage`, grows 2× on demand, reused across calls — per-call cudaMalloc/cudaFree costs ~10-100µs each and implicitly synchronizes with the device, which once caused a ~15%/frame performance regression in the 6_wrecking_balls scene). Each wrapper calls CUB once, on the stream's whole workspace (`details::run_with_temp_storage`): CUB returns `cudaErrorInvalidValue` before it launches anything when the storage is too small, and only then is the size queried, the workspace grown and the call repeated (a separate size query would repeat the dispatch's host work, about 2.5 µs per call). Every call's error is checked, so a wrapper's callable returns CUB's `cudaError_t` |
 | `linear_system.h` + `linear_reduction.h` + `linear_system/views.h` | `DeviceTripletMatrix/DoubletVector/DenseVector/BCOOMatrix/BSRMatrix/DenseMatrix` + full set of views (Triplet/Doublet/DenseVector/BCOO) + `LinearSystemContext`; dot/norm use named partial-reduction kernels, persistent geometrically grown partial/result buffers, the per-stream CUB workspace, and scaled-square norm accumulation without cuBLAS |
 | `eigen.h` + `eigen/` | Device-side small-matrix math (`eigen::evd/svd/pd/inverse/atomic_add`). The family originated in the MUDA migration; current `svd/pd` use `algorithm/qr_svd.hpp` with signed-SVD fixup and native float/double precision. |

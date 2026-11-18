@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: prelaunch hooks for the contact-independent assembly.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <linear_system/diag_linear_subsystem.h>
 
 namespace uipc::backend::cuda
@@ -62,6 +86,15 @@ void DiagLinearSubsystem::receive_init_dof_info(GlobalLinearSystem::InitDofInfo&
 void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
     do_report_extent(info);
+}
+
+void DiagLinearSubsystem::do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
+{
+}
+
+void DiagLinearSubsystem::prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info)
+{
+    do_prelaunch_assembly(info);
 }
 
 void DiagLinearSubsystem::assemble(GlobalLinearSystem::DiagInfo& info)

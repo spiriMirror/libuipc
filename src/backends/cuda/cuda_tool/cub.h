@@ -1,7 +1,7 @@
 /*
- * NVIDIA contributions: zero-output handling for empty DeviceReduce::Sum and
- * single checked cub calls on the cached workspace, with the size query only
- * when it is too small.
+ * NVIDIA contributions: zero-output handling for empty DeviceReduce::Sum,
+ * optional radix-sort bit ranges and single checked cub calls on the cached
+ * workspace, with the size query only when it is too small.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -315,13 +315,19 @@ class DeviceRadixSort
         return *this;
     }
     template <typename K, typename V>
-    DeviceRadixSort& SortPairs(const K* kin, K* kout, const V* vin, V* vout, int n)
+    DeviceRadixSort& SortPairs(const K* kin,
+                               K*       kout,
+                               const V* vin,
+                               V*       vout,
+                               int      n,
+                               int      begin_bit = 0,
+                               int      end_bit   = sizeof(K) * 8)
     {
         details::run_with_temp_storage(
             [&](void* t, size_t& b, cudaStream_t s)
             {
                 return cub::DeviceRadixSort::SortPairs(
-                    t, b, kin, kout, vin, vout, n, 0, sizeof(K) * 8, s);
+                    t, b, kin, kout, vin, vout, n, begin_bit, end_bit, s);
             },
             m_stream);
         return *this;

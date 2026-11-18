@@ -1,6 +1,7 @@
 /*
  * NVIDIA contributions: reuse of trajectory candidates and of the frame-start
- * active set, and trajectory BVH refit for the whole Newton loop.
+ * active set, trajectory BVH refit for the whole Newton loop and the
+ * prelaunched assembly hook.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -419,6 +420,8 @@ void SimEngine::advance()
                 // 3) Compute Dynamic Topo Effect Gradient and Hessian => G:Vector3, H:Matrix3x3
                 //    - Contact Effect
                 //    - Other DyTopo Effects
+                //    Contact-independent assembly producers run alongside.
+                m_global_linear_system->prelaunch_assembly();
                 m_state = SimEngineState::ComputeDyTopoEffect;
                 compute_dytopo_effect();
 

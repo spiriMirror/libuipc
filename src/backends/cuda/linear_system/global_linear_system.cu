@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: assembly side streams and the prelaunch of
+ * contact-independent producers.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <linear_system/global_linear_system.h>
 #include <linear_system/diag_linear_subsystem.h>
 #include <linear_system/off_diag_linear_subsystem.h>
@@ -66,6 +91,11 @@ void GlobalLinearSystem::_dump_x()
                          m_impl.x.cview());
 }
 
+
+void GlobalLinearSystem::prelaunch_assembly()
+{
+    m_impl.prelaunch_assembly();
+}
 
 void GlobalLinearSystem::solve()
 {
@@ -209,7 +239,27 @@ void GlobalLinearSystem::Impl::init()
         precond->init();
     }
 
+    // Enough streams that the scene's longest single-block producer chains
+    // (joints, constraints) each get their own; kept below the default of 8
+    // hardware work queues together with the legacy stream.
+    constexpr SizeT assembly_side_stream_count = 6;
+    assembly_streams.create(assembly_side_stream_count);
+
     initialized = true;
+}
+
+void GlobalLinearSystem::Impl::prelaunch_assembly()
+{
+    if(!initialized || assembly_streams.size() == 0)
+        return;
+
+    for(auto&& diag_subsystem : diag_subsystems.view())
+    {
+        PrelaunchInfo info;
+        info.m_side_streams = &assembly_streams;
+        diag_subsystem->prelaunch_assembly(info);
+    }
+    assembly_prelaunched = true;
 }
 
 void GlobalLinearSystem::Impl::build_linear_system()
@@ -219,6 +269,10 @@ void GlobalLinearSystem::Impl::build_linear_system()
 
     if(empty_system) [[unlikely]]
     {
+        // nothing consumes prelaunched producers; finish them before their
+        // buffers are reused
+        assembly_streams.join();
+        assembly_prelaunched = false;
         logger::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return;
     }
@@ -226,6 +280,7 @@ void GlobalLinearSystem::Impl::build_linear_system()
     {
         Timer t{"Assemble Subsystems"};
         _assemble_linear_system();
+        assembly_prelaunched = false;
     }
 
     {
@@ -371,9 +426,11 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index     = triplet_i;
-            info.m_gradients = B.subview(dof_offset, dof_count);
-            info.m_hessians  = HA.subview(subsystem_triplet_offsets[triplet_i],
+            info.m_index        = triplet_i;
+            info.m_side_streams = &assembly_streams;
+            info.m_prelaunched  = assembly_prelaunched;
+            info.m_gradients    = B.subview(dof_offset, dof_count);
+            info.m_hessians = HA.subview(subsystem_triplet_offsets[triplet_i],
                                          subsystem_triplet_counts[triplet_i])
                                   .submatrix(ij_offset, ij_count);
 
@@ -417,6 +474,10 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             off_diag_subsystem->assemble(info);
         }
     }
+
+    // Subsystems write disjoint ranges of A and b; producers they forked onto
+    // side streams are complete before the conversion reads A.
+    assembly_streams.join();
 }
 
 void GlobalLinearSystem::Impl::_assemble_preconditioner()
@@ -427,11 +488,19 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
         global_preconditioner->assemble(info);
     }
 
-    for(auto&& preconditioner : local_preconditioners.view())
+    // Local preconditioners only read the assembled system and write their
+    // own state, so each one assembles on its own side stream; the solve
+    // starts after the join.
+    assembly_streams.fork();
+    for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
     {
-        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index};
+        cudaStream_t stream = assembly_streams.size() ?
+                                  assembly_streams[i % assembly_streams.size()] :
+                                  nullptr;
+        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index, stream};
         preconditioner->assemble(info);
     }
+    assembly_streams.join();
 }
 
 void GlobalLinearSystem::Impl::solve_linear_system()

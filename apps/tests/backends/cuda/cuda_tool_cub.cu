@@ -20,6 +20,7 @@
 // workspace holds (CUB returns cudaErrorInvalidValue before it launches
 // anything) grows the workspace and runs again; either way the result is
 // CUB's.
+// DeviceRadixSort::SortPairs sorts by the requested bit range.
 
 #include <app/app.h>
 #include <cuda_tool/cub.h>
@@ -73,4 +74,44 @@ TEST_CASE("cuda_tool CUB wrappers grow the stream's cached workspace", "[cuda][c
     }
 
     CUDA_TOOL_CHECK(cudaStreamDestroy(s));
+}
+
+TEST_CASE("cuda_tool DeviceRadixSort::SortPairs sorts by the given bit range", "[cuda][cuda_tool][cub]")
+{
+    // keys: high byte descending, low byte ascending; sorting bits [0, 8)
+    // orders by the low byte only and keeps the input order of equal ones
+    const int                  n = 512;
+    std::vector<std::uint32_t> keys(n);
+    std::vector<int>           vals(n);
+    for(int i = 0; i < n; ++i)
+    {
+        keys[i] = (std::uint32_t(255 - i % 256) << 8) | std::uint32_t(i % 7);
+        vals[i] = i;
+    }
+
+    cuda_tool::DeviceBuffer<std::uint32_t> kin, kout;
+    cuda_tool::DeviceBuffer<int>           vin, vout;
+    kin.copy_from(keys.data(), keys.size());
+    vin.copy_from(vals.data(), vals.size());
+    kout.resize_discard(n);
+    vout.resize_discard(n);
+    cuda_tool::DeviceRadixSort().SortPairs(
+        kin.data(), kout.data(), vin.data(), vout.data(), n, 0, 8);
+
+    std::vector<std::uint32_t> hk;
+    std::vector<int>           hv;
+    kout.copy_to(hk);
+    vout.copy_to(hv);
+
+    std::vector<int> expect(n);
+    std::iota(expect.begin(), expect.end(), 0);
+    std::stable_sort(expect.begin(),
+                     expect.end(),
+                     [&](int a, int b)
+                     { return (keys[a] & 0xffu) < (keys[b] & 0xffu); });
+    for(int i = 0; i < n; ++i)
+    {
+        REQUIRE(hv[i] == expect[i]);
+        REQUIRE(hk[i] == keys[expect[i]]);
+    }
 }

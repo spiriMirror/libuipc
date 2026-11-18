@@ -238,6 +238,12 @@ touching that area; several of these have bitten us more than once.
   short lists (CCD filters) use `cuda_tool::spread_block_dim` instead: the
   occupancy block size packs a few thousand such threads onto a handful of
   SMs, whose 1/64-rate FP64 pipes then serialize them.
+  Kernels over a few items with many registers per thread (the ABD
+  producers listed in doc 05's launch-shape exceptions) use it too: their
+  occupancy block is one block that
+  needs most of an SM's registers however few threads work, and on a
+  busy GPU it holds back every later grid of its stream priority until
+  a whole SM is free.
 - **CUDA-graph capture traps** (learned the hard way in the FusedPCG graph
   work):
   - A captured graph bakes every kernel's **by-value arguments** — including
@@ -262,8 +268,8 @@ touching that area; several of these have bitten us more than once.
   - A launch into the legacy default stream during capture invalidates the
     capture (detected at `cudaStreamEndCapture`) — use that as the automatic
     fallback signal for un-plumbed callees. A checked call on a captured
-    stream after the invalidation fails and throws (e.g. a checked cub call
-    or an event record):
+    stream after the invalidation fails and throws (e.g. the event record of
+    `SideStreams::join`):
     `GraphCapture`/`GraphWhile::capture` catch that, end the capture (which
     takes every joined stream out of capture mode) and take the same
     fallback. An exception on a valid capture is rethrown once the capture

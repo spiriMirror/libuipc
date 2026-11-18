@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: the SideStream fork/join helper.
+ * NVIDIA contributions: SideStreams, LazySideStream and SideStream fork/join
+ * helpers.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -41,6 +42,7 @@ __host__ __device__ inline T arg(const std::complex<T>& z)
 #include <string>
 #include <cstdio>
 #include <span>
+#include <vector>
 
 namespace uipc::backend::cuda_tool
 {
@@ -106,6 +108,126 @@ class Stream
 
   private:
     cudaStream_t m_handle = nullptr;
+};
+
+// Non-blocking side streams for fork/join concurrency next to an origin
+// stream (normally the legacy default stream). They perform no implicit
+// synchronization with the legacy stream: work on them is ordered only by
+// fork() and join(), so a producer handed a side stream must launch all of
+// its work on that stream.
+class SideStreams
+{
+  public:
+    SideStreams()                              = default;
+    SideStreams(const SideStreams&)            = delete;
+    SideStreams& operator=(const SideStreams&) = delete;
+    ~SideStreams()
+    {
+        for(auto e : m_events)
+            cudaEventDestroy(e);
+        for(auto s : m_streams)
+            cudaStreamDestroy(s);
+        if(m_origin_event)
+            cudaEventDestroy(m_origin_event);
+    }
+
+    // Create `count` streams once, at the greatest priority, so short
+    // dependency chains on them are not queued behind wide kernels.
+    void create(SizeT count)
+    {
+        if(!m_streams.empty() || count == 0)
+            return;
+        int least = 0, greatest = 0;
+        CUDA_TOOL_CHECK(cudaDeviceGetStreamPriorityRange(&least, &greatest));
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&m_origin_event, cudaEventDisableTiming));
+        m_streams.resize(count);
+        m_events.resize(count);
+        for(SizeT i = 0; i < count; ++i)
+        {
+            CUDA_TOOL_CHECK(cudaStreamCreateWithPriority(
+                &m_streams[i], cudaStreamNonBlocking, greatest));
+            CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&m_events[i], cudaEventDisableTiming));
+        }
+    }
+
+    SizeT        size() const noexcept { return m_streams.size(); }
+    cudaStream_t operator[](SizeT i) const noexcept { return m_streams[i]; }
+
+    // Every side stream waits for the work enqueued on `origin` so far, and
+    // the round-robin cursor of next() restarts.
+    void fork(cudaStream_t origin = default_stream())
+    {
+        if(m_streams.empty())
+            return;
+        CUDA_TOOL_CHECK(cudaEventRecord(m_origin_event, origin));
+        for(auto s : m_streams)
+            CUDA_TOOL_CHECK(cudaStreamWaitEvent(s, m_origin_event, 0));
+        m_next = 0;
+    }
+
+    // Side stream `i` alone waits for the work enqueued on `origin` so far.
+    void fork_one(SizeT i, cudaStream_t origin = default_stream())
+    {
+        CUDA_TOOL_CHECK(cudaEventRecord(m_origin_event, origin));
+        CUDA_TOOL_CHECK(cudaStreamWaitEvent(m_streams[i], m_origin_event, 0));
+    }
+
+    // Round-robin side stream for the next independent producer (the
+    // default stream when none were created).
+    cudaStream_t next() noexcept
+    {
+        if(m_streams.empty())
+            return default_stream();
+        return m_streams[m_next++ % m_streams.size()];
+    }
+
+    // `waiter` waits for the work enqueued on every side stream so far. A
+    // side stream passed as `waiter` skips itself.
+    void join(cudaStream_t waiter = default_stream())
+    {
+        for(SizeT i = 0; i < m_streams.size(); ++i)
+        {
+            if(m_streams[i] == waiter)
+                continue;
+            CUDA_TOOL_CHECK(cudaEventRecord(m_events[i], m_streams[i]));
+            CUDA_TOOL_CHECK(cudaStreamWaitEvent(waiter, m_events[i], 0));
+        }
+    }
+
+  private:
+    std::vector<cudaStream_t> m_streams;
+    std::vector<cudaEvent_t>  m_events;
+    cudaEvent_t               m_origin_event = nullptr;
+    SizeT                     m_next         = 0;
+};
+
+// Launch stream of one producer: the next side stream, taken on first use so
+// producers that launch nothing do not occupy one, or the default stream
+// without side streams. Not copyable: every launch of the producer must go
+// to the same stream.
+class LazySideStream
+{
+  public:
+    explicit LazySideStream(SideStreams* side_streams = nullptr) noexcept
+        : m_side_streams(side_streams)
+    {
+    }
+    LazySideStream(const LazySideStream&)            = delete;
+    LazySideStream& operator=(const LazySideStream&) = delete;
+
+    cudaStream_t get() const noexcept
+    {
+        if(m_side_streams)
+        {
+            m_stream       = m_side_streams->next();
+            m_side_streams = nullptr;
+        }
+        return m_stream;
+    }
+
+  private:
+    mutable SideStreams* m_side_streams = nullptr;
+    mutable cudaStream_t m_stream       = default_stream();
 };
 
 // Owning non-blocking stream for work that runs beside another stream. It

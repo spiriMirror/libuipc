@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: prelaunch interfaces for the contact-independent
+ * assembly.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <linear_system/global_linear_system.h>
@@ -34,8 +59,12 @@ class DiagLinearSubsystem : public SimSystem
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) = 0;
 
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) = 0;
-    virtual void do_assemble(GlobalLinearSystem::DiagInfo& info)            = 0;
-    virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)  = 0;
+    // Optionally launch, on info.side_streams(), producers of the next
+    // assembly that read no DyTopo (contact) results; do_assemble() then sees
+    // DiagInfo::prelaunched() and must not launch them again.
+    virtual void do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
+    virtual void do_assemble(GlobalLinearSystem::DiagInfo& info)           = 0;
+    virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) = 0;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
 
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
@@ -52,6 +81,7 @@ class DiagLinearSubsystem : public SimSystem
     void receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info);
 
     void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+    void prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
     void assemble(GlobalLinearSystem::DiagInfo& info);
     void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
     void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);

@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: interfaces and state for assembly side streams and the
+ * prelaunched contact-independent producers.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <functional>
@@ -75,6 +100,18 @@ class GlobalLinearSystem : public SimSystem
         bool           m_gradient_only   = false;
     };
 
+    class PrelaunchInfo
+    {
+      public:
+        // Side streams for the contact-independent producers launched ahead
+        // of the DyTopo computation; joined by the next assembly.
+        cuda_tool::SideStreams* side_streams() const { return m_side_streams; }
+
+      private:
+        friend class Impl;
+        cuda_tool::SideStreams* m_side_streams = nullptr;
+    };
+
     class ComputeGradientInfo
     {
       public:
@@ -101,15 +138,24 @@ class GlobalLinearSystem : public SimSystem
         DenseVectorView   gradients() { return m_gradients; }
         bool              gradient_only() const { return m_gradient_only; }
         ComponentFlags    component_flags() const { return m_component_flags; }
+        // Side streams a subsystem may fork independent producers onto
+        // (nullptr: assemble on the legacy default stream only). They are
+        // joined into the legacy stream after every subsystem has assembled.
+        cuda_tool::SideStreams* side_streams() const { return m_side_streams; }
+        // True when prelaunch_assembly() already launched this subsystem's
+        // contact-independent producers for this assembly.
+        bool prelaunched() const { return m_prelaunched; }
 
       private:
         friend class Impl;
-        SizeT             m_index = ~0ull;
-        TripletMatrixView m_hessians;
-        DenseVectorView   m_gradients;
-        bool              m_gradient_only   = false;
-        ComponentFlags    m_component_flags = ComponentFlags::All;
-        Impl*             m_impl            = nullptr;
+        SizeT                   m_index = ~0ull;
+        TripletMatrixView       m_hessians;
+        DenseVectorView         m_gradients;
+        bool                    m_gradient_only   = false;
+        ComponentFlags          m_component_flags = ComponentFlags::All;
+        cuda_tool::SideStreams* m_side_streams    = nullptr;
+        bool                    m_prelaunched     = false;
+        Impl*                   m_impl            = nullptr;
     };
 
     class OffDiagExtentInfo
@@ -166,17 +212,23 @@ class GlobalLinearSystem : public SimSystem
     class LocalPreconditionerAssemblyInfo : public AssemblyInfo
     {
       public:
-        LocalPreconditionerAssemblyInfo(Impl* impl, SizeT index) noexcept
+        LocalPreconditionerAssemblyInfo(Impl* impl, SizeT index, cudaStream_t stream = nullptr) noexcept
             : AssemblyInfo(impl)
             , m_index(index)
+            , m_stream(stream)
         {
         }
 
         SizeT dof_offset() const;
         SizeT dof_count() const;
+        // Stream for the assembly kernels: a side stream forked after the
+        // global matrix is assembled and joined before the solve, or the
+        // legacy default stream.
+        cudaStream_t stream() const noexcept { return m_stream; }
 
       private:
-        SizeT m_index;
+        SizeT        m_index;
+        cudaStream_t m_stream = nullptr;
     };
 
     using DiagNormInfo = LocalPreconditionerAssemblyInfo;
@@ -276,6 +328,7 @@ class GlobalLinearSystem : public SimSystem
       public:
         void init();
 
+        void prelaunch_assembly();
         void build_linear_system();
         bool _update_subsystem_extent();
         void _assemble_linear_system();
@@ -316,6 +369,11 @@ class GlobalLinearSystem : public SimSystem
 
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
+
+        // Side streams for independent assembly producers (see
+        // DiagInfo::side_streams) and local preconditioner assembly.
+        cuda_tool::SideStreams assembly_streams;
+        bool                   assembly_prelaunched = false;
 
         bool  initialized           = false;
         bool  empty_system          = true;
@@ -382,6 +440,10 @@ class GlobalLinearSystem : public SimSystem
 
     // only be called by SimEngine::do_init();
     void init();
+
+    // only be called by SimEngine::do_advance(), before the DyTopo effect of
+    // the Newton iteration whose system solve() then assembles
+    void prelaunch_assembly();
 
     // only be called by SimEngine::do_advance()
     void solve();

@@ -1,3 +1,30 @@
+/*
+ * NVIDIA contributions: shared-workspace PSD projection and blockwise
+ * articulation Hessian assembly; one joint pair per block, warp-cooperative
+ * Hessian assembly (warp Jacobi PSD projection and entry-parallel J^T H J),
+ * side-stream launches and one-warp launch shapes.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/inter_affine_body_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/inter_affine_body_constraint.h>
@@ -5,9 +32,10 @@
 #include <affine_body/constraints/external_articulation_constraint_function.h>
 #include <affine_body/utils.h>
 #include <algorithm/fast_segmental_reduce.h>
+#include <utils/warp_spd.h>
+#include <utils/warp_joint_hessian.h>
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
-#include <utils/make_spd.h>
 #include <time_integrator/time_integrator.h>
 #include <kernel_cout.h>
 
@@ -234,50 +262,66 @@ namespace
         DVA.segment<2>(jointI * 2).write(body_ids, G24);
     }
 
-    __global__ void external_articulation_constraint_compute_gradient_hessian_k2_kernel(
-        cuda_tool::TripletMatrixView<Float, 12> hessians,
-        cuda_tool::CBufferView<Float>           joint_id_to_G_theta,
-        cuda_tool::CBufferView<Vector2i>        joint_id_to_body_ids,
-        cuda_tool::CBufferView<Float>           joint_joint_id_to_mass,
-        cuda_tool::CBufferView<Vector2i>        joint_joint_id_to_joint_ij,
-        cuda_tool::CBufferView<Vector6>         joint_id_to_L_basis,
-        cuda_tool::CBufferView<Vector6>         joint_id_to_R_basis,
-        cuda_tool::CBufferView<Vector12>        qs,
-        cuda_tool::CBufferView<Vector12>        q_prevs,
-        cuda_tool::CBufferView<Vector2i>        joint_id_to_ref_q_prev_ids,
-        cuda_tool::BufferView<Vector12>         ref_q_prevs,
-        cuda_tool::CBufferView<U64>             joint_id_to_uid,
-        U64                                     RevoluteUID,
-        U64                                     PrismaticUID,
-        SizeT                                   HalfHessianSize,
-        int                                     n)
+    // One warp per joint pair (launched with JointWarpSize threads per
+    // block): the 24x24 outer product, the diagonal pair's projected 12x12
+    // Hessian (utils/warp_spd.h) and its J^T H J map are shared by the lanes;
+    // the generated derivative code runs redundantly on every lane, which costs
+    // no more than on one.
+    __global__ void __launch_bounds__(JointWarpSize)
+        external_articulation_constraint_compute_gradient_hessian_k2_kernel(
+            cuda_tool::TripletMatrixView<Float, 12> hessians,
+            cuda_tool::CBufferView<Float>           joint_id_to_G_theta,
+            cuda_tool::CBufferView<Vector2i>        joint_id_to_body_ids,
+            cuda_tool::CBufferView<Float>           joint_joint_id_to_mass,
+            cuda_tool::CBufferView<Vector2i>        joint_joint_id_to_joint_ij,
+            cuda_tool::CBufferView<Vector6>         joint_id_to_L_basis,
+            cuda_tool::CBufferView<Vector6>         joint_id_to_R_basis,
+            cuda_tool::CBufferView<Vector12>        qs,
+            cuda_tool::CBufferView<Vector12>        q_prevs,
+            cuda_tool::CBufferView<Vector2i>        joint_id_to_ref_q_prev_ids,
+            cuda_tool::BufferView<Vector12>         ref_q_prevs,
+            cuda_tool::CBufferView<U64>             joint_id_to_uid,
+            U64                                     RevoluteUID,
+            U64                                     PrismaticUID,
+            SizeT                                   HalfHessianSize,
+            int                                     n)
     {
-        int joint_joint_I = blockIdx.x * blockDim.x + threadIdx.x;
+        const int joint_joint_I = blockIdx.x;
+        const int lane          = threadIdx.x;
         if(joint_joint_I >= n)
             return;
+
+        __shared__ Float H[24 * 24];
+        __shared__ Float g_s[2][24];
+        __shared__ Float A[144], A2[144], V[144], V2[144], P[144];
+        __shared__ Float rot[warp_spd_rot_size<12>];
+        __shared__ int   part[12];
+
         Float    m_ij = joint_joint_id_to_mass(joint_joint_I);
         Vector2i ij   = joint_joint_id_to_joint_ij(joint_joint_I);
 
-        auto compute_dDeltaTheta_dQ = [&](IndexT joint_id) -> Vector<Float, 24>
+        auto q_prev_of = [&](IndexT joint_id, int side) -> const Vector12&
         {
-            U64 joint_uid = joint_id_to_uid(joint_id);
+            const Vector2i& body_ids = joint_id_to_body_ids(joint_id);
+            const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(joint_id);
+            return ref_q_prev_ids[side] >= 0 ? ref_q_prevs(ref_q_prev_ids[side]) :
+                                               q_prevs(body_ids[side]);
+        };
 
+#pragma unroll
+        for(int side = 0; side < 2; ++side)
+        {
+            const IndexT    joint_id = ij[side];
+            U64             uid      = joint_id_to_uid(joint_id);
             Vector6         basis_k  = joint_id_to_L_basis(joint_id);
             Vector6         basis_l  = joint_id_to_R_basis(joint_id);
             Vector2i        body_ids = joint_id_to_body_ids(joint_id);
             const Vector12& qk       = qs(body_ids[0]);
             const Vector12& ql       = qs(body_ids[1]);
-            const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(joint_id);
-            const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
-                                          ref_q_prevs(ref_q_prev_ids[0]) :
-                                          q_prevs(body_ids[0]);
-            const Vector12& q_prevl = ref_q_prev_ids[1] >= 0 ?
-                                          ref_q_prevs(ref_q_prev_ids[1]) :
-                                          q_prevs(body_ids[1]);
+            const Vector12& q_prevk  = q_prev_of(joint_id, 0);
+            const Vector12& q_prevl  = q_prev_of(joint_id, 1);
 
             Vector<Float, 24> dDeltaTheta_dQ;
-
-            U64 uid = joint_id_to_uid(joint_id);
             if(uid == RevoluteUID)
             {
                 ERJ::dDeltaTheta_dQ(dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
@@ -291,17 +335,20 @@ namespace
                 UIPC_KERNEL_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", uid);
                 dDeltaTheta_dQ.setZero();
             }
-            return dDeltaTheta_dQ;
-        };
+            // the left factor carries m_ij, as in dDeltaTheta_dQ_i * m_ij * ...^T
+            const Float factor = side == 0 ? m_ij : Float(1);
+#pragma unroll
+            for(int k = 0; k < 24; ++k)
+                if(k == lane)
+                    g_s[side][k] = side == 0 ? dDeltaTheta_dQ(k) * factor :
+                                               dDeltaTheta_dQ(k);
+        }
+        __syncwarp();
 
-        Vector<Float, 24> dDeltaTheta_dQ_i = compute_dDeltaTheta_dQ(ij[0]);
-        Vector<Float, 24> dDeltaTheta_dQ_j = compute_dDeltaTheta_dQ(ij[1]);
+        for(int e = lane; e < 576; e += 32)
+            H[e] = g_s[0][e % 24] * g_s[1][e / 24];
 
-
-        Matrix<Float, 24, 24> H24x24 =
-            dDeltaTheta_dQ_i * m_ij * dDeltaTheta_dQ_j.transpose();
-
-        if(ij[0] == ij[1])
+        if(ij[0] == ij[1])  // uniform over the warp
         {
             auto i = ij[0];
 
@@ -311,59 +358,61 @@ namespace
             Vector6  basis_l  = joint_id_to_R_basis(i);
             Vector2i body_ids = joint_id_to_body_ids(i);
 
-            const Vector12& qk = qs(body_ids[0]);
-            const Vector12& ql = qs(body_ids[1]);
-
-            const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(i);
-
-            const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
-                                          ref_q_prevs(ref_q_prev_ids[0]) :
-                                          q_prevs(body_ids[0]);
-
-            const Vector12& q_prevl = ref_q_prev_ids[1] >= 0 ?
-                                          ref_q_prevs(ref_q_prev_ids[1]) :
-                                          q_prevs(body_ids[1]);
+            const Vector12& qk      = qs(body_ids[0]);
+            const Vector12& ql      = qs(body_ids[1]);
+            const Vector12& q_prevk = q_prev_of(i, 0);
+            const Vector12& q_prevl = q_prev_of(i, 1);
 
             Float G_theta_i = joint_id_to_G_theta(i);
 
-            Vector<Float, 12>     F, F_t;
-            Matrix<Float, 24, 24> JT_H_J;
-            if(joint_uid == RevoluteUID)
+            const bool revolute  = joint_uid == RevoluteUID;
+            const bool prismatic = joint_uid == PrismaticUID;
+            UIPC_KERNEL_ASSERT(revolute || prismatic,
+                               "ExternalArticulationConstraint: Unknown joint UID %llu",
+                               static_cast<unsigned long long>(joint_uid));
+            if(revolute || prismatic)
             {
-                ERJ::F<Float>(F, basis_k, qk, basis_l, ql);
-                ERJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
-                Matrix12x12 ddDeltaTheta_ddF;
-                ERJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
-                Matrix12x12 HF = G_theta_i * ddDeltaTheta_ddF;
-                make_spd(HF);
-                ERJ::JT_H_J(JT_H_J, HF, basis_k, basis_l, basis_k, basis_l);
-            }
-            else if(joint_uid == PrismaticUID)
-            {
-                EPJ::F<Float>(F, basis_k, qk, basis_l, ql);
-                EPJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
-                Matrix12x12 ddDeltaTheta_ddF;
-                EPJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
-                Matrix12x12 HF = G_theta_i * ddDeltaTheta_ddF;
-                make_spd(HF);
-                EPJ::JT_H_J(JT_H_J, HF, basis_k, basis_l, basis_k, basis_l);
-            }
-            else
-            {
-                UIPC_KERNEL_ASSERT(false,
-                                   "ExternalArticulationConstraint: Unknown joint UID {}",
-                                   joint_uid);
-            }
+                {
+                    Vector<Float, 12> F, F_t;
+                    Matrix12x12       ddDeltaTheta_ddF;
+                    if(revolute)
+                    {
+                        ERJ::F<Float>(F, basis_k, qk, basis_l, ql);
+                        ERJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
+                        ERJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
+                    }
+                    else
+                    {
+                        EPJ::F<Float>(F, basis_k, qk, basis_l, ql);
+                        EPJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
+                        EPJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
+                    }
+#pragma unroll
+                    for(int e = 0; e < 144; ++e)
+                        if((e & 31) == lane)
+                            A[e] = G_theta_i * ddDeltaTheta_ddF(e % 12, e / 12);
+                }
+                __syncwarp();
+                warp_make_spd<12>(A, A2, V, V2, rot, part, P, lane);
 
-            H24x24 += JT_H_J;
+                // H += J^T H_F J (the prismatic map also carries the
+                // translation of each body's first frame)
+                for(int e = lane; e < 576; e += 32)
+                    H[e] +=
+                        revolute ?
+                            basis_jt_h_j_entry<false>(
+                                P, basis_k, basis_l, basis_k, basis_l, e % 24, e / 24) :
+                            basis_jt_h_j_entry<true>(
+                                P, basis_k, basis_l, basis_k, basis_l, e % 24, e / 24);
+            }
         }
+        __syncwarp();
 
         Vector2i body_ids_i = joint_id_to_body_ids(ij[0]);
         Vector2i body_ids_j = joint_id_to_body_ids(ij[1]);
 
-        TripletMatrixAssembler TMA{hessians};
-
-        TMA.half_block<2>(joint_joint_I * HalfHessianSize).write(body_ids_i, body_ids_j, H24x24);
+        warp_write_half_block2(
+            hessians, joint_joint_I * HalfHessianSize, body_ids_i, body_ids_j, H, lane);
     }
 
     __global__ void external_articulation_constraint_time_integrator_update_state_kernel(
@@ -989,7 +1038,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = external_articulation_constraint_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
                 info.energies(),
                 joint_joint_id_to_mass.cview(),
                 joint_joint_id_to_joint_ij.cview(),
@@ -1013,24 +1062,25 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         using namespace cuda_tool;
 
         // Compute G^theta
-        FastSegmentalReduce().reduce(
-            joint_joint_id_to_mass.size(),
-            joint_id_to_G_theta.view(),
-            ExternalArticulationConstraintGetKey{joint_joint_id_to_joint_ij.cview()},
-            ExternalArticulationConstraintGetValue{
-                joint_joint_id_to_mass.cview(),
-                joint_joint_id_to_joint_ij.cview(),
-                joint_id_to_L_basis.cview(),
-                joint_id_to_R_basis.cview(),
-                joint_id_to_body_ids.cview(),
-                joint_id_to_delta_theta_tilde.cview(),
-                info.qs(),
-                info.q_prevs(),
-                joint_id_to_ref_q_prev_ids.cview(),
-                ref_q_prevs.view(),
-                joint_id_to_uid.cview(),
-                ExternalArticulationConstituion::RevoluteJointConstitutionUID,
-                ExternalArticulationConstituion::PrismaticJointConstitutionUID});
+        FastSegmentalReduce(info.stream())
+            .reduce(joint_joint_id_to_mass.size(),
+                    joint_id_to_G_theta.view(),
+                    ExternalArticulationConstraintGetKey{
+                        joint_joint_id_to_joint_ij.cview()},
+                    ExternalArticulationConstraintGetValue{
+                        joint_joint_id_to_mass.cview(),
+                        joint_joint_id_to_joint_ij.cview(),
+                        joint_id_to_L_basis.cview(),
+                        joint_id_to_R_basis.cview(),
+                        joint_id_to_body_ids.cview(),
+                        joint_id_to_delta_theta_tilde.cview(),
+                        info.qs(),
+                        info.q_prevs(),
+                        joint_id_to_ref_q_prev_ids.cview(),
+                        ref_q_prevs.view(),
+                        joint_id_to_uid.cview(),
+                        ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                        ExternalArticulationConstituion::PrismaticJointConstitutionUID});
 
 
         // Compute Gradient
@@ -1038,7 +1088,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n_gradient > 0)
         {
             auto k = external_articulation_constraint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n_gradient, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n_gradient), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.gradients(),
                 joint_id_to_G_theta.cview(),
                 joint_id_to_body_ids.cview(),
@@ -1062,7 +1112,8 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         if(n_hessian > 0)
         {
             auto k = external_articulation_constraint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n_hessian, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            // One joint pair per warp-sized block (see the kernel).
+            k<<<n_hessian, JointWarpSize, 0, info.stream()>>>(
                 info.hessians(),
                 joint_id_to_G_theta.cview(),
                 joint_id_to_body_ids.cview(),

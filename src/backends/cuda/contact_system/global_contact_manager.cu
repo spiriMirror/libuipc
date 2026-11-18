@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: one-warp launch shapes of the feasible-step kernels.
+ * NVIDIA contributions: the contact-tabular version and one-warp launch shapes
+ * of the feasible-step kernels.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -647,6 +648,7 @@ cuda_tool::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInf
 S<cuda_tool::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
     S<cuda_tool::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
 {
+    ++m_impl->contact_tabular_version;
     return std::exchange(m_impl->contact_tabular, new_buffer);
 }
 
@@ -673,6 +675,8 @@ void GlobalContactManager::compute_adaptive_parameters()
 
     auto info = AdaptiveParameterInfo(&m_impl);
     m_impl.adaptive_contact_parameter_reporter->compute_parameters(info);
+    // The reporter may have written new coefficients.
+    ++m_impl.contact_tabular_version;
 }
 
 Float GlobalContactManager::d_hat() const
@@ -720,6 +724,11 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
 cuda_tool::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
     return m_impl.contact_tabular->view();
+}
+
+SizeT GlobalContactManager::contact_tabular_version() const noexcept
+{
+    return m_impl.contact_tabular_version;
 }
 
 }  // namespace uipc::backend::cuda

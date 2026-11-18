@@ -1,7 +1,7 @@
 /*
  * NVIDIA contributions: active-contact counting and line-search trajectory
- * filtering integration; detection-skin support and two-phase active-set
- * filtering with batched count read-backs.
+ * filtering integration; detection-skin support, the friction-candidate
+ * version and two-phase active-set filtering with batched count read-backs.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -217,6 +217,8 @@ void SimplexTrajectoryFilter::Impl::record_friction_candidates(
     loose_resize(friction_PP, PPs.size());
     friction_PP.view().copy_from(PPs);
 
+    ++friction_candidates_version;
+
     logger::info("SimplexTrajectoryFilter Friction PT: {}, EE: {}, PE: {}, PP: {}",
                  friction_PT.size(),
                  friction_EE.size(),
@@ -361,6 +363,11 @@ cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::friction_PPs() const n
     return m_impl.friction_PP;
 }
 
+SizeT SimplexTrajectoryFilter::friction_candidates_version() const noexcept
+{
+    return m_impl.friction_candidates_version;
+}
+
 cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::DetectInfo::displacements() const noexcept
 {
     return m_impl->global_vertex_manager->displacements();
@@ -396,6 +403,7 @@ void SimplexTrajectoryFilter::do_clear_friction_candidates()
     m_impl.friction_EE.resize(0);
     m_impl.friction_PE.resize(0);
     m_impl.friction_PP.resize(0);
+    ++m_impl.friction_candidates_version;
 }
 
 bool SimplexTrajectoryFilter::Impl::dump(DumpInfo& info)

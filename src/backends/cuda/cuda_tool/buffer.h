@@ -1,5 +1,6 @@
 /*
- * NVIDIA contributions: PinnedHostBuffer.
+ * NVIDIA contributions: PinnedHostBuffer and ReadbackBuffer with mapped
+ * read-backs.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -28,6 +29,7 @@
 #include <cuda_tool/view_nd.h>
 #include <cuda_tool/launch.h>
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -473,6 +475,143 @@ class PinnedHostBuffer
     T*     m_data     = nullptr;
     size_t m_size     = 0;
     size_t m_capacity = 0;
+};
+
+namespace details
+{
+    // -1: not decided yet (see mapped_readbacks()); 0: copy path; 1: mapped
+    inline std::atomic<int> mapped_readbacks{-1};
+}  // namespace details
+
+// Whether a ReadbackBuffer may use mapped host memory: the current device
+// can map page-locked host memory (cudaDevAttrCanMapHostMemory) into the
+// unified address space (cudaDevAttrUnifiedAddressing). Decided once per
+// process, at the first call.
+inline bool mapped_readbacks()
+{
+    int mode = details::mapped_readbacks.load(std::memory_order_relaxed);
+    if(mode < 0)
+    {
+        int device = 0, can_map = 0, unified = 0;
+        CUDA_TOOL_CHECK(cudaGetDevice(&device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&can_map, cudaDevAttrCanMapHostMemory, device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&unified, cudaDevAttrUnifiedAddressing, device));
+        mode = (can_map && unified) ? 1 : 0;
+        details::mapped_readbacks.store(mode, std::memory_order_relaxed);
+    }
+    return mode == 1;
+}
+
+enum class ReadbackPath
+{
+    Auto,  // mapped host memory when mapped_readbacks(), else the copy path
+    Copy   // always the copy path (tests compare it with the mapped one)
+};
+
+// Small values a kernel or a CUB call stores for the host: counts, a TOI, an
+// energy total. The producer stores through device_data(); enqueue_copy(s)
+// follows it on its stream s, and the host reads data() after synchronizing
+// s. On the mapped path device_data() is the device address of page-locked
+// host memory allocated with cudaHostAlloc(cudaHostAllocMapped) (cached, not
+// write-combined, so host reads are fast): the producer's own stores land in
+// host memory, so no copy follows the producer (a device-to-host copy after
+// a kernel waits for the copy engine to take over from the kernel, a few
+// microseconds on the critical path when the host leads). enqueue_copy() then
+// enqueues nothing, and the stream synchronization makes the stores visible:
+// the host never polls. On the copy path (a device without mapped host
+// memory, or ReadbackPath::Copy) device_data() is
+// device memory and enqueue_copy() enqueues the device-to-host copy into a
+// page-locked host array, as PinnedHostBuffer::copy_from does. Both paths
+// read back the bytes the producer stored.
+template <typename T>
+class ReadbackBuffer
+{
+  public:
+    explicit ReadbackBuffer(ReadbackPath path = ReadbackPath::Auto)
+        : m_path(path)
+    {
+    }
+    ~ReadbackBuffer() { release(); }
+    ReadbackBuffer(const ReadbackBuffer&)            = delete;
+    ReadbackBuffer& operator=(const ReadbackBuffer&) = delete;
+
+    // Grows only; the contents are not preserved when the buffer grows.
+    void resize_discard(size_t n)
+    {
+        if(n > m_capacity)
+        {
+            release();
+            m_mapped = m_path == ReadbackPath::Auto && mapped_readbacks();
+            if(m_mapped)
+            {
+                CUDA_TOOL_CHECK(cudaHostAlloc(reinterpret_cast<void**>(&m_host),
+                                              n * sizeof(T),
+                                              cudaHostAllocMapped));
+                CUDA_TOOL_CHECK(cudaHostGetDevicePointer(
+                    reinterpret_cast<void**>(&m_device), m_host, 0));
+            }
+            else
+            {
+                CUDA_TOOL_CHECK(cudaMallocHost(reinterpret_cast<void**>(&m_host),
+                                               n * sizeof(T)));
+                CUDA_TOOL_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_device),
+                                           n * sizeof(T)));
+            }
+            m_capacity = n;
+        }
+        m_size = n;
+    }
+    void release()
+    {
+        if(m_host)
+        {
+            cudaFreeHost(m_host);
+            if(!m_mapped)
+                cudaFree(m_device);
+        }
+        m_host     = nullptr;
+        m_device   = nullptr;
+        m_size     = 0;
+        m_capacity = 0;
+    }
+
+    bool   mapped() const noexcept { return m_mapped; }
+    size_t size() const noexcept { return m_size; }
+    // where the producer stores (device-accessible)
+    T* device_data() noexcept { return m_device; }
+    // the host values: valid after enqueue_copy(s) and a synchronization of s
+    T*       data() noexcept { return m_host; }
+    const T* data() const noexcept { return m_host; }
+    T&       operator[](size_t i) noexcept { return m_host[i]; }
+    const T& operator[](size_t i) const noexcept { return m_host[i]; }
+
+    // Follows the producer on its stream `s`: the copy path enqueues the
+    // device-to-host copy of every element, the mapped path nothing.
+    void enqueue_copy(cudaStream_t s = default_stream())
+    {
+        if(!m_mapped && m_size)
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_host, m_device, m_size * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+    // Instead of enqueue_copy(): enqueue the copy of `src` (device memory
+    // another producer wrote) into the host elements [offset, offset +
+    // src.size()) on `s`.
+    void copy_from(size_t offset, CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        if(offset + src.size() > m_size)
+            throw std::length_error{"ReadbackBuffer::copy_from: out of range"};
+        if(src.size())
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_host + offset, src.data(), src.size() * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+
+  private:
+    ReadbackPath m_path;
+    bool         m_mapped   = false;
+    T*           m_host     = nullptr;
+    T*           m_device   = nullptr;
+    size_t       m_size     = 0;
+    size_t       m_capacity = 0;
 };
 
 // 2D / 3D dense buffers -----------------------------------------------------
