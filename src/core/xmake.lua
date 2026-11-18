@@ -5,6 +5,11 @@ add_requires(
     "spdlog[shared,header_only=n,fmt_external=y]"
 )
 
+if is_plat("linux") then
+    -- xmake-repo's libdwarf 2.3.3 build installs a shared library.
+    add_requireconfs("cpptrace.libdwarf", {override = true, configs = {shared = true}})
+end
+
 -- Pin fmt to 12.1.0: 12.2.0's long double hexfloat path fails under nvcc (fallback uint128 lacks operator~)
 if is_plat("windows") then
     -- https://forums.developer.nvidia.com/t/utf-8-option-for-the-host-function-in-cuda-msvc/312739

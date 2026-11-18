@@ -1,5 +1,14 @@
 # Handoff — Current State of the Repo
 
+> **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
+> metadata and refreshes OS repositories before installing build tools, with
+> three attempts and 10/20-second backoff. CUDA repositories are disabled only
+> for those `yum` commands; the pinned image and CUDA compilation settings are
+> unchanged. Required AlmaLinux repositories stay enabled and permanent failure
+> stops the job before vcpkg initialization. Fault injection verified recovery
+> after two metadata failures and nonzero exit after three persistent failures;
+> the original command failed on the first transient error.
+
 > **Issue #504 / PR #505 regression coverage (2026-11-05)**: PR #505 was
 > merged into main as `b116f19b`; issue #504 is closed. The follow-up native
 > `ipc_barrier_upper_bound` test exercises the actual energy and first two
