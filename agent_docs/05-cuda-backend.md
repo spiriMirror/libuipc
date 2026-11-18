@@ -188,6 +188,30 @@ values without NaN is unique up to the sign of zero, so the result has
 `DeviceReduce::Min`'s bytes in any arrival order (`TOI minimum` backend test,
 with the launches in stream order).
 
+Preconditioner reuse across Newton iterations is **opt-in and off by
+default** (`linear_system/keep_preconditioner`, default 0). With the key set
+to 1 on the standard IPC pipeline, `GlobalLinearSystem::keeps_preconditioner(k)`
+holds for every odd Newton iteration `k >= 3`: that solve keeps the local and
+global preconditioners assembled for iteration `k - 1` (same DoF layout; a
+layout change always reassembles), so a kept preconditioner is one Newton step
+old. Iterations 0 and 1 (the large first steps of a frame) and every even
+iteration assemble fresh preconditioners. AL-IPC assembles every iteration
+whatever the key, because its multipliers and active set change between
+Newton iterations. What it saves: the local preconditioner assembly (ABD
+12x12 block inverses, MAS cluster scatter and inversion) on about half of
+the iterations from the third on. With the key at 0, `build_linear_system`
+assembles the preconditioners in every iteration, on the same path as
+without the feature.
+
+Why it is off by default: PCG stops on `|r^T z| <= tol_rate * |r0^T z0|`, in
+the norm of its preconditioner. A kept preconditioner can inflate that norm,
+so the relative tolerance is met while the free bodies' part of the step is
+still about zero; Newton's displacement test (`newton/velocity_tol`) then
+passes on that step and the frame ends with momentum lost: falling bodies fall
+too slowly, and stacked or swinging bodies lose kinetic energy, with every
+frame converged and no iteration limit hit. Enable it only for a scene that
+has been checked to move the same with both values.
+
 Note: a parent timer's duration **includes** its child timers (e.g. when Newton Iteration takes 80%, PCG/Line Search are already counted in it). The actual hierarchy is defined by the runtime output `timer_frames.json` (it changes dynamically with the enabled features).
 
 ### Line-search energy aggregation
@@ -861,9 +885,10 @@ MAS cluster scatter and inversion that stay on the legacy stream; the join
 comes before the solve. In a Newton iteration that assembles the
 preconditioners, each local preconditioner's `do_prepare_assembly()` is
 called once before `Convert To BCOO` (it must not read the global matrix):
-from `GlobalLinearSystem::prelaunch_assembly()` (beside the DyTopo work, off
-the host's issue path of the assembly), or from `build_linear_system` when no
-prelaunch ran; the FEM MAS preconditioner clears its cluster
+from `GlobalLinearSystem::prelaunch_assembly()` when the iteration does not
+keep the preconditioner (beside the DyTopo work, off the host's issue path
+of the assembly), otherwise from `build_linear_system` once it decides to
+assemble; the FEM MAS preconditioner clears its cluster
 Hessians there (`MASPreconditionerEngine::prepare_preconditioner()`, two
 memsets on a side stream of the engine forked from the legacy stream), so
 the clear runs beside the conversion, and

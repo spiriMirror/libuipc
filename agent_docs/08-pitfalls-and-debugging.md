@@ -229,6 +229,16 @@ touching that area; several of these have bitten us more than once.
   100000000") are the min/max policy working as designed on
   disabled/zero-stiffness pairs — not an error (handoff: "Default kappa
   policy").
+- **PCG's relative tolerance lives in the preconditioner's norm.** PCG
+  stops on `|r^T z| <= tol_rate * |r0^T z0|` with `z = P^-1 r`, so a change
+  to the preconditioner changes what "converged" means. A stale one (the
+  opt-in `linear_system/keep_preconditioner`, doc 05) can make the solve stop
+  while the step of the free bodies is still about zero; Newton's
+  displacement test reads that as convergence, and momentum is lost with
+  every frame converged and no limit hit. Fewer Newton iterations were the
+  symptom, not a gain: judge a solver-path change by body motion (fall per
+  frame, kinetic energy) against upstream and a tight-`tol_rate` reference,
+  not by iteration counts.
 
 ## GPU / cuda_tool
 

@@ -1,10 +1,10 @@
 /*
  * NVIDIA contributions: interfaces and state for fused iteration, blockwise
  * assembly and layout generation; for the block-diagonal PCG step, assembly
- * side streams, the prelaunched and in-place FEM assembly, batched read-backs
- * and parallel PCG segment streams; for the elastic-producer prelaunch right
- * after the contact assembly launch, late Hessian blocks and the
- * preconditioner preparation from the DyTopo hook.
+ * side streams, the prelaunched and in-place FEM assembly, batched read-backs,
+ * preconditioner reuse and parallel PCG segment streams; for the
+ * elastic-producer prelaunch right after the contact assembly launch, late
+ * Hessian blocks and the preconditioner preparation from the DyTopo hook.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -475,7 +475,10 @@ class GlobalLinearSystem : public SimSystem
         void prepare_prelaunch(SizeT beside_blocks = 0);
         void prelaunch_ahead();
         void prelaunch_assembly(bool contact_launched);
-        void build_linear_system();
+        // keep_preconditioner: keep the preconditioner of the previous
+        // assembly when the DoF layout is unchanged (see
+        // keeps_preconditioner()); otherwise assemble a fresh one.
+        void build_linear_system(bool keep_preconditioner = false);
         bool _update_subsystem_extent();
         void _assemble_linear_system();
         void _clear_triplets();
@@ -587,6 +590,14 @@ class GlobalLinearSystem : public SimSystem
         // not a sufficient graph validity key.
         SizeT dof_layout_generation = 0;
 
+        // Preconditioner reuse across Newton iterations: opt-in through
+        // linear_system/keep_preconditioner (default 0), standard IPC
+        // pipeline only, fixed at build; see keeps_preconditioner().
+        bool preconditioner_reuse = false;
+        // DoF layout generation of the last preconditioner assembly; the
+        // initial value matches no layout, so the first solve assembles.
+        SizeT preconditioner_layout_generation = ~SizeT{0};
+
         void apply_preconditioner(cuda_tool::DenseVectorView<Float>  z,
                                   cuda_tool::CDenseVectorView<Float> r,
                                   cuda_tool::CVarView<IndexT>        converged,
@@ -644,6 +655,17 @@ class GlobalLinearSystem : public SimSystem
     // callers should ask after their next host synchronization.
     SizeT last_solve_iterations();
 
+    // Newton iterations that keep the preconditioner assembled for the
+    // previous iteration when linear_system/keep_preconditioner is 1 (default
+    // 0): every odd iteration from the third on. Iterations 0 and 1 (the
+    // large first steps of a frame) and every even iteration assemble a fresh
+    // one, so a kept preconditioner is one Newton step old. PCG keeps its
+    // tol_rate, but measures it in the r^T z norm of the kept preconditioner,
+    // which can stop the solve early; see do_build().
+    static constexpr bool keeps_preconditioner(SizeT newton_iter) noexcept
+    {
+        return newton_iter >= 3 && newton_iter % 2 == 1;
+    }
     void compute_gradient(ComputeGradientInfo& info);
 
     cuda_tool::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }

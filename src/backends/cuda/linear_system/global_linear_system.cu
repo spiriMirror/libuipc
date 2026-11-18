@@ -3,13 +3,14 @@
  * assembly, layout generation and unsupported-layout fallback; the combined
  * ABD/FEM block-diagonal PCG step, the upper BCOO conversion, assembly side
  * streams and prelaunched producers, the FEM gather beside the legacy stream
- * and its in-place writes, batched count read-backs, parallel PCG
- * preconditioner branches (also in the setup chain) and the preconditioner
- * preparation beside the conversion; the in-place lead's elastic producers
- * prelaunched right after the contact assembly launch and held to the SMs the
- * contact blocks leave, late Hessian blocks counted after the rest of the
- * assembly is issued and placed behind it, the preconditioner preparation from
- * the DyTopo hook and the one-kernel triplet clear.
+ * and its in-place writes, batched count read-backs, preconditioner reuse on
+ * odd Newton iterations, parallel PCG preconditioner branches (also in the
+ * setup chain) and the preconditioner preparation beside the conversion; the
+ * in-place lead's elastic producers prelaunched right after the contact
+ * assembly launch and held to the SMs the contact blocks leave, late Hessian
+ * blocks counted after the rest of the assembly is issued and placed behind
+ * it, the preconditioner preparation from the DyTopo hook and the one-kernel
+ * triplet clear.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -282,6 +283,20 @@ void GlobalLinearSystem::do_build()
 
     m_impl.need_debug_dump =
         dump_linear_system_attr ? dump_linear_system_attr->view()[0] : false;
+
+    // Preconditioner reuse (see keeps_preconditioner()) is opt-in through
+    // linear_system/keep_preconditioner and off by default: PCG stops on
+    // |r^T z| <= tol_rate * |r0^T z0|, and a kept preconditioner, one Newton
+    // step old, can inflate that norm, so the solve can stop while the step of
+    // the free bodies is still about zero. Newton's displacement test then
+    // passes and momentum is lost. It applies to the standard IPC Newton
+    // loop only; AL-IPC changes its multipliers and active set between
+    // Newton iterations and assembles every iteration.
+    auto keep_attr = config.find<IndexT>("linear_system/keep_preconditioner");
+    auto constitution_attr = config.find<std::string>("contact/constitution");
+    m_impl.preconditioner_reuse =
+        keep_attr && keep_attr->view()[0] != 0
+        && (!constitution_attr || constitution_attr->view()[0] == "ipc");
 }
 
 void GlobalLinearSystem::_dump_A_b()
@@ -328,9 +343,10 @@ void GlobalLinearSystem::prelaunch_ahead()
 void GlobalLinearSystem::prelaunch_assembly(bool contact_launched)
 {
     m_impl.prelaunch_assembly(contact_launched);
-    // Prepare the preconditioners here, beside the DyTopo work, instead of in
-    // front of the conversion.
-    if(m_impl.initialized)
+    // An iteration that assembles its preconditioners prepares them here,
+    // beside the DyTopo work, instead of in front of the conversion.
+    if(m_impl.initialized
+       && !(m_impl.preconditioner_reuse && keeps_preconditioner(engine().newton_iter())))
         m_impl.prepare_preconditioners();
 }
 
@@ -338,7 +354,8 @@ void GlobalLinearSystem::solve()
 {
     m_impl.last_solve_iterations = 0;
     m_impl.last_solve_pending    = false;
-    m_impl.build_linear_system();
+    m_impl.build_linear_system(m_impl.preconditioner_reuse
+                               && keeps_preconditioner(engine().newton_iter()));
 
     if(m_impl.empty_system) [[unlikely]]
         return;
@@ -589,7 +606,7 @@ void GlobalLinearSystem::Impl::prelaunch_assembly(bool contact_launched)
     assembly_prelaunched = true;
 }
 
-void GlobalLinearSystem::Impl::build_linear_system()
+void GlobalLinearSystem::Impl::build_linear_system(bool keep_preconditioner)
 {
     Timer timer{"Build Linear System"};
     empty_system = !_update_subsystem_extent();
@@ -616,9 +633,14 @@ void GlobalLinearSystem::Impl::build_linear_system()
         in_place_ready = in_place_lead >= 0;
     }
 
-    // Prepared before the conversion, so the local preconditioners prepare
-    // their assembly beside it.
-    prepare_preconditioners();
+    // A kept preconditioner was assembled for the same DoF layout, so its
+    // buffers (and every captured PCG graph using them) stay valid. Decided
+    // before the conversion, so the local preconditioners prepare their
+    // assembly beside it.
+    const bool assemble_preconditioner =
+        !keep_preconditioner || preconditioner_layout_generation != dof_layout_generation;
+    if(assemble_preconditioner)
+        prepare_preconditioners();
 
     {
         Timer t{"Convert To BCOO"};
@@ -631,8 +653,12 @@ void GlobalLinearSystem::Impl::build_linear_system()
 
     {
         Timer t{"Assemble Preconditioner"};
-        _assemble_preconditioner();
-        preconditioners_prepared = false;
+        if(assemble_preconditioner)
+        {
+            _assemble_preconditioner();
+            preconditioner_layout_generation = dof_layout_generation;
+            preconditioners_prepared         = false;
+        }
     }
 
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
