@@ -5,9 +5,9 @@ add_requires(
     "spdlog[shared,header_only=n,fmt_external=y]"
 )
 
-if not is_plat("windows") then
-    -- libdwarf 2.3.3 removed the static/shared options used by xmake-repo.
-    add_requireconfs("cpptrace.libdwarf", {override = true, version = "2.3.2"})
+if is_plat("linux") then
+    -- xmake-repo's libdwarf 2.3.3 build installs a shared library.
+    add_requireconfs("cpptrace.libdwarf", {override = true, configs = {shared = true}})
 end
 
 -- Pin fmt to 12.1.0: 12.2.0's long double hexfloat path fails under nvcc (fallback uint128 lacks operator~)
