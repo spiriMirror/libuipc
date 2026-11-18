@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: scene-bounds reduction initialization and
+ * inactive-lane handling.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <cuda_device/builtin.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
@@ -43,15 +68,20 @@ UIPC_GENERIC UIPC_INLINE T mm_max(T a, T b)
 
 UIPC_DEVICE UIPC_INLINE float atomic_minf(float* addr, float value)
 {
-    return (value >= 0) ?
-               __int_as_float(atomicMin((int*)addr, __float_as_int(value))) :
+    // Classify by the IEEE-754 sign bit: -0.0f compares >= 0.0f but must use
+    // the negative-value integer ordering.
+    const int value_bits = __float_as_int(value);
+    return (value_bits >= 0) ?
+               __int_as_float(atomicMin((int*)addr, value_bits)) :
                __uint_as_float(atomicMax((unsigned int*)addr, __float_as_uint(value)));
 }
 
 UIPC_DEVICE UIPC_INLINE float atomic_maxf(float* addr, float value)
 {
-    return (value >= 0) ?
-               __int_as_float(atomicMax((int*)addr, __float_as_int(value))) :
+    // See atomic_minf: a numeric comparison misclassifies negative zero.
+    const int value_bits = __float_as_int(value);
+    return (value_bits >= 0) ?
+               __int_as_float(atomicMax((int*)addr, value_bits)) :
                __uint_as_float(atomicMin((unsigned int*)addr, __float_as_uint(value)));
 }
 
@@ -119,7 +149,6 @@ namespace
 {
     __global__ void InfoStacklessBVHV0_initializeBuildState_kernel(
         int                             num_objs,
-        cuda_tool::Dense<AABB>          scene_box,
         cuda_tool::BufferView<uint32_t> flags,
         cuda_tool::BufferView<uint32_t> ext_mark,
         cuda_tool::BufferView<int>      ext_lca,
@@ -130,8 +159,6 @@ namespace
         cuda_tool::BufferView<IndexT>   int_cid)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if(idx == 0)
-            *scene_box = AABB();
         if(idx < num_objs - 1)
         {
             flags(idx)   = 0;
@@ -150,37 +177,49 @@ namespace
             ext_lca(idx) = -1;
     }
 
-    __global__ void InfoStacklessBVHV0_initializeQueryState_kernel(
-        int num_objs, cuda_tool::Dense<AABB> scene_box, cuda_tool::BufferView<int> unsorted_ids)
+    __global__ void InfoStacklessBVHV0_initializeQueryState_kernel(int num_objs,
+                                                                   cuda_tool::BufferView<int> unsorted_ids)
     {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if(idx == 0)
-            *scene_box = AABB();
         if(idx < num_objs)
             unsorted_ids(idx) = idx;
+    }
+
+    __global__ void InfoStacklessBVHV0_resetSceneBox_kernel(cuda_tool::Dense<AABB> out)
+    {
+        *out = AABB();
     }
 
     __global__ void InfoStacklessBVHV0_calcMaxBVFromBox_kernel(
         size_t size, cuda_tool::CBufferView<AABB> box, cuda_tool::Dense<AABB> out)
     {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if(idx >= size)
-            return;
+        int                  idx = blockIdx.x * blockDim.x + threadIdx.x;
         __shared__ PlainAABB warp_boxes[K_WARPS];
-        auto                 temp     = to_plain(box(idx));
         int                  warp_tid = threadIdx.x & 31;
         int                  warp_id  = threadIdx.x >> 5;
 
+        PlainAABB temp;
+        if(idx < size)
+        {
+            temp = to_plain(box(idx));
+        }
+        else
+        {
+            constexpr float max_float = 3.402823466e+38F;
+            temp._min = make_float3(max_float, max_float, max_float);
+            temp._max = make_float3(-max_float, -max_float, -max_float);
+        }
+
         float minx = temp._min.x, miny = temp._min.y, minz = temp._min.z;
         float maxx = temp._max.x, maxy = temp._max.y, maxz = temp._max.z;
-        for(int i = 1; i < 32; i <<= 1)
+        for(int offset = 16; offset > 0; offset >>= 1)
         {
-            minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
-            miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
-            minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
-            maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
-            maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
-            maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
+            minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, offset));
+            miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, offset));
+            minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, offset));
+            maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, offset));
+            maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, offset));
+            maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, offset));
         }
         if(warp_tid == 0)
         {
@@ -189,36 +228,41 @@ namespace
         }
         __syncthreads();
 
-        int warp_num = (blockIdx.x == gridDim.x - 1) ?
-                           ((size - blockIdx.x * blockDim.x + 31) >> 5) :
-                           (blockDim.x >> 5);
-        if(threadIdx.x >= warp_num)
-            return;
+        if(warp_id == 0)
+        {
+            constexpr float max_float = 3.402823466e+38F;
+            if(warp_tid < K_WARPS)
+                temp = warp_boxes[warp_tid];
+            else
+            {
+                temp._min = make_float3(max_float, max_float, max_float);
+                temp._max = make_float3(-max_float, -max_float, -max_float);
+            }
 
-        temp = warp_boxes[threadIdx.x];
-        minx = temp._min.x;
-        miny = temp._min.y;
-        minz = temp._min.z;
-        maxx = temp._max.x;
-        maxy = temp._max.y;
-        maxz = temp._max.z;
-        for(int i = 1; i < warp_num; i <<= 1)
-        {
-            minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, i));
-            miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, i));
-            minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, i));
-            maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, i));
-            maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, i));
-            maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, i));
-        }
-        if(threadIdx.x == 0)
-        {
-            atomic_minf(&out->min().x(), minx);
-            atomic_minf(&out->min().y(), miny);
-            atomic_minf(&out->min().z(), minz);
-            atomic_maxf(&out->max().x(), maxx);
-            atomic_maxf(&out->max().y(), maxy);
-            atomic_maxf(&out->max().z(), maxz);
+            minx = temp._min.x;
+            miny = temp._min.y;
+            minz = temp._min.z;
+            maxx = temp._max.x;
+            maxy = temp._max.y;
+            maxz = temp._max.z;
+            for(int offset = 16; offset > 0; offset >>= 1)
+            {
+                minx = mm_min(minx, __shfl_down_sync(0xffffffff, minx, offset));
+                miny = mm_min(miny, __shfl_down_sync(0xffffffff, miny, offset));
+                minz = mm_min(minz, __shfl_down_sync(0xffffffff, minz, offset));
+                maxx = mm_max(maxx, __shfl_down_sync(0xffffffff, maxx, offset));
+                maxy = mm_max(maxy, __shfl_down_sync(0xffffffff, maxy, offset));
+                maxz = mm_max(maxz, __shfl_down_sync(0xffffffff, maxz, offset));
+            }
+            if(warp_tid == 0)
+            {
+                atomic_minf(&out->min().x(), minx);
+                atomic_minf(&out->min().y(), miny);
+                atomic_minf(&out->min().z(), minz);
+                atomic_maxf(&out->max().x(), maxx);
+                atomic_maxf(&out->max().y(), maxy);
+                atomic_maxf(&out->max().z(), maxz);
+            }
         }
     }
 
@@ -237,9 +281,10 @@ namespace
         float3 smin = make_float3(scene_min.x(), scene_min.y(), scene_min.z());
         auto   scene_size = scene->sizes();
         float3 off        = c - smin;
-        codes(idx)        = morton3D(off.x / scene_size.x(),
-                              off.y / scene_size.y(),
-                              off.z / scene_size.z());
+        float  nx  = scene_size.x() > 0.0f ? off.x / scene_size.x() : 0.0f;
+        float  ny  = scene_size.y() > 0.0f ? off.y / scene_size.y() : 0.0f;
+        float  nz  = scene_size.z() > 0.0f ? off.z / scene_size.z() : 0.0f;
+        codes(idx) = morton3D(nx, ny, nz);
     }
 
     __global__ void InfoStacklessBVHV0_calcInverseMapping_kernel(
@@ -700,6 +745,8 @@ namespace
 inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
                                                        cuda_tool::VarView<AABB> scene_box)
 {
+    InfoStacklessBVHV0_resetSceneBox_kernel<<<1, 1, 0, nullptr>>>(scene_box.viewer());
+
     if(aabbs.size() == 0)
         return;
 
@@ -891,7 +938,6 @@ inline void InfoStacklessBVHV0::Impl::build(cuda_tool::CBufferView<AABB> aabbs,
     auto n    = static_cast<int>(num_objs);
     init<<<cuda_tool::best_grid_dim(n + 1, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
         n,
-        scene_box.viewer(),
         flags.view(),
         ext_mark.view(),
         ext_lca.view(),
@@ -986,7 +1032,7 @@ inline void InfoStacklessBVHV0::QueryBuffer::build(cuda_tool::CBufferView<AABB> 
     auto n    = static_cast<int>(aabbs.size());
     if(n > 0)
         init<<<cuda_tool::best_grid_dim(n, init), cuda_tool::best_block_dim(init), 0, nullptr>>>(
-            n, m_querySceneBox.viewer(), m_queryId.view());
+            n, m_queryId.view());
     Impl::calcMaxBVFromBox(aabbs, m_querySceneBox);
     Impl::calcMCsFromBox(aabbs, m_querySceneBox, m_queryMtCode.view());
     cuda_tool::DeviceRadixSort().SortPairs(m_queryMtCode.data(),

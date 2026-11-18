@@ -1949,3 +1949,21 @@ regression).
   repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
   real Python 3.14 CUDA doctor probe, and the complete documentation build all
   passed.
+# BVH scene-bounds contribution preparation (2026-10-18)
+
+The focused scene-bounds fix was prepared against `ac89e100`. Bounds initialization is ordered before the reduction, inactive
+lanes participate with neutral values, and signed zero uses IEEE sign-bit
+ordering. The three BVH variants have a shared CPU bounds oracle. This is a
+correctness prerequisite for matched optimization comparisons; validation is
+recorded separately from historical performance results.
+
+# CUDA test-oracle correction (2026-10-18)
+
+The LBVH point-query CPU oracle returned an Eigen cast expression referring
+to a destroyed temporary. A host-only AddressSanitizer reproduction reports
+stack-use-after-scope. Returning a concrete `Vector3` fixes the lifetime;
+the existing bunny section then matches 101,802 CPU/GPU point candidates.
+No BVH implementation or overlap predicate changed. This is a test-only
+correction: no production tolerance, algorithm, graph mode or parallel
+accumulation order was changed.
+

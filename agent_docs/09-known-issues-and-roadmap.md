@@ -72,6 +72,10 @@ and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
 for both fold signs and rigid transforms. No additional coefficient or derivative
 mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
 
+Test follow-up (2026-10-18): the lifetime of a temporary in the LBVH CPU
+point-query oracle was corrected in the test only; see `handoff.md`. This does
+not settle unrelated audit findings or establish a speedup.
+
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
 temporary reads that corrupted topology or raised spurious vertex-range errors,
