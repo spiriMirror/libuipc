@@ -17,7 +17,7 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 | `06-python-api-and-packaging.md` | pybind structure, Python package layout, wheel packaging pipeline |
 | `07-build-test-workflow.md` | CMake/XMake builds, test system, CI drift incidents and the pin/overlay pattern, development conventions (summary of .cursor rules) |
 | `08-pitfalls-and-debugging.md` | **Collected hard-won pitfalls**: build/CI traps, suite pollution, perf-measurement pitfalls, Python/runtime API traps, contact/constraint semantics gotchas, cuda_tool contracts |
-| `09-known-issues-and-roadmap.md` | **Open issues and plans**: current four-scene performance envelope, historical optimization ledger, deferred CFL floor, dependency pins, external PR review, and samples state |
+| `09-known-issues-and-roadmap.md` | **Open issues and plans**: community benchmark workflow, historical optimization ledger, deferred CFL floor, dependency pins, external PR review, and samples state |
 | `10-code-navigation-and-extension-map.md` | Public API → implementation → backend → binding → test map; coordinated change recipes and verification matrix |
 | `11-scene-data-lifecycle-and-serialization.md` | Scene ownership, current/rest geometry, pending mutations, Animator, contact/subscene semantics, snapshots, full persistence, and baseline-relative commit contracts |
 | `12-secondary-modules-samples-and-docs.md` | Features, sanity checking, DiffSim, USD/VDB, Python helpers, samples index, MkDocs/API generation, deployment and release boundaries |
@@ -68,7 +68,8 @@ This directory is a structured summary of the libuipc codebase, allowing newly o
 - Incremental Scene commits are lossless relative to a compatible full baseline,
   including removals, sparse IDs, and contact/subscene tables. They are not
   standalone Scene files; read doc 11 for baseline and lifecycle requirements.
-- The current machine-specific performance reference is the four-scene
-  `performance/2026-09-01-cross-domain-baseline.md`; older numbers in
-  `handoff.md` are chronological experiment evidence.
+- Follow [the community benchmark policy](performance/README.md) and
+  [portable workload guide](../docs/development/testing_and_benchmarks.md).
+  Device-specific values in performance records and `handoff.md` are historical
+  experiment evidence, not community speed thresholds or hardware requirements.
 - XMake explicitly disables ccache, mirrors the active optional USD/VDB modules, and synchronizes pybind package copies before packaging.

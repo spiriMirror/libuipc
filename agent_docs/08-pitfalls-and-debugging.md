@@ -105,11 +105,11 @@ touching that area; several of these have bitten us more than once.
 
 ## Performance measurement
 
-- **Start from the current four-scene reference**, not a number copied from
-  handoff history. The 2026-09-01 RTX 5090/CUDA 13.2 baseline is
-  `performance/2026-09-01-cross-domain-baseline.md` and requires three fresh
-  processes, the declared frame window, structured iteration counts, and a
-  separate Timer diagnostic.
+- **Start with fresh same-machine measurements of relevant registered workloads.**
+  Follow the [benchmark guide](../docs/development/testing_and_benchmarks.md):
+  fixed inputs and build settings, at least three fresh processes per version,
+  the same frame window, structured iteration counts, and separate Timer
+  diagnostics. Historical device values are evidence, not universal targets.
 - **Build contention pollutes timing completely.** A hot build once made
   sanity_check look like a 112 ms/frame culprit (idle machine: 2-5 ms).
   Benchmark only on an idle machine.

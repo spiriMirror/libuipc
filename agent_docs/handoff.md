@@ -38,6 +38,92 @@
 > `advance()` 3/3, patched passes 3/3; `test_contact_fd.py` 42/42 before and
 > after.
 
+> **MAS correctness follow-up (2026-10-29)**: rechecked aligned hierarchy
+> offsets, unique row writers, convergence guards and same-stream consumption.
+> Expanded the actual-kernel probe to change matrices/residuals while reusing
+> the output and captured graph, including skip/resume and zero-input cases;
+> before/after comparisons and independent dense references passed. Memcheck,
+> racecheck and initcheck reported no errors/hazards in this isolated probe.
+> Both frozen backends completed/converged for 60 MAS-bunny frames in each
+> graph mode 0/1/2 (360 total), with actual capture confirmed for modes 1/2.
+> Production code/binaries are unchanged; this is additional single-environment
+> evidence, not a universal guarantee. The existing case 86 failure remains.
+> See [the follow-up record](performance/2026-10-28-mas-local-solve.md#correctness-follow-up-2026-10-29).
+
+> **MAS local-solve optimization (2026-10-28)**: each cluster row already has a
+> single writer after its CUB reduction. Assign the resulting `float3` directly
+> and remove the preceding `multi_level_Z` clear. This removes one launch per
+> MAS application and three atomics per row, retaining multi-writer coarse
+> residual atomics, existing reductions, precision, partitions and solver/material
+> settings. Rejected inversion-layout experiments were confined to ignored
+> probes; no inversion code changed. See
+> [the scoped evidence record](performance/2026-10-28-mas-local-solve.md).
+>
+> CUDA-event probes measured 23–30% lower clear-plus-local-solve cost for
+> 3–512 clusters; paired stage profiles measured 1.35% lower MAS-bunny FusedPCG
+> time. Three full-window fresh-process runs per version gave 75.065 to 74.650
+> ms/frame (-0.55%) for MAS bunny. Case2, wall/cloth and the pure-ABD control
+> remained within repeat variation; no broad frame-rate claim is made. All
+> 24 throughput runs completed/converged with stable pre/post fingerprints.
+> Hardware details belong only to this experiment's metadata.
+>
+> Validation: exact before/after local results and independent dense references;
+> complete overwrite and converged-skip probes; memcheck zero errors and
+> racecheck zero hazards. CPU common/core/geometry passed, CUDA backend passed
+> 27 cases / 805 assertions, sanity checking 3 / 100, regression 1 / 4, and
+> 67 repository script tests passed. **The full simulation aggregate is not
+> fully green:** both before and after backends pass 94/95 cases and
+> 14211/14213 assertions. Case 86 stress-plastic bending fails two residual-angle
+> thresholds (about 0.03314 rad versus 0.05); it uses diagonal preconditioning
+> and also fails in isolation with the frozen before backend. No test threshold
+> or constitutive change was folded into this performance task; doc 09 tracks
+> the existing failure for separate investigation.
+>
+> Release build and uninstall-first installation succeeded in the selected
+> build environment and default CPython 3.12. Installed MAS/cloth GPU smoke
+> runs passed. Installed/backend build SHA-256 is
+> `30c01f5ea7117645496f5420b7138ee5bee0f9ba49695a31529a0569cc8ae251`.
+> Local evidence/snapshots are under `output/perf-2026-10-28/`; the samples
+> gitlink remains `77f4341`. Nsight hardware counters were unavailable, so the
+> record explicitly distinguishes CUDA-event timing from counter attribution.
+
+> **Community benchmark policy and runnable samples (2026-10-28)**: workload
+> definitions, metrics and reproduction commands are portable; GPU/CPU/driver
+> details are result metadata. Removed the designation of historical desktop
+> measurements as the project's current reference from the README, benchmark
+> guide, agent docs and GPU skill. Historical evidence retains its original
+> values and environment. New comparisons use repeated before/after runs on
+> the same machine with fixed inputs/settings; no universal GPU model or
+> absolute time gate is introduced. The existing `uipc.profile` baseline/check
+> tools remain separate from registry JSON and are documented accordingly.
+>
+> Root registry now has small/standard/stress tiers. The small workload uses
+> sample 95 at resolution 8 (243 vertices / 384 triangles), 30 frames; existing
+> scene parameters and sample 95's default resolution remain unchanged.
+> `--quick` means three frames, not reduced mesh size or memory consumption.
+> Samples/main `77f4341` restores shared headless reporting from historical
+> `8701983`, including sample 6's viewer-free path, adds sample 95 reporting,
+> and ensures samples 89/93 read final observables at the requested last frame.
+> The parent gitlink follows the pushed samples commit.
+>
+> `scripts/run_benchmark.py validate` checks actual declared files and Python
+> syntax without importing GPU dependencies. Repository Contracts initializes
+> only the pinned samples submodule and runs this check. Runtime results must
+> contain the requested completed frame sequence and finite non-negative times;
+> missing/malformed results fail even if the child exits zero, retaining raw
+> logs, child status and validation errors. Runtime/input fingerprints remain
+> outside frame timing. No native solver or material implementation changed.
+>
+> Validation: 67 repository script tests passed; all five registered workloads
+> passed three-frame GPU smoke runs. The small default 30-frame workload and an
+> 11-frame MAS run also passed, with completion/convergence, no iteration-limit
+> hits and stable pre/post runtime/input hashes. These are execution checks,
+> not a new performance baseline or speedup claim. Zero-byte/API/workflow-pin
+> checks and both repositories' diff checks passed. Ignored evidence:
+> `output/benchmark-runs/`, `output/benchmark-*-smoke.log`,
+> `output/benchmark-small-full.log`, `output/benchmark-mas-eleven.log`,
+> `output/benchmark-repository-tests.log`. No native rebuild was needed.
+
 > **PR #502 Eigen 5 header dependency (2026-10-20)**: Linux XMake uses Eigen
 > 5.0.1 and caught the BW formula header relying on callers to include
 > `Eigen/Geometry` before using `Vector3::cross`. Add that direct dependency

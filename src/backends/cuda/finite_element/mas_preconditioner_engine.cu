@@ -967,9 +967,10 @@ namespace
 
         if((threadIdx.x % BANKSIZE) == 0)
         {
-            atomicAdd(&(multi_lz(vert_row).x), result[0]);
-            atomicAdd(&(multi_lz(vert_row).y), result[1]);
-            atomicAdd(&(multi_lz(vert_row).z), result[2]);
+            // Each cluster row is owned by exactly one logical warp. The
+            // reduction completely overwrites its result, including padded
+            // rows, so no zero-fill or atomic accumulation is needed.
+            multi_lz(vert_row) = make_float3(result[0], result[1], result[2]);
         }
     }
 
@@ -1561,8 +1562,6 @@ void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
             .view(m_total_map_nodes, m_total_num_clusters - m_total_map_nodes)
             .fill(Eigen::Vector3f::Zero(), stream);
     }
-
-    multi_level_Z.view(0, m_total_num_clusters).fill(float3{0, 0, 0}, stream);
 
     // 1. Restrict: accumulate residual down through levels
     build_multi_level_R(r, converged, stream);

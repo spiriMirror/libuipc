@@ -84,7 +84,7 @@ The equivalent Python API is
 `uipc.profile.create_baseline(...)` / `uipc.profile.check_baseline(...)`.
 
 For the repository's fixed cross-domain workloads, revision archival, and
-current machine-specific reference numbers, see
+small/standard/stress tiers and same-environment comparison guidance, see
 [Testing and Benchmarks](../development/testing_and_benchmarks.md). That runner
 keeps throughput and synchronized diagnostics separate and records structured
 solver counters after each frame.

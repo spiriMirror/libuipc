@@ -217,23 +217,19 @@ AL-IPC passes the shared negative disabled threshold in both normal and
 frictional contact. Its `need_mollify()` result is therefore always false, and
 every AL pair follows the corresponding ordinary EE path.
 
-## Current cross-domain performance reference
+## Cross-domain performance measurement
 
-The current absolute reference is the
-[2026-09-01 cross-domain baseline](performance/2026-09-01-cross-domain-baseline.md),
-measured on RTX 5090 / CUDA 13.2 with three fresh Timer-free processes per
-scene. Median run means are 129.5 ms/frame for pure ABD wrecking balls,
-201.1 ms/frame for the 250-frame FEM/cloth case2 contract, 60.2 ms/frame for
-the MAS bunny, and 125.6 ms/frame for the ABD-wall/cloth scene. All recorded
-frames completed and converged without hitting configured iteration limits.
+Use the [portable workload guide](../docs/development/testing_and_benchmarks.md)
+to select small, standard or stress scenes and collect fresh before/after runs
+on the same machine and configuration. Inspect structured iteration counts and
+final observables alongside wall-time distributions; collect synchronized
+Timer diagnostics separately. Bottlenecks depend on the scene and environment.
 
-Separate synchronized Timer windows show scene-specific costs rather than one
-universal backend bottleneck: global solve consumes 19.76/11.64/8.53/11.17 ms
-per Newton call for rigid/case2/MAS/wall-cloth respectively, while line search
-uses 6.62/7.88/2.58/4.70 ms and DyTopo uses 3.98/4.66/0.55/3.85 ms. Consult the
-record for frame windows, PCG/Newton counts, memory envelopes, and numerical
-variability before selecting an optimization target. The older numbers below
-are controlled historical A/B evidence, not current absolute baselines.
+The [2026-09-01 measurements](performance/2026-09-01-cross-domain-baseline.md)
+and older numbers below are historical evidence for their recorded machines,
+revisions and frame windows. They prescribe neither a GPU model nor a community
+speed target. Capture a runner's own repeated measurements before setting any
+local performance gate.
 
 ## Sparse linear-system storage: BCOO is the active solve path
 

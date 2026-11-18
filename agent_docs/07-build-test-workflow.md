@@ -129,11 +129,14 @@ metadata and `Engine("none")` smoke test.
 benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
 canonicalizes tuning environment variables, and launches the implementation in
 the tracked `libuipc-samples` submodule without copying it. The canonical suite
-is `rigid-wrecking-balls` (sample 6), `stiff-gipc-case2` (88), `mas-bunny` (89),
-and `cube-wall-cloth` (93):
+offers small `anisotropic-cloth-small` (sample 95), standard
+`rigid-wrecking-balls` (6) / `mas-bunny` (89), and stress
+`stiff-gipc-case2` (88) / `cube-wall-cloth` (93) workloads:
 
 ```bash
 python scripts/run_benchmark.py list
+python scripts/run_benchmark.py validate
+python scripts/run_benchmark.py run anisotropic-cloth-small
 python scripts/run_benchmark.py run rigid-wrecking-balls --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --quick
 python scripts/run_benchmark.py run stiff-gipc-case2 --frames 250
@@ -148,8 +151,10 @@ total-device memory peak, duration, return code, and the raw log under
 `output/benchmark-runs/`. `--dry-run` resolves the contract without launching.
 Canonical throughput runs keep `UIPC_BENCHMARK_TIMERS=0`; use a separate
 `--env UIPC_BENCHMARK_TIMERS=1` run for synchronized stage timing because Timer
-instrumentation changes wall time. Performance thresholds belong in compatible
-`uipc.profile` baseline/check artifacts, never in portable correctness tests.
+instrumentation changes wall time. Compare repeated runs on the same machine
+and configuration. The separate `uipc.profile` baseline/check tools consume
+their own result format; registry JSON follows the public benchmark guide's
+comparison protocol. Neither defines universal hardware or speed requirements.
 
 The runner also records pre/post runtime fingerprints (selected Python package,
 build metadata, Python source hashes, colocated native-library SHA-256 values)
@@ -164,7 +169,7 @@ for the worktree command and interpretation limits.
 
 ## CI / Release
 
-- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, built with CUDA 12.8, plus a native-binary audit that forbids dynamic CUDA Toolkit libraries), `docs.yml`, `hotfix_publish.yml`. Repository-contract checkout intentionally does not materialize large submodules: manifest tests validate declarations in that job, while `run_benchmark.py` validates actual sample assets before execution.
+- `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, built with CUDA 12.8, plus a native-binary audit that forbids dynamic CUDA Toolkit libraries), `docs.yml`, `hotfix_publish.yml`. Repository Contracts shallow-initializes only the pinned `libuipc-samples` submodule and runs `run_benchmark.py validate` against its actual inputs without requiring a GPU.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
 - For the version tag and release workflow, see `.cursor/skills/push-tag/SKILL.md`.

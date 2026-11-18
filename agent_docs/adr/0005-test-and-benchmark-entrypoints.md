@@ -25,12 +25,19 @@ process. CTest aggregate GPU executables share the `uipc_gpu` resource lock.
 Keep performance out of portable correctness assertions. Root
 `benchmarks/manifest.json` owns stable benchmark names, canonical arguments,
 environment cleanup, assets, and metadata paths while implementations remain in
-the tracked samples submodule. `run_benchmark.py` preserves child status and
+the tracked samples submodule. `run_benchmark.py` preserves child failures and
 records revisions, runtime/hardware facts, full scene-reported frame timing,
 structured backend iteration counts, final-state observables, approximate peak
 device memory, and raw logs. The canonical suite spans pure ABD contact, mixed
 FEM/cloth contact, stiff MAS FEM, and large ABD-cloth coupling. Synchronized
 Timer scopes are collected only in separate diagnostic runs.
+
+2026-10-28 clarification: workloads have small/standard/stress tiers, including
+a procedural small cloth case. Hardware describes results and does not define
+a community requirement. Compare library revisions on the same machine with
+fixed inputs and configuration. CI checks actual required files and syntax at
+the pinned samples revision without a GPU. A successful child must also supply
+complete, finite frame results; invalid results retain logs and fail the runner.
 
 ## Consequences
 
