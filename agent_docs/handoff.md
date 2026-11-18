@@ -1,5 +1,47 @@
 # Handoff — Current State of the Repo
 
+> **FEM data export feature, branch `fem-data-export` (2026-11-16)**:
+> implements issue #344. `FEMExporterManager`
+> (`src/backends/cuda/finite_element/`) registers `core::FEMSystemFeature`
+> (`include/uipc/core/fem_system_feature.h`); instead of snapshotting solver
+> buffers, it drives `FiniteElementElastics`' compute path on demand at the
+> current `xs`, never stale line-search state. This covers every
+> base and extra constitution (0D–3D, bending included) with no
+> per-constitution code. Exports carry the scene dt's `dt^2`
+> incremental-potential scaling — deliberately the same convention as
+> ContactSystemFeature (the dt^2 factor can be dropped from both if the
+> maintainers prefer physical units; flagged in the PR). SNK1 is nonzero
+> at rest by design (Psi(I) = mu^2 / (2 lambda_hat)); the constant offset
+> is handled client-side (the testbench subtracts the frame-1 free-fall
+> energy). Measured
+> export cost on a 10368-tet grid: energy 0.048 ms,
+> gradient 0.119 ms, Hessian 0.689 ms, vertex gradient 0.040 ms per call;
+> zero cost unless an export is called. The example is an
+> energy-conservation testbench (SNH tet dropped on an implicit ground,
+> frictionless): elastic/kinetic/potential/contact energy per frame to CSV,
+> both energy exports divided by dt^2;
+> the free-fall drain is exactly the BDF1 dissipation 1/2 m g^2 dt^2 per step
+> (2.08 J/frame here; it is a bookkeeping artifact — evaluating PE at the
+> staggered position x - dt/2 v makes free-fall total constant to 1e-4
+> relative), the impact drop is genuine non-symplectic dissipation (the
+> barrier stores only ~2.3 J at rest vs the ~4 kJ lost). Exports:
+> per-element energy (+ element `topo`),
+> per-element gradient doublets (`i`/`grad`), per-element Hessian triplets
+> (`i`/`j`/`hess`), and per-vertex aggregated gradient into a
+> state-accessor geometry (force = -gradient/dt^2). Python bindings under
+> `src/pybind/pyuipc/core/` verified end-to-end: rebuilt with
+> `UIPC_BUILD_PYBIND=ON`, imported, and a GPU smoke test of all export
+> methods from Python. The case-86 failure was confirmed pre-existing by
+> rebuilding clean `origin/main` and reproducing the identical value.
+> Verification: sim case 94 (`apps/tests/sim_case/94_fem_data_export.cpp`)
+> — rigid-motion invariance, analytic spring energy, gradient/Hessian vs
+> central finite differences through the state accessor, uid discovery,
+> unknown-uid tolerance; plus `apps/examples/fem_export/`. Aggregate run:
+> 96/97 cases; only the previously recorded case-86 plastic-bending failure
+> (see 2026-11-05 entry) reproduces identically, i.e. not a regression.
+> Local clang-format is 19 vs CI's 18. Open questions are collected in the
+> untracked summary file `FEM_DATA_EXPORT_SUMMARY.md` at the repo root.
+
 > **Issue #504 / PR #505 regression coverage (2026-11-05)**: PR #505 was
 > merged into main as `b116f19b`; issue #504 is closed. The follow-up native
 > `ipc_barrier_upper_bound` test exercises the actual energy and first two

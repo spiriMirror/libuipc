@@ -120,6 +120,7 @@ class FiniteElementElastics final : public SimSystem
   private:
     friend class FiniteElementElasticsLinearSubsystemReporter;
     friend class FiniteElementElasticsLineSearchSubreporter;
+    friend class FEMExporterManager;
 
     virtual void do_build() override;
 

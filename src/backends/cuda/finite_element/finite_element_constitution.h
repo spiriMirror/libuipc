@@ -42,6 +42,7 @@ class FiniteElementConstitution : public SimSystem
     friend class FEM3DConstitution;
     friend class FiniteElementMethod;
     friend class FiniteElementElastics;
+    friend class FEMExporterManager;
 
     friend class FiniteElementConstitutionDiffParmReporter;
     friend class FiniteElementConstitutionLinearSubsystemReporter;
