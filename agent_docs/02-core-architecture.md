@@ -74,7 +74,7 @@ Configuration is stored in an `AttributeCollection` (resize(1)). Key entries:
 - `collision_detection/*` (`method`: `info_stackless_bvh` default; the V0, stackless, and linear-BVH selectors are schema-visible only when the matching legacy CUDA component was built), `sanity_check/*`, `diff_sim/enable`
 
 **Config contract**: a single `make_scene_config_contract()` declaration creates
-both the typed `AttributeCollection` defaults and the metadata for all 49 keys.
+both the typed `AttributeCollection` defaults and the metadata for all 50 keys.
 `Scene::default_config()` and `Scene::config_schema()` consume that same result,
 so a default cannot be added or changed independently of its public schema.
 `Scene::config_schema()` returns defaults, JSON/storage types, units, hard

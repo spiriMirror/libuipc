@@ -192,6 +192,12 @@ static SceneConfigContract make_scene_config_contract()
         "Log the energy contribution of every line-search reporter.",
         {"src/backends/cuda/line_search"},
         flag);
+    add("line_search/cubic_refinement",
+        IndexT{0},
+        "integer",
+        "Opt-in, standard IPC pipeline only (AL-IPC ignores it and logs a warning): after a backtrack, also try the minimizer of a cubic fit of the energy along the step and keep the lower-energy accepted step.",
+        {"src/backends/cuda/line_search", "src/backends/cuda/engine/advance_ipc.cu"},
+        flag);
 
     add("contact/enable",
         IndexT{1},

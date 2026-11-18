@@ -100,6 +100,18 @@ Pipeline
 ```
 
 The line search halves `alpha` until the trial energy does not exceed `E0`.
+With `line_search/cubic_refinement = 1` (off by default; standard IPC only,
+`LineSearcher` logs a warning under AL-IPC) it refines a backtracked step once: the minimizer of the cubic through `E0`, the slope
+`g.dx` (`GlobalLinearSystem::newton_step_slope()`, `-b.x` of the solved
+system) and the rejected and accepted trials
+(`line_search/cubic_line_minimizer.h`) is evaluated when it lies inside the
+bracket and differs from the accepted step by more than 25%, and the lower of
+the two energies wins (after a worse refinement, `step_to_trial` returns to
+the accepted step to restore its state and active set; its energy is known).
+It helps when halving alone accepts steps far from the line minimum, for
+example when the lagged friction model underestimates the curvature along
+`dx` as sliding contacts stick again. It changes the accepted step, so it is
+not trajectory-neutral.
 
 Only the pre-Newton pass runs DCD detection. Iteration `k > 0` starts from the
 active set that the last line-search trial of iteration `k - 1` filtered from

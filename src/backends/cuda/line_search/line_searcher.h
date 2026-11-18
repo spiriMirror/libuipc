@@ -107,6 +107,9 @@ class LineSearcher : public SimSystem
     void add_reporter(LineSearchReporter* reporter);
 
     SizeT max_iter() const noexcept;
+    // line_search/cubic_refinement: refine a backtracked step once at the
+    // minimizer of a cubic fit (off by default).
+    bool cubic_refinement() const noexcept;
 
   protected:
     void do_build() override;
@@ -227,6 +230,7 @@ class LineSearcher : public SimSystem
     bool                                    m_report_energy          = false;
     std::stringstream                       m_report_stream;
     S<const geometry::AttributeSlot<Float>> m_dt_attr;
-    IndexT                                  m_max_iter = 64;
+    IndexT                                  m_max_iter         = 64;
+    bool                                    m_cubic_refinement = false;
 };
 }  // namespace uipc::backend::cuda

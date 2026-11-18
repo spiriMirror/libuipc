@@ -4,13 +4,14 @@
  * ABD/FEM block-diagonal PCG step, the upper BCOO conversion, assembly side
  * streams and prelaunched producers, the FEM gather beside the legacy stream
  * and its in-place writes, batched count read-backs, preconditioner reuse on
- * odd Newton iterations, parallel PCG preconditioner branches (also in the
- * setup chain), the preconditioner preparation beside the conversion and the
- * deferred solution retrieval; the in-place lead's elastic producers
- * prelaunched right after the contact assembly launch and held to the SMs the
- * contact blocks leave, late Hessian blocks counted after the rest of the
- * assembly is issued and placed behind it, the preconditioner preparation from
- * the DyTopo hook and the one-kernel triplet clear.
+ * odd Newton iterations, the Newton-step slope for the line search, parallel
+ * PCG preconditioner branches (also in the setup chain), the preconditioner
+ * preparation beside the conversion and the deferred solution retrieval; the
+ * in-place lead's elastic producers prelaunched right after the contact
+ * assembly launch and held to the SMs the contact blocks leave, late Hessian
+ * blocks counted after the rest of the assembly is issued and placed behind
+ * it, the preconditioner preparation from the DyTopo hook and the one-kernel
+ * triplet clear.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -385,6 +386,13 @@ Float GlobalLinearSystem::mass_norm()
 {
     m_impl.build_linear_system();
     return m_impl.mass_norm();
+}
+
+Float GlobalLinearSystem::newton_step_slope()
+{
+    if(m_impl.empty_system)
+        return 0.0;
+    return -m_impl.ctx.dot(m_impl.b.cview(), m_impl.x.cview());
 }
 
 void GlobalLinearSystem::Impl::init()

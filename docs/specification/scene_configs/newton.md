@@ -16,6 +16,20 @@ Newton iteration assembles the global system, solves it with PCG, limits the
 step for contact, performs backtracking line search, and then asks every active
 tolerance checker whether it converged.
 
+The line search accepts the first trial whose total energy does not exceed the
+energy at the start of the step, halving the step after each rejected trial.
+With `line_search/cubic_refinement = 1` (default `0`), a step accepted after
+at least one rejection is refined once: the solver evaluates the minimizer of
+the cubic that interpolates the start energy, the energy slope `g.dx` along
+the Newton step and the energies of the last rejected and the accepted trial,
+when that minimizer lies between 5% of the rejected step and the rejected step
+and differs from the accepted step by more than 25%, and keeps whichever of the
+two trials has the lower energy. The refinement runs only while at least two
+of the `line_search/max_iter` trials remain. It changes which step is
+accepted, so trajectories differ from the default. Only the standard IPC
+pipeline refines; with `contact/constitution = "al-ipc"` the key has no effect
+and a warning is logged.
+
 Ordinary termination requires all applicable checks to pass:
 
 1. animation targets have been reached;

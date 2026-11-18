@@ -181,6 +181,7 @@ termination logic and tuning guidance.
 | --- | --- | --- | --- | --- |
 | `line_search/max_iter` | integer | `8` | `>= 1` | Maximum backtracking iterations per Newton step. |
 | `line_search/report_energy` | flag | `0` | `0`, `1` | Logs the energy contribution of every line-search reporter. Useful for diagnosis, noisy for normal runs. |
+| `line_search/cubic_refinement` | flag | `0` | `0`, `1` | Opt-in. `1`: after a backtrack, one more trial at the minimizer of a cubic fit of the energy along the Newton step; the lower-energy accepted step is kept (see [Newton and Linear Solvers](scene_configs/newton.md)). Standard `ipc` pipeline only: with `contact/constitution = "al-ipc"` the key has no effect and a warning is logged. `0` is the plain halving line search. |
 
 ## Contact and friction
 

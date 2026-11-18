@@ -2,10 +2,10 @@
  * NVIDIA contributions: interfaces and state for fused iteration, blockwise
  * assembly and layout generation; for the block-diagonal PCG step, assembly
  * side streams, the prelaunched and in-place FEM assembly, batched read-backs,
- * preconditioner reuse, parallel PCG segment streams and the deferred solution
- * retrieval; for the elastic-producer prelaunch right after the contact
- * assembly launch, late Hessian blocks and the preconditioner preparation from
- * the DyTopo hook.
+ * preconditioner reuse, the Newton-step slope, parallel PCG segment streams
+ * and the deferred solution retrieval; for the elastic-producer prelaunch
+ * right after the contact assembly launch, late Hessian blocks and the
+ * preconditioner preparation from the DyTopo hook.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -730,6 +730,10 @@ class GlobalLinearSystem : public SimSystem
     // only be called by SimEngine::do_advance()
     Float diag_norm();
     Float mass_norm();
+
+    // only be called by SimEngine::do_advance(): the energy slope g.dx along
+    // the last solved Newton step dx = -x, where A x = b and b is the gradient
+    Float newton_step_slope();
 
     Impl m_impl;
 

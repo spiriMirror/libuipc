@@ -3,12 +3,13 @@
  * and active-contact count readback; reuse of trajectory candidates, the
  * frame-start active set and the last trial energy, trajectory BVH refit for
  * the whole Newton loop, the line-search prologue and first-trial energies
- * overlapped with detection and CCD, the prelaunched assembly hooks, the
- * cached line-search energy graph with an asynchronous initial energy, batched
- * start-point copies, step forward and post-solve retrieval, batched count
- * read-backs and the prelaunched trial contact energies; the elastic-producer
- * prelaunch right after the contact assembly launch, and the TOI fork from the
- * detection hook before the candidate-count read-back.
+ * overlapped with detection and CCD, the prelaunched assembly hooks, the cubic
+ * refinement of backtracked steps, the cached line-search energy graph with an
+ * asynchronous initial energy, batched start-point copies, step forward and
+ * post-solve retrieval, batched count read-backs and the prelaunched trial
+ * contact energies; the elastic-producer prelaunch right after the contact
+ * assembly launch, and the TOI fork from the detection hook before the
+ * candidate-count read-back.
  *
  * The NVIDIA notice applies to the contributions described above, not to the
  * pre-existing libuipc or other contributors' code.
@@ -39,6 +40,7 @@
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <line_search/line_searcher.h>
+#include <line_search/cubic_line_minimizer.h>
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
 #include <diff_sim/global_diff_sim_manager.h>
@@ -671,6 +673,9 @@ void SimEngine::advance()
                     SizeT line_search_iter = 0;
                     Float last_E = 0.0;  // E_0 unless a trial is evaluated
                     bool  last_E_evaluated = false;
+                    // last rejected trial (alpha, E), for the opt-in refinement
+                    Float rejected_alpha = 0.0;
+                    Float rejected_E     = 0.0;
                     for(; line_search_iter < m_line_searcher->max_iter(); ++line_search_iter)
                     {
                         Timer timer{"Line Search Iteration"};
@@ -712,9 +717,46 @@ void SimEngine::advance()
 
                         bool success = energy_decrease && no_inversion;
                         if(success)
+                        {
+                            // line_search/cubic_refinement (off by default):
+                            // a backtracked step is tried once more at the
+                            // minimizer of the cubic through E0, the slope
+                            // g.dx and the rejected and accepted trials; the
+                            // lower of the two accepted energies wins.
+                            if(m_line_searcher->cubic_refinement() && rejected_alpha > 0.0
+                               && line_search_iter + 2 < m_line_searcher->max_iter())
+                            {
+                                Float slope = m_global_linear_system->newton_step_slope();
+                                Float refined_alpha = cubic_line_minimizer(
+                                    initial_energy(), slope, alpha, E, rejected_alpha, rejected_E);
+                                if(refined_alpha > 0.05 * rejected_alpha
+                                   && refined_alpha < rejected_alpha
+                                   && std::abs(refined_alpha - alpha) > 0.25 * alpha)
+                                {
+                                    ++m_frame_line_search_trials;
+                                    step_to_trial(refined_alpha, true);
+                                    Float refined_E =
+                                        m_line_searcher->compute_energy(false);
+                                    if(refined_E <= E)
+                                    {
+                                        alpha  = refined_alpha;
+                                        last_E = refined_E;
+                                    }
+                                    else
+                                    {
+                                        // restore the accepted trial's state and
+                                        // active set; its energy is E
+                                        step_to_trial(alpha, false);
+                                    }
+                                    m_frame_last_line_search_alpha = alpha;
+                                }
+                            }
                             break;
+                        }
 
                         // If not success, then shrink alpha
+                        rejected_alpha = alpha;
+                        rejected_E     = E;
                         alpha /= 2;
                     }
 

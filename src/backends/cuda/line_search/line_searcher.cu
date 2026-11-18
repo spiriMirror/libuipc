@@ -63,6 +63,15 @@ void LineSearcher::init()
     auto max_iter_attr = scene.config().find<IndexT>("line_search/max_iter");
     m_max_iter         = max_iter_attr->view()[0];
 
+    auto cubic_attr = scene.config().find<IndexT>("line_search/cubic_refinement");
+    m_cubic_refinement = cubic_attr && cubic_attr->view()[0] != 0;
+    // Only the standard IPC Newton loop refines backtracked steps; the
+    // AL-IPC line search ignores the key.
+    auto constitution_attr = scene.config().find<std::string>("contact/constitution");
+    if(m_cubic_refinement && constitution_attr && constitution_attr->view()[0] != "ipc")
+        logger::warn("line_search/cubic_refinement = 1 has no effect with contact/constitution = '{}': only the standard IPC line search refines backtracked steps",
+                     constitution_attr->view()[0]);
+
     m_dt_attr = scene.config().find<Float>("dt");
     UIPC_ASSERT(m_dt_attr, "Scene config must have a 'dt' attribute.");
 
@@ -489,5 +498,10 @@ bool LineSearcher::ComputeEnergyInfo::prelaunched() noexcept
 SizeT LineSearcher::max_iter() const noexcept
 {
     return m_max_iter;
+}
+
+bool LineSearcher::cubic_refinement() const noexcept
+{
+    return m_cubic_refinement;
 }
 }  // namespace uipc::backend::cuda
