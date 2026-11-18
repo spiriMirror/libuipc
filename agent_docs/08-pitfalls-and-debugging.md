@@ -258,7 +258,22 @@ touching that area; several of these have bitten us more than once.
     concurrency diagnosis must establish the actual streams and dependencies.
   - A launch into the legacy default stream during capture invalidates the
     capture (detected at `cudaStreamEndCapture`) — use that as the automatic
-    fallback signal for un-plumbed callees.
+    fallback signal for un-plumbed callees. A checked call on a captured
+    stream after the invalidation fails and throws (e.g. a checked cub call
+    or an event record):
+    `GraphCapture`/`GraphWhile::capture` catch that, end the capture (which
+    takes every joined stream out of capture mode) and take the same
+    fallback. An exception on a valid capture is rethrown once the capture
+    is ended. An invalidated capture into a conditional node's body
+    (`cudaStreamBeginCaptureToGraph`, the WHILE loop body) leaves the parent
+    graph unsafe to destroy on CUDA 13.4: the body graph handle turns
+    invalid, and `cudaGraphDestroy` of the parent (or `cudaGraphDestroyNode`
+    of the WHILE node) segfaults. `GraphWhile` therefore abandons that graph
+    (one leak per instance, which is disabled afterwards).
+  - The static cudart gives every DSO its own runtime: `cudaGetLastError`
+    in the backend does not clear an error raised by code compiled into a
+    test executable (or vice versa). Test code that provokes CUDA errors
+    must clear them in its own runtime.
   - Graph replay vs plain launches can schedule blocks differently →
     different atomic-add arrival order → ULP divergence → chaotic scenes
     diverge after contact onset. Expected; do not chase bit-equality there.
