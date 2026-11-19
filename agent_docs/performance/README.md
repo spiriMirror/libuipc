@@ -32,6 +32,7 @@ must be calibrated from repeated measurements on that runner.
 
 | Record | Status | Scope |
 |---|---|---|
+| [2026-11-19 FEM assembly beside the contact work (PR 4/6)](2026-11-19-fem-assembly.md) | Proposed | PR 4/6: shell Hessians in shared memory, FEM prelaunch beside DyTopo, in-place FEM assembly, assembly head order; geometric mean over the five benchmark scenes 1.21x against PR 3 |
 | [2026-11-19 Contact and affine-body assembly (PR 3/6)](2026-11-19-contact-abd-assembly.md) | Proposed | PR 3/6: fused contact kernels, shared-memory PSD projection, DyTopo distribution, ABD producers on side streams, joint Hessians per warp; geometric mean over the five benchmark scenes 1.48x against PR 2 |
 | [2026-11-19 Collision detection: BVH refit, detection reuse, FP32 rejection (PR 2/6)](2026-11-19-collision-detection.md) | Proposed | PR 2/6: LBVH scene-bounds fix, BVH build/refit/queries, reuse across Newton iterations and frames, FP32 rejection, CCD launches; geometric mean over the five benchmark scenes 1.19x against PR 1 |
 | [2026-11-19 cuda_tool graph capture, CUB and launch-helper fixes (PR 1/6)](2026-11-19-cuda-tool-capture-cub.md) | Proposed | PR 1/6: graph captures whose body throws, CUB wrappers run once, empty DeviceReduce::Sum, hidden launch helpers; geometric mean over the five benchmark scenes 1.01x against main |
