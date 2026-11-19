@@ -32,6 +32,7 @@ must be calibrated from repeated measurements on that runner.
 
 | Record | Status | Scope |
 |---|---|---|
+| [2026-11-19 Line search and host synchronization (PR 6/6)](2026-11-19-line-search-host.md) | Proposed | PR 6/6: feasible step, tolerance checks and TOI beside the line search, reused start energy, mapped read-backs, batched copies, uipc.view(); opt-in cubic_refinement (off); geometric mean over the five benchmark scenes 1.08x against PR 5 |
 | [2026-11-19 Linear solve: BCOO conversion, MAS, fused PCG iteration (PR 5/6)](2026-11-19-linear-solve.md) | Proposed | PR 5/6: upper BCOO conversion and SpMV, MAS preconditioner, fused PCG iteration; opt-in keep_preconditioner (off); geometric mean over the five benchmark scenes 1.62x against PR 4 |
 | [2026-11-19 FEM assembly beside the contact work (PR 4/6)](2026-11-19-fem-assembly.md) | Proposed | PR 4/6: shell Hessians in shared memory, FEM prelaunch beside DyTopo, in-place FEM assembly, assembly head order; geometric mean over the five benchmark scenes 1.21x against PR 3 |
 | [2026-11-19 Contact and affine-body assembly (PR 3/6)](2026-11-19-contact-abd-assembly.md) | Proposed | PR 3/6: fused contact kernels, shared-memory PSD projection, DyTopo distribution, ABD producers on side streams, joint Hessians per warp; geometric mean over the five benchmark scenes 1.48x against PR 2 |
