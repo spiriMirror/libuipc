@@ -1,3 +1,32 @@
+/*
+ * NVIDIA contributions: assembly side streams and prelaunched producers, the
+ * FEM gather beside the legacy stream and its in-place writes; the in-place
+ * lead's elastic producers prelaunched right after the contact assembly launch
+ * and held to the SMs the contact blocks leave, and late Hessian blocks
+ * counted after the rest of the assembly is issued and placed behind it.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <algorithm>
 #include <linear_system/global_linear_system.h>
 #include <linear_system/diag_linear_subsystem.h>
 #include <linear_system/off_diag_linear_subsystem.h>
@@ -14,6 +43,12 @@
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalLinearSystem);
+
+GlobalLinearSystem::~GlobalLinearSystem()
+{
+    if(m_impl.in_place_event)
+        cudaEventDestroy(m_impl.in_place_event);
+}
 
 SizeT GlobalLinearSystem::dof_count() const
 {
@@ -66,6 +101,21 @@ void GlobalLinearSystem::_dump_x()
                          m_impl.x.cview());
 }
 
+
+void GlobalLinearSystem::prepare_prelaunch(SizeT beside_blocks)
+{
+    m_impl.prepare_prelaunch(beside_blocks);
+}
+
+void GlobalLinearSystem::prelaunch_ahead()
+{
+    m_impl.prelaunch_ahead();
+}
+
+void GlobalLinearSystem::prelaunch_assembly(bool contact_launched)
+{
+    m_impl.prelaunch_assembly(contact_launched);
+}
 
 void GlobalLinearSystem::solve()
 {
@@ -168,6 +218,8 @@ void GlobalLinearSystem::Impl::init()
             InitDofExtentInfo info;
             diag_subsystem->report_init_extent(info);
             diag_dof_counts[i] = info.m_dof_count;
+            if(info.m_prelaunch_in_place && in_place_lead < 0)
+                in_place_lead = static_cast<IndexT>(i);
         }
         diag_dof_offsets_counts.scan();
         auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
@@ -184,6 +236,22 @@ void GlobalLinearSystem::Impl::init()
     // 3) Triplet Offsets/Counts
     subsystem_triplet_offsets_counts.resize(total_count);
     off_diag_lr_triplet_counts.resize(off_diag_subsystem_view.size());
+    // The in-place lead's range first (its prefix position then does not
+    // depend on the other subsystems' counts), the others in their order,
+    // then the late blocks (DiagExtentInfo::late_extent()) in subsystem
+    // order. No (row, col) key is shared across subsystems, and a
+    // subsystem's late blocks stay behind its others: the stable sort of the
+    // conversion puts the same entries in the same order under every key,
+    // and the reduction sees the same sequence (in its own atomic order).
+    triplet_offsets.resize(total_count, 0);
+    triplet_order.clear();
+    if(in_place_lead >= 0)
+        triplet_order.push_back(diag_span[in_place_lead].index);
+    for(auto&& [i, subsystem_info] : enumerate(subsystem_infos))
+        if(in_place_lead < 0 || subsystem_info.index != diag_span[in_place_lead].index)
+            triplet_order.push_back(subsystem_info.index);
+    if(in_place_lead >= 0)
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&in_place_event, cudaEventDisableTiming));
 
     // 4) Preconditioner
     // find out diag systems that don't have preconditioner
@@ -209,7 +277,94 @@ void GlobalLinearSystem::Impl::init()
         precond->init();
     }
 
+    // Enough streams that the scene's longest single-block producer chains
+    // (joints, constraints) each get their own; kept below the default of 8
+    // hardware work queues together with the legacy stream.
+    constexpr SizeT assembly_side_stream_count = 6;
+    assembly_streams.create(assembly_side_stream_count);
+
     initialized = true;
+}
+
+void GlobalLinearSystem::Impl::prepare_prelaunch(SizeT beside_blocks)
+{
+    if(!initialized || assembly_streams.size() == 0)
+        return;
+
+    for(auto&& diag_subsystem : diag_subsystems.view())
+    {
+        PrelaunchInfo info;
+        info.m_side_streams = &assembly_streams;
+        diag_subsystem->prepare_prelaunch(info);
+    }
+    prelaunch_prepared = true;
+    lead_ahead         = false;
+    ahead_blocks       = beside_blocks;
+}
+
+void GlobalLinearSystem::Impl::prelaunch_ahead()
+{
+    // The latency-bound contact kernels take one SM per one-warp block, and
+    // an elastic producer of whole-SM blocks issued right after them, held
+    // to the SMs they leave, runs beside them (issued after the other DyTopo
+    // kernels, it would find no free SM). The in-place lead decides whether
+    // it prelaunches here.
+    const SizeT beside_blocks = std::exchange(ahead_blocks, 0);
+    if(!prelaunch_prepared || beside_blocks == 0 || in_place_lead < 0)
+        return;
+    if(sm_count == 0)
+    {
+        int device = 0;
+        CUDA_TOOL_CHECK(cudaGetDevice(&device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device));
+    }
+    const int beside = static_cast<int>(std::min<SizeT>(beside_blocks, sm_count));
+
+    auto diag_subsystem_view = diag_subsystems.view();
+    diag_fully_written_triplets.resize(diag_subsystem_view.size(), 0);
+    in_place_written = false;
+
+    PrelaunchInfo info;
+    info.m_side_streams      = &assembly_streams;
+    info.m_ahead_of_contact  = true;
+    info.m_elastic_block_cap = std::max(sm_count / 2, sm_count - beside);
+    info.m_sm_count          = sm_count;
+    info.m_impl              = this;
+    info.m_in_place_lead     = true;
+    diag_subsystem_view[in_place_lead]->prelaunch_assembly(info);
+    if(!in_place_written)
+        return;
+    diag_fully_written_triplets[in_place_lead] = info.m_fully_written_triplets;
+    lead_ahead                                 = true;
+}
+
+void GlobalLinearSystem::Impl::prelaunch_assembly(bool contact_launched)
+{
+    if(!initialized || assembly_streams.size() == 0)
+        return;
+
+    if(!prelaunch_prepared)
+        prepare_prelaunch(0);
+    prelaunch_prepared = false;
+
+    auto diag_subsystem_view = diag_subsystems.view();
+    diag_fully_written_triplets.resize(diag_subsystem_view.size(), 0);
+    if(!lead_ahead)
+        in_place_written = false;
+
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+    {
+        PrelaunchInfo info;
+        info.m_side_streams     = &assembly_streams;
+        info.m_contact_launched = contact_launched;
+        info.m_impl             = this;
+        info.m_in_place_lead    = static_cast<IndexT>(i) == in_place_lead;
+        diag_subsystem->prelaunch_assembly(info);
+        if(info.m_fully_written_triplets > 0)
+            diag_fully_written_triplets[i] = info.m_fully_written_triplets;
+    }
+    lead_ahead           = false;
+    assembly_prelaunched = true;
 }
 
 void GlobalLinearSystem::Impl::build_linear_system()
@@ -219,6 +374,13 @@ void GlobalLinearSystem::Impl::build_linear_system()
 
     if(empty_system) [[unlikely]]
     {
+        // nothing consumes prelaunched producers; finish them before their
+        // buffers are reused
+        wait_in_place();
+        in_place_written = false;
+        assembly_streams.join();
+        assembly_prelaunched = false;
+        std::ranges::fill(diag_fully_written_triplets, 0);
         logger::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return;
     }
@@ -226,6 +388,10 @@ void GlobalLinearSystem::Impl::build_linear_system()
     {
         Timer t{"Assemble Subsystems"};
         _assemble_linear_system();
+        assembly_prelaunched = false;
+        std::ranges::fill(diag_fully_written_triplets, 0);
+        // the next prelaunch may write in place with this layout
+        in_place_ready = in_place_lead >= 0;
     }
 
     {
@@ -236,6 +402,7 @@ void GlobalLinearSystem::Impl::build_linear_system()
         // default stream; drained before any solve reads it)
         triplet_count_dev = (IndexT)bcoo_A.triplet_count();
     }
+
 
     {
         Timer t{"Assemble Preconditioner"};
@@ -252,12 +419,16 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     bool dof_count_changed     = false;
     bool triplet_count_changed = false;
 
-    auto diag_subsystem_view       = diag_subsystems.view();
-    auto off_diag_subsystem_view   = off_diag_subsystems.view();
-    auto diag_dof_counts           = diag_dof_offsets_counts.counts();
-    auto diag_dof_offsets          = diag_dof_offsets_counts.offsets();
-    auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
-    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
+    auto diag_subsystem_view      = diag_subsystems.view();
+    auto off_diag_subsystem_view  = off_diag_subsystems.view();
+    auto diag_dof_counts          = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets         = diag_dof_offsets_counts.offsets();
+    auto subsystem_triplet_counts = subsystem_triplet_offsets_counts.counts();
+
+    diag_late.assign(diag_subsystem_view.size(), 0);
+    diag_late_counts.assign(diag_subsystem_view.size(), 0);
+    late_pending  = false;
+    late_reported = false;
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -271,6 +442,8 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
             dof_count_changed |= diag_dof_counts[dof_i] != info.m_dof_count;
             diag_dof_counts[dof_i] = info.m_dof_count;
+            diag_late[dof_i]       = info.m_late;
+            late_pending |= info.m_late;
 
 
             triplet_count_changed |= subsystem_triplet_counts[triplet_i] != info.m_block_count;
@@ -295,6 +468,18 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     SizeT total_dof     = 0;
     SizeT total_triplet = 0;
 
+    // An in-place prelaunch used the previous DoF layout: when it changed,
+    // the lead's writes are void (and b may move), so wait for them and let
+    // the lead assemble in full.
+    in_place_discarded = false;
+    if(in_place_written && dof_count_changed)
+    {
+        wait_in_place();
+        in_place_written                           = false;
+        in_place_discarded                         = true;
+        diag_fully_written_triplets[in_place_lead] = 0;
+    }
+
     if(dof_count_changed)
     {
         diag_dof_offsets_counts.scan();
@@ -314,16 +499,36 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     if(triplet_count_changed) [[likely]]
     {
         subsystem_triplet_offsets_counts.scan();
+        IndexT offset = 0;
+        for(SizeT t : triplet_order)
+        {
+            triplet_offsets[t] = offset;
+            offset += subsystem_triplet_counts[t];
+        }
     }
     total_triplet = subsystem_triplet_offsets_counts.total_count();
 
     if(triplet_A.triplet_capacity() < total_triplet)
     {
         auto reserve_count = total_triplet * reserve_ratio;
-        triplet_A.reserve_triplets_discard(reserve_count);
+        if(in_place_written)
+        {
+            // keep the in-place prefix (the first triplets): copy it once
+            // the lead has written it
+            wait_in_place();
+            SizeT prefix = diag_fully_written_triplets[in_place_lead];
+            triplet_A.resize_triplets_discard(std::max(triplet_A.triplet_count(), prefix));
+            triplet_A.reserve_triplets(reserve_count);
+        }
+        else
+            triplet_A.reserve_triplets_discard(reserve_count);
         bcoo_A.reserve_triplets_discard(reserve_count);
     }
     triplet_A.resize_triplets_discard(total_triplet);
+
+    // without other blocks, only the late ones tell whether A is empty
+    if(total_triplet == 0 && late_pending && total_dof != 0) [[unlikely]]
+        total_triplet = _report_late_extents();
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
@@ -333,17 +538,134 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     return true;
 }
 
+SizeT GlobalLinearSystem::Impl::_report_late_extents()
+{
+    SizeT total = 0;
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        if(!diag_late[i])
+            continue;
+        LateExtentInfo info;
+        diag_subsystem->report_late_extent(info);
+        diag_late_counts[i] = info.m_block_count;
+        total += info.m_block_count;
+    }
+    late_reported = true;
+    return total;
+}
+
+void GlobalLinearSystem::Impl::_assemble_late()
+{
+    if(!late_pending)
+        return;
+    if(!late_reported)
+        _report_late_extents();
+
+    const SizeT early = subsystem_triplet_offsets_counts.total_count();
+    SizeT       total = early;
+    for(SizeT count : diag_late_counts)
+        total += count;
+    if(triplet_A.triplet_capacity() < total)
+    {
+        // keep the other blocks: copy them once they are written
+        wait_in_place();
+        assembly_streams.join();
+        auto reserve_count = total * reserve_ratio;
+        triplet_A.reserve_triplets(reserve_count);
+        bcoo_A.reserve_triplets_discard(reserve_count);
+        assembly_streams.fork();
+    }
+    triplet_A.resize_triplets_discard(total);
+
+    auto   HA               = triplet_A.view();
+    auto   B                = b.view();
+    auto   diag_dof_counts  = diag_dof_offsets_counts.counts();
+    auto   diag_dof_offsets = diag_dof_offsets_counts.offsets();
+    IndexT offset           = static_cast<IndexT>(early);
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        if(!diag_late[i])
+            continue;
+        int  dof_offset         = diag_dof_offsets[i];
+        int  dof_count          = diag_dof_counts[i];
+        int  blocked_dof_offset = dof_offset / DoFBlockSize;
+        int  blocked_dof_count  = dof_count / DoFBlockSize;
+        int2 ij_offset          = {blocked_dof_offset, blocked_dof_offset};
+        int2 ij_count           = {blocked_dof_count, blocked_dof_count};
+        auto count              = static_cast<IndexT>(diag_late_counts[i]);
+
+        DiagInfo info{this};
+        info.m_index        = diag_subsystem->m_index;
+        info.m_side_streams = &assembly_streams;
+        info.m_prelaunched =
+            assembly_prelaunched
+            && !(in_place_discarded && static_cast<IndexT>(i) == in_place_lead);
+        info.m_gradients = B.subview(dof_offset, dof_count);
+        info.m_hessians = HA.subview(offset, count).submatrix(ij_offset, ij_count);
+        diag_subsystem->assemble_late(info);
+        offset += count;
+    }
+}
+
+void GlobalLinearSystem::Impl::_clear_triplets()
+{
+    auto HA    = triplet_A.view();
+    auto clear = [&](IndexT begin, IndexT end)
+    {
+        if(end <= begin)
+            return;
+        auto range = HA.subview(begin, end - begin);
+        range.values().fill(Matrix3x3::Zero());
+        range.row_indices().fill(-1);
+        range.col_indices().fill(-1);
+    };
+
+    // Clear and invalidate previous values, except the prefixes that
+    // prelaunched subsystems write in full (in triplet order).
+    auto   offsets = span<const IndexT>{triplet_offsets};
+    auto   counts  = subsystem_triplet_offsets_counts.counts();
+    IndexT begin   = 0;
+    if(assembly_prelaunched)
+    {
+        for(SizeT t : triplet_order)
+        {
+            const auto& subsystem_info = subsystem_infos[t];
+            if(!subsystem_info.is_diag)
+                continue;
+            SizeT written = diag_fully_written_triplets[subsystem_info.local_index];
+            if(written == 0)
+                continue;
+            IndexT offset = offsets[subsystem_info.index];
+            UIPC_ASSERT(written <= static_cast<SizeT>(counts[subsystem_info.index]),
+                        "Fully written prefix {} exceeds the subsystem's {} triplets",
+                        written,
+                        counts[subsystem_info.index]);
+            clear(begin, offset);
+            begin = offset + static_cast<IndexT>(written);
+        }
+    }
+    clear(begin, static_cast<IndexT>(triplet_A.triplet_count()));
+}
+
 void GlobalLinearSystem::Impl::_assemble_linear_system()
 {
     auto HA = triplet_A.view();
 
-    // Clear and invalidate previous values
-    triplet_A.values().fill(Matrix3x3::Zero());
-    triplet_A.row_indices().fill(-1);
-    triplet_A.col_indices().fill(-1);
+    _clear_triplets();
 
+    // An in-place lead cleared (and is adding to) its gradient range.
     auto B = b.view();
-    B.buffer_view().fill(0.0);
+    if(in_place_written)
+    {
+        IndexT off = diag_dof_offsets_counts.offsets()[in_place_lead];
+        IndexT cnt = diag_dof_offsets_counts.counts()[in_place_lead];
+        if(off > 0)
+            B.buffer_view().subview(0, off).fill(0.0);
+        if(off + cnt < (IndexT)B.size())
+            B.buffer_view().subview(off + cnt, B.size() - off - cnt).fill(0.0);
+    }
+    else
+        B.buffer_view().fill(0.0);
 
     auto diag_subsystem_view     = diag_subsystems.view();
     auto off_diag_subsystem_view = off_diag_subsystems.view();
@@ -352,7 +674,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
     auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
 
     auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
-    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
+    auto subsystem_triplet_offsets = span<const IndexT>{triplet_offsets};
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -371,7 +693,11 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index     = triplet_i;
+            info.m_index        = triplet_i;
+            info.m_side_streams = &assembly_streams;
+            info.m_prelaunched =
+                assembly_prelaunched
+                && !(in_place_discarded && static_cast<IndexT>(dof_i) == in_place_lead);
             info.m_gradients = B.subview(dof_offset, dof_count);
             info.m_hessians  = HA.subview(subsystem_triplet_offsets[triplet_i],
                                          subsystem_triplet_counts[triplet_i])
@@ -417,6 +743,26 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             off_diag_subsystem->assemble(info);
         }
     }
+
+    // the late blocks, behind the others
+    _assemble_late();
+
+    // Subsystems write disjoint ranges of A and b; producers they forked onto
+    // side streams (and an in-place prelaunch) are complete before the
+    // conversion reads A.
+    wait_in_place();
+    in_place_written   = false;
+    in_place_discarded = false;
+    assembly_streams.join();
+}
+
+
+void GlobalLinearSystem::Impl::wait_in_place()
+{
+    if(!in_place_written || in_place_waited)
+        return;
+    CUDA_TOOL_CHECK(cudaStreamWaitEvent(nullptr, in_place_event, 0));
+    in_place_waited = true;
 }
 
 void GlobalLinearSystem::Impl::_assemble_preconditioner()
@@ -427,11 +773,19 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
         global_preconditioner->assemble(info);
     }
 
-    for(auto&& preconditioner : local_preconditioners.view())
+    // Local preconditioners only read the assembled system and write their
+    // own state, so each one assembles on its own side stream; the solve
+    // starts after the join.
+    assembly_streams.fork();
+    for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
     {
-        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index};
+        cudaStream_t stream = assembly_streams.size() ?
+                                  assembly_streams[i % assembly_streams.size()] :
+                                  nullptr;
+        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index, stream};
         preconditioner->assemble(info);
     }
+    assembly_streams.join();
 }
 
 void GlobalLinearSystem::Impl::solve_linear_system()
@@ -623,6 +977,50 @@ void GlobalLinearSystem::OffDiagExtentInfo::extent(SizeT lr_hessian_block_count,
     m_lr_block_count = lr_hessian_block_count;
     m_rl_block_count = rl_hassian_block_count;
 }
+bool GlobalLinearSystem::PrelaunchInfo::in_place_available() const noexcept
+{
+    return m_in_place_lead && m_impl && m_impl->in_place_ready;
+}
+
+auto GlobalLinearSystem::PrelaunchInfo::in_place_hessians(SizeT count) -> TripletMatrixView
+{
+    UIPC_ASSERT(in_place_available(), "in-place prelaunch is not available");
+    auto& I = *m_impl;
+    // Nothing reads the previous assembly's triplets any more (the
+    // reallocation synchronizes), and the global extent update keeps the
+    // prefix when it grows the matrix after this.
+    if(I.triplet_A.triplet_capacity() < count)
+        I.triplet_A.reserve_triplets_discard(count * I.reserve_ratio);
+    if(I.triplet_A.triplet_count() < count)
+        I.triplet_A.resize_triplets_discard(count);
+    I.in_place_written = true;
+    I.in_place_waited  = false;
+
+    int offset = I.diag_dof_offsets_counts.offsets()[I.in_place_lead] / DoFBlockSize;
+    int blocks = I.diag_dof_offsets_counts.counts()[I.in_place_lead] / DoFBlockSize;
+    return I.triplet_A.view().subview(0, count).submatrix(int2{offset, offset},
+                                                          int2{blocks, blocks});
+}
+
+auto GlobalLinearSystem::PrelaunchInfo::in_place_gradients() -> DenseVectorView
+{
+    UIPC_ASSERT(in_place_available(), "in-place prelaunch is not available");
+    auto& I = *m_impl;
+    return I.b.view().subview(I.diag_dof_offsets_counts.offsets()[I.in_place_lead],
+                              I.diag_dof_offsets_counts.counts()[I.in_place_lead]);
+}
+
+int GlobalLinearSystem::PrelaunchInfo::in_place_block_offset() const
+{
+    return m_impl->diag_dof_offsets_counts.offsets()[m_impl->in_place_lead] / DoFBlockSize;
+}
+
+void GlobalLinearSystem::PrelaunchInfo::in_place_done(cudaStream_t stream)
+{
+    UIPC_ASSERT(m_impl && m_impl->in_place_written, "no in-place prelaunch to finish");
+    CUDA_TOOL_CHECK(cudaEventRecord(m_impl->in_place_event, stream));
+}
+
 auto GlobalLinearSystem::AssemblyInfo::A() const -> CBCOOMatrixView
 {
     return m_impl->bcoo_A.cview();

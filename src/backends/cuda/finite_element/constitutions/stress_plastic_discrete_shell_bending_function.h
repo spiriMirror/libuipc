@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: the combined d2Edx2 gradient/Hessian helper and
+ * reuse of plastic-bending intermediates.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <finite_element/constitutions/discrete_shell_bending_reference.h>
@@ -352,6 +377,48 @@ namespace sym::stress_plastic_discrete_shell_bending
         Matrix12x12 ddthetaddx;
         dihedral_angle_hessian(x0, x1, x2, x3, ddthetaddx);
 
+        H = dthetadx * ddEddtheta * dthetadx.transpose() + dEdtheta * ddthetaddx;
+    }
+
+    template <typename Hessian>
+    inline UIPC_GENERIC void d2Edx2(Vector12&      G,
+                                    Hessian&       H,
+                                    const Vector3& x0,
+                                    const Vector3& x1,
+                                    const Vector3& x2,
+                                    const Vector3& x3,
+                                    Float          L0,
+                                    Float          h_bar,
+                                    Float          theta_bar,
+                                    Float          kappa,
+                                    Float          yield_stress)
+    {
+        Float theta = 0.0;
+        Float delta = 0.0;
+        if(!try_angle_delta(x0, x1, x2, x3, theta_bar, theta, delta))
+        {
+            G.setZero();
+            H.setZero();
+            return;
+        }
+
+        Float energy     = 0.0;
+        Float dEdtheta   = 0.0;
+        Float ddEddtheta = 0.0;
+        if(!augmented_response_from_angle_delta(
+               delta, kappa, L0, h_bar, yield_stress, energy, dEdtheta, ddEddtheta))
+        {
+            G.setZero();
+            H.setZero();
+            return;
+        }
+
+        Vector12 dthetadx;
+        dihedral_angle_gradient(x0, x1, x2, x3, dthetadx);
+        G = dEdtheta * dthetadx;
+
+        Matrix12x12 ddthetaddx;
+        dihedral_angle_hessian(x0, x1, x2, x3, ddthetaddx);
         H = dthetadx * ddEddtheta * dthetadx.transpose() + dEdtheta * ddthetaddx;
     }
 }  // namespace sym::stress_plastic_discrete_shell_bending

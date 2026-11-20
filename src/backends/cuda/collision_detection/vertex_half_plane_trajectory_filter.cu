@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: two-phase active-set filtering.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 namespace uipc::backend::cuda
@@ -57,6 +81,30 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
 {
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
+
+    logger::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
+}
+
+bool VertexHalfPlaneTrajectoryFilter::do_launch_filter_active(FilterActiveInfo& info)
+{
+    return false;
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(FilterActiveInfo& info)
+{
+    UIPC_ASSERT(false, "{} launched no two-phase filter_active", name());
+}
+
+bool VertexHalfPlaneTrajectoryFilter::do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    return do_launch_filter_active(this_info);
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    do_finish_filter_active(this_info);
 
     logger::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
 }

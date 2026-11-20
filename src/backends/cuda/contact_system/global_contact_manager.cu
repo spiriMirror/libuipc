@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: the contact-tabular version and one-warp launch shapes
+ * of the feasible-step kernels.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/global_contact_manager.h>
 #include <sim_engine.h>
 #include <contact_system/contact_reporter.h>
@@ -574,7 +599,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PT_kernel;
         int  n = (int)n_pt;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
             PTs, positions, displacements, thicknesses, feasible_tois.view(off, n_pt), eta, n);
     }
     off += n_pt;
@@ -583,7 +608,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_EE_kernel;
         int  n = (int)n_ee;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
             EEs, positions, displacements, thicknesses, feasible_tois.view(off, n_ee), eta, n);
     }
     off += n_ee;
@@ -592,7 +617,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PE_kernel;
         int  n = (int)n_pe;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
             PEs, positions, displacements, thicknesses, feasible_tois.view(off, n_pe), eta, n);
     }
     off += n_pe;
@@ -601,7 +626,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PP_kernel;
         int  n = (int)n_pp;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
             PPs, positions, displacements, thicknesses, feasible_tois.view(off, n_pp), eta, n);
     }
 
@@ -623,6 +648,7 @@ cuda_tool::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInf
 S<cuda_tool::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
     S<cuda_tool::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
 {
+    ++m_impl->contact_tabular_version;
     return std::exchange(m_impl->contact_tabular, new_buffer);
 }
 
@@ -649,6 +675,8 @@ void GlobalContactManager::compute_adaptive_parameters()
 
     auto info = AdaptiveParameterInfo(&m_impl);
     m_impl.adaptive_contact_parameter_reporter->compute_parameters(info);
+    // The reporter may have written new coefficients.
+    ++m_impl.contact_tabular_version;
 }
 
 Float GlobalContactManager::d_hat() const
@@ -696,6 +724,11 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
 cuda_tool::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
     return m_impl.contact_tabular->view();
+}
+
+SizeT GlobalContactManager::contact_tabular_version() const noexcept
+{
+    return m_impl.contact_tabular_version;
 }
 
 }  // namespace uipc::backend::cuda
