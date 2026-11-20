@@ -173,6 +173,12 @@ static SceneConfigContract make_scene_config_contract()
         "PCG iterations between host convergence checks.",
         {"src/backends/cuda/linear_system/linear_fused_pcg.cu"},
         Json{{"minimum", 1}});
+    add("linear_system/keep_preconditioner",
+        IndexT{0},
+        "integer",
+        "Opt-in, off by default: odd Newton iterations from the third on reuse the previous iteration's preconditioner (standard IPC only). This changes PCG's stopping threshold and can stop PCG and Newton early, losing accuracy such as the momentum of falling or stacked bodies; keep 0 unless the scene has been checked with both values.",
+        {"src/backends/cuda/linear_system/global_linear_system.cu"},
+        flag);
 
     add("line_search/max_iter",
         IndexT{8},
@@ -185,6 +191,12 @@ static SceneConfigContract make_scene_config_contract()
         "integer",
         "Log the energy contribution of every line-search reporter.",
         {"src/backends/cuda/line_search"},
+        flag);
+    add("line_search/cubic_refinement",
+        IndexT{0},
+        "integer",
+        "Opt-in, standard IPC pipeline only (AL-IPC ignores it and logs a warning): after a backtrack, also try the minimizer of a cubic fit of the energy along the step and keep the lower-energy accepted step.",
+        {"src/backends/cuda/line_search", "src/backends/cuda/engine/advance_ipc.cu"},
         flag);
 
     add("contact/enable",

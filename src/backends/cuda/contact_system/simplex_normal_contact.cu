@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream assembly and energy launches and the
+ * prelaunched trial energy.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/simplex_normal_contact.h>
 #include <cuda_tool/cuda_tool.h>
 #include <utils/distance.h>
@@ -39,9 +64,16 @@ void SimplexNormalContact::do_report_energy_extent(GlobalContactManager::EnergyE
 
 void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{&m_impl, &info};
 
-    auto energies = info.energies();
+    auto energies         = info.energies();
+    this_info.m_energies  = energies;
+    this_info.m_prelaunch = info.prelaunch();
+    if(info.prelaunch())
+    {
+        do_compute_energy(this_info);
+        return;
+    }
 
     SizeT offset = 0;
 
@@ -66,7 +98,8 @@ void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& i
                 energies.size(),
                 offset);
 
-    do_compute_energy(this_info);
+    if(!info.prelaunched())  // else the prelaunch computed them
+        do_compute_energy(this_info);
 }
 
 void SimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
@@ -98,6 +131,7 @@ void SimplexNormalContact::do_assemble(GlobalContactManager::GradientHessianInfo
 {
     ContactInfo this_info{&m_impl};
     this_info.m_gradient_only = info.gradient_only();
+    this_info.m_stream        = info.stream();
     // gradient
     {
         IndexT offset = 0;
@@ -170,6 +204,11 @@ cuda_tool::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_t
     return m_impl->global_contact_manager->contact_tabular();
 }
 
+
+auto SimplexNormalContact::pending_active_set() const -> const SimplexTrajectoryFilter::PendingActiveSet&
+{
+    return m_impl.simplex_trajectory_filter->pending_active_set();
+}
 
 cuda_tool::CBufferView<Vector4i> SimplexNormalContact::PTs() const
 {

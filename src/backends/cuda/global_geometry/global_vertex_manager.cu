@@ -1,4 +1,33 @@
+/*
+ * NVIDIA contributions: step_forward rounding shared with the swept boxes,
+ * displacement bounds for candidate reuse, the side-stream tolerance
+ * reduction, batched copies and step forward, read-back buffers and the fused
+ * per-axis maximum.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <utils/step_displacement.h>
 #include <global_geometry/global_vertex_manager.h>
+#include <line_search/step_batch.h>
 #include <active_set_system/global_active_set_manager.h>
 #include <joint_dof_system/global_joint_dof_manager.h>
 #include <uipc/common/enumerate.h>
@@ -26,7 +55,8 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        pos(i) = safe_pos(i) + alpha * disp(i);
+        // Same rounding as the trajectory broad phase (see step_displacement.h).
+        pos(i) = step_position(safe_pos(i), alpha, disp(i));
     }
 
     __global__ void GlobalVertexManager_setup_ccd_kernel(
@@ -42,6 +72,13 @@ namespace
         disp(i)    = pos(i) - base_pos(i);
         tmp_pos(i) = pos(i);
         pos(i)     = base_pos(i);
+    }
+
+    // the maximum the reporters took (VertexDisplacementInfo::axis_max())
+    __global__ void GlobalVertexManager_publish_axis_max_kernel(const unsigned long long* slot,
+                                                                Float* max_disp)
+    {
+        *max_disp = __longlong_as_double(*slot);
     }
 
     struct GlobalVertexManager_MaxAbsOp
@@ -158,10 +195,7 @@ void GlobalVertexManager::Impl::init()
     prev_positions = positions;
     safe_positions = positions;
 
-    // 6) Other initializations
-    axis_max_disp = 0.0;
-
-    // 7) Scene diagonal of the rest configuration, for scene-relative
+    // 6) Scene diagonal of the rest configuration, for scene-relative
     //    parameter adaptation (contact/d_hat_relative etc.)
     {
         auto box       = compute_vertex_bounding_box();
@@ -169,7 +203,7 @@ void GlobalVertexManager::Impl::init()
         logger::info("Scene diagonal: {}", scene_diagonal);
     }
 
-    // 8) Propagate the scene-relative d_hat (contact/d_hat_relative, Stiff-GIPC
+    // 7) Propagate the scene-relative d_hat (contact/d_hat_relative, Stiff-GIPC
     //    convention) into the per-vertex d_hats buffer: entries still holding
     //    the absolute contact/d_hat default are replaced, per-geometry meta
     //    d_hat values are untouched. Without this, the relative override only
@@ -226,13 +260,33 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
     }
 }
 
-void GlobalVertexManager::Impl::collect_vertex_displacements()
+void GlobalVertexManager::Impl::step_forward(StepBatch& steps)
 {
+    steps.positions(positions.view(),
+                    std::as_const(safe_positions).view(),
+                    std::as_const(displacements).view());
+}
+
+void GlobalVertexManager::Impl::collect_vertex_displacements(cuda_tool::CopyBatch* copies)
+{
+    h_axis_max_disp_valid = false;
+    if(axis_max_slots.size() != 2)
+        axis_max_slots.resize(2);  // zeroed
+    ++axis_max_generation;
+    axis_max_covered = 0;
+    axis_max_taken   = false;
+    if(!axis_max_next_clear)  // the previous collection had no taker
+        CUDA_TOOL_CHECK(cudaMemsetAsync(axis_max_slots.data() + (axis_max_generation & 1),
+                                        0,
+                                        sizeof(unsigned long long)));
     for(auto&& [i, R] : enumerate(vertex_reporters.view()))
     {
-        VertexDisplacementInfo vd{this, i};
+        VertexDisplacementInfo vd{this, i, copies};
         R->report_displacements(vd);
     }
+    axis_max_fused =
+        axis_max_taken && axis_max_covered == vertex_reporters.view().size();
+    axis_max_next_clear = axis_max_taken;  // its first taker cleared it
 }
 
 void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_positions)
@@ -247,6 +301,8 @@ void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_p
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
             positions.view(), tmp_pos.view(), displacements.view(), base_positions, n);
     }
+    h_axis_max_disp_valid = false;
+    axis_max_fused        = false;
 }
 
 void GlobalVertexManager::Impl::restore_ccd()
@@ -280,20 +336,41 @@ void GlobalVertexManager::Impl::record_prev_positions()
     BufferLaunch().copy<Vector3>(prev_positions.view(), std::as_const(positions).view());
 }
 
-void GlobalVertexManager::Impl::record_start_point()
+void GlobalVertexManager::Impl::record_start_point(cuda_tool::CopyBatch& copies)
 {
-    using namespace cuda_tool;
-    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
+    copies.copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
 }
 
 Float GlobalVertexManager::Impl::compute_axis_max_displacement()
 {
-    cuda_tool::DeviceReduce().Reduce((Float*)displacements.data(),
-                                     axis_max_disp.data(),
-                                     displacements.size() * 3,
-                                     GlobalVertexManager_MaxAbsOp{},
-                                     0.0);
-    return axis_max_disp;
+    // The Newton loop asks before the trajectory detection and again in the
+    // tolerance check: reduce and read back once per displacement update.
+    if(h_axis_max_disp_valid)
+        return h_axis_max_disp;
+    axis_max_disp.resize_discard(1);
+    launch_axis_max_displacement(cuda_tool::VarView<Float>{axis_max_disp.device_data()},
+                                 cuda_tool::default_stream());
+    axis_max_disp.enqueue_copy(cuda_tool::default_stream());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(cuda_tool::default_stream()));
+    h_axis_max_disp       = axis_max_disp[0];
+    h_axis_max_disp_valid = true;
+    return h_axis_max_disp;
+}
+
+void GlobalVertexManager::Impl::launch_axis_max_displacement(cuda_tool::VarView<Float> max_disp,
+                                                             cudaStream_t stream)
+{
+    if(axis_max_fused)
+    {
+        GlobalVertexManager_publish_axis_max_kernel<<<1, 1, 0, stream>>>(
+            axis_max_slots.data() + (axis_max_generation & 1), max_disp.data());
+        return;
+    }
+    cuda_tool::DeviceReduce(stream).Reduce((Float*)displacements.data(),
+                                           max_disp.data(),
+                                           displacements.size() * 3,
+                                           GlobalVertexManager_MaxAbsOp{},
+                                           0.0);
 }
 
 AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
@@ -427,10 +504,42 @@ SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept
     return m_frame;
 }
 
-GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
+GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(
+    Impl* impl, SizeT index, cuda_tool::CopyBatch* copies) noexcept
     : m_impl(impl)
     , m_index(index)
+    , m_copies(copies)
 {
+}
+
+void GlobalVertexManager::VertexDisplacementInfo::copy_displacements_from(
+    cuda_tool::CBufferView<Vector3> src) const
+{
+    if(m_copies)
+        m_copies->copy(displacements(), src);
+    else
+        displacements().copy_from(src);
+}
+
+auto GlobalVertexManager::VertexDisplacementInfo::axis_max() const noexcept -> AxisMax
+{
+    auto&   I = *m_impl;
+    AxisMax a;
+    a.slot = I.axis_max_slots.data() + (I.axis_max_generation & 1);
+    if(!I.axis_max_taken)
+        a.clear = I.axis_max_slots.data() + ((I.axis_max_generation + 1) & 1);
+    I.axis_max_taken = true;
+    ++I.axis_max_covered;
+    return a;
+}
+
+void GlobalVertexManager::VertexDisplacementInfo::zero_displacements() const
+{
+    ++m_impl->axis_max_covered;
+    if(m_copies)
+        m_copies->zero(displacements());
+    else
+        displacements().fill(Vector3::Zero());
 }
 
 cuda_tool::BufferView<Vector3> GlobalVertexManager::VertexDisplacementInfo::displacements() const noexcept
@@ -485,7 +594,12 @@ void GlobalVertexManager::record_prev_positions()
 
 void GlobalVertexManager::collect_vertex_displacements()
 {
-    m_impl.collect_vertex_displacements();
+    m_impl.collect_vertex_displacements(nullptr);
+}
+
+void GlobalVertexManager::collect_vertex_displacements(cuda_tool::CopyBatch& copies)
+{
+    m_impl.collect_vertex_displacements(&copies);
 }
 
 cuda_tool::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
@@ -548,6 +662,12 @@ Float GlobalVertexManager::compute_axis_max_displacement()
     return m_impl.compute_axis_max_displacement();
 }
 
+void GlobalVertexManager::launch_axis_max_displacement(cuda_tool::VarView<Float> max_disp,
+                                                       cudaStream_t stream)
+{
+    m_impl.launch_axis_max_displacement(max_disp, stream);
+}
+
 AABB GlobalVertexManager::compute_vertex_bounding_box()
 {
     return m_impl.compute_vertex_bounding_box();
@@ -563,9 +683,21 @@ void GlobalVertexManager::step_forward(Float alpha)
     m_impl.step_forward(alpha);
 }
 
+void GlobalVertexManager::step_forward(StepBatch& steps)
+{
+    m_impl.step_forward(steps);
+}
+
 void GlobalVertexManager::record_start_point()
 {
-    m_impl.record_start_point();
+    cuda_tool::CopyBatch copies;
+    m_impl.record_start_point(copies);
+    copies.launch();
+}
+
+void GlobalVertexManager::record_start_point(cuda_tool::CopyBatch& copies)
+{
+    m_impl.record_start_point(copies);
 }
 
 void GlobalVertexManager::setup_ccd(cuda_tool::CBufferView<Vector3> base_positions)

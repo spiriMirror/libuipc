@@ -1,3 +1,31 @@
+/*
+ * NVIDIA contributions: active-contact counting and line-search trajectory
+ * filtering integration; detection-skin support, TOI filtering on a launch
+ * stream, the friction-candidate version and two-phase active-set filtering
+ * with batched count read-backs and the pending active set, and the detection
+ * hook before the candidate-count read-back.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
@@ -85,7 +113,10 @@ void SimplexTrajectoryFilter::do_build()
 void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info)
 {
     DetectInfo this_info{&m_impl};
-    this_info.m_alpha = info.alpha();
+    this_info.m_alpha              = info.alpha();
+    this_info.m_reuse_bvh_topology = info.reuse_bvh_topology();
+    this_info.m_skin               = info.skin();
+    this_info.m_before_read_back   = info.before_read_back();
     do_detect(this_info);
 }
 
@@ -126,6 +157,37 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
 {
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
+    m_impl.pending = {};
+
+    logger::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
+                 m_impl.PTs.size(),
+                 m_impl.EEs.size(),
+                 m_impl.PEs.size(),
+                 m_impl.PPs.size());
+}
+
+bool SimplexTrajectoryFilter::do_launch_filter_active(FilterActiveInfo& info)
+{
+    return false;
+}
+
+void SimplexTrajectoryFilter::do_finish_filter_active(FilterActiveInfo& info)
+{
+    UIPC_ASSERT(false, "{} launched no two-phase filter_active", name());
+}
+
+bool SimplexTrajectoryFilter::do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    m_impl.pending = {};
+    return do_launch_filter_active(this_info);
+}
+
+void SimplexTrajectoryFilter::do_finish_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    m_impl.pending = {};
+    do_finish_filter_active(this_info);
 
     logger::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
                  m_impl.PTs.size(),
@@ -137,8 +199,10 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
 void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
 {
     FilterTOIInfo this_info{&m_impl};
-    this_info.m_alpha = info.alpha();
-    this_info.m_toi   = info.toi();
+    this_info.m_alpha     = info.alpha();
+    this_info.m_toi       = info.toi();
+    this_info.m_positions = info.positions();
+    this_info.m_stream    = info.stream();
     do_filter_toi(this_info);
 }
 
@@ -160,6 +224,8 @@ void SimplexTrajectoryFilter::Impl::record_friction_candidates(
     // PP
     loose_resize(friction_PP, PPs.size());
     friction_PP.view().copy_from(PPs);
+
+    ++friction_candidates_version;
 
     logger::info("SimplexTrajectoryFilter Friction PT: {}, EE: {}, PE: {}, PP: {}",
                  friction_PT.size(),
@@ -284,6 +350,11 @@ cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::PPs() const noexcept
     return m_impl.PPs;
 }
 
+auto SimplexTrajectoryFilter::pending_active_set() const noexcept -> const PendingActiveSet&
+{
+    return m_impl.pending;
+}
+
 cuda_tool::CBufferView<Vector4i> SimplexTrajectoryFilter::friction_PTs() const noexcept
 {
     return m_impl.friction_PT;
@@ -303,6 +374,11 @@ cuda_tool::CBufferView<Vector3i> SimplexTrajectoryFilter::friction_PEs() const n
 cuda_tool::CBufferView<Vector2i> SimplexTrajectoryFilter::friction_PPs() const noexcept
 {
     return m_impl.friction_PP;
+}
+
+SizeT SimplexTrajectoryFilter::friction_candidates_version() const noexcept
+{
+    return m_impl.friction_candidates_version;
 }
 
 cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::DetectInfo::displacements() const noexcept
@@ -329,9 +405,24 @@ void SimplexTrajectoryFilter::FilterActiveInfo::PPs(cuda_tool::CBufferView<Vecto
 {
     m_impl->PPs = PPs;
 }
+
+void SimplexTrajectoryFilter::FilterActiveInfo::pending(const PendingActiveSet& pending) noexcept
+{
+    m_impl->pending = pending;
+}
 cuda_tool::VarView<Float> SimplexTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
+}
+
+cuda_tool::CBufferView<Vector3> SimplexTrajectoryFilter::FilterTOIInfo::positions() const noexcept
+{
+    return m_positions;
+}
+
+cudaStream_t SimplexTrajectoryFilter::FilterTOIInfo::stream() const noexcept
+{
+    return m_stream;
 }
 
 void SimplexTrajectoryFilter::do_clear_friction_candidates()
@@ -340,6 +431,7 @@ void SimplexTrajectoryFilter::do_clear_friction_candidates()
     m_impl.friction_EE.resize(0);
     m_impl.friction_PE.resize(0);
     m_impl.friction_PP.resize(0);
+    ++m_impl.friction_candidates_version;
 }
 
 bool SimplexTrajectoryFilter::Impl::dump(DumpInfo& info)

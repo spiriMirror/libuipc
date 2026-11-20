@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: combined d2Edx2 gradient/Hessian regression coverage
+ * against the separate dEdx and ddEddx helpers.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <app/app.h>
 #include <finite_element/constitutions/stress_plastic_discrete_shell_bending_function.h>
 #include <cmath>
@@ -85,9 +110,9 @@ TEST_CASE("stress_plastic_discrete_shell_bending_helpers", "[cuda][stress_plasti
 
     SECTION("non_finite_inputs_are_rejected")
     {
-        Float theta_bar    = 0.0;
-        Float yield_stress = 1.2;
-        const Float nan    = std::numeric_limits<Float>::quiet_NaN();
+        Float       theta_bar    = 0.0;
+        Float       yield_stress = 1.2;
+        const Float nan          = std::numeric_limits<Float>::quiet_NaN();
 
         CHECK_FALSE(SPDSB::update_plastic_state<Float>(
             nan, theta_bar, yield_stress, 0.0, 2.0, 3.0, 4.0));
@@ -122,5 +147,28 @@ TEST_CASE("stress_plastic_discrete_shell_bending_helpers", "[cuda][stress_plasti
         Matrix12x12 H = Matrix12x12::Ones();
         SPDSB::ddEddx(H, x0, x1, x2, x3, 1.0, 1.0, 0.0, 1.0, 0.5);
         CHECK(H.cwiseAbs().maxCoeff() == Catch::Approx(0.0).margin(1e-12));
+    }
+
+    SECTION("combined_gradient_hessian_matches_separate_helpers")
+    {
+        const Vector3 x0{0.0, 1.0, 0.2};
+        const Vector3 x1{-1.0, 0.0, 0.0};
+        const Vector3 x2{1.0, 0.0, 0.0};
+        const Vector3 x3{0.0, -1.0, -0.3};
+
+        for(const Float yield_stress : {Float(0.1), Float(10.0)})
+        {
+            Vector12    separate_G;
+            Vector12    combined_G;
+            Matrix12x12 separate_H;
+            Matrix12x12 combined_H;
+
+            SPDSB::dEdx(separate_G, x0, x1, x2, x3, 1.2, 0.8, 0.15, 2.0, yield_stress);
+            SPDSB::ddEddx(separate_H, x0, x1, x2, x3, 1.2, 0.8, 0.15, 2.0, yield_stress);
+            SPDSB::d2Edx2(combined_G, combined_H, x0, x1, x2, x3, 1.2, 0.8, 0.15, 2.0, yield_stress);
+
+            CHECK((combined_G.array() == separate_G.array()).all());
+            CHECK((combined_H.array() == separate_H.array()).all());
+        }
     }
 }

@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: side-stream launches and one-warp launch shapes.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/affine_body_kinetic.h>
 #include <time_integrator/bdf1_flag.h>
 #include <cuda_tool/cuda_tool.h>
@@ -88,7 +112,7 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
         if(n > 0)
         {
             auto k = affine_body_bdf1_kinetic_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.is_fixed().cview(),
                 info.external_kinetic().cview(),
                 info.qs().cview(),
@@ -105,7 +129,7 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
         if(n > 0)
         {
             auto k = affine_body_bdf1_kinetic_compute_gradient_hessian_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 info.is_fixed().cview(),
                 info.qs().cview(),
                 info.q_prevs().cview(),

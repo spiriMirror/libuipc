@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: templated Hessian outputs for the PT/EE/PE/PP
+ * barrier derivative routines, supporting strided PSD-projection workspaces.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <contact_system/contact_coeff.h>
@@ -89,8 +114,9 @@ namespace sym::codim_ipc_simplex_contact
         return B;
     }
 
+    template <typename Hessian>
     inline __device__ void PT_barrier_gradient_hessian(Vector12&      G,
-                                                       Matrix12x12&   H,
+                                                       Hessian&       H,
                                                        Float          kappa,
                                                        Float          d_hat,
                                                        Float          thickness,
@@ -130,8 +156,9 @@ namespace sym::codim_ipc_simplex_contact
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
 
+    template <typename Hessian>
     inline __device__ void PT_barrier_gradient_hessian(Vector12&       G,
-                                                       Matrix12x12&    H,
+                                                       Hessian&        H,
                                                        const Vector4i& flag,
                                                        Float           kappa,
                                                        Float           d_hat,
@@ -229,8 +256,9 @@ namespace sym::codim_ipc_simplex_contact
         return ek * B;
     }
 
-    inline __device__ void mollified_EE_barrier_gradient_hessian(Vector12&    G,
-                                                                 Matrix12x12& H,
+    template <typename Hessian>
+    inline __device__ void mollified_EE_barrier_gradient_hessian(Vector12& G,
+                                                                 Hessian&  H,
                                                                  const Vector4i& flag,
                                                                  Float kappa,
                                                                  Float d_hat,
@@ -367,8 +395,9 @@ namespace sym::codim_ipc_simplex_contact
         return E;
     }
 
+    template <typename Hessian>
     inline __device__ void PE_barrier_gradient_hessian(Vector9&        G,
-                                                       Matrix9x9&      H,
+                                                       Hessian&        H,
                                                        const Vector3i& flag,
                                                        Float           kappa,
                                                        Float           d_hat,
@@ -448,8 +477,9 @@ namespace sym::codim_ipc_simplex_contact
         return E;
     }
 
+    template <typename Hessian>
     inline __device__ void PP_barrier_gradient_hessian(Vector6&        G,
-                                                       Matrix6x6&      H,
+                                                       Hessian&        H,
                                                        const Vector2i& flag,
                                                        Float           kappa,
                                                        Float           d_hat,

@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: assembly and energy launches on the provided streams.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/finite_element_constraint.h>
 #include <uipc/builtin/attribute_name.h>
 
@@ -197,7 +221,7 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         int  n = (int)constrained_vertices.size();
         if(n > 0)
         {
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.substep_ratio(),
                 constrained_vertices.view(),
                 info.xs(),
@@ -217,7 +241,7 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         if(n > 0)
         {
             auto k = SoftPositionConstraint_do_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 info.substep_ratio(),
                 constrained_vertices.view(),
                 info.xs(),
@@ -236,7 +260,7 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         if(n > 0)
         {
             auto k = SoftPositionConstraint_do_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
                 constrained_vertices.view(),
                 strength_ratios.view(),
                 info.masses(),

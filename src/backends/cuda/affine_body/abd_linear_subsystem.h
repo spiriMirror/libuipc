@@ -1,9 +1,38 @@
+/*
+ * NVIDIA contributions: interfaces supporting the blockwise ABD assembly path,
+ * the side-stream and prelaunched producer assembly (producer sets, leading
+ * producers), the batched count read-backs and the aggregated DyTopo blocks
+ * placed last with a late count read-back.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <linear_system/diag_linear_subsystem.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/abd_dytopo_effect_receiver.h>
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <utils/offset_count_collection.h>
+
+#include <cstdint>
 
 namespace uipc::backend::cuda
 {
@@ -12,6 +41,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 {
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
+    ~ABDLinearSubsystem() override;
 
     cuda_tool::CBufferView<Matrix12x12> diag_hessian() const noexcept
     {
@@ -24,11 +54,13 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         ComputeGradientHessianInfo(bool gradient_only,
                                    cuda_tool::BufferView<Vector12>    gradient,
                                    cuda_tool::BufferView<Matrix12x12> hessians,
-                                   Float dt) noexcept
+                                   Float                              dt,
+                                   cudaStream_t stream = nullptr) noexcept
             : m_gradient_only(gradient_only)
             , m_gradients(gradient)
             , m_hessians(hessians)
             , m_dt(dt)
+            , m_stream(stream)
         {
         }
 
@@ -36,12 +68,15 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         auto hessians() const noexcept { return m_hessians; }
         auto gradients() const noexcept { return m_gradients; }
         auto dt() const noexcept { return m_dt; }
+        // Stream for every launch of the kinetic/shape gradient and Hessian.
+        cudaStream_t stream() const noexcept { return m_stream; }
 
       private:
         bool                               m_gradient_only = false;
         cuda_tool::BufferView<Matrix12x12> m_hessians;
         cuda_tool::BufferView<Vector12>    m_gradients;
-        Float                              m_dt = 0.0;
+        Float                              m_dt     = 0.0;
+        cudaStream_t                       m_stream = nullptr;
     };
 
     class ReportExtentInfo
@@ -69,20 +104,43 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
     class Impl;
 
+    // The producers one assemble() call of a reporter launches: every one,
+    // or (prelaunched assembly) the leading ones (long per-joint eigensolve
+    // chains), which go first, and then the others.
+    enum class ProducerSet
+    {
+        All,
+        Leading,
+        Others
+    };
+
     class AssembleInfo
     {
       public:
-        AssembleInfo(Impl* impl, IndexT index, bool gradient_only) noexcept;
+        AssembleInfo(Impl*                   impl,
+                     IndexT                  index,
+                     bool                    gradient_only,
+                     cuda_tool::SideStreams* side_streams = nullptr,
+                     ProducerSet producers = ProducerSet::All) noexcept;
         cuda_tool::DoubletVectorView<Float, 12>     gradients() const;
         cuda_tool::TripletMatrixView<Float, 12, 12> hessians() const;
         bool gradient_only() const noexcept;
+        // Side streams for the reporter's independent producers (nullptr:
+        // legacy default stream). Each producer must keep all of its
+        // launches on one stream, e.g. through cuda_tool::LazySideStream.
+        cuda_tool::SideStreams* side_streams() const noexcept;
+        // Whether this call launches a producer that leads (`leading`) or
+        // not: every producer is launched by exactly one call per assembly.
+        bool launches(bool leading) const noexcept;
 
       private:
         friend class ABDLinearSubsystem;
 
-        Impl*  m_impl          = nullptr;
-        IndexT m_index         = ~0;
-        bool   m_gradient_only = false;
+        Impl*                   m_impl          = nullptr;
+        IndexT                  m_index         = ~0;
+        bool                    m_gradient_only = false;
+        cuda_tool::SideStreams* m_side_streams  = nullptr;
+        ProducerSet             m_producers     = ProducerSet::All;
     };
 
     class Impl
@@ -90,14 +148,36 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
       public:
         void init();
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+        void report_late_extent(GlobalLinearSystem::LateExtentInfo& info);
 
         void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
         void receive_init_dof_info(WorldVisitor& w, GlobalLinearSystem::InitDofInfo& info);
 
-        void assemble(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_kinetic_shape(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
-        void _assemble_reporters(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
-        void _assemble_dytopo_effect(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
+        void  prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info);
+        void  prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info);
+        void  assemble(GlobalLinearSystem::DiagInfo& info);
+        void  assemble_late(GlobalLinearSystem::DiagInfo& info);
+        void  _report_reporter_extents(bool gradient_only);
+        void  _prepare_reporter_buffers();
+        void  _compute_kinetic_shape(bool gradient_only, cudaStream_t stream);
+        void  _assemble_kinetic_shape(IndexT&                       offset,
+                                      GlobalLinearSystem::DiagInfo& info,
+                                      cudaStream_t                  stream);
+        void  _launch_reporters(bool                    gradient_only,
+                                cuda_tool::SideStreams* side_streams,
+                                ProducerSet producers = ProducerSet::All);
+        void  _assemble_reporters(IndexT&                       offset,
+                                  GlobalLinearSystem::DiagInfo& info,
+                                  cudaStream_t                  stream);
+        void  _assemble_dytopo_effect(IndexT&                       offset,
+                                      GlobalLinearSystem::DiagInfo& info,
+                                      cudaStream_t                  stream);
+        SizeT _prepare_dytopo_body_pair_aggregation();
+        // waits for the two totals the preparation stores (it returns the
+        // receiver entry count, 0: nothing launched) and sizes the run arrays
+        SizeT _finish_dytopo_body_pair_aggregation();
+        // the DyTopo gradients (the aggregated Hessian blocks are late)
+        void _assemble_dytopo_gradients(GlobalLinearSystem::DiagInfo& info, cudaStream_t stream);
 
         void  accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void  retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
@@ -117,12 +197,41 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         cuda_tool::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
         cuda_tool::DeviceDoubletVector<Float, 12>     reporter_gradients;
+        SizeT prelaunched_gradient_count = 0;
+        SizeT prelaunched_hessian_count  = 0;
+        // prepare_prelaunch() forked the side streams; the next
+        // prelaunch_assembly() launches the producers
+        bool prelaunch_forked = false;
 
         // intermediate gradient/hessian buffers for kinetic/shape
         cuda_tool::DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
         cuda_tool::DeviceBuffer<Vector12>    body_id_to_shape_gradient;
         cuda_tool::DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
         cuda_tool::DeviceBuffer<Vector12>    body_id_to_kinetic_gradient;
+
+        // DyTopo receiver entries are stably grouped by the ordered body pair
+        // before assembly. One aggregate then replaces all contact blocks for
+        // that pair, so the global MatrixConverter never sees the 16x
+        // receiver expansion.
+        cuda_tool::DeviceBuffer<std::uint64_t> dytopo_body_pair_keys_input;
+        cuda_tool::DeviceBuffer<std::uint64_t> dytopo_body_pair_keys;
+        cuda_tool::DeviceBuffer<IndexT>        dytopo_receiver_indices_input;
+        cuda_tool::DeviceBuffer<IndexT>        dytopo_receiver_indices;
+        cuda_tool::DeviceBuffer<std::uint64_t> dytopo_unique_body_pair_keys;
+        cuda_tool::DeviceBuffer<int>           dytopo_body_pair_counts;
+        cuda_tool::DeviceBuffer<int>           dytopo_body_pair_offsets;
+        cuda_tool::DeviceBuffer<int>           dytopo_body_pair_block_counts;
+        cuda_tool::DeviceBuffer<int>           dytopo_body_pair_block_offsets;
+        cuda_tool::DeviceVar<int> dytopo_unique_body_pair_count_dev;
+        // {unique body-pair count, aggregated block count}, read back once
+        // the event marks them stored (late blocks: the count is asked for
+        // after the other subsystems' assembly is issued)
+        cuda_tool::ReadbackBuffer<int> dytopo_body_pair_count_readback;
+        cudaEvent_t                    dytopo_body_pair_count_event   = nullptr;
+        SizeT                          dytopo_prepared_receiver_count = 0;
+        SizeT                          dytopo_unique_body_pair_count  = 0;
+        SizeT                          dytopo_aggregated_block_count  = 0;
+        int                            dytopo_body_pair_col_bits      = 1;
 
         // diag hessian for preconditioner
         cuda_tool::DeviceBuffer<Matrix12x12> diag_hessian;
@@ -140,7 +249,11 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
 
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
+    virtual void do_report_late_extent(GlobalLinearSystem::LateExtentInfo& info) override;
+    virtual void do_prepare_prelaunch(GlobalLinearSystem::PrelaunchInfo& info) override;
+    virtual void do_prelaunch_assembly(GlobalLinearSystem::PrelaunchInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
+    virtual void do_assemble_late(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;

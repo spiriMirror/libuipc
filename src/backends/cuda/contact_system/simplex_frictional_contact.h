@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream interfaces, the lagged friction cache
+ * state and the prelaunched trial energy.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
@@ -40,6 +65,11 @@ class SimplexFrictionalContact : public ContactReporter
         Float                                  dt() const;
         Float                                  eps_velocity() const;
 
+        // Change whenever the friction pairs (recorded with the frame-start
+        // positions) or the contact coefficients change.
+        SizeT friction_candidates_version() const;
+        SizeT contact_tabular_version() const;
+
       private:
         friend class SimplexFrictionalContact;
         Impl* m_impl;
@@ -61,6 +91,8 @@ class SimplexFrictionalContact : public ContactReporter
         auto friction_PP_gradients() const noexcept { return m_PP_gradients; }
         auto friction_PP_hessians() const noexcept { return m_PP_hessians; }
         bool gradient_only() const noexcept { return m_gradient_only; }
+        // Stream for every launch of the assembly (the legacy stream if null).
+        cudaStream_t stream() const noexcept { return m_stream; }
 
       private:
         friend class SimplexFrictionalContact;
@@ -76,6 +108,7 @@ class SimplexFrictionalContact : public ContactReporter
         cuda_tool::DoubletVectorView<Float, 3> m_PP_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_PP_hessians;
         bool                                   m_gradient_only = false;
+        cudaStream_t                           m_stream        = nullptr;
     };
 
 
@@ -87,9 +120,16 @@ class SimplexFrictionalContact : public ContactReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl) noexcept
+        EnergyInfo(Impl* impl, const GlobalContactManager::EnergyInfo* base = nullptr) noexcept
             : BaseInfo(impl)
+            , m_base(base)
         {
+        }
+
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
         }
 
         cuda_tool::BufferView<Float> friction_PT_energies() const noexcept
@@ -111,10 +151,11 @@ class SimplexFrictionalContact : public ContactReporter
 
       private:
         friend class SimplexFrictionalContact;
-        cuda_tool::BufferView<Float> m_PT_energies;
-        cuda_tool::BufferView<Float> m_EE_energies;
-        cuda_tool::BufferView<Float> m_PE_energies;
-        cuda_tool::BufferView<Float> m_PP_energies;
+        const GlobalContactManager::EnergyInfo* m_base = nullptr;
+        cuda_tool::BufferView<Float>            m_PT_energies;
+        cuda_tool::BufferView<Float>            m_EE_energies;
+        cuda_tool::BufferView<Float>            m_PE_energies;
+        cuda_tool::BufferView<Float>            m_PP_energies;
     };
 
     class Impl
@@ -176,6 +217,8 @@ class SimplexFrictionalContact : public ContactReporter
 
   private:
     virtual void do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info) override final;
+    virtual bool do_report_prelaunch_energy_extent(
+        GlobalContactManager::PrelaunchEnergyExtentInfo& info) override final;
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;
     virtual void do_report_gradient_hessian_extent(
         GlobalContactManager::GradientHessianExtentInfo& info) override final;

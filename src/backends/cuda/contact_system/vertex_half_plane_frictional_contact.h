@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: side-stream assembly and energy interfaces.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
@@ -54,6 +78,8 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
         bool gradient_only() const noexcept { return m_gradient_only; }
+        // Stream for every launch of the assembly (the legacy stream if null).
+        cudaStream_t stream() const noexcept { return m_stream; }
 
       private:
         friend class VertexHalfPlaneFrictionalContact;
@@ -61,6 +87,7 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
         bool                                   m_gradient_only = false;
+        cudaStream_t                           m_stream        = nullptr;
     };
 
     class BuildInfo
@@ -71,16 +98,23 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
     class EnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl) noexcept
+        EnergyInfo(Impl* impl, const GlobalContactManager::EnergyInfo* base = nullptr) noexcept
             : BaseInfo(impl)
+            , m_base(base)
         {
         }
 
         cuda_tool::BufferView<Float> energies() const noexcept;
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
+        }
 
       private:
         friend class VertexHalfPlaneFrictionalContact;
-        cuda_tool::BufferView<Float> m_energies;
+        const GlobalContactManager::EnergyInfo* m_base = nullptr;
+        cuda_tool::BufferView<Float>            m_energies;
     };
 
     class Impl
