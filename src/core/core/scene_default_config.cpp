@@ -173,6 +173,12 @@ static SceneConfigContract make_scene_config_contract()
         "PCG iterations between host convergence checks.",
         {"src/backends/cuda/linear_system/linear_fused_pcg.cu"},
         Json{{"minimum", 1}});
+    add("linear_system/keep_preconditioner",
+        IndexT{0},
+        "integer",
+        "Opt-in, off by default: odd Newton iterations from the third on reuse the previous iteration's preconditioner (standard IPC only). This changes PCG's stopping threshold and can stop PCG and Newton early, losing accuracy such as the momentum of falling or stacked bodies; keep 0 unless the scene has been checked with both values.",
+        {"src/backends/cuda/linear_system/global_linear_system.cu"},
+        flag);
 
     add("line_search/max_iter",
         IndexT{8},

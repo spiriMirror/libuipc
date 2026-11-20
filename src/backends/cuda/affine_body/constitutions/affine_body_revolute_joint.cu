@@ -1,5 +1,34 @@
+/*
+ * NVIDIA contributions: cached constant joint Hessians, warp-cooperative
+ * joint-limit Hessian assembly, side-stream launches as a leading producer and
+ * one-warp launch shapes.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <limits>
 #include <numbers>
 #include <utils/make_spd.h>
+#include <utils/warp_spd.h>
+#include <utils/warp_joint_hessian.h>
 #include <utils/matrix_assembler.h>
 #include <time_integrator/time_integrator.h>
 #include <affine_body/inter_affine_body_constitution.h>
@@ -168,6 +197,8 @@ namespace
         cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        cuda_tool::BufferView<Float>                cached_Ks,
+        cuda_tool::BufferView<Matrix24x24>          cached_hessians,
         int                                         n)
     {
         int I = blockIdx.x * blockDim.x + threadIdx.x;
@@ -175,9 +206,6 @@ namespace
             return;
         Vector2i        bids  = body_ids(I);
         const Vector12& X_bar = rest_positions(I);
-
-        Vector12 q_i = qs(bids(0));
-        Vector12 q_j = qs(bids(1));
 
         // Extract rest positions
         Vector3 qi0_bar = X_bar.segment<3>(0);
@@ -188,18 +216,35 @@ namespace
         Float K = strength_ratio(I)
                   * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
-        // Compute constraint violation in F-space
-        Vector6 F;
-        RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
-
-        // Fill Body Hessian
-        Matrix6x6 ddEddF;
-        RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
-        make_spd(ddEddF);
-
-        // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
+        // Faxis is linear in q and the energy quadratic in it, so the Hessian
+        // depends only on K and the rest positions. It is computed once and
+        // replayed while K is unchanged; do_init, the only writer of the rest
+        // positions, clears the cache.
         Matrix24x24 H24;
-        RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+        if(cached_Ks(I) == K)
+        {
+            H24 = cached_hessians(I);
+        }
+        else
+        {
+            Vector12 q_i = qs(bids(0));
+            Vector12 q_j = qs(bids(1));
+
+            // Compute constraint violation in F-space
+            Vector6 F;
+            RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
+
+            // Fill Body Hessian
+            Matrix6x6 ddEddF;
+            RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
+            make_spd(ddEddF);
+
+            // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
+            RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+
+            cached_hessians(I) = H24;
+            cached_Ks(I)       = K;
+        }
 
         TripletMatrixAssembler TMA{H12x12s};
         TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
@@ -533,23 +578,37 @@ namespace
         DVA.segment<2>(2 * I).write(bid, G);
     }
 
-    __global__ void affine_body_revolute_joint_limit_compute_gradient_hessian_k2_kernel(
-        cuda_tool::CBufferView<Vector2i>        body_ids,
-        cuda_tool::CBufferView<Vector6>         l_basis,
-        cuda_tool::CBufferView<Vector6>         r_basis,
-        cuda_tool::CBufferView<Float>           init_angles,
-        cuda_tool::CBufferView<Float>           current_angles,
-        cuda_tool::CBufferView<Float>           lowers,
-        cuda_tool::CBufferView<Float>           uppers,
-        cuda_tool::CBufferView<Float>           strengths,
-        cuda_tool::CBufferView<Vector12>        qs,
-        cuda_tool::CBufferView<Vector12>        q_prevs,
-        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
-        int                                     n)
+    // One warp per joint (launched with JointWarpSize threads per block): the
+    // projected Hessian of an active limit (12x12 eigendecomposition and the
+    // J^T H J map to 24x24) is computed by all lanes together, see
+    // utils/warp_spd.h. The scalar terms and the generated derivative code run
+    // redundantly on every lane, which costs no more than on one.
+    __global__ void __launch_bounds__(JointWarpSize)
+        affine_body_revolute_joint_limit_compute_gradient_hessian_k2_kernel(
+            cuda_tool::CBufferView<Vector2i>        body_ids,
+            cuda_tool::CBufferView<Vector6>         l_basis,
+            cuda_tool::CBufferView<Vector6>         r_basis,
+            cuda_tool::CBufferView<Float>           init_angles,
+            cuda_tool::CBufferView<Float>           current_angles,
+            cuda_tool::CBufferView<Float>           lowers,
+            cuda_tool::CBufferView<Float>           uppers,
+            cuda_tool::CBufferView<Float>           strengths,
+            cuda_tool::CBufferView<Vector12>        qs,
+            cuda_tool::CBufferView<Vector12>        q_prevs,
+            cuda_tool::TripletMatrixView<Float, 12> H12x12s,
+            int                                     n)
     {
-        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        const int I    = blockIdx.x;
+        const int lane = threadIdx.x;
         if(I >= n)
             return;
+
+        __shared__ Float H[24 * 24];
+        __shared__ Float dx_dq_s[24];
+        __shared__ Float A[144], A2[144], V[144], V2[144], P[144];
+        __shared__ Float rot[warp_spd_rot_size<12>];
+        __shared__ int   part[12];
+
         Vector2i bid = body_ids(I);
 
         Vector6 lb = l_basis(I);
@@ -577,31 +636,45 @@ namespace
         Float d2E_dx2 = 0.0f;
         joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
 
-        Vector24 dx_dq;
-        ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
-
-        Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
-
-        if(dE_dx != 0.0f)
         {
-            Vector12 F;
-            Vector12 F_prev;
-            ERJ::F<Float>(F, lb, qk, rb, ql);
-            ERJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
-
-            Matrix12x12 ddx_ddF;
-            ERJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
-
-            Matrix12x12 H_F = dE_dx * ddx_ddF;
-            make_spd(H_F);
-
-            Matrix24x24 JT_H_J;
-            ERJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
-            H += JT_H_J;
+            Vector24 dx_dq;
+            ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
+#pragma unroll
+            for(int k = 0; k < 24; ++k)
+                if(k == lane)
+                    dx_dq_s[k] = dx_dq(k);
         }
+        __syncwarp();
 
-        TripletMatrixAssembler TMA{H12x12s};
-        TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
+        // H = d2E_dx2 * dx_dq dx_dq^T
+        for(int e = lane; e < 576; e += 32)
+            H[e] = d2E_dx2 * (dx_dq_s[e % 24] * dx_dq_s[e / 24]);
+
+        if(dE_dx != 0.0f)  // uniform over the warp
+        {
+            {
+                Vector12 F;
+                Vector12 F_prev;
+                ERJ::F<Float>(F, lb, qk, rb, ql);
+                ERJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
+
+                Matrix12x12 ddx_ddF;
+                ERJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
+#pragma unroll
+                for(int e = 0; e < 144; ++e)
+                    if((e & 31) == lane)
+                        A[e] = dE_dx * ddx_ddF(e % 12, e / 12);
+            }
+            __syncwarp();
+            warp_make_spd<12>(A, A2, V, V2, rot, part, P, lane);
+
+            // H += J^T H_F J
+            for(int e = lane; e < 576; e += 32)
+                H[e] += basis_jt_h_j_entry(P, lb, rb, lb, rb, e % 24, e / 24);
+        }
+        __syncwarp();
+
+        warp_write_half_block2(H12x12s, HalfHessianSize * I, bid, bid, H, lane);
     }
 }  // namespace
 
@@ -634,6 +707,11 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
     cuda_tool::DeviceBuffer<Vector2i> body_ids;
     cuda_tool::DeviceBuffer<Vector12> rest_positions;
     cuda_tool::DeviceBuffer<Float>    strength_ratio;
+
+    // Hessian cache: the K each joint's Hessian was computed with (NaN until
+    // the first Hessian evaluation) and that Hessian.
+    cuda_tool::DeviceBuffer<Float>       cached_Ks;
+    cuda_tool::DeviceBuffer<Matrix24x24> cached_hessians;
 
     cuda_tool::DeviceBuffer<Vector6> l_basis;  // [n_L, b_L] per joint
     cuda_tool::DeviceBuffer<Vector6> r_basis;  // [n_R, b_R] per joint
@@ -832,6 +910,9 @@ Edge             = ({}, {}))",
         body_ids.copy_from(h_body_ids);
         rest_positions.copy_from(h_rest_positions);
         strength_ratio.copy_from(h_strength_ratio);
+        cached_Ks.resize_discard(h_body_ids.size());
+        cached_Ks.fill(std::numeric_limits<Float>::quiet_NaN());
+        cached_hessians.resize_discard(h_body_ids.size());
         l_basis.copy_from(h_l_basis);
         r_basis.copy_from(h_r_basis);
         init_angles.copy_from(h_init_angles);
@@ -871,7 +952,7 @@ Edge             = ({}, {}))",
         auto k       = affine_body_revolute_joint_compute_energy_kernel;
         int  n       = (int)body_ids.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
                 body_ids.cview(),
                 rest_positions.cview(),
                 strength_ratio.cview(),
@@ -896,7 +977,7 @@ Edge             = ({}, {}))",
         if(n > 0)
         {
             auto k = affine_body_revolute_joint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_positions.cview(),
                 strength_ratio.cview(),
@@ -912,13 +993,15 @@ Edge             = ({}, {}))",
         if(n > 0)
         {
             auto k = affine_body_revolute_joint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_positions.cview(),
                 strength_ratio.cview(),
                 info.body_masses(),
                 info.qs(),
                 info.hessians(),
+                cached_Ks.view(),
+                cached_hessians.view(),
                 n);
         }
     }
@@ -1295,7 +1378,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         auto k = affine_body_driving_revolute_joint_compute_energy_kernel;
         int  n = (int)is_constrained.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1318,7 +1401,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1340,7 +1423,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = affine_body_driving_revolute_joint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1632,7 +1715,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         auto k        = affine_body_revolute_joint_limit_compute_energy_kernel;
         int  n        = (int)lowers.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, nullptr>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1662,7 +1745,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1683,7 +1766,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_revolute_joint_limit_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<n, JointWarpSize, 0, info.stream()>>>(
                 revolute_joint->body_ids.cview(),
                 revolute_joint->l_basis.cview(),
                 revolute_joint->r_basis.cview(),
@@ -1700,6 +1783,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }
+
+    // Its Hessian is a 12x12 warp eigensolve per joint, one of the longest
+    // producer chains of the assembly.
+    bool do_leads_assembly() const noexcept override { return true; }
 };
 REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointLimit);
 

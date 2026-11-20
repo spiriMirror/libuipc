@@ -1,3 +1,31 @@
+/*
+ * NVIDIA contributions: direct-store output and specialized vector passes for
+ * the supported MAS layout; the fused WHILE-loop step with the diagonal
+ * fallback, the diagonal-fallback assembly and the setup-chain applies on the
+ * provided streams, and the cluster-Hessian clear prepared beside the BCOO
+ * conversion.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <type_define.h>
 #include <Eigen/Dense>
 #include <linear_system/local_preconditioner.h>
@@ -44,62 +72,30 @@ namespace
             diag(i) = eigen::inverse(H3x3);
     }
 
-    __global__ void apply_diag_inv_for_unpartitioned_kernel(
-        cuda_tool::CDenseVectorView<Float> r_view,
-        cuda_tool::DenseVectorView<Float>  z_view,
-        cuda_tool::CBufferView<Matrix3x3>  diag,
-        cuda_tool::CBufferView<int>        unpart,
-        cuda_tool::CDense<IndexT>          converged,
-        int                                n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-        if(*converged != 0)
-            return;
-        if(unpart(i) == 1)
-        {
-            z_view.segment<3>(i * 3).as_eigen() =
-                diag(i) * r_view.segment<3>(i * 3).as_eigen();
-        }
-    }
 }  // namespace
 
 // Must match REGISTER_CONSTITUTION_UIDS EmptyUID in src/constitution/empty.cpp
 constexpr ::uipc::U64 kEmptyConstitutionUID = 0ull;
+// All device work goes to `stream`, which may be a side stream: it only reads
+// the assembled matrix and writes diag_inv, which the solve reads after the
+// preconditioner join.
 void assemble_diag_inv_for_unpartitioned(cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
                                          const cuda_tool::DeviceBuffer<int>& unpart_flags,
                                          cuda_tool::CBCOOMatrixView<Float, 3> A,
-                                         int   fem_block_offset,
-                                         int   fem_block_count,
-                                         SizeT num_verts)
+                                         int          fem_block_offset,
+                                         int          fem_block_count,
+                                         SizeT        num_verts,
+                                         cudaStream_t stream)
 {
-    diag_inv.resize(num_verts);
-    diag_inv.fill(Matrix3x3::Identity());
+    diag_inv.resize(num_verts, stream);
+    diag_inv.fill(Matrix3x3::Identity(), stream);
 
     int n = A.triplet_count();
     if(n > 0)
     {
         auto k = assemble_diag_inv_for_unpartitioned_kernel;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-            A, diag_inv.view(), unpart_flags.cview(), fem_block_offset, fem_block_count, n);
-    }
-}
-
-void apply_diag_inv_for_unpartitioned(const cuda_tool::DeviceBuffer<Matrix3x3>& diag_inv,
-                                      const cuda_tool::DeviceBuffer<int>& unpart_flags,
-                                      cuda_tool::DenseVectorView<Float>  z,
-                                      cuda_tool::CDenseVectorView<Float> r,
-                                      cuda_tool::CVarView<IndexT> converged,
-                                      SizeT                       num_verts,
-                                      cudaStream_t                stream)
-{
-    int n = (int)num_verts;
-    if(n > 0)
-    {
-        auto k = apply_diag_inv_for_unpartitioned_kernel;
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, stream>>>(
-            r, z, diag_inv.cview(), unpart_flags.cview(), converged.cviewer(), n);
+            A, diag_inv.view(), unpart_flags.cview(), fem_block_offset, fem_block_count, n);
     }
 }
 
@@ -403,6 +399,16 @@ class FEMMASPreconditioner : public LocalPreconditioner
         m_has_partition = true;
     }
 
+    virtual void do_prepare_assembly(PrepareAssemblyInfo& info) override
+    {
+        if(!m_has_partition || !engine.is_initialized())
+            return;
+
+        // the cluster Hessians are cleared on a side stream during the
+        // conversion; set_preconditioner() below waits for it
+        engine.prepare_preconditioner();
+    }
+
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
         if(!m_has_partition || !engine.is_initialized())
@@ -426,15 +432,22 @@ class FEMMASPreconditioner : public LocalPreconditioner
                                                      cuda_engine.newton_iter());
         }
 
-        // Diagonal fallback assembly for unpartitioned vertices
+        // Diagonal fallback assembly for unpartitioned vertices: independent
+        // of the MAS chain above (legacy stream), so it runs beside it on the
+        // preconditioner's own stream
         if(m_has_unpartitioned)
         {
             SizeT num_verts        = finite_element_method->xs().size();
             int   fem_block_offset = dof_offset / 3;
             int   fem_block_count  = static_cast<int>(info.dof_count()) / 3;
 
-            assemble_diag_inv_for_unpartitioned(
-                diag_inv, unpartitioned_flags, A, fem_block_offset, fem_block_count, num_verts);
+            assemble_diag_inv_for_unpartitioned(diag_inv,
+                                                unpartitioned_flags,
+                                                A,
+                                                fem_block_offset,
+                                                fem_block_count,
+                                                num_verts,
+                                                info.stream());
         }
     }
 
@@ -450,22 +463,39 @@ class FEMMASPreconditioner : public LocalPreconditioner
             return;
         }
 
-        auto converged = info.converged();
+        // MAS for partitioned vertices; the prolongation pass applies the
+        // diagonal fallback of the unpartitioned ones
+        engine.apply(info.r(),
+                     info.z(),
+                     info.converged(),
+                     info.stream(),
+                     m_has_unpartitioned ? diag_inv.cview() :
+                                           cuda_tool::CBufferView<Matrix3x3>{});
+    }
 
-        // MAS for partitioned vertices
-        engine.apply(info.r(), info.z(), converged, info.stream());
+    virtual bool do_fused_pcg_update_apply_dot(GlobalLinearSystem::FusedPcgUpdateApplyDotInfo& info) override
+    {
+        // The fused engine owns one update and one dot contribution for every
+        // FEM degree of freedom, including the unpartitioned vertices served
+        // by the diagonal fallback (their x/r update, z = D^{-1} r and dot
+        // happen in the engine's final pass).
+        if(!m_has_partition || !engine.is_initialized())
+            return false;
 
-        // Diagonal fallback for unpartitioned vertices
-        if(m_has_unpartitioned)
-        {
-            apply_diag_inv_for_unpartitioned(diag_inv,
-                                             unpartitioned_flags,
-                                             info.z(),
-                                             info.r(),
-                                             converged,
-                                             diag_inv.size(),
-                                             info.stream());
-        }
+        engine.fused_pcg_update_apply_dot(info.x(),
+                                          info.p(),
+                                          info.r(),
+                                          info.Ap(),
+                                          info.z(),
+                                          info.rz(),
+                                          info.pAp(),
+                                          info.rz_new(),
+                                          info.converged(),
+                                          info.stream(),
+                                          m_has_unpartitioned ?
+                                              diag_inv.cview() :
+                                              cuda_tool::CBufferView<Matrix3x3>{});
+        return true;
     }
 };
 

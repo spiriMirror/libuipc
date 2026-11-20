@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: stream plumbing of the prelaunched FEM assembly.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/codim_1d_constitution.h>
 
 namespace uipc::backend::cuda
@@ -17,8 +41,13 @@ void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEn
 
 void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
-    ComputeGradientHessianInfo this_info{
-        this, m_index_in_dim, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
+    ComputeGradientHessianInfo this_info{this,
+                                         m_index_in_dim,
+                                         info.gradient_only(),
+                                         info.dt(),
+                                         info.gradients(),
+                                         info.hessians(),
+                                         info.stream()};
     do_compute_gradient_hessian(this_info);
 }
 

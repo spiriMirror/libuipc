@@ -1,3 +1,39 @@
+/*
+ * NVIDIA contributions: fused SpMV/dot and preconditioner dispatch, blockwise
+ * assembly, layout generation and unsupported-layout fallback; the combined
+ * ABD/FEM block-diagonal PCG step, the upper BCOO conversion, assembly side
+ * streams and prelaunched producers, the FEM gather beside the legacy stream
+ * and its in-place writes, batched count read-backs, preconditioner reuse on
+ * odd Newton iterations, parallel PCG preconditioner branches (also in the
+ * setup chain) and the preconditioner preparation beside the conversion; the
+ * in-place lead's elastic producers prelaunched right after the contact
+ * assembly launch and held to the SMs the contact blocks leave, late Hessian
+ * blocks counted after the rest of the assembly is issued and placed behind
+ * it, the preconditioner preparation from the DyTopo hook and the one-kernel
+ * triplet clear.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <algorithm>
 #include <linear_system/global_linear_system.h>
 #include <linear_system/diag_linear_subsystem.h>
 #include <linear_system/off_diag_linear_subsystem.h>
@@ -5,15 +41,228 @@
 #include <linear_system/iterative_solver.h>
 #include <linear_system/global_preconditioner.h>
 #include <linear_system/local_preconditioner.h>
+#include <linear_system/fused_pcg_kernels.h>
 #include <fstream>
 #include <sim_engine.h>
 #include <backends/common/backend_path_tool.h>
+#include <cub/block/block_reduce.cuh>
 #include <Eigen/Sparse>
 #include <utils/matrix_market.h>
 
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalLinearSystem);
+
+GlobalLinearSystem::~GlobalLinearSystem()
+{
+    if(m_impl.in_place_event)
+        cudaEventDestroy(m_impl.in_place_event);
+}
+
+namespace
+{
+    constexpr int FusedPcgBlockSize = 256;
+
+    // marks triplets [begin, end) unwritten: (-1, -1, 0)
+    __global__ void global_linear_system_clear_triplets_kernel(
+        cuda_tool::BufferView<int>       rows,
+        cuda_tool::BufferView<int>       cols,
+        cuda_tool::BufferView<Matrix3x3> values,
+        int                              begin,
+        int                              end)
+    {
+        int i = begin + blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= end)
+            return;
+        rows(i)   = -1;
+        cols(i)   = -1;
+        values(i) = Matrix3x3::Zero();
+    }
+
+    __global__ void fused_pcg_update_xr_segment_kernel(
+        cuda_tool::DenseVectorView<Float>  x,
+        cuda_tool::CDenseVectorView<Float> p,
+        cuda_tool::DenseVectorView<Float>  r,
+        cuda_tool::CDenseVectorView<Float> Ap,
+        cuda_tool::CDense<Float>           rz,
+        cuda_tool::CDense<Float>           pAp,
+        cuda_tool::CDense<IndexT>          converged,
+        int                                n)
+    {
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n || *converged != 0)
+            return;
+
+        const Float alpha = *rz / *pAp;
+        x(i) += alpha * p(i);
+        r(i) -= alpha * Ap(i);
+    }
+
+    __global__ void fused_pcg_dot_segment_kernel(cuda_tool::CDenseVectorView<Float> r,
+                                                 cuda_tool::CDenseVectorView<Float> z,
+                                                 cuda_tool::Dense<Float> rz_new,
+                                                 cuda_tool::CDense<IndexT> converged,
+                                                 int n)
+    {
+        using BlockReduce = cub::BlockReduce<Float, FusedPcgBlockSize>;
+        __shared__ typename BlockReduce::TempStorage storage;
+
+        const int   i     = blockIdx.x * blockDim.x + threadIdx.x;
+        const Float value = (i < n && *converged == 0) ? r(i) * z(i) : Float{0};
+        const Float sum   = BlockReduce(storage).Sum(value);
+        if(threadIdx.x == 0 && sum != Float{0})
+            atomicAdd(rz_new.data(), sum);
+    }
+
+    __global__ void fused_pcg_identity_update_apply_dot_kernel(
+        cuda_tool::DenseVectorView<Float>  x,
+        cuda_tool::CDenseVectorView<Float> p,
+        cuda_tool::DenseVectorView<Float>  r,
+        cuda_tool::CDenseVectorView<Float> Ap,
+        cuda_tool::DenseVectorView<Float>  z,
+        cuda_tool::CDense<Float>           rz,
+        cuda_tool::CDense<Float>           pAp,
+        cuda_tool::Dense<Float>            rz_new,
+        cuda_tool::CDense<IndexT>          converged,
+        int                                n)
+    {
+        using BlockReduce = cub::BlockReduce<Float, FusedPcgBlockSize>;
+        __shared__ typename BlockReduce::TempStorage storage;
+
+        const int i     = blockIdx.x * blockDim.x + threadIdx.x;
+        Float     value = 0;
+        if(i < n && *converged == 0)
+        {
+            const Float alpha = *rz / *pAp;
+            x(i) += alpha * p(i);
+            const Float r_new = r(i) - alpha * Ap(i);
+            r(i)              = r_new;
+            z(i)              = r_new;
+            value             = r_new * r_new;
+        }
+
+        const Float sum = BlockReduce(storage).Sum(value);
+        if(threadIdx.x == 0 && sum != Float{0})
+            atomicAdd(rz_new.data(), sum);
+    }
+
+    __global__ void fused_pcg_block_diag_update_apply_dot_kernel(
+        FusedPcgBlockDiagSegment<Matrix12x12> block12,
+        FusedPcgBlockDiagSegment<Matrix3x3>   block3,
+        cuda_tool::CDense<Float>              rz,
+        cuda_tool::CDense<Float>              pAp,
+        cuda_tool::Dense<Float>               rz_new,
+        cuda_tool::CDense<IndexT>             converged)
+    {
+        const int body_blocks = (int)block12.diag_inv.size();
+        if((int)blockIdx.x < body_blocks)
+            fused_pcg_block12_update_apply_dot(blockIdx.x,
+                                               block12.diag_inv,
+                                               block12.x,
+                                               block12.p,
+                                               block12.r,
+                                               block12.Ap,
+                                               block12.z,
+                                               rz,
+                                               pAp,
+                                               rz_new,
+                                               converged);
+        else
+            fused_pcg_block3_update_apply_dot(blockIdx.x - body_blocks,
+                                              block3.diag_inv,
+                                              block3.x,
+                                              block3.p,
+                                              block3.r,
+                                              block3.Ap,
+                                              block3.z,
+                                              rz,
+                                              pAp,
+                                              rz_new,
+                                              converged);
+    }
+
+    void launch_fused_pcg_update_xr_segment(cuda_tool::DenseVectorView<Float> x,
+                                            cuda_tool::CDenseVectorView<Float> p,
+                                            cuda_tool::DenseVectorView<Float> r,
+                                            cuda_tool::CDenseVectorView<Float> Ap,
+                                            cuda_tool::CVarView<Float> rz,
+                                            cuda_tool::CVarView<Float> pAp,
+                                            cuda_tool::CVarView<IndexT> converged,
+                                            cudaStream_t stream)
+    {
+        const int n = (int)x.size();
+        if(n == 0)
+            return;
+        const int grid_size = (n + FusedPcgBlockSize - 1) / FusedPcgBlockSize;
+        fused_pcg_update_xr_segment_kernel<<<grid_size, FusedPcgBlockSize, 0, stream>>>(
+            x, p, r, Ap, rz.cviewer(), pAp.cviewer(), converged.cviewer(), n);
+    }
+
+    void launch_fused_pcg_dot_segment(cuda_tool::CDenseVectorView<Float> r,
+                                      cuda_tool::CDenseVectorView<Float> z,
+                                      cuda_tool::VarView<Float>          rz_new,
+                                      cuda_tool::CVarView<IndexT> converged,
+                                      cudaStream_t                stream)
+    {
+        const int n = (int)r.size();
+        if(n == 0)
+            return;
+        const int grid_size = (n + FusedPcgBlockSize - 1) / FusedPcgBlockSize;
+        fused_pcg_dot_segment_kernel<<<grid_size, FusedPcgBlockSize, 0, stream>>>(
+            r, z, rz_new.viewer(), converged.cviewer(), n);
+    }
+
+    void launch_fused_pcg_identity_update_apply_dot(GlobalLinearSystem::FusedPcgUpdateApplyDotInfo& info)
+    {
+        const int n = (int)info.x().size();
+        if(n == 0)
+            return;
+        const int grid_size = (n + FusedPcgBlockSize - 1) / FusedPcgBlockSize;
+        fused_pcg_identity_update_apply_dot_kernel<<<grid_size, FusedPcgBlockSize, 0, info.stream()>>>(
+            info.x(),
+            info.p(),
+            info.r(),
+            info.Ap(),
+            info.z(),
+            info.rz().cviewer(),
+            info.pAp().cviewer(),
+            info.rz_new().viewer(),
+            info.converged().cviewer(),
+            n);
+    }
+}  // namespace
+
+void launch_fused_pcg_block_diag_update_apply_dot(
+    const FusedPcgBlockDiagSegment<Matrix12x12>& block12,
+    const FusedPcgBlockDiagSegment<Matrix3x3>&   block3,
+    cuda_tool::CVarView<Float>                   rz,
+    cuda_tool::CVarView<Float>                   pAp,
+    cuda_tool::VarView<Float>                    rz_new,
+    cuda_tool::CVarView<IndexT>                  converged,
+    cudaStream_t                                 stream)
+{
+    UIPC_ASSERT(block12.x.size() == block12.diag_inv.size() * 12
+                    && block3.x.size() == block3.diag_inv.size() * 3,
+                "fused PCG block-diagonal segments have {}/{} scalars for {}/{} blocks",
+                block12.x.size(),
+                block3.x.size(),
+                block12.diag_inv.size(),
+                block3.diag_inv.size());
+
+    const int vertex_blocks =
+        (int)((block3.diag_inv.size() + FusedPcgBlockDiagThreads - 1) / FusedPcgBlockDiagThreads);
+    const int grid_size = (int)block12.diag_inv.size() + vertex_blocks;
+    if(grid_size > 0)
+    {
+        fused_pcg_block_diag_update_apply_dot_kernel<<<grid_size, FusedPcgBlockDiagThreads, 0, stream>>>(
+            block12,
+            block3,
+            rz.cviewer(),
+            pAp.cviewer(),
+            rz_new.viewer(),
+            converged.cviewer());
+    }
+}
 
 SizeT GlobalLinearSystem::dof_count() const
 {
@@ -29,11 +278,25 @@ void GlobalLinearSystem::compute_gradient(ComputeGradientInfo& info)
 
 void GlobalLinearSystem::do_build()
 {
-    auto dump_linear_system_attr =
-        world().scene().config().find<IndexT>("extras/debug/dump_linear_system");
+    auto& config = world().scene().config();
+    auto dump_linear_system_attr = config.find<IndexT>("extras/debug/dump_linear_system");
 
     m_impl.need_debug_dump =
         dump_linear_system_attr ? dump_linear_system_attr->view()[0] : false;
+
+    // Preconditioner reuse (see keeps_preconditioner()) is opt-in through
+    // linear_system/keep_preconditioner and off by default: PCG stops on
+    // |r^T z| <= tol_rate * |r0^T z0|, and a kept preconditioner, one Newton
+    // step old, can inflate that norm, so the solve can stop while the step of
+    // the free bodies is still about zero. Newton's displacement test then
+    // passes and momentum is lost. It applies to the standard IPC Newton
+    // loop only; AL-IPC changes its multipliers and active set between
+    // Newton iterations and assembles every iteration.
+    auto keep_attr = config.find<IndexT>("linear_system/keep_preconditioner");
+    auto constitution_attr = config.find<std::string>("contact/constitution");
+    m_impl.preconditioner_reuse =
+        keep_attr && keep_attr->view()[0] != 0
+        && (!constitution_attr || constitution_attr->view()[0] == "ipc");
 }
 
 void GlobalLinearSystem::_dump_A_b()
@@ -67,10 +330,32 @@ void GlobalLinearSystem::_dump_x()
 }
 
 
+void GlobalLinearSystem::prepare_prelaunch(SizeT beside_blocks)
+{
+    m_impl.prepare_prelaunch(beside_blocks);
+}
+
+void GlobalLinearSystem::prelaunch_ahead()
+{
+    m_impl.prelaunch_ahead();
+}
+
+void GlobalLinearSystem::prelaunch_assembly(bool contact_launched)
+{
+    m_impl.prelaunch_assembly(contact_launched);
+    // An iteration that assembles its preconditioners prepares them here,
+    // beside the DyTopo work, instead of in front of the conversion.
+    if(m_impl.initialized
+       && !(m_impl.preconditioner_reuse && keeps_preconditioner(engine().newton_iter())))
+        m_impl.prepare_preconditioners();
+}
+
 void GlobalLinearSystem::solve()
 {
     m_impl.last_solve_iterations = 0;
-    m_impl.build_linear_system();
+    m_impl.last_solve_pending    = false;
+    m_impl.build_linear_system(m_impl.preconditioner_reuse
+                               && keeps_preconditioner(engine().newton_iter()));
 
     if(m_impl.empty_system) [[unlikely]]
         return;
@@ -168,6 +453,8 @@ void GlobalLinearSystem::Impl::init()
             InitDofExtentInfo info;
             diag_subsystem->report_init_extent(info);
             diag_dof_counts[i] = info.m_dof_count;
+            if(info.m_prelaunch_in_place && in_place_lead < 0)
+                in_place_lead = static_cast<IndexT>(i);
         }
         diag_dof_offsets_counts.scan();
         auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
@@ -184,6 +471,22 @@ void GlobalLinearSystem::Impl::init()
     // 3) Triplet Offsets/Counts
     subsystem_triplet_offsets_counts.resize(total_count);
     off_diag_lr_triplet_counts.resize(off_diag_subsystem_view.size());
+    // The in-place lead's range first (its prefix position then does not
+    // depend on the other subsystems' counts), the others in their order,
+    // then the late blocks (DiagExtentInfo::late_extent()) in subsystem
+    // order. No (row, col) key is shared across subsystems, and a
+    // subsystem's late blocks stay behind its others: the stable sort of the
+    // conversion puts the same entries in the same order under every key,
+    // and the reduction sees the same sequence (in its own atomic order).
+    triplet_offsets.resize(total_count, 0);
+    triplet_order.clear();
+    if(in_place_lead >= 0)
+        triplet_order.push_back(diag_span[in_place_lead].index);
+    for(auto&& [i, subsystem_info] : enumerate(subsystem_infos))
+        if(in_place_lead < 0 || subsystem_info.index != diag_span[in_place_lead].index)
+            triplet_order.push_back(subsystem_info.index);
+    if(in_place_lead >= 0)
+        CUDA_TOOL_CHECK(cudaEventCreateWithFlags(&in_place_event, cudaEventDisableTiming));
 
     // 4) Preconditioner
     // find out diag systems that don't have preconditioner
@@ -192,6 +495,7 @@ void GlobalLinearSystem::Impl::init()
     for(auto precond : local_preconditioner_view)
     {
         auto index = precond->m_subsystem->m_index;
+        local_preconditioner_owners_unique &= !diag_span[index].has_local_preconditioner;
         diag_span[index].has_local_preconditioner = true;
     }
 
@@ -209,16 +513,113 @@ void GlobalLinearSystem::Impl::init()
         precond->init();
     }
 
+    // Enough streams that the scene's longest single-block producer chains
+    // (joints, constraints) each get their own; kept below the default of 8
+    // hardware work queues together with the legacy stream.
+    constexpr SizeT assembly_side_stream_count = 6;
+    assembly_streams.create(assembly_side_stream_count);
+
+    if(local_preconditioner_owners_unique && local_preconditioner_view.size() > 1)
+        pcg_segment_streams.create(local_preconditioner_view.size() - 1);
+
     initialized = true;
 }
 
-void GlobalLinearSystem::Impl::build_linear_system()
+void GlobalLinearSystem::Impl::prepare_prelaunch(SizeT beside_blocks)
+{
+    if(!initialized || assembly_streams.size() == 0)
+        return;
+
+    for(auto&& diag_subsystem : diag_subsystems.view())
+    {
+        PrelaunchInfo info;
+        info.m_side_streams = &assembly_streams;
+        diag_subsystem->prepare_prelaunch(info);
+    }
+    prelaunch_prepared = true;
+    lead_ahead         = false;
+    ahead_blocks       = beside_blocks;
+}
+
+void GlobalLinearSystem::Impl::prelaunch_ahead()
+{
+    // The latency-bound contact kernels take one SM per one-warp block, and
+    // an elastic producer of whole-SM blocks issued right after them, held
+    // to the SMs they leave, runs beside them (issued after the other DyTopo
+    // kernels, it would find no free SM). The in-place lead decides whether
+    // it prelaunches here.
+    const SizeT beside_blocks = std::exchange(ahead_blocks, 0);
+    if(!prelaunch_prepared || beside_blocks == 0 || in_place_lead < 0)
+        return;
+    if(sm_count == 0)
+    {
+        int device = 0;
+        CUDA_TOOL_CHECK(cudaGetDevice(&device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&sm_count, cudaDevAttrMultiProcessorCount, device));
+    }
+    const int beside = static_cast<int>(std::min<SizeT>(beside_blocks, sm_count));
+
+    auto diag_subsystem_view = diag_subsystems.view();
+    diag_fully_written_triplets.resize(diag_subsystem_view.size(), 0);
+    in_place_written = false;
+
+    PrelaunchInfo info;
+    info.m_side_streams      = &assembly_streams;
+    info.m_ahead_of_contact  = true;
+    info.m_elastic_block_cap = std::max(sm_count / 2, sm_count - beside);
+    info.m_sm_count          = sm_count;
+    info.m_impl              = this;
+    info.m_in_place_lead     = true;
+    diag_subsystem_view[in_place_lead]->prelaunch_assembly(info);
+    if(!in_place_written)
+        return;
+    diag_fully_written_triplets[in_place_lead] = info.m_fully_written_triplets;
+    lead_ahead                                 = true;
+}
+
+void GlobalLinearSystem::Impl::prelaunch_assembly(bool contact_launched)
+{
+    if(!initialized || assembly_streams.size() == 0)
+        return;
+
+    if(!prelaunch_prepared)
+        prepare_prelaunch(0);
+    prelaunch_prepared = false;
+
+    auto diag_subsystem_view = diag_subsystems.view();
+    diag_fully_written_triplets.resize(diag_subsystem_view.size(), 0);
+    if(!lead_ahead)
+        in_place_written = false;
+
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+    {
+        PrelaunchInfo info;
+        info.m_side_streams     = &assembly_streams;
+        info.m_contact_launched = contact_launched;
+        info.m_impl             = this;
+        info.m_in_place_lead    = static_cast<IndexT>(i) == in_place_lead;
+        diag_subsystem->prelaunch_assembly(info);
+        if(info.m_fully_written_triplets > 0)
+            diag_fully_written_triplets[i] = info.m_fully_written_triplets;
+    }
+    lead_ahead           = false;
+    assembly_prelaunched = true;
+}
+
+void GlobalLinearSystem::Impl::build_linear_system(bool keep_preconditioner)
 {
     Timer timer{"Build Linear System"};
     empty_system = !_update_subsystem_extent();
 
     if(empty_system) [[unlikely]]
     {
+        // nothing consumes prelaunched producers; finish them before their
+        // buffers are reused
+        wait_in_place();
+        in_place_written = false;
+        assembly_streams.join();
+        assembly_prelaunched = false;
+        std::ranges::fill(diag_fully_written_triplets, 0);
         logger::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return;
     }
@@ -226,20 +627,38 @@ void GlobalLinearSystem::Impl::build_linear_system()
     {
         Timer t{"Assemble Subsystems"};
         _assemble_linear_system();
+        assembly_prelaunched = false;
+        std::ranges::fill(diag_fully_written_triplets, 0);
+        // the next prelaunch may write in place with this layout
+        in_place_ready = in_place_lead >= 0;
     }
+
+    // A kept preconditioner was assembled for the same DoF layout, so its
+    // buffers (and every captured PCG graph using them) stay valid. Decided
+    // before the conversion, so the local preconditioners prepare their
+    // assembly beside it.
+    const bool assemble_preconditioner =
+        !keep_preconditioner || preconditioner_layout_generation != dof_layout_generation;
+    if(assemble_preconditioner)
+        prepare_preconditioners();
 
     {
         Timer t{"Convert To BCOO"};
-        converter.ge2sym(triplet_A);
-        converter.convert(triplet_A, bcoo_A);
+        converter.convert_upper(triplet_A, bcoo_A);
         // upload the nnz count for graph-stable SpMV launches (async on the
         // default stream; drained before any solve reads it)
         triplet_count_dev = (IndexT)bcoo_A.triplet_count();
     }
 
+
     {
         Timer t{"Assemble Preconditioner"};
-        _assemble_preconditioner();
+        if(assemble_preconditioner)
+        {
+            _assemble_preconditioner();
+            preconditioner_layout_generation = dof_layout_generation;
+            preconditioners_prepared         = false;
+        }
     }
 
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
@@ -252,12 +671,16 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     bool dof_count_changed     = false;
     bool triplet_count_changed = false;
 
-    auto diag_subsystem_view       = diag_subsystems.view();
-    auto off_diag_subsystem_view   = off_diag_subsystems.view();
-    auto diag_dof_counts           = diag_dof_offsets_counts.counts();
-    auto diag_dof_offsets          = diag_dof_offsets_counts.offsets();
-    auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
-    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
+    auto diag_subsystem_view      = diag_subsystems.view();
+    auto off_diag_subsystem_view  = off_diag_subsystems.view();
+    auto diag_dof_counts          = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets         = diag_dof_offsets_counts.offsets();
+    auto subsystem_triplet_counts = subsystem_triplet_offsets_counts.counts();
+
+    diag_late.assign(diag_subsystem_view.size(), 0);
+    diag_late_counts.assign(diag_subsystem_view.size(), 0);
+    late_pending  = false;
+    late_reported = false;
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -271,6 +694,8 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
             dof_count_changed |= diag_dof_counts[dof_i] != info.m_dof_count;
             diag_dof_counts[dof_i] = info.m_dof_count;
+            diag_late[dof_i]       = info.m_late;
+            late_pending |= info.m_late;
 
 
             triplet_count_changed |= subsystem_triplet_counts[triplet_i] != info.m_block_count;
@@ -295,9 +720,22 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     SizeT total_dof     = 0;
     SizeT total_triplet = 0;
 
+    // An in-place prelaunch used the previous DoF layout: when it changed,
+    // the lead's writes are void (and b may move), so wait for them and let
+    // the lead assemble in full.
+    in_place_discarded = false;
+    if(in_place_written && dof_count_changed)
+    {
+        wait_in_place();
+        in_place_written                           = false;
+        in_place_discarded                         = true;
+        diag_fully_written_triplets[in_place_lead] = 0;
+    }
+
     if(dof_count_changed)
     {
         diag_dof_offsets_counts.scan();
+        ++dof_layout_generation;
     }
     total_dof = diag_dof_offsets_counts.total_count();
     if(x.capacity() < total_dof)
@@ -314,16 +752,36 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     if(triplet_count_changed) [[likely]]
     {
         subsystem_triplet_offsets_counts.scan();
+        IndexT offset = 0;
+        for(SizeT t : triplet_order)
+        {
+            triplet_offsets[t] = offset;
+            offset += subsystem_triplet_counts[t];
+        }
     }
     total_triplet = subsystem_triplet_offsets_counts.total_count();
 
     if(triplet_A.triplet_capacity() < total_triplet)
     {
         auto reserve_count = total_triplet * reserve_ratio;
-        triplet_A.reserve_triplets_discard(reserve_count);
+        if(in_place_written)
+        {
+            // keep the in-place prefix (the first triplets): copy it once
+            // the lead has written it
+            wait_in_place();
+            SizeT prefix = diag_fully_written_triplets[in_place_lead];
+            triplet_A.resize_triplets_discard(std::max(triplet_A.triplet_count(), prefix));
+            triplet_A.reserve_triplets(reserve_count);
+        }
+        else
+            triplet_A.reserve_triplets_discard(reserve_count);
         bcoo_A.reserve_triplets_discard(reserve_count);
     }
     triplet_A.resize_triplets_discard(total_triplet);
+
+    // without other blocks, only the late ones tell whether A is empty
+    if(total_triplet == 0 && late_pending && total_dof != 0) [[unlikely]]
+        total_triplet = _report_late_extents();
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
@@ -333,17 +791,132 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     return true;
 }
 
+SizeT GlobalLinearSystem::Impl::_report_late_extents()
+{
+    SizeT total = 0;
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        if(!diag_late[i])
+            continue;
+        LateExtentInfo info;
+        diag_subsystem->report_late_extent(info);
+        diag_late_counts[i] = info.m_block_count;
+        total += info.m_block_count;
+    }
+    late_reported = true;
+    return total;
+}
+
+void GlobalLinearSystem::Impl::_assemble_late()
+{
+    if(!late_pending)
+        return;
+    if(!late_reported)
+        _report_late_extents();
+
+    const SizeT early = subsystem_triplet_offsets_counts.total_count();
+    SizeT       total = early;
+    for(SizeT count : diag_late_counts)
+        total += count;
+    if(triplet_A.triplet_capacity() < total)
+    {
+        // keep the other blocks: copy them once they are written
+        wait_in_place();
+        assembly_streams.join();
+        auto reserve_count = total * reserve_ratio;
+        triplet_A.reserve_triplets(reserve_count);
+        bcoo_A.reserve_triplets_discard(reserve_count);
+        assembly_streams.fork();
+    }
+    triplet_A.resize_triplets_discard(total);
+
+    auto   HA               = triplet_A.view();
+    auto   B                = b.view();
+    auto   diag_dof_counts  = diag_dof_offsets_counts.counts();
+    auto   diag_dof_offsets = diag_dof_offsets_counts.offsets();
+    IndexT offset           = static_cast<IndexT>(early);
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        if(!diag_late[i])
+            continue;
+        int  dof_offset         = diag_dof_offsets[i];
+        int  dof_count          = diag_dof_counts[i];
+        int  blocked_dof_offset = dof_offset / DoFBlockSize;
+        int  blocked_dof_count  = dof_count / DoFBlockSize;
+        int2 ij_offset          = {blocked_dof_offset, blocked_dof_offset};
+        int2 ij_count           = {blocked_dof_count, blocked_dof_count};
+        auto count              = static_cast<IndexT>(diag_late_counts[i]);
+
+        DiagInfo info{this};
+        info.m_index        = diag_subsystem->m_index;
+        info.m_side_streams = &assembly_streams;
+        info.m_prelaunched =
+            assembly_prelaunched
+            && !(in_place_discarded && static_cast<IndexT>(i) == in_place_lead);
+        info.m_gradients = B.subview(dof_offset, dof_count);
+        info.m_hessians = HA.subview(offset, count).submatrix(ij_offset, ij_count);
+        diag_subsystem->assemble_late(info);
+        offset += count;
+    }
+}
+
+void GlobalLinearSystem::Impl::_clear_triplets()
+{
+    auto clear = [&](IndexT begin, IndexT end)
+    {
+        if(end <= begin)
+            return;
+        constexpr int block = 256;
+        global_linear_system_clear_triplets_kernel<<<(end - begin + block - 1) / block, block>>>(
+            triplet_A.row_indices(), triplet_A.col_indices(), triplet_A.values(), begin, end);
+    };
+
+    // Clear and invalidate previous values, except the prefixes that
+    // prelaunched subsystems write in full (in triplet order).
+    auto   offsets = span<const IndexT>{triplet_offsets};
+    auto   counts  = subsystem_triplet_offsets_counts.counts();
+    IndexT begin   = 0;
+    if(assembly_prelaunched)
+    {
+        for(SizeT t : triplet_order)
+        {
+            const auto& subsystem_info = subsystem_infos[t];
+            if(!subsystem_info.is_diag)
+                continue;
+            SizeT written = diag_fully_written_triplets[subsystem_info.local_index];
+            if(written == 0)
+                continue;
+            IndexT offset = offsets[subsystem_info.index];
+            UIPC_ASSERT(written <= static_cast<SizeT>(counts[subsystem_info.index]),
+                        "Fully written prefix {} exceeds the subsystem's {} triplets",
+                        written,
+                        counts[subsystem_info.index]);
+            clear(begin, offset);
+            begin = offset + static_cast<IndexT>(written);
+        }
+    }
+    clear(begin, static_cast<IndexT>(triplet_A.triplet_count()));
+}
+
 void GlobalLinearSystem::Impl::_assemble_linear_system()
 {
     auto HA = triplet_A.view();
 
-    // Clear and invalidate previous values
-    triplet_A.values().fill(Matrix3x3::Zero());
-    triplet_A.row_indices().fill(-1);
-    triplet_A.col_indices().fill(-1);
+    _clear_triplets();
 
+    // An in-place lead cleared (and is adding to) its gradient range.
     auto B = b.view();
-    B.buffer_view().fill(0.0);
+    if(in_place_written)
+    {
+        IndexT off = diag_dof_offsets_counts.offsets()[in_place_lead];
+        IndexT cnt = diag_dof_offsets_counts.counts()[in_place_lead];
+        if(off > 0)
+            B.buffer_view().subview(0, off).fill(0.0);
+        if(off + cnt < (IndexT)B.size())
+            B.buffer_view().subview(off + cnt, B.size() - off - cnt).fill(0.0);
+    }
+    else
+        B.buffer_view().fill(0.0);
 
     auto diag_subsystem_view     = diag_subsystems.view();
     auto off_diag_subsystem_view = off_diag_subsystems.view();
@@ -352,7 +925,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
     auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
 
     auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
-    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
+    auto subsystem_triplet_offsets = span<const IndexT>{triplet_offsets};
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -371,7 +944,11 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index     = triplet_i;
+            info.m_index        = triplet_i;
+            info.m_side_streams = &assembly_streams;
+            info.m_prelaunched =
+                assembly_prelaunched
+                && !(in_place_discarded && static_cast<IndexT>(dof_i) == in_place_lead);
             info.m_gradients = B.subview(dof_offset, dof_count);
             info.m_hessians  = HA.subview(subsystem_triplet_offsets[triplet_i],
                                          subsystem_triplet_counts[triplet_i])
@@ -417,6 +994,35 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             off_diag_subsystem->assemble(info);
         }
     }
+
+    // the late blocks, behind the others
+    _assemble_late();
+
+    // Subsystems write disjoint ranges of A and b; producers they forked onto
+    // side streams (and an in-place prelaunch) are complete before the
+    // conversion reads A.
+    wait_in_place();
+    in_place_written   = false;
+    in_place_discarded = false;
+    assembly_streams.join();
+}
+
+
+void GlobalLinearSystem::Impl::wait_in_place()
+{
+    if(!in_place_written || in_place_waited)
+        return;
+    CUDA_TOOL_CHECK(cudaStreamWaitEvent(nullptr, in_place_event, 0));
+    in_place_waited = true;
+}
+
+void GlobalLinearSystem::Impl::prepare_preconditioners()
+{
+    if(std::exchange(preconditioners_prepared, true))
+        return;
+    LocalPreconditioner::PrepareAssemblyInfo info;
+    for(auto&& preconditioner : local_preconditioners.view())
+        preconditioner->prepare_assembly(info);
 }
 
 void GlobalLinearSystem::Impl::_assemble_preconditioner()
@@ -427,11 +1033,19 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
         global_preconditioner->assemble(info);
     }
 
-    for(auto&& preconditioner : local_preconditioners.view())
+    // Local preconditioners only read the assembled system and write their
+    // own state, so each one assembles on its own side stream; the solve
+    // starts after the join.
+    assembly_streams.fork();
+    for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
     {
-        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index};
+        cudaStream_t stream = assembly_streams.size() ?
+                                  assembly_streams[i % assembly_streams.size()] :
+                                  nullptr;
+        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index, stream};
         preconditioner->assemble(info);
     }
+    assembly_streams.join();
 }
 
 void GlobalLinearSystem::Impl::solve_linear_system()
@@ -444,7 +1058,9 @@ void GlobalLinearSystem::Impl::solve_linear_system()
         info.m_x = x.view();
         iterative_solver->solve(info);
         last_solve_iterations = info.m_iter_count;
-        logger::info("Iterative linear solver iteration count: {}", info.m_iter_count);
+        last_solve_pending    = info.m_iter_count_pending;
+        if(!last_solve_pending)
+            logger::info("Iterative linear solver iteration count: {}", info.m_iter_count);
     }
 }
 
@@ -482,7 +1098,17 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
         global_preconditioner->apply(info);
     }
 
-    for(auto& preconditioner : local_preconditioners.view())
+    // On a launch stream of its own (the captured WHILE setup chain), each
+    // local preconditioner of unique owners but the last applies on a branch
+    // of its own, as in fused_pcg_update_apply_dot: they read r and write
+    // disjoint ranges of z. The plain path keeps the serial sequence.
+    auto       local_view = local_preconditioners.view();
+    const bool branch     = !global_preconditioner && stream != nullptr
+                        && pcg_segment_streams.size() + 1 == local_view.size();
+    if(branch)
+        pcg_segment_streams.fork(stream);
+
+    for(auto&& [k, preconditioner] : enumerate(local_view))
     {
         ApplyPreconditionerInfo info{this};
         auto                    index  = preconditioner->m_subsystem->m_index;
@@ -491,9 +1117,13 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
         info.m_z                       = z.subview(offset, count);
         info.m_r                       = r.subview(offset, count);
         info.m_converged               = converged;
-        info.m_stream                  = stream;
+        info.m_stream =
+            branch && k + 1 < local_view.size() ? pcg_segment_streams[k] : stream;
         preconditioner->apply(info);
     }
+
+    if(branch)
+        pcg_segment_streams.join(stream);
 
     if(!global_preconditioner)
     {
@@ -507,6 +1137,164 @@ void GlobalLinearSystem::Impl::apply_preconditioner(cuda_tool::DenseVectorView<F
             cuda_tool::BufferLaunch(stream).copy(z_sub.buffer_view(), r_sub.buffer_view());
         }
     }
+}
+
+bool GlobalLinearSystem::Impl::fused_pcg_update_apply_dot(
+    cuda_tool::DenseVectorView<Float>  x,
+    cuda_tool::CDenseVectorView<Float> p,
+    cuda_tool::DenseVectorView<Float>  r,
+    cuda_tool::CDenseVectorView<Float> Ap,
+    cuda_tool::DenseVectorView<Float>  z,
+    cuda_tool::CVarView<Float>         rz,
+    cuda_tool::CVarView<Float>         pAp,
+    cuda_tool::VarView<Float>          rz_new,
+    cuda_tool::CVarView<IndexT>        converged,
+    cudaStream_t                       stream)
+{
+    // A global preconditioner may couple arbitrary segments. Multiple local
+    // preconditioners on one subsystem must also keep the reference sequence:
+    // update x/r once, apply all preconditioners, then take one dot product.
+    // Reject fusion before any hook or kernel can partially update the vectors.
+    if(global_preconditioner || !local_preconditioner_owners_unique)
+        return false;
+
+    UIPC_ASSERT(x.size() == p.size() && x.size() == r.size()
+                    && x.size() == Ap.size() && x.size() == z.size(),
+                "fused PCG vectors must have matching sizes");
+
+    // Block replay supplies a zeroed ping-pong accumulation slot. Each local
+    // subsystem adds its contribution; the direction kernel clears the slot
+    // that the next iteration will consume.
+    const auto diag_dof_counts  = diag_dof_offsets_counts.counts();
+    const auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
+
+    // When every segment belongs to a block-diagonal preconditioner, with at
+    // most one 12x12 and one 3x3 owner, one launch serves both segments.
+    if(no_precond_diag_subsystem_indices.empty())
+    {
+        FusedPcgBlockDiagSegment<Matrix12x12> block12{};
+        FusedPcgBlockDiagSegment<Matrix3x3>   block3{};
+        int                                   owners12   = 0;
+        int                                   owners3    = 0;
+        bool                                  block_diag = true;
+        for(auto& preconditioner : local_preconditioners.view())
+        {
+            FusedPcgDiagInverseInfo inverse;
+            if(!preconditioner->fused_pcg_diag_inverse(inverse))
+            {
+                block_diag = false;
+                break;
+            }
+            const auto index  = preconditioner->m_subsystem->m_index;
+            const auto offset = diag_dof_offsets[index];
+            const auto count  = diag_dof_counts[index];
+            if(inverse.m_block_size == 12)
+            {
+                ++owners12;
+                block12 = {inverse.m_inverse_12x12,
+                           x.subview(offset, count),
+                           p.subview(offset, count),
+                           r.subview(offset, count),
+                           Ap.subview(offset, count),
+                           z.subview(offset, count)};
+            }
+            else if(inverse.m_block_size == 3)
+            {
+                ++owners3;
+                block3 = {inverse.m_inverse_3x3,
+                          x.subview(offset, count),
+                          p.subview(offset, count),
+                          r.subview(offset, count),
+                          Ap.subview(offset, count),
+                          z.subview(offset, count)};
+            }
+            else
+            {
+                block_diag = false;
+                break;
+            }
+        }
+        if(block_diag && owners12 <= 1 && owners3 <= 1)
+        {
+            launch_fused_pcg_block_diag_update_apply_dot(
+                block12, block3, rz, pAp, rz_new, converged, stream);
+            return true;
+        }
+    }
+
+    // Each local preconditioner's segment but the last runs on a branch of
+    // its own; the segments write disjoint ranges of x, r and z and add to
+    // rz_new atomically, so only the order of those additions changes.
+    auto       local_view = local_preconditioners.view();
+    const bool branch     = pcg_segment_streams.size() + 1 == local_view.size();
+    if(branch)
+        pcg_segment_streams.fork(stream);
+
+    for(auto&& [k, preconditioner] : enumerate(local_view))
+    {
+        const auto   index  = preconditioner->m_subsystem->m_index;
+        const auto   offset = diag_dof_offsets[index];
+        const auto   count  = diag_dof_counts[index];
+        cudaStream_t segment_stream =
+            branch && k + 1 < local_view.size() ? pcg_segment_streams[k] : stream;
+
+        FusedPcgUpdateApplyDotInfo fused_info{this};
+        fused_info.m_x         = x.subview(offset, count);
+        fused_info.m_p         = p.subview(offset, count);
+        fused_info.m_r         = r.subview(offset, count);
+        fused_info.m_Ap        = Ap.subview(offset, count);
+        fused_info.m_z         = z.subview(offset, count);
+        fused_info.m_rz        = rz;
+        fused_info.m_pAp       = pAp;
+        fused_info.m_rz_new    = rz_new;
+        fused_info.m_converged = converged;
+        fused_info.m_stream    = segment_stream;
+
+        if(preconditioner->fused_pcg_update_apply_dot(fused_info))
+            continue;
+
+        launch_fused_pcg_update_xr_segment(fused_info.x(),
+                                           fused_info.p(),
+                                           fused_info.r(),
+                                           fused_info.Ap(),
+                                           fused_info.rz(),
+                                           fused_info.pAp(),
+                                           fused_info.converged(),
+                                           segment_stream);
+
+        ApplyPreconditionerInfo apply_info{this};
+        apply_info.m_z         = fused_info.z();
+        apply_info.m_r         = fused_info.r();
+        apply_info.m_converged = converged;
+        apply_info.m_stream    = segment_stream;
+        preconditioner->apply(apply_info);
+
+        launch_fused_pcg_dot_segment(fused_info.r(), fused_info.z(), rz_new, converged, segment_stream);
+    }
+
+    for(auto index : no_precond_diag_subsystem_indices)
+    {
+        const auto offset = diag_dof_offsets[index];
+        const auto count  = diag_dof_counts[index];
+
+        FusedPcgUpdateApplyDotInfo fused_info{this};
+        fused_info.m_x         = x.subview(offset, count);
+        fused_info.m_p         = p.subview(offset, count);
+        fused_info.m_r         = r.subview(offset, count);
+        fused_info.m_Ap        = Ap.subview(offset, count);
+        fused_info.m_z         = z.subview(offset, count);
+        fused_info.m_rz        = rz;
+        fused_info.m_pAp       = pAp;
+        fused_info.m_rz_new    = rz_new;
+        fused_info.m_converged = converged;
+        fused_info.m_stream    = stream;
+        launch_fused_pcg_identity_update_apply_dot(fused_info);
+    }
+
+    if(branch)
+        pcg_segment_streams.join(stream);
+
+    return true;
 }
 
 void GlobalLinearSystem::Impl::spmv(Float                              a,
@@ -535,6 +1323,27 @@ void GlobalLinearSystem::Impl::spmv_dot(cuda_tool::CDenseVectorView<Float> x,
                             triplet_count_dev.cviewer(),
                             bcoo_A.triplet_capacity(),
                             stream);
+}
+
+void GlobalLinearSystem::Impl::spmv_dot_pipelined(cuda_tool::CDenseVectorView<Float> x,
+                                                  cuda_tool::DenseVectorView<Float> y,
+                                                  cuda_tool::VarView<Float> d_dot,
+                                                  cuda_tool::DenseVectorView<Float> next_y,
+                                                  cuda_tool::VarView<Float> next_dot,
+                                                  cuda_tool::CVarView<IndexT> converged,
+                                                  cudaStream_t stream)
+{
+    spmver.rbk_sym_spmv_dot_pipelined(1.0,
+                                      bcoo_A.cview(),
+                                      x,
+                                      y,
+                                      d_dot,
+                                      next_y,
+                                      next_dot,
+                                      converged,
+                                      triplet_count_dev.cviewer(),
+                                      bcoo_A.triplet_capacity(),
+                                      stream);
 }
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(cuda_tool::DenseVectorView<Float> r)
@@ -623,6 +1432,50 @@ void GlobalLinearSystem::OffDiagExtentInfo::extent(SizeT lr_hessian_block_count,
     m_lr_block_count = lr_hessian_block_count;
     m_rl_block_count = rl_hassian_block_count;
 }
+bool GlobalLinearSystem::PrelaunchInfo::in_place_available() const noexcept
+{
+    return m_in_place_lead && m_impl && m_impl->in_place_ready;
+}
+
+auto GlobalLinearSystem::PrelaunchInfo::in_place_hessians(SizeT count) -> TripletMatrixView
+{
+    UIPC_ASSERT(in_place_available(), "in-place prelaunch is not available");
+    auto& I = *m_impl;
+    // Nothing reads the previous assembly's triplets any more (the
+    // reallocation synchronizes), and the global extent update keeps the
+    // prefix when it grows the matrix after this.
+    if(I.triplet_A.triplet_capacity() < count)
+        I.triplet_A.reserve_triplets_discard(count * I.reserve_ratio);
+    if(I.triplet_A.triplet_count() < count)
+        I.triplet_A.resize_triplets_discard(count);
+    I.in_place_written = true;
+    I.in_place_waited  = false;
+
+    int offset = I.diag_dof_offsets_counts.offsets()[I.in_place_lead] / DoFBlockSize;
+    int blocks = I.diag_dof_offsets_counts.counts()[I.in_place_lead] / DoFBlockSize;
+    return I.triplet_A.view().subview(0, count).submatrix(int2{offset, offset},
+                                                          int2{blocks, blocks});
+}
+
+auto GlobalLinearSystem::PrelaunchInfo::in_place_gradients() -> DenseVectorView
+{
+    UIPC_ASSERT(in_place_available(), "in-place prelaunch is not available");
+    auto& I = *m_impl;
+    return I.b.view().subview(I.diag_dof_offsets_counts.offsets()[I.in_place_lead],
+                              I.diag_dof_offsets_counts.counts()[I.in_place_lead]);
+}
+
+int GlobalLinearSystem::PrelaunchInfo::in_place_block_offset() const
+{
+    return m_impl->diag_dof_offsets_counts.offsets()[m_impl->in_place_lead] / DoFBlockSize;
+}
+
+void GlobalLinearSystem::PrelaunchInfo::in_place_done(cudaStream_t stream)
+{
+    UIPC_ASSERT(m_impl && m_impl->in_place_written, "no in-place prelaunch to finish");
+    CUDA_TOOL_CHECK(cudaEventRecord(m_impl->in_place_event, stream));
+}
+
 auto GlobalLinearSystem::AssemblyInfo::A() const -> CBCOOMatrixView
 {
     return m_impl->bcoo_A.cview();
@@ -640,8 +1493,14 @@ SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
     return diag_dof_counts[m_index];
 }
 
-SizeT GlobalLinearSystem::last_solve_iterations() const noexcept
+SizeT GlobalLinearSystem::last_solve_iterations()
 {
+    if(m_impl.last_solve_pending)
+    {
+        m_impl.last_solve_pending = false;
+        m_impl.last_solve_iterations = m_impl.iterative_solver->pending_iter_count();
+        logger::info("Iterative linear solver iteration count: {}", m_impl.last_solve_iterations);
+    }
     return m_impl.last_solve_iterations;
 }
 }  // namespace uipc::backend::cuda

@@ -1,10 +1,41 @@
+/*
+ * NVIDIA contributions: contact-type dispatch/grouping, optimized Hessian
+ * assembly and fused normal-energy launch integration; assembly launches on
+ * the provided streams; the one-warp-per-block full-Hessian assembly with its
+ * reported block count.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/simplex_normal_contact.h>
 #include <contact_system/contact_models/codim_ipc_simplex_normal_contact_function.h>
+#include <contact_system/contact_models/ipc_simplex_normal_contact_energy.h>
+#include <contact_system/contact_models/ipc_simplex_normal_contact_assembly.h>
 #include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
+#include <utils/fixed_bank_soa_evd.h>
+#include <utils/four_vertex_translation_free_spd.h>
+#include <utils/contact_type_block_layout.h>
 #include <kernel_cout.h>
 #include <utils/matrix_assembler.h>
-#include <utils/make_spd.h>
 #include <utils/primitive_d_hat.h>
 #include <pipeline/ipc_pipeline_flag.h>
 
@@ -12,262 +43,6 @@ namespace uipc::backend::cuda
 {
 namespace
 {
-    __global__ void do_compute_energy_k1_kernel(cuda_tool::CDense2D<ContactCoeff> table,
-                                                cuda_tool::CBufferView<IndexT> contact_ids,
-                                                cuda_tool::CBufferView<Vector4i> PTs,
-                                                cuda_tool::BufferView<Float> Es,
-                                                cuda_tool::CBufferView<Vector3> Ps,
-                                                cuda_tool::CBufferView<Float> thicknesses,
-                                                cuda_tool::CBufferView<Float> d_hats,
-                                                Float dt,
-                                                int   n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-
-        using namespace sym::codim_ipc_simplex_contact;
-
-        Vector4i PT = PTs(i);
-
-        Vector4i cids = {contact_ids(PT[0]),
-                         contact_ids(PT[1]),
-                         contact_ids(PT[2]),
-                         contact_ids(PT[3])};
-        Float    kt2  = PT_kappa(table, cids) * dt * dt;
-
-        const auto& P  = Ps(PT[0]);
-        const auto& T0 = Ps(PT[1]);
-        const auto& T1 = Ps(PT[2]);
-        const auto& T2 = Ps(PT[3]);
-
-
-        Float thickness = PT_thickness(thicknesses(PT(0)),
-                                       thicknesses(PT(1)),
-                                       thicknesses(PT(2)),
-                                       thicknesses(PT(3)));
-
-        Float d_hat =
-            PT_d_hat(d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
-
-        Vector4i flag = distance::point_triangle_distance_flag(P, T0, T1, T2);
-
-        if constexpr(RUNTIME_CHECK)
-        {
-            Float D;
-            distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
-
-            Vector2 range = D_range(thickness, d_hat);
-
-            // Only the invariant D > xi^2 (no zero distance / penetration) is
-            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
-            // filter in a separate floating-point evaluation that can differ by an
-            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
-            UIPC_KERNEL_ASSERT(D > range(0),
-                               "PT[%d,%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
-                               PT(0),
-                               PT(1),
-                               PT(2),
-                               PT(3),
-                               D,
-                               range(0),
-                               range(1));
-        }
-
-        Es(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
-    }
-
-    __global__ void do_compute_energy_k2_kernel(cuda_tool::CDense2D<ContactCoeff> table,
-                                                cuda_tool::CBufferView<IndexT> contact_ids,
-                                                cuda_tool::CBufferView<Vector4i> EEs,
-                                                cuda_tool::BufferView<Float> Es,
-                                                cuda_tool::CBufferView<Vector3> Ps,
-                                                cuda_tool::CBufferView<Float> thicknesses,
-                                                cuda_tool::CBufferView<Vector3> rest_Ps,
-                                                cuda_tool::CBufferView<Float> d_hats,
-                                                Float dt,
-                                                int   n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-
-        using namespace sym::codim_ipc_simplex_contact;
-
-        Vector4i EE = EEs(i);
-
-        Vector4i cids = {contact_ids(EE[0]),
-                         contact_ids(EE[1]),
-                         contact_ids(EE[2]),
-                         contact_ids(EE[3])};
-        Float    kt2  = EE_kappa(table, cids) * dt * dt;
-
-        const auto& E0 = Ps(EE[0]);
-        const auto& E1 = Ps(EE[1]);
-        const auto& E2 = Ps(EE[2]);
-        const auto& E3 = Ps(EE[3]);
-
-        const auto& t0_Ea0 = rest_Ps(EE[0]);
-        const auto& t0_Ea1 = rest_Ps(EE[1]);
-        const auto& t0_Eb0 = rest_Ps(EE[2]);
-        const auto& t0_Eb1 = rest_Ps(EE[3]);
-
-        Float thickness = EE_thickness(thicknesses(EE(0)),
-                                       thicknesses(EE(1)),
-                                       thicknesses(EE(2)),
-                                       thicknesses(EE(3)));
-
-        Float d_hat =
-            EE_d_hat(d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
-
-        Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
-
-        if constexpr(RUNTIME_CHECK)
-        {
-            Float D;
-            distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
-            Vector2 range = D_range(thickness, d_hat);
-            // Only the invariant D > xi^2 (no zero distance / penetration) is
-            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
-            // filter in a separate floating-point evaluation that can differ by an
-            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
-            UIPC_KERNEL_ASSERT(D > range(0),
-                               "EE[%d,%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
-                               EE(0),
-                               EE(1),
-                               EE(2),
-                               EE(3),
-                               D,
-                               range(0),
-                               range(1));
-        }
-
-
-        Es(i) = mollified_EE_barrier_energy(flag,
-                                            // coefficients
-                                            kt2,
-                                            d_hat,
-                                            thickness,
-                                            // positions
-                                            t0_Ea0,
-                                            t0_Ea1,
-                                            t0_Eb0,
-                                            t0_Eb1,
-                                            E0,
-                                            E1,
-                                            E2,
-                                            E3);
-    }
-
-    __global__ void do_compute_energy_k3_kernel(cuda_tool::CDense2D<ContactCoeff> table,
-                                                cuda_tool::CBufferView<IndexT> contact_ids,
-                                                cuda_tool::CBufferView<Vector3i> PEs,
-                                                cuda_tool::BufferView<Float> Es,
-                                                cuda_tool::CBufferView<Vector3> Ps,
-                                                cuda_tool::CBufferView<Float> thicknesses,
-                                                cuda_tool::CBufferView<Float> d_hats,
-                                                Float dt,
-                                                int   n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-
-        using namespace sym::codim_ipc_simplex_contact;
-
-        Vector3i PE = PEs(i);
-
-        Vector3i cids = {contact_ids(PE[0]), contact_ids(PE[1]), contact_ids(PE[2])};
-        Float kt2 = PE_kappa(table, cids) * dt * dt;
-
-        const auto& P  = Ps(PE[0]);
-        const auto& E0 = Ps(PE[1]);
-        const auto& E1 = Ps(PE[2]);
-
-        Float thickness =
-            PE_thickness(thicknesses(PE(0)), thicknesses(PE(1)), thicknesses(PE(2)));
-
-        Float d_hat = PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
-
-        Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
-
-        if constexpr(RUNTIME_CHECK)
-        {
-            Float D;
-            distance::point_edge_distance2(flag, P, E0, E1, D);
-
-            Vector2 range = D_range(thickness, d_hat);
-
-            // Only the invariant D > xi^2 (no zero distance / penetration) is
-            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
-            // filter in a separate floating-point evaluation that can differ by an
-            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
-            UIPC_KERNEL_ASSERT(D > range(0),
-                               "PE[%d,%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
-                               PE(0),
-                               PE(1),
-                               PE(2),
-                               D,
-                               range(0),
-                               range(1));
-        }
-
-        Es(i) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
-    }
-
-    __global__ void do_compute_energy_k4_kernel(cuda_tool::CDense2D<ContactCoeff> table,
-                                                cuda_tool::CBufferView<IndexT> contact_ids,
-                                                cuda_tool::CBufferView<Vector2i> PPs,
-                                                cuda_tool::BufferView<Float> Es,
-                                                cuda_tool::CBufferView<Vector3> Ps,
-                                                cuda_tool::CBufferView<Float> thicknesses,
-                                                cuda_tool::CBufferView<Float> d_hats,
-                                                Float dt,
-                                                int   n)
-    {
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        if(i >= n)
-            return;
-
-        using namespace sym::codim_ipc_simplex_contact;
-
-        Vector2i PP = PPs(i);
-
-        Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
-        Float    kt2  = PP_kappa(table, cids) * dt * dt;
-
-        const auto& Pa = Ps(PP[0]);
-        const auto& Pb = Ps(PP[1]);
-
-        Float thickness = PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
-
-        Float d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
-
-        Vector2i flag = distance::point_point_distance_flag(Pa, Pb);
-
-        if constexpr(RUNTIME_CHECK)
-        {
-            Float D;
-            distance::point_point_distance2(flag, Pa, Pb, D);
-
-            Vector2 range = D_range(thickness, d_hat);
-
-            // Only the invariant D > xi^2 (no zero distance / penetration) is
-            // checked. Activeness (D < (xi+d_hat)^2) was decided by the collision
-            // filter in a separate floating-point evaluation that can differ by an
-            // ulp at the upper bound, where the barrier is exactly 0 (KappaBarrier).
-            UIPC_KERNEL_ASSERT(D > range(0),
-                               "PP[%d,%d] d^2(%e) <= thickness^2, zero distance or penetration, range (%e,%e)",
-                               PP(0),
-                               PP(1),
-                               D,
-                               range(0),
-                               range(1));
-        }
-
-        Es(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
-    }
-
     template <bool GradientOnly>
     __global__ void do_assemble_kernel(cuda_tool::CDense2D<ContactCoeff> table,
                                        cuda_tool::CBufferView<IndexT> contact_ids,
@@ -288,8 +63,11 @@ namespace
                                        cuda_tool::CBufferView<Vector2i> PPs,
                                        cuda_tool::DoubletVectorView<Float, 3> PP_Gs,
                                        cuda_tool::TripletMatrixView<Float, 3> PP_Hs,
+                                       IndexT pt_end,
                                        IndexT ee_offset,
+                                       IndexT ee_end,
                                        IndexT pe_offset,
+                                       IndexT pe_end,
                                        IndexT pp_offset,
                                        int    n)
     {
@@ -297,9 +75,12 @@ namespace
         if(idx >= n)
             return;
 
+        constexpr int SharedLanePitch = IPCSimplexNormalContactFullHessianBlockSize;
+        __shared__ Float shared_h[GradientOnly ? 1 : 12 * 12 * SharedLanePitch];
+
         using namespace sym::codim_ipc_simplex_contact;
 
-        if(idx < ee_offset)  // PT
+        if(idx < pt_end)  // PT
         {
             int      i    = idx;
             Vector4i PT   = PTs(i);
@@ -331,16 +112,23 @@ namespace
             }
             else
             {
-                Matrix12x12 H;
+                FixedBankSoAMap<12, SharedLanePitch> H(shared_h + threadIdx.x);
+                Vector12                             eigen_values;
                 PT_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
-                make_spd(H);
+                selfadjoint_evd_four_vertex_translation_free_fixed_bank<SharedLanePitch>(
+                    H, eigen_values);
                 DoubletVectorAssembler DVA{PT_Gs};
                 DVA.segment<4>(i * 4).write(PT, G);
                 TripletMatrixAssembler TMA{PT_Hs};
-                TMA.half_block<4>(i * SimplexNormalContact::PTHalfHessianSize).write(PT, H);
+                TMA.half_block<4>(i * SimplexNormalContact::PTHalfHessianSize)
+                    .write_psd_from_eigendecomposition(PT, H, eigen_values);
             }
         }
-        else if(idx < pe_offset)  // EE
+        else if(idx < ee_offset)
+        {
+            return;
+        }
+        else if(idx < ee_end)  // EE
         {
             int      i    = idx - ee_offset;
             Vector4i EE   = EEs(i);
@@ -377,17 +165,24 @@ namespace
             }
             else
             {
-                Matrix12x12 H;
+                FixedBankSoAMap<12, SharedLanePitch> H(shared_h + threadIdx.x);
+                Vector12                             eigen_values;
                 mollified_EE_barrier_gradient_hessian(
                     G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
-                make_spd(H);
+                selfadjoint_evd_four_vertex_translation_free_fixed_bank<SharedLanePitch>(
+                    H, eigen_values);
                 DoubletVectorAssembler DVA{EE_Gs};
                 DVA.segment<4>(i * 4).write(EE, G);
                 TripletMatrixAssembler TMA{EE_Hs};
-                TMA.half_block<4>(i * SimplexNormalContact::EEHalfHessianSize).write(EE, H);
+                TMA.half_block<4>(i * SimplexNormalContact::EEHalfHessianSize)
+                    .write_psd_from_eigendecomposition(EE, H, eigen_values);
             }
         }
-        else if(idx < pp_offset)  // PE
+        else if(idx < pe_offset)
+        {
+            return;
+        }
+        else if(idx < pe_end)  // PE
         {
             int      i  = idx - pe_offset;
             Vector3i PE = PEs(i);
@@ -412,14 +207,20 @@ namespace
             }
             else
             {
-                Matrix9x9 H;
+                FixedBankSoAMap<9, SharedLanePitch> H(shared_h + threadIdx.x);
+                Vector9                             eigen_values;
                 PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
-                make_spd(H);
+                selfadjoint_evd_fixed_bank_shared<9>(H, eigen_values);
                 DoubletVectorAssembler DVA{PE_Gs};
                 DVA.segment<3>(i * 3).write(PE, G);
                 TripletMatrixAssembler TMA{PE_Hs};
-                TMA.half_block<3>(i * SimplexNormalContact::PEHalfHessianSize).write(PE, H);
+                TMA.half_block<3>(i * SimplexNormalContact::PEHalfHessianSize)
+                    .write_psd_from_eigendecomposition(PE, H, eigen_values);
             }
+        }
+        else if(idx < pp_offset)
+        {
+            return;
         }
         else
         {
@@ -444,13 +245,15 @@ namespace
             }
             else
             {
-                Matrix6x6 H;
+                FixedBankSoAMap<6, SharedLanePitch> H(shared_h + threadIdx.x);
+                Vector6                             eigen_values;
                 PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
-                make_spd(H);
+                selfadjoint_evd_fixed_bank_shared<6>(H, eigen_values);
                 DoubletVectorAssembler DVA{PP_Gs};
                 DVA.segment<2>(i * 2).write(PP, G);
                 TripletMatrixAssembler TMA{PP_Hs};
-                TMA.half_block<2>(i * SimplexNormalContact::PPHalfHessianSize).write(PP, H);
+                TMA.half_block<2>(i * SimplexNormalContact::PPHalfHessianSize)
+                    .write_psd_from_eigendecomposition(PP, H, eigen_values);
             }
         }
     }
@@ -469,124 +272,141 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
     virtual void do_compute_energy(EnergyInfo& info) override
     {
-        using namespace cuda_tool;
-        using namespace sym::codim_ipc_simplex_contact;
+        launch_ipc_simplex_normal_contact_energy(IPCSimplexNormalContactEnergyLaunchInfo{
+            .contact_tabular     = info.contact_tabular(),
+            .contact_element_ids = info.contact_element_ids(),
+            .positions           = info.positions(),
+            .rest_positions      = info.rest_positions(),
+            .thicknesses         = info.thicknesses(),
+            .d_hats              = info.d_hats(),
+            .PTs                 = info.PTs(),
+            .EEs                 = info.EEs(),
+            .PEs                 = info.PEs(),
+            .PPs                 = info.PPs(),
+            .PT_energies         = info.PT_energies(),
+            .EE_energies         = info.EE_energies(),
+            .PE_energies         = info.PE_energies(),
+            .PP_energies         = info.PP_energies(),
+            .dt                  = info.dt()});
+    }
 
-        // Compute Point-Triangle energy
-        auto PT_count = info.PTs().size();
-        if(PT_count > 0)
-            do_compute_energy_k1_kernel<<<cuda_tool::best_grid_dim((int)PT_count, do_compute_energy_k1_kernel), cuda_tool::best_block_dim(do_compute_energy_k1_kernel), 0, nullptr>>>(
-                info.contact_tabular().viewer(),
-                info.contact_element_ids().viewer(),
-                info.PTs().viewer(),
-                info.PT_energies().viewer(),
-                info.positions().viewer(),
-                info.thicknesses().viewer(),
-                info.d_hats().viewer(),
-                info.dt(),
-                (int)PT_count);
-
-        // Compute Edge-Edge energy
-        auto EE_count = info.EEs().size();
-        if(EE_count > 0)
-            do_compute_energy_k2_kernel<<<cuda_tool::best_grid_dim((int)EE_count, do_compute_energy_k2_kernel), cuda_tool::best_block_dim(do_compute_energy_k2_kernel), 0, nullptr>>>(
-                info.contact_tabular().viewer(),
-                info.contact_element_ids().viewer(),
-                info.EEs().viewer(),
-                info.EE_energies().viewer(),
-                info.positions().viewer(),
-                info.thicknesses().viewer(),
-                info.rest_positions().viewer(),
-                info.d_hats().viewer(),
-                info.dt(),
-                (int)EE_count);
-
-        // Compute Point-Edge energy
-        auto PE_count = info.PEs().size();
-        if(PE_count > 0)
-            do_compute_energy_k3_kernel<<<cuda_tool::best_grid_dim((int)PE_count, do_compute_energy_k3_kernel), cuda_tool::best_block_dim(do_compute_energy_k3_kernel), 0, nullptr>>>(
-                info.contact_tabular().viewer(),
-                info.contact_element_ids().viewer(),
-                info.PEs().viewer(),
-                info.PE_energies().viewer(),
-                info.positions().viewer(),
-                info.thicknesses().viewer(),
-                info.d_hats().viewer(),
-                info.dt(),
-                (int)PE_count);
-
-        // Compute Point-Point energy
-        auto PP_count = info.PPs().size();
-        if(PP_count > 0)
-            do_compute_energy_k4_kernel<<<cuda_tool::best_grid_dim((int)PP_count, do_compute_energy_k4_kernel), cuda_tool::best_block_dim(do_compute_energy_k4_kernel), 0, nullptr>>>(
-                info.contact_tabular().viewer(),
-                info.contact_element_ids().viewer(),
-                info.PPs().viewer(),
-                info.PP_energies().viewer(),
-                info.positions().viewer(),
-                info.thicknesses().viewer(),
-                info.d_hats().viewer(),
-                info.dt(),
-                (int)PP_count);
+    virtual SizeT do_report_assembly_blocks() override
+    {
+        return ipc_simplex_normal_contact_full_hessian_blocks(
+            PTs().size(), EEs().size(), PEs().size(), PPs().size());
     }
 
     virtual void do_assemble(ContactInfo& info) override
     {
-        using namespace cuda_tool;
-        using namespace sym::codim_ipc_simplex_contact;
-
-        auto pt_count = (IndexT)info.PTs().size();
-        auto ee_count = (IndexT)info.EEs().size();
-        auto pe_count = (IndexT)info.PEs().size();
-        auto pp_count = (IndexT)info.PPs().size();
-        auto total    = pt_count + ee_count + pe_count + pp_count;
-
-        if(total == 0)
-            return;
-
-        IndexT ee_offset = pt_count;
-        IndexT pe_offset = ee_offset + ee_count;
-        IndexT pp_offset = pe_offset + pe_count;
-
-        // Keep all contact types in one launch: rare PT/EE Hessians are
-        // individually expensive, and splitting them serializes work that the
-        // fused launch overlaps with the dominant PE population. Specialize
-        // only the uniform gradient/Hessian branch.
-        auto launch = [&]<bool GradientOnly>()
-        {
-            auto k = do_assemble_kernel<GradientOnly>;
-            k<<<cuda_tool::best_grid_dim(total, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                info.contact_tabular().viewer(),
-                info.contact_element_ids().viewer(),
-                info.positions().viewer(),
-                info.rest_positions().viewer(),
-                info.thicknesses().viewer(),
-                info.d_hats().viewer(),
-                info.dt(),
-                info.PTs().viewer(),
-                info.PT_gradients().viewer(),
-                info.PT_hessians().viewer(),
-                info.EEs().viewer(),
-                info.EE_gradients().viewer(),
-                info.EE_hessians().viewer(),
-                info.PEs().viewer(),
-                info.PE_gradients().viewer(),
-                info.PE_hessians().viewer(),
-                info.PPs().viewer(),
-                info.PP_gradients().viewer(),
-                info.PP_hessians().viewer(),
-                ee_offset,
-                pe_offset,
-                pp_offset,
-                total);
-        };
-
-        if(info.gradient_only())
-            launch.operator()<true>();
-        else
-            launch.operator()<false>();
+        launch_ipc_simplex_normal_contact_assembly(IPCSimplexNormalContactAssemblyLaunchInfo{
+            .contact_tabular     = info.contact_tabular(),
+            .contact_element_ids = info.contact_element_ids(),
+            .positions           = info.positions(),
+            .rest_positions      = info.rest_positions(),
+            .thicknesses         = info.thicknesses(),
+            .d_hats              = info.d_hats(),
+            .PTs                 = info.PTs(),
+            .EEs                 = info.EEs(),
+            .PEs                 = info.PEs(),
+            .PPs                 = info.PPs(),
+            .PT_gradients        = info.PT_gradients(),
+            .PT_hessians         = info.PT_hessians(),
+            .EE_gradients        = info.EE_gradients(),
+            .EE_hessians         = info.EE_hessians(),
+            .PE_gradients        = info.PE_gradients(),
+            .PE_hessians         = info.PE_hessians(),
+            .PP_gradients        = info.PP_gradients(),
+            .PP_hessians         = info.PP_hessians(),
+            .dt                  = info.dt(),
+            .gradient_only       = info.gradient_only(),
+            .stream              = info.stream()});
     }
 };
+
+void launch_ipc_simplex_normal_contact_assembly(const IPCSimplexNormalContactAssemblyLaunchInfo& info)
+{
+    using namespace cuda_tool;
+    using namespace sym::codim_ipc_simplex_contact;
+
+    constexpr SizeT IndexMax = static_cast<SizeT>(std::numeric_limits<IndexT>::max());
+    UIPC_ASSERT(info.PTs.size() <= IndexMax && info.EEs.size() <= IndexMax
+                    && info.PEs.size() <= IndexMax && info.PPs.size() <= IndexMax,
+                "Simplex normal contact count exceeds the IndexT limit: PT={}, EE={}, PE={}, PP={}",
+                info.PTs.size(),
+                info.EEs.size(),
+                info.PEs.size(),
+                info.PPs.size());
+
+    auto pt_count = static_cast<IndexT>(info.PTs.size());
+    auto ee_count = static_cast<IndexT>(info.EEs.size());
+    auto pe_count = static_cast<IndexT>(info.PEs.size());
+    auto pp_count = static_cast<IndexT>(info.PPs.size());
+
+    const std::uint64_t total_wide =
+        static_cast<std::uint64_t>(pt_count) + static_cast<std::uint64_t>(ee_count)
+        + static_cast<std::uint64_t>(pe_count) + static_cast<std::uint64_t>(pp_count);
+    UIPC_ASSERT(total_wide <= static_cast<std::uint64_t>(IndexMax),
+                "Simplex normal contact total {} exceeds the IndexT limit {}",
+                total_wide,
+                IndexMax);
+    const auto total = static_cast<IndexT>(total_wide);
+
+    constexpr int FullHessianBlockSize = IPCSimplexNormalContactFullHessianBlockSize;
+    const auto padded_layout = make_contact_type_block_layout<FullHessianBlockSize>(
+        pt_count, ee_count, pe_count, pp_count);
+
+    if(total == 0)
+        return;
+
+    // Keep all contact types in one launch: rare PT/EE Hessians are
+    // individually expensive, and splitting them serializes work that the
+    // fused launch overlaps with the dominant PE population. Specialize
+    // only the uniform gradient/Hessian branch.
+    auto launch = [&]<bool GradientOnly>()
+    {
+        auto         k      = do_assemble_kernel<GradientOnly>;
+        const IndexT pt_end = pt_count;
+        const IndexT ee_offset = GradientOnly ? pt_count : padded_layout.ee_offset;
+        const IndexT ee_end = ee_offset + ee_count;
+        const IndexT pe_offset = GradientOnly ? ee_end : padded_layout.pe_offset;
+        const IndexT pe_end = pe_offset + pe_count;
+        const IndexT pp_offset = GradientOnly ? pe_end : padded_layout.pp_offset;
+        const int launch_size = GradientOnly ? total : padded_layout.padded_total;
+        const int block_size = GradientOnly ? cuda_tool::best_block_dim(k) : FullHessianBlockSize;
+        const int grid_size = launch_size / block_size + (launch_size % block_size != 0);
+        k<<<grid_size, block_size, 0, info.stream>>>(info.contact_tabular.viewer(),
+                                                     info.contact_element_ids.viewer(),
+                                                     info.positions.viewer(),
+                                                     info.rest_positions.viewer(),
+                                                     info.thicknesses.viewer(),
+                                                     info.d_hats.viewer(),
+                                                     info.dt,
+                                                     info.PTs.viewer(),
+                                                     info.PT_gradients.viewer(),
+                                                     info.PT_hessians.viewer(),
+                                                     info.EEs.viewer(),
+                                                     info.EE_gradients.viewer(),
+                                                     info.EE_hessians.viewer(),
+                                                     info.PEs.viewer(),
+                                                     info.PE_gradients.viewer(),
+                                                     info.PE_hessians.viewer(),
+                                                     info.PPs.viewer(),
+                                                     info.PP_gradients.viewer(),
+                                                     info.PP_hessians.viewer(),
+                                                     pt_end,
+                                                     ee_offset,
+                                                     ee_end,
+                                                     pe_offset,
+                                                     pe_end,
+                                                     pp_offset,
+                                                     launch_size);
+    };
+
+    if(info.gradient_only)
+        launch.operator()<true>();
+    else
+        launch.operator()<false>();
+}
 
 REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);
 }  // namespace uipc::backend::cuda

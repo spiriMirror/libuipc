@@ -112,6 +112,19 @@ MAS affects FEM degrees of freedom only. ABD and other subsystems keep their
 own preconditioners, so mixed ABD/FEM scenes can enable MAS safely for the FEM
 portion.
 
+Every Newton iteration assembles fresh preconditioners by default.
+`linear_system/keep_preconditioner = 1` lets every odd iteration from the
+third on reuse the preconditioners of the previous iteration. This saves their
+assembly time but is not accuracy-neutral. PCG stops when `|r^T z|` has
+fallen by `tol_rate` relative to its start, and both values are measured in
+the norm of the preconditioner. A one-step-old preconditioner changes that
+threshold: the solve can stop while the step of the freely moving bodies is
+still about zero, Newton's displacement test then passes and the frame ends
+early. The scene loses momentum (falling bodies fall too slowly, stacked or
+swinging bodies lose kinetic energy) although every frame converges. The key
+applies to the standard `ipc` pipeline only; keep it at `0` unless a scene
+has been checked to move the same with both values.
+
 ## CUDA graph modes
 
 `linear_system/use_cuda_graph` is a mode, despite its historical name:

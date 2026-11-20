@@ -1,6 +1,34 @@
+/*
+ * NVIDIA contributions: compact radix-key ranges, sentinel handling and
+ * symmetric-to-general sparse conversion changes; the upper-triangle
+ * conversion without compaction (convert_upper), the reduction into an
+ * uncleared output and device-side counts.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
+#include <uipc/common/log.h>
 #include <uipc/common/timer.h>
 #include <algorithm/fast_segmental_reduce.h>
 
@@ -18,13 +46,21 @@ namespace
         cuda_tool::CBufferView<int>     col_indices,
         cuda_tool::BufferView<uint64_t> ij_hash,
         cuda_tool::BufferView<int>      sort_index,
+        MatrixConverterRadixKeyConfig   radix_key_config,
         int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        ij_hash(i) = (static_cast<uint64_t>(row_indices(i)) << 32)
-                     + static_cast<uint64_t>(col_indices(i));
+        const int row = row_indices(i);
+        const int col = col_indices(i);
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(row, radix_key_config.rows),
+            "MatrixConverter row index is outside [-1, rows)");
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(col, radix_key_config.cols),
+            "MatrixConverter column index is outside [-1, cols)");
+        ij_hash(i) = matrix_converter_pack_radix_key(row, col, radix_key_config);
         sort_index(i) = i;
     }
 
@@ -32,16 +68,13 @@ namespace
     __global__ void matrix_converter_radix_sort_indices_and_blocks_k2_kernel(
         cuda_tool::BufferView<uint64_t>               ij_hash,
         cuda_tool::BufferView<MatrixConverterIntPair> ij_pairs,
+        MatrixConverterRadixKeyConfig                 radix_key_config,
         int                                           n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        auto hash      = ij_hash(i);
-        auto row_index = static_cast<int>(hash >> 32);
-        auto col_index = static_cast<int>(hash & 0xFFFFFFFF);
-        ij_pairs(i).x  = row_index;
-        ij_pairs(i).y  = col_index;
+        ij_pairs(i) = matrix_converter_unpack_radix_key(ij_hash(i), radix_key_config);
     }
 
     // MatrixConverter::_radix_sort_indices_and_blocks(from, to) #3: sort the block values
@@ -64,12 +97,21 @@ namespace
         cuda_tool::CBufferView<int>     col_indices,
         cuda_tool::BufferView<uint64_t> ij_hash,
         cuda_tool::BufferView<int>      sort_index,
+        MatrixConverterRadixKeyConfig   radix_key_config,
         int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        ij_hash(i) = (uint64_t{row_indices(i)} << 32) + uint64_t{col_indices(i)};
+        const int row = row_indices(i);
+        const int col = col_indices(i);
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(row, radix_key_config.rows),
+            "MatrixConverter row index is outside [-1, rows)");
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(col, radix_key_config.cols),
+            "MatrixConverter column index is outside [-1, cols)");
+        ij_hash(i) = matrix_converter_pack_radix_key(row, col, radix_key_config);
         sort_index(i) = i;
     }
 
@@ -77,16 +119,13 @@ namespace
     __global__ void matrix_converter_radix_sort_indices_and_blocks_in_place_k2_kernel(
         cuda_tool::BufferView<uint64_t>               ij_hash,
         cuda_tool::BufferView<MatrixConverterIntPair> ij_pairs,
+        MatrixConverterRadixKeyConfig                 radix_key_config,
         int                                           n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        auto hash      = ij_hash(i);
-        auto row_index = int{hash >> 32};
-        auto col_index = int{hash & 0xFFFFFFFF};
-        ij_pairs(i).x  = row_index;
-        ij_pairs(i).y  = col_index;
+        ij_pairs(i) = matrix_converter_unpack_radix_key(ij_hash(i), radix_key_config);
     }
 
     // MatrixConverter::_radix_sort_indices_and_blocks(to) #3: sort the block values
@@ -284,6 +323,115 @@ namespace
         }
     }
 
+    // MatrixConverter::convert_upper #1: hash ij, lower triplets get the tail key
+    __global__ void matrix_converter_convert_upper_k1_kernel(
+        cuda_tool::CBufferView<int>     row_indices,
+        cuda_tool::CBufferView<int>     col_indices,
+        cuda_tool::BufferView<uint64_t> ij_hash,
+        cuda_tool::BufferView<int>      sort_index,
+        MatrixConverterRadixKeyConfig   radix_key_config,
+        uint64_t                        tail_key,
+        int                             n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const int row = row_indices(i);
+        const int col = col_indices(i);
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(row, radix_key_config.rows),
+            "MatrixConverter row index is outside [-1, rows)");
+        UIPC_KERNEL_ASSERT(
+            matrix_converter_radix_index_is_valid(col, radix_key_config.cols),
+            "MatrixConverter column index is outside [-1, cols)");
+        // same signed test as ge2sym: (-1, j) is kept, (i >= 0, -1) is dropped
+        ij_hash(i)    = row <= col ?
+                            matrix_converter_pack_radix_key(row, col, radix_key_config) :
+                            tail_key;
+        sort_index(i) = i;
+    }
+
+    // MatrixConverter::convert_upper #2: flag segment heads, find the upper prefix
+    __global__ void matrix_converter_convert_upper_k2_kernel(
+        cuda_tool::CBufferView<uint64_t>             sorted_ij_hash,
+        cuda_tool::BufferView<int>                   heads,
+        cuda_tool::Dense<MatrixConverterUpperCounts> counts,
+        uint64_t                                     tail_key,
+        int                                          n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const uint64_t key  = sorted_ij_hash(i);
+        const bool     head = i > 0 && key != sorted_ij_hash(i - 1);
+        heads(i)            = head ? 1 : 0;
+
+        // exactly one thread ends the upper prefix: the first tail key, or the
+        // last triplet when there is none
+        const bool tail = key == tail_key;
+        if(tail ? (i == 0 || head) : i == n - 1)
+            counts->upper_count = tail ? i : n;
+    }
+
+    // MatrixConverter::convert_upper #3: unique count from the segment index
+    __global__ void matrix_converter_convert_upper_k3_kernel(
+        cuda_tool::CBufferView<int> segments, cuda_tool::Dense<MatrixConverterUpperCounts> counts)
+    {
+        const int upper      = counts->upper_count;
+        counts->unique_count = upper > 0 ? segments(upper - 1) + 1 : 0;
+    }
+
+    // MatrixConverter::convert_upper #4: unpack the ij of every segment head,
+    // and clear the block of every segment the segmented reduction adds to
+    // atomically instead of storing: one that spans two of its warps
+    // (warp_size consecutive triplets, aligned), and the last one when the
+    // last warp is partial (the reduction's lanes past n join the last
+    // segment and flag it as continuing).
+    template <typename BlockT>
+    __global__ void matrix_converter_convert_upper_k4_kernel(
+        cuda_tool::CBufferView<uint64_t> sorted_ij_hash,
+        cuda_tool::CBufferView<int>      segments,
+        cuda_tool::BufferView<int>       row_indices,
+        cuda_tool::BufferView<int>       col_indices,
+        cuda_tool::BufferView<BlockT>    values,
+        MatrixConverterRadixKeyConfig    radix_key_config,
+        int                              warp_size,
+        int                              n)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i >= n)
+            return;
+        const int segment = segments(i);
+        if(i > 0 && segments(i - 1) == segment)
+            return;
+        const auto ij = matrix_converter_unpack_radix_key(sorted_ij_hash(i), radix_key_config);
+        row_indices(segment) = ij.x;
+        col_indices(segment) = ij.y;
+        const int next_warp  = (i / warp_size + 1) * warp_size;
+        const bool spans_warps = next_warp < n && segments(next_warp) == segment;
+        const bool partial_end = n % warp_size != 0 && segments(n - 1) == segment;
+        if(spans_warps || partial_end)
+        {
+            if constexpr(std::is_arithmetic_v<BlockT>)
+                values(segment) = BlockT{0};
+            else
+                values(segment) = BlockT::Zero();
+        }
+    }
+
+    // MatrixConverter::convert_upper: FastSegmentalReduce value op that reads
+    // the input block at each sorted position
+    template <typename T, int N>
+    struct matrix_converter_sorted_block_op
+    {
+        cuda_tool::CBufferView<MatrixConverterBlockT<T, N>> blocks;
+        cuda_tool::CBufferView<int>                         sort_index;
+        __device__ MatrixConverterBlockT<T, N> operator()(int i) const
+        {
+            return blocks(sort_index(i));
+        }
+    };
+
     // MatrixConverter::sym2ge #1: setup select flag
     __global__ void matrix_converter_sym2ge_k1_kernel(cuda_tool::BufferView<int> flags,
                                                       cuda_tool::CBufferView<int> row_indices,
@@ -357,6 +505,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     loose_resize(sort_index, src_row_indices.size());
     loose_resize(ij_pairs, src_row_indices.size());
 
+    const auto radix_key_config =
+        matrix_converter_radix_key_config(from.rows(), from.cols());
 
     // hash ij
     int n_hash_ij = (int)src_row_indices.size();
@@ -366,13 +516,16 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
             src_col_indices,
             ij_hash_input.view(),
             sort_index_input.view(),
+            radix_key_config,
             n_hash_ij);
 
     DeviceRadixSort().SortPairs(ij_hash_input.data(),
                                 ij_hash.data(),
                                 sort_index_input.data(),
                                 sort_index.data(),
-                                ij_hash.size());
+                                ij_hash.size(),
+                                0,
+                                radix_key_config.end_bit);
 
     // set ij_hash back to row_indices and col_indices
 
@@ -382,7 +535,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     int n_unpack_ij = (int)dst_row_indices.size();
     if(n_unpack_ij > 0)
         matrix_converter_radix_sort_indices_and_blocks_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
-            ij_hash.view(), ij_pairs.view(), n_unpack_ij);
+            ij_hash.view(), ij_pairs.view(), radix_key_config, n_unpack_ij);
 
     // sort the block values
 
@@ -412,6 +565,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
     loose_resize(sort_index, src_row_indices.size());
     loose_resize(ij_pairs, src_row_indices.size());
 
+    const auto radix_key_config =
+        matrix_converter_radix_key_config(to.rows(), to.cols());
 
     // hash ij
     int n_hash_ij = (int)src_row_indices.size();
@@ -421,13 +576,16 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
             src_col_indices.cview(),
             ij_hash_input.view(),
             sort_index_input.view(),
+            radix_key_config,
             n_hash_ij);
 
     DeviceRadixSort().SortPairs(ij_hash_input.data(),
                                 ij_hash.data(),
                                 sort_index_input.data(),
                                 sort_index.data(),
-                                ij_hash.size());
+                                ij_hash.size(),
+                                0,
+                                radix_key_config.end_bit);
 
     // set ij_hash back to row_indices and col_indices
 
@@ -437,7 +595,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(cuda_tool::DeviceBCOO
     int n_unpack_ij = (int)dst_row_indices.size();
     if(n_unpack_ij > 0)
         matrix_converter_radix_sort_indices_and_blocks_in_place_k2_kernel<<<(n_unpack_ij + 256 - 1) / 256, 256, 0, nullptr>>>(
-            ij_hash.view(), ij_pairs.view(), n_unpack_ij);
+            ij_hash.view(), ij_pairs.view(), radix_key_config, n_unpack_ij);
 
     // sort the block values
 
@@ -803,6 +961,95 @@ void MatrixConverter<T, N>::ge2sym(cuda_tool::DeviceTripletMatrix<T, N>& to)
 
 
 template <typename T, int N>
+void MatrixConverter<T, N>::convert_upper(const cuda_tool::DeviceTripletMatrix<T, N>& from,
+                                          cuda_tool::DeviceBCOOMatrix<T, N>& to)
+{
+    using namespace cuda_tool;
+
+    to.reshape(from.rows(), from.cols());
+
+    const int n = (int)from.triplet_count();
+    if(n == 0)
+    {
+        to.resize_triplets_discard(0);
+        upper_counts = MatrixConverterUpperCounts{0, 0};
+        return;
+    }
+
+    const auto radix_key_config =
+        matrix_converter_radix_key_config(from.rows(), from.cols());
+    UIPC_ASSERT(radix_key_config.compact,
+                "MatrixConverter::convert_upper requires rows > 0 and cols > 0, got {}x{}",
+                from.rows(),
+                from.cols());
+    const auto tail_key = matrix_converter_radix_tail_key(radix_key_config);
+
+    loose_resize(ij_hash_input, n);
+    loose_resize(sort_index_input, n);
+    loose_resize(ij_hash, n);
+    loose_resize(sort_index, n);
+
+    // aliases to reuse the memory: segment heads and segment indices
+    auto& heads    = sorted_partition_input;
+    auto& segments = sorted_partition_output;
+    loose_resize(heads, n);
+    loose_resize(segments, n);
+
+    matrix_converter_convert_upper_k1_kernel<<<(n + 256 - 1) / 256, 256, 0, nullptr>>>(
+        from.row_indices(),
+        from.col_indices(),
+        ij_hash_input.view(),
+        sort_index_input.view(),
+        radix_key_config,
+        tail_key,
+        n);
+
+    // stable: equal keys keep the input order, which is ge2sym's compaction order
+    DeviceRadixSort().SortPairs(ij_hash_input.data(),
+                                ij_hash.data(),
+                                sort_index_input.data(),
+                                sort_index.data(),
+                                n,
+                                0,
+                                matrix_converter_radix_tail_end_bit(radix_key_config));
+
+    matrix_converter_convert_upper_k2_kernel<<<(n + 256 - 1) / 256, 256, 0, nullptr>>>(
+        ij_hash.cview(), heads.view(), upper_counts.viewer(), tail_key, n);
+
+    // segment index of every sorted triplet (the tail forms the last segment)
+    DeviceScan().InclusiveSum(heads.data(), segments.data(), n);
+
+    matrix_converter_convert_upper_k3_kernel<<<1, 1, 0, nullptr>>>(
+        segments.cview(), upper_counts.viewer());
+
+    const MatrixConverterUpperCounts h_counts = upper_counts;
+
+    to.resize_triplets_discard(h_counts.unique_count);
+
+    const int n_upper = h_counts.upper_count;
+    if(n_upper == 0)
+        return;
+
+    using Reduce = FastSegmentalReduce<>;
+    matrix_converter_convert_upper_k4_kernel<<<(n_upper + 256 - 1) / 256, 256, 0, nullptr>>>(
+        ij_hash.cview(),
+        segments.cview(),
+        to.row_indices(),
+        to.col_indices(),
+        to.values(),
+        radix_key_config,
+        Reduce::warp_size,
+        n_upper);
+
+    // k4 cleared the blocks the reduction accumulates into
+    Reduce().reduce_uncleared(
+        n_upper,
+        to.values(),
+        fast_segmental_reduce_get_offset_key_op{segments.cview()},
+        matrix_converter_sorted_block_op<T, N>{from.values(), sort_index.cview()});
+}
+
+template <typename T, int N>
 void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from,
                                    cuda_tool::DeviceBCOOMatrix<T, N>& to)
 {
@@ -816,12 +1063,18 @@ void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from
     auto& partition_index_input = sort_index_input;
     auto& partition_index       = sort_index;
     auto& selected_count        = count;
-    auto  diag_count            = from.rows();
 
 
     loose_resize(flags, sym_size);
     loose_resize(partitioned, sym_size);
+    loose_resize(partition_index_input, sym_size);
     loose_resize(partition_index, sym_size);
+
+    if(sym_size == 0)
+    {
+        to.resize_discard(from.rows(), from.cols(), 0);
+        return;
+    }
 
     // setup select flag
     if(sym_size > 0)
@@ -843,7 +1096,8 @@ void MatrixConverter<T, N>::sym2ge(const cuda_tool::DeviceBCOOMatrix<T, N>& from
                                          sym_size);
 
 
-    auto general_bcoo_size = 2 * (sym_size - diag_count) + diag_count;
+    const int diag_count = selected_count;
+    const size_t general_bcoo_size = size_t(sym_size) + size_t(sym_size - diag_count);
 
     to.resize_discard(from.rows(), from.cols(), general_bcoo_size);
 
