@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: interfaces for candidate-reuse bounds.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <cuda_tool/cuda_tool.h>
@@ -220,6 +244,11 @@ class GlobalVertexManager final : public SimSystem
         cuda_tool::DeviceVar<Float>   max_disp_norm;
         cuda_tool::DeviceVar<Vector3> min_pos;
         cuda_tool::DeviceVar<Vector3> max_pos;
+
+        // compute_axis_max_displacement() of the current displacements, valid
+        // until collect_vertex_displacements or setup_ccd rewrites them
+        Float h_axis_max_disp       = 0.0;
+        bool  h_axis_max_disp_valid = false;
 
 
         SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;

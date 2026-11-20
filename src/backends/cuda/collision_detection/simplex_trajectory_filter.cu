@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: active-contact counting and line-search trajectory
+ * filtering integration; detection-skin support and two-phase active-set
+ * filtering with batched count read-backs.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <cuda_tool/cuda_tool.h>
 namespace uipc::backend::cuda
@@ -85,7 +111,9 @@ void SimplexTrajectoryFilter::do_build()
 void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info)
 {
     DetectInfo this_info{&m_impl};
-    this_info.m_alpha = info.alpha();
+    this_info.m_alpha              = info.alpha();
+    this_info.m_reuse_bvh_topology = info.reuse_bvh_topology();
+    this_info.m_skin               = info.skin();
     do_detect(this_info);
 }
 
@@ -126,6 +154,34 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
 {
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
+
+    logger::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
+                 m_impl.PTs.size(),
+                 m_impl.EEs.size(),
+                 m_impl.PEs.size(),
+                 m_impl.PPs.size());
+}
+
+bool SimplexTrajectoryFilter::do_launch_filter_active(FilterActiveInfo& info)
+{
+    return false;
+}
+
+void SimplexTrajectoryFilter::do_finish_filter_active(FilterActiveInfo& info)
+{
+    UIPC_ASSERT(false, "{} launched no two-phase filter_active", name());
+}
+
+bool SimplexTrajectoryFilter::do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    return do_launch_filter_active(this_info);
+}
+
+void SimplexTrajectoryFilter::do_finish_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    do_finish_filter_active(this_info);
 
     logger::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
                  m_impl.PTs.size(),
