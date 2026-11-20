@@ -6,3 +6,13 @@ University of Minnesota. GKlib is Copyright 1995-2018, Regents of the
 University of Minnesota. Both are licensed under Apache-2.0; their notices are
 preserved alongside the embedded sources. Unused non-Apache compatibility and
 optional MT19937-64 RNG code from upstream GKlib are not included in this port.
+
+
+The fixed-bank SoA eigensolver in
+src/backends/cuda/utils/fixed_bank_soa_evd.h contains adaptations of Eigen
+3.4.0 SelfAdjointEigenSolver.h and Tridiagonalization.h. The original Eigen
+code is Copyright (C) 2008-2010 Gael Guennebaud and Copyright (C) 2010 Jitse
+Niesen. This derived source file retains MPL-2.0 terms; it is not covered
+solely by the repository's Apache-2.0 license. Its NVIDIA modifications are
+identified in the file. See https://www.mozilla.org/MPL/2.0/ and
+https://gitlab.com/libeigen/eigen/-/tree/3.4.0 for the license and source.

@@ -32,6 +32,9 @@ must be calibrated from repeated measurements on that runner.
 
 | Record | Status | Scope |
 |---|---|---|
+| [2026-11-19 Contact and affine-body assembly (PR 3/6)](2026-11-19-contact-abd-assembly.md) | Proposed | PR 3/6: fused contact kernels, shared-memory PSD projection, DyTopo distribution, ABD producers on side streams, joint Hessians per warp; geometric mean over the five benchmark scenes 1.48x against PR 2 |
+| [2026-11-19 Collision detection: BVH refit, detection reuse, FP32 rejection (PR 2/6)](2026-11-19-collision-detection.md) | Proposed | PR 2/6: LBVH scene-bounds fix, BVH build/refit/queries, reuse across Newton iterations and frames, FP32 rejection, CCD launches; geometric mean over the five benchmark scenes 1.19x against PR 1 |
+| [2026-11-19 cuda_tool graph capture, CUB and launch-helper fixes (PR 1/6)](2026-11-19-cuda-tool-capture-cub.md) | Proposed | PR 1/6: graph captures whose body throws, CUB wrappers run once, empty DeviceReduce::Sum, hidden launch helpers; geometric mean over the five benchmark scenes 1.01x against main |
 | [2026-10-28 MAS local solve](2026-10-28-mas-local-solve.md) | Accepted scoped optimization | Remove redundant clear/atomics; local path and PCG gains, small end-to-end effect, existing bending-test failure documented |
 | [2026-09-01 cross-domain measurements](2026-09-01-cross-domain-baseline.md) | Historical measurement | Three-run ABD, FEM/MAS, cloth/contact envelope on the recorded machine and revisions |
 | [2026-08-30 case2 assembly roll-up](2026-08-30-case2-assembly-rollup.md) | Accepted with caveats | Buffer growth, collision readback, line-search aggregation, contact/FEM assembly, rejected split |

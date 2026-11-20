@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: active-contact counting and line-search trajectory
+ * filtering interfaces; detection-skin, friction-candidate version and
+ * two-phase active-set filtering interfaces.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <collision_detection/trajectory_filter.h>
 #include <collision_detection/global_trajectory_filter.h>
@@ -73,12 +99,20 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         using BaseInfo::BaseInfo;
 
         Float alpha() const noexcept { return m_alpha; }
+        bool  reuse_bvh_topology() const noexcept
+        {
+            return m_reuse_bvh_topology;
+        }
+        // See GlobalTrajectoryFilter::DetectInfo::skin.
+        Float skin() const noexcept { return m_skin; }
 
         cuda_tool::CBufferView<Vector3> displacements() const noexcept;
 
       private:
         friend class SimplexTrajectoryFilter;
-        Float m_alpha = 0.0;
+        Float m_alpha              = 0.0;
+        bool  m_reuse_bvh_topology = false;
+        Float m_skin               = 0.0;
     };
 
     class FilterActiveInfo : public BaseInfo
@@ -141,6 +175,8 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         cuda_tool::DeviceBuffer<Vector4i> friction_EE;
         cuda_tool::DeviceBuffer<Vector3i> friction_PE;
         cuda_tool::DeviceBuffer<Vector2i> friction_PP;
+        // Incremented whenever the friction candidates are recorded or cleared.
+        SizeT friction_candidates_version = 0;
 
         cuda_tool::DeviceBuffer<Vector4i> recovered_PT;
         cuda_tool::DeviceBuffer<Vector4i> recovered_EE;
@@ -174,6 +210,9 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     cuda_tool::CBufferView<Vector4i> friction_EEs() const noexcept;
     cuda_tool::CBufferView<Vector3i> friction_PEs() const noexcept;
     cuda_tool::CBufferView<Vector2i> friction_PPs() const noexcept;
+    // Changes whenever the friction candidates (and the frame-start
+    // positions they were recorded at) change.
+    SizeT friction_candidates_version() const noexcept;
 
     virtual cuda_tool::CBufferView<Vector2i> candidate_PTs() const noexcept = 0;
     virtual cuda_tool::CBufferView<Vector2i> candidate_EEs() const noexcept = 0;
@@ -185,6 +224,10 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     virtual void do_detect(DetectInfo& info)              = 0;
     virtual void do_filter_active(FilterActiveInfo& info) = 0;
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
+    // Two-phase do_filter_active (see TrajectoryFilter): returning false from
+    // the launch (the default) runs do_filter_active instead.
+    virtual bool do_launch_filter_active(FilterActiveInfo& info);
+    virtual void do_finish_filter_active(FilterActiveInfo& info);
     virtual bool do_dump(DumpInfo& info) override;
     virtual bool do_try_recover(RecoverInfo& info) override;
     virtual void do_apply_recover(RecoverInfo& info) override;
@@ -198,6 +241,8 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
 
     virtual void do_detect(GlobalTrajectoryFilter::DetectInfo& info) override final;
     virtual void do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
+    virtual bool do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
+    virtual void do_finish_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
     virtual void do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info) override final;
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;

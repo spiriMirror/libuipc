@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: interfaces for the contact-tabular version.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
@@ -71,6 +95,8 @@ class GlobalContactManager final : public SimSystem
         bool cfl_enabled = false;
 
         S<cuda_tool::DeviceBuffer2D<ContactCoeff>> contact_tabular;
+        // Incremented whenever the contact tabular is exchanged or adapted.
+        SizeT contact_tabular_version = 0;
 
         vector<ContactCoeff>              h_contact_tabular;
         vector<IndexT>                    h_contact_mask_tabular;
@@ -119,6 +145,10 @@ class GlobalContactManager final : public SimSystem
     Float kappa_upper_bound() const;
 
     cuda_tool::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
+    // Changes whenever the contact tabular is exchanged or its coefficients
+    // are adapted (the adaptive kappa evaluates the contacts with a test
+    // tabular, then writes the new kappa).
+    SizeT                            contact_tabular_version() const noexcept;
     cuda_tool::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
     cuda_tool::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
 

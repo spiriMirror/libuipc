@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: ABDJacobi::JT_H_J_block, which emits individual 3x3
+ * transformed Hessian blocks.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <affine_body/type_define.h>
 #include <cuda_runtime_api.h>
@@ -57,6 +82,33 @@ class ABDJacobi  // for every point
     static UIPC_GENERIC Matrix12x12 JT_H_J(const ABDJacobiT& lhs_J_T,
                                            const Matrix3x3&  Hessian,
                                            const ABDJacobi&  rhs_J);
+
+    // Return one 3x3 block of J_lhs^T H J_rhs without materializing the
+    // complete 12x12 matrix. Keep the definition visible at the call site:
+    // the DyTopo assembly kernel consumes all 16 blocks, and an out-of-line
+    // definition would otherwise turn that loop into 16 RDC device calls.
+    // block_row/block_col are in [0, 4).
+    static UIPC_GENERIC Matrix3x3 JT_H_J_block(const ABDJacobiT& lhs_J_T,
+                                               const Matrix3x3&  Hessian,
+                                               const ABDJacobi&  rhs_J,
+                                               int               block_row,
+                                               int               block_col)
+    {
+        const auto& x = lhs_J_T.J().x_bar();
+        const auto& y = rhs_J.x_bar();
+
+        if(block_row == 0)
+        {
+            if(block_col == 0)
+                return Hessian;
+            return (Hessian.col(block_col - 1) * y.transpose()).eval();
+        }
+
+        if(block_col == 0)
+            return (x * Hessian.row(block_row - 1)).eval();
+
+        return ((x * y.transpose()) * Hessian(block_row - 1, block_col - 1)).eval();
+    }
 
   private:
     //tex: $$ \bar{\mathbf{x}} $$

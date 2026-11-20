@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: step_forward rounding shared with the swept boxes and
+ * displacement bounds for candidate reuse.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <utils/step_displacement.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <active_set_system/global_active_set_manager.h>
 #include <joint_dof_system/global_joint_dof_manager.h>
@@ -26,7 +52,8 @@ namespace
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
-        pos(i) = safe_pos(i) + alpha * disp(i);
+        // Same rounding as the trajectory broad phase (see step_displacement.h).
+        pos(i) = step_position(safe_pos(i), alpha, disp(i));
     }
 
     __global__ void GlobalVertexManager_setup_ccd_kernel(
@@ -228,6 +255,7 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
 
 void GlobalVertexManager::Impl::collect_vertex_displacements()
 {
+    h_axis_max_disp_valid = false;
     for(auto&& [i, R] : enumerate(vertex_reporters.view()))
     {
         VertexDisplacementInfo vd{this, i};
@@ -247,6 +275,7 @@ void GlobalVertexManager::Impl::setup_ccd(cuda_tool::CBufferView<Vector3> base_p
         k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
             positions.view(), tmp_pos.view(), displacements.view(), base_positions, n);
     }
+    h_axis_max_disp_valid = false;
 }
 
 void GlobalVertexManager::Impl::restore_ccd()
@@ -288,12 +317,18 @@ void GlobalVertexManager::Impl::record_start_point()
 
 Float GlobalVertexManager::Impl::compute_axis_max_displacement()
 {
+    // The Newton loop asks before the trajectory detection and again in the
+    // tolerance check: reduce and read back once per displacement update.
+    if(h_axis_max_disp_valid)
+        return h_axis_max_disp;
     cuda_tool::DeviceReduce().Reduce((Float*)displacements.data(),
                                      axis_max_disp.data(),
                                      displacements.size() * 3,
                                      GlobalVertexManager_MaxAbsOp{},
                                      0.0);
-    return axis_max_disp;
+    h_axis_max_disp       = axis_max_disp;
+    h_axis_max_disp_valid = true;
+    return h_axis_max_disp;
 }
 
 AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()

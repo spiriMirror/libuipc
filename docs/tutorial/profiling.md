@@ -117,6 +117,8 @@ frame statistics (including the `none` backend). The CUDA schema is:
 | `linear_solver_iterations` | Total iterative-linear-solver iterations across all Newton solves. |
 | `hit_newton_limit`, `hit_line_search_limit` | Whether any configured iteration ceiling was reached. |
 | `last_line_search_alpha`, `last_ccd_toi`, `last_cfl_alpha` | Last step-size diagnostics (`1` means no reduction). |
+| `active_set_reused` | The frame started from the previous frame's contact active set instead of a DCD pass (IPC pipeline; the vertex positions were unchanged since the previous frame). |
+| `trajectory_reuses` | Newton iterations that kept the trajectory candidates of an earlier iteration of the frame instead of running the trajectory broad phase (IPC pipeline; every vertex stayed within the detection skin). |
 
 `completed` and `converged` are deliberately separate: a non-strict scene may
 finish a frame after reaching an iteration limit. Conversely, if an exception

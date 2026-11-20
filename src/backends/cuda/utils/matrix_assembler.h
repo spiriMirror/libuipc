@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: blockwise Hessian write-out and PSD reconstruction
+ * directly into sparse blocks.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <cuda_tool/cuda_tool.h>
@@ -351,6 +376,72 @@ class TripletMatrixAssembler
                     ElementMatrix H =
                         value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
 
+                    m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
+                }
+            }
+        }
+
+        // Write directly from an Eigen expression/map.  This is useful for
+        // matrices backed by per-lane shared memory: binding such a map to the
+        // BlockMatrix overload above first materializes the entire matrix in a
+        // thread-local temporary and defeats the shared-workspace layout.
+        template <typename Derived>
+        UIPC_GENERIC void write_expression(const Eigen::Vector<IndexT, N>& indices,
+                                           const Eigen::MatrixBase<Derived>& value)
+        {
+            static_assert(Derived::RowsAtCompileTime == N * BlockDim);
+            static_assert(Derived::ColsAtCompileTime == N * BlockDim);
+
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+                    auto [L, R] = upper_LR(indices, ii, jj);
+                    ElementMatrix H = value.derived().template block<BlockDim, BlockDim>(
+                        L * BlockDim, R * BlockDim);
+                    m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
+                }
+            }
+        }
+
+        // Reconstruct one PSD block at a time from V*diag(lambda)*V^T and
+        // immediately write it. This keeps the eigenvectors intact while
+        // avoiding a second full local/shared Hessian.
+        template <typename Eigenvectors, typename Eigenvalues>
+        UIPC_GENERIC void write_psd_from_eigendecomposition(const Eigen::Vector<IndexT, N>& indices,
+                                                            const Eigenvectors& eigenvectors,
+                                                            const Eigenvalues& eigenvalues,
+                                                            T post_scale = T(1))
+        {
+            static_assert(Eigenvectors::RowsAtCompileTime == N * BlockDim);
+            static_assert(Eigenvectors::ColsAtCompileTime == N * BlockDim);
+            static_assert(Eigenvalues::RowsAtCompileTime == N * BlockDim);
+
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+                    auto [L, R] = upper_LR(indices, ii, jj);
+                    ElementMatrix H;
+#pragma unroll
+                    for(int row = 0; row < BlockDim; ++row)
+                    {
+#pragma unroll
+                        for(int col = 0; col < BlockDim; ++col)
+                        {
+                            T value = T(0);
+#pragma unroll
+                            for(int k = 0; k < N * BlockDim; ++k)
+                            {
+                                const T weighted_col =
+                                    eigenvalues(k) * eigenvectors(R * BlockDim + col, k);
+                                value = fma(eigenvectors(L * BlockDim + row, k), weighted_col, value);
+                            }
+                            H(row, col) = value * post_scale;
+                        }
+                    }
                     m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
                 }
             }

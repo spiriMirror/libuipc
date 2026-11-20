@@ -3,6 +3,12 @@ target("backend_cuda")
     add_rules("uipc_test")
     add_deps("cuda")
     add_files("**.cu", "**.cpp")
+    -- parity with CMakeLists.txt: the tests under internals/ link against
+    -- symbols of the CUDA backend library itself, which the backend DLL on
+    -- Windows does not export, so Windows builds leave them out.
+    if is_plat("windows") then
+        remove_files("internals/**")
+    end
     if has_config("dev") then
         add_rules("clangd")
     end
