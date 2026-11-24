@@ -154,6 +154,11 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
     constexpr int Rows = MatrixT::RowsAtCompileTime;
     constexpr int Cols = MatrixT::ColsAtCompileTime;
 
+    // The span views the C-ordered buffer in place as packed MatrixT values: a
+    // column-major matrix with several rows and columns would be read transposed.
+    static_assert(Rows == 1 || Cols == 1 || bool(MatrixT::Flags & Eigen::RowMajorBit),
+                  "as_span_of needs a vector or a row-major matrix type");
+
     constexpr bool IsConst = std::is_const_v<MatrixT>;
 
     if(arr.ndim() == 2)
@@ -185,6 +190,11 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
     {
         throw PyException(PYUIPC_MSG("array must be 2D or 3D, yours={}", arr.ndim()));
     }
+
+    // Any other memory order (Fortran order, a slice, a transposed view) would
+    // be read as other values without an error.
+    PYUIPC_ASSERT((arr.flags() & py::array::c_style) != 0,
+                  "array must be C-contiguous, yours is not (use numpy.ascontiguousarray)");
 
     if constexpr(IsConst)
         return span<MatrixT>((MatrixT*)arr.data(), arr.shape(0));

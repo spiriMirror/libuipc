@@ -1,5 +1,23 @@
 # Handoff — Current State of the Repo
 
+> **pyuipc array layout (2026-11-24)**: the four batched affine-body conversions
+> read and write element by element through the arrays' strides; `as_span_of`
+> refuses non-C-contiguous arrays and, by `static_assert`, column-major matrix
+> types with several rows and columns (no caller uses one any more). On main
+> 158d39f the batched `q_to_transform(q)[i]` equalled `q_to_transform(q[i]).T`,
+> and `pointcloud(V[:, :3])` with `V = arange(24).reshape(4, 6)` created the
+> points `(0,1,2), (3,4,5), (6,7,8), (9,10,11)`.
+> Validation: before the fix 27 of the 31 new CPU cases failed; the four passing
+> ones read a transposed storage by coincidence (two), compose two transposed
+> batches (the round trip) or read uipc's own column-major views. After the
+> incremental Release rebuild all 31 pass. The portable Python suite passes 204
+> tests (177 before, plus the 27) with the optional Warp module skipped, and the
+> 79 CUDA cases pass before and after (Linux, g++ 11.4, CUDA 12.8, CPython
+> 3.12.12, NumPy 2.5.3; `test_assets.py` excluded: `huggingface_hub` absent).
+> clang-format 18.1.8 (`scripts/format_changed.py --check`) and
+> `git diff --check` pass; formatting also reflowed the unchanged rigid-body
+> bindings in `affine_body.cpp` (whitespace only).
+
 > **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
 > metadata and refreshes OS repositories before installing build tools, with
 > three attempts and 10/20-second backoff. CUDA repositories are disabled only

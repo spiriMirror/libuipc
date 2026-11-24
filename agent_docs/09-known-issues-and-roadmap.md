@@ -1,5 +1,14 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+pyuipc array layout (2026-11-24): the batched `affine_body.q_to_transform` and
+`q_v_to_transform_v` returned every matrix transposed, and the batched
+`transform_to_q` and `transform_v_to_q_v` read C-ordered `(N, 4, 4)` input as
+transposed matrices, because `as_span_of` viewed the arrays as column-major
+`Matrix4x4`. They now read and write through the arrays' strides. `as_span_of`
+also read non-C-contiguous arrays as other values without an error (for example
+`pointcloud(V[:, :3])`); it now refuses them, and refuses column-major matrix
+types at compile time. See `06-python-api-and-packaging.md` and `handoff.md`.
+
 Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
 repository metadata returned HTTP 404 before project compilation. The workflow
 now clears metadata, refreshes required OS repositories, temporarily excludes

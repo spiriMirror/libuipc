@@ -38,8 +38,23 @@ indices. The native geometry copies the pairs into `instances.topo`.
 Issue #498 previously declared these indices as `Float`, so `as_span_of` could
 return a view into a freed temporary integer conversion. The shared helper
 borrows memory and does not normalize strides: binding authors must keep a
-matching-dtype owner alive and supply the layout expected by the native span.
+matching-dtype owner alive and supply a C-contiguous array (see below).
 CPU regression coverage is in `python/tests/test_soft_vertex_stitch.py`.
+
+## Array layout in `as_span_of`
+
+`as_span_of<T>` views a NumPy buffer in place as packed `T` values. It refuses
+an array that is not C-contiguous (`array must be C-contiguous`): a sliced,
+reversed, transposed or Fortran-order input raises instead of being read as
+other values. `T` must be a vector or a row-major matrix (`static_assert`): a
+column-major `Matrix4x4` would view a C-ordered `(N, 4, 4)` array transposed.
+Bindings that accept any layout convert at the binding boundary
+(`py::array::c_style | py::array::forcecast`, as the stitch arrays above) or
+read through `py::array::unchecked`. The batched `affine_body.q_to_transform`,
+`transform_to_q`, `q_v_to_transform_v` and `transform_v_to_q_v` read and write
+element by element, so they agree with the single-item forms for every layout,
+uipc's own column-major matrix views included. CPU regression coverage is in
+`python/tests/test_affine_body_transform.py`.
 
 ## Python package layout (`python/src/uipc/`)
 
