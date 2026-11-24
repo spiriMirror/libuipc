@@ -191,6 +191,8 @@ Reference](https://spirimirror.github.io/libuipc-doc/specification/scene_config/
 
 ## News
 
+**2026-11-24**: Many thanks to [NVIDIA](https://www.nvidia.cn/) for contributing the CUDA optimizations in PRs #512–#517. Their work substantially improved libuipc’s end-to-end simulation performance.
+
 **2026-8-24**: We preliminarily optimized the CUDA backend, improving the framework's simulation performance across the board — and **Libuipc v1.0 will be ready soon**!
 
 **2026-3-29**: Thanks [Genesis AI](https://genesis-embodied-ai.github.io/) for contributing [AL-IPC](https://simulation-intelligence.github.io/barrier-free/) (Augmented Lagrangian IPC) integration, a Minimal Coordinate Articulated Joint System (ExternalArticulationConstraint) for affine bodies, and the CIBuildWheel cross-platform PyPI packaging pipeline.
