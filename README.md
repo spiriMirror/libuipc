@@ -24,7 +24,7 @@ We are **actively** developing Libuipc. Feedback and contributions are welcome!
   - [What is libuipc?](#what-is-libuipc)
     - [Why libuipc](#why-libuipc)
   - [Catalogue](#catalogue)
-    - [Stiff-GIPC Benchmark Suite (88–93)](#stiff-gipc-benchmark-suite-8893)
+    - [Stiff-GIPC Benchmark Suite (46–51)](#stiff-gipc-benchmark-suite-4651)
     - [Robotics](#robotics)
     - [FEM \& Cloth](#fem--cloth)
     - [Rigid Bodies, Joints \& Coupling](#rigid-bodies-joints--coupling)
@@ -56,22 +56,22 @@ libuipc is organized in three layers: a friendly scene API on top, a reusable si
 
 Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMirror/libuipc-samples/tree/main/examples) — each is a self-contained `main.py` with a GUI (run/stop) and most support `--headless [N]` benchmarking. Highlights:
 
-### Stiff-GIPC Benchmark Suite (88–93)
+### Stiff-GIPC Benchmark Suite (46–51)
 
 The portable small/standard/stress workloads and same-environment comparison
 protocol are documented in [Testing and Benchmarks](https://spirimirror.github.io/libuipc-doc/development/testing_and_benchmarks/).
 
-- [88: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark)
-- [89: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny)
-- [90: set_case1](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/90_abd_fem_cube_stack)
-- [91: set_case4](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/91_pinned_cloth)
-- [92: set_case5](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/92_twisting_bar)
-- [93: set_case6](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/93_cube_wall_cloth)
+- [46: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/46_stiff_gipc_benchmark)
+- [47: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/47_mas_bunny)
+- [48: set_case1](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/48_abd_fem_cube_stack)
+- [49: set_case4](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/49_pinned_cloth)
+- [50: set_case5](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/50_twisting_bar)
+- [51: set_case6](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/51_cube_wall_cloth)
 
 ### Robotics
 
-- [87: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/87_robot_hand)
-- [94: four-finger robot hand grasps and places a free ABD apple](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/94_robot_hand_grasp_apple)
+- [45: robot hand (URDF links + soft constraints + ABD cube)](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/45_robot_hand)
+- [52: four-finger robot hand grasps and places a free ABD apple](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/52_robot_hand_grasp_apple)
 
 ### FEM & Cloth
 

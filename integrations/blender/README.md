@@ -131,7 +131,7 @@ installed in the external Python; PyPI 0.0.28 does not contain the new mesher.
   requires neither Python nor a GPU solver once the bake is complete.
 - This is an offline bake integration, not a real-time solver guarantee.
 - URDF mesh links with fixed/revolute joints and animated ABD targets are exposed
-  in 0.3. The joint hierarchy specifies target poses, as in sample 87; it is not
+  in 0.3. The joint hierarchy specifies target poses, as in sample 45; it is not
   a torque-controlled articulation solver. Rod twisting and animated cloth/FEM/rod pins remain unsupported.
 - Blender-specific adapter code is GPL-3.0-or-later; the independently usable
   `worker.py`, `protocol.py` and `robot_model.py` retain Apache-2.0. Copyright: spiriMirror.
@@ -140,7 +140,7 @@ installed in the external Python; PyPI 0.0.28 does not contain the new mesher.
 
 `tests/blender_motion.py` checks a 50-frame hold, substep target motion and
 keyframe-driven cache invalidation using the actual CUDA worker.
-`examples/robot_pick_place.py` adds sample 87's hand to an existing dining scene,
+`examples/robot_pick_place.py` adds sample 45's hand to an existing dining scene,
 bakes a three-finger grasp/transfer/release, checks every frame for enabled
 inter-object crossings, and verifies grasp contact, final support and playback.
 See [the robot example](examples/ROBOT_PICK_PLACE.md) for its controls and results.

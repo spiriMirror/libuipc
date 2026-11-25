@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 spiriMirror
-"""Sample 87 robot hand picks a free apple from the current dining scene."""
+"""Sample 45 robot hand picks a free apple from the current dining scene."""
 
 import argparse
 import importlib
@@ -296,7 +296,7 @@ def validate_pick_place(scene, addon, args, arrays, report):
                     and ga == gb
                     and not (a in fingertip_names and b in fingertip_names)
                 ):
-                    # Adjacent assembly links may overlap as in sample 87;
+                    # Adjacent assembly links may overlap as in sample 45;
                     # separately verify the four distinct fingertip surfaces.
                     continue
                 hits = trees[a].overlap(trees[b])
@@ -422,7 +422,7 @@ def validate_pick_place(scene, addon, args, arrays, report):
     report.update(
         success=True,
         checked_inter_object_frames=scene.frame_end,
-        internal_robot_contact="disabled as in sample 87; distinct fingertips additionally checked for crossings; all robot/environment and apple contact enabled",
+        internal_robot_contact="disabled as in sample 45; distinct fingertips additionally checked for crossings; all robot/environment and apple contact enabled",
         grasp_surface_distances_m=contacts,
         final_apple_robot_distance_m=release,
         final_apple_cloth_distance_m=cloth_gap,

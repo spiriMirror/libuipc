@@ -145,8 +145,8 @@ touching that area; several of these have bitten us more than once.
 - **Cloth membrane `1/sqrt(I5)` singularity** (`strain_limiting_baraff_
   witkin_shell_2d.h`): a fully collapsed triangle (directional stretch
   λ→0) produced inf/NaN forces — and even the NEAR-singular regime was
-  silently poisoning PCG conditioning (case 88: 145 PCG/solve with
-  pathological 14-Newton frames). Fixed with a 1e-12 floor on I5; case 88
+  silently poisoning PCG conditioning (case 46: 145 PCG/solve with
+  pathological 14-Newton frames). Fixed with a 1e-12 floor on I5; case 46
   dropped 266 -> 203 ms/frame as a side effect (35/solve now). Stiff-GIPC
   has the same unguarded hole.
 - **Cloth vs Stiff-GIPC alignment audit (2026-08-24)**: the SLBWS membrane

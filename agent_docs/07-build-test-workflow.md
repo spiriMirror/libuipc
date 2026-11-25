@@ -129,7 +129,7 @@ metadata and `Engine("none")` smoke test.
 benchmark registry. `scripts/run_benchmark.py` validates declared sample/assets,
 canonicalizes tuning environment variables, and launches the implementation in
 the tracked `libuipc-samples` submodule without copying it. The canonical suite
-offers small `anisotropic-cloth-small` (sample 95), standard
+offers small `anisotropic-cloth-small` (sample 53), standard
 `rigid-wrecking-balls` (6) / `mas-bunny` (89), and stress
 `stiff-gipc-case2` (88) / `cube-wall-cloth` (93) workloads:
 

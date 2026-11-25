@@ -91,7 +91,7 @@ device atomic minimum, `K_min` progress, finite line-search acceptance,
 finite-difference gradients for PT, EE, and half-plane friction, and the
 parallel-EE policy: a positive threshold detects the standard IPC case while
 AL's negative threshold remains false. Configuration tests cover both modes
-and reject unknown values. Sample 88 supplies the mixed
+and reject unknown values. Sample 46 supplies the mixed
 cloth/FEM trajectory regression; details and measured failure counts are in
 [`2026-09-03-al-ipc-case88-correction.md`](../performance/2026-09-03-al-ipc-case88-correction.md).
 The aggregate CUDA/core tests and repository contracts remain required before

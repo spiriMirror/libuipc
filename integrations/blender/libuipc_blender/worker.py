@@ -271,7 +271,7 @@ def simulate(directory, parent):
                 positive(drive[key], key, allow_zero=True)
             SoftTransformConstraint().apply_to(geometry, np.array([drive["translation_strength"],drive["rotation_strength"]]))
             view(geometry.instances().find(builtin.is_constrained))[:] = 1
-            # Match sample 87's servo-controlled, quasi-static links.
+            # Match sample 45's servo-controlled, quasi-static links.
             view(geometry.instances().find(builtin.is_dynamic))[:] = 0
             targets = np.asarray(body["drive_targets"], dtype=np.float64).copy()
             if (targets.shape != ((frame_count-1)*settings["substeps"]+1,4,4)

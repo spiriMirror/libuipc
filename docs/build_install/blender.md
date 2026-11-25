@@ -237,7 +237,7 @@ drivers, F-curve modifiers and bone parenting are currently rejected.
 | Robot Contact Friction | 0.8 | Nonnegative Coulomb coefficient against ordinary scene objects |
 
 Drives use `SoftTransformConstraint` and quasi-static links (`is_dynamic=0`),
-matching sample 87. Collision response may produce a small difference between
+matching sample 45. Collision response may produce a small difference between
 commanded and solved poses. The URDF joint tree supplies target kinematics;
 joint torques and actuator dynamics are not modeled by this interface.
 Internal robot collision can be disabled for assembled links, while collisions
@@ -245,8 +245,8 @@ with the table, cloth, bowl and grasped object remain enabled.
 
 For the same four-finger grasp as a focused standalone pyuipc program without
 Blender or baked caches, see
-[`94_robot_hand_grasp_apple`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/94_robot_hand_grasp_apple).
-It directly constructs the World, drives the sample-87 URDF links at every
+[`52_robot_hand_grasp_apple`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/52_robot_hand_grasp_apple).
+It directly constructs the World, drives the sample-45 URDF links at every
 solver substep, and numerically verifies the free apple's carry and release.
 
 The imported collision meshes retain their closed solid components. Isolated
