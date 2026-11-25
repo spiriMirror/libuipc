@@ -408,12 +408,10 @@ legacy stream as well (such a launch invalidates a capture of the fixed
 part, and the graph stays off for the engine), and the DyTopo reductions
 follow the join on it.
 
-The contact energies of a trial are prelaunched: when the trial's energy
-follows its `filter_active` (an evaluated trial, and the first trial of an
-overlapped line search, whose prelaunch `discard_energy()` drops when the
-converged trial is not evaluated), `SimEngine::advance()` passes
-`filter_active` a `before_sync` callback. Once the legacy-stream filters'
-two-phase work is enqueued, `GlobalTrajectoryFilter::filter_active()` records
+The contact energies of an evaluated trial can be prelaunched.
+`SimEngine::advance()` passes `filter_active` a `before_sync` callback. Once
+the legacy-stream filters' two-phase work is enqueued,
+`GlobalTrajectoryFilter::filter_active()` records
 an event (`Impl::filtered`) behind it and calls
 `LineSearcher::prelaunch_energy()` with it; only then does it launch the
 filters that run beside (the half-plane filter), whose work the legacy stream
@@ -438,24 +436,20 @@ not grow (`EnergyInfo::prelaunched()`: the reporter only takes its ranges);
 otherwise it launches every reporter again behind the prelaunch. The later
 reporters (the half-plane contacts) launch on the legacy stream, and the
 reductions run on the host-known sizes as before, so every energy, its
-position and every sum are those of the serial evaluation.
+position and every sum are those of the serial evaluation. The final
+converged trial also completes this evaluation, so contact exports have
+matching pairs and energy views.
 
 The fixed part is launched right after a trial steps forward
 (`LineSearcher::launch_energy()`), before the trial's `filter_active`: for
 the first trial of an overlapped line search (see the prologue overlap
 above) its host launches run while the GPU computes the CCD TOI, and for
-every evaluated trial its GPU work runs beside `filter_active`; a restored
-or a terminated trial does not launch it. `compute_energy()` and
+every evaluated trial its GPU work runs beside `filter_active`. A restored
+trial skips that launch. `compute_energy()` and
 `launch_initial_energy()` launch it (through `enqueue_energy()`) when nothing
-was launched (an evaluated `E_0`, the AL pipeline). When the step is
-truncated (TOI, CFL) or the converged trial ends the Newton loop,
-`discard_energy()` makes the legacy stream wait for the launched part before
-anything it reads is overwritten.
-
-When convergence skips the final trial's energy evaluation, the first
-`ContactSystemFeature::contact_energy()` call for that frame refreshes the
-active-set energy producers. The exporter gets per-pair energies for the
-accepted contact set and subsequent exports reuse those values.
+was launched (an evaluated `E_0`, the AL pipeline). When TOI or CFL truncates
+the step, `discard_energy()` makes the legacy stream wait for the launched
+part before anything it reads is overwritten.
 
 An evaluated `E_0` of the IPC Newton loop is only launched
 (`LineSearcher::launch_initial_energy()`: the evaluation, then a copy of every

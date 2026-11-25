@@ -30,7 +30,6 @@
 #include <cuda_tool/copy_batch.h>
 #include <cuda_tool/graph.h>
 #include <line_search/step_batch.h>
-#include <optional>
 
 namespace uipc::backend::cuda
 {
@@ -117,11 +116,6 @@ class LineSearcher : public SimSystem
 
   private:
     friend class SimEngine;
-    friend class ContactExporterManager;
-    void refresh_contact_energies();
-    void compute_active_set_energies(bool                    is_initial,
-                                     bool                    prelaunched,
-                                     cuda_tool::SideStreams* side_streams);
     void init();                // only be called by SimEngine
     void record_start_point();  // only be called by SimEngine
     // The reporters' copies join `copies` (launched by the caller).
@@ -209,9 +203,8 @@ class LineSearcher : public SimSystem
     vector<IndexT> m_energy_set;  // per reporter: energy() taken by the producers or the reduction
     bool m_energy_launched = false;  // by launch_energy()
     // by prelaunch_energy(), and per reporter
-    bool                 m_energy_prelaunched = false;
-    std::optional<SizeT> m_skipped_contact_energy_frame;
-    vector<IndexT>       m_reporter_prelaunched;
+    bool           m_energy_prelaunched = false;
+    vector<IndexT> m_reporter_prelaunched;
 
     // The fixed part (see FixedKey): the producers' side streams and one
     // reduce stream per fixed reporter (a reporter's reductions wait only

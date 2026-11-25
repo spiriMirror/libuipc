@@ -29,8 +29,7 @@ def run_scene(workspace):
     scene.contact_tabular().default_model(0.0, 1e9)
 
     # The particle starts outside d_hat and enters it on the first trial.
-    # The loose velocity tolerance makes that trial terminate Newton before
-    # the line search evaluates its energy.
+    # The loose velocity tolerance makes that trial terminate Newton.
     particle = pointcloud(np.array([[0.0, 0.012, 0.0]]))
     label_surface(particle)
     Particle().apply_to(particle, 1e3, 0.001)

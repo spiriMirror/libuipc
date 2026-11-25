@@ -257,35 +257,6 @@ void LineSearcher::launch_fixed_energy()
         m_fixed_state = FixedGraphState::Warm;
 }
 
-void LineSearcher::compute_active_set_energies(bool is_initial,
-                                               bool prelaunched,
-                                               cuda_tool::SideStreams* side_streams)
-{
-    for(auto&& [i, R] : enumerate(m_reporters.view()))
-    {
-        if(!R->reads_active_set())
-            continue;
-        ComputeEnergyInfo info{
-            this, cuda_tool::VarView<Float>{m_device_energy_values.data() + i}};
-        info.m_is_initial   = is_initial;
-        info.m_side_streams = side_streams;
-        info.m_prelaunched  = prelaunched && m_reporter_prelaunched[i];
-        R->compute_energy(info);
-        m_energy_set[i] = info.m_energy_set;
-    }
-}
-
-void LineSearcher::refresh_contact_energies()
-{
-    if(m_skipped_contact_energy_frame != engine().frame())
-        return;
-
-    // The converged trial updated the contact set without completing its
-    // energy evaluation. The exporter only needs per-pair values.
-    compute_active_set_energies(false, false, nullptr);
-    m_skipped_contact_energy_frame.reset();
-}
-
 void LineSearcher::enqueue_energy(bool is_initial, Float* total_out)
 {
     auto reporter_view = m_reporters.view();
@@ -309,7 +280,18 @@ void LineSearcher::enqueue_energy(bool is_initial, Float* total_out)
         m_energy_streams.join_next();
     else
         m_energy_streams.fork();
-    compute_active_set_energies(is_initial, prelaunched, prelaunched ? nullptr : &m_energy_streams);
+    for(auto&& [i, R] : enumerate(reporter_view))
+    {
+        if(!R->reads_active_set())
+            continue;
+        ComputeEnergyInfo info{
+            this, cuda_tool::VarView<Float>{m_device_energy_values.data() + i}};
+        info.m_is_initial   = is_initial;
+        info.m_side_streams = prelaunched ? nullptr : &m_energy_streams;
+        info.m_prelaunched  = prelaunched && m_reporter_prelaunched[i];
+        R->compute_energy(info);
+        m_energy_set[i] = info.m_energy_set;
+    }
     m_energy_streams.join_next();
     for(auto&& [i, R] : enumerate(reporter_view))
     {

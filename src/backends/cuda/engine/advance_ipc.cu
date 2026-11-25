@@ -683,22 +683,11 @@ void SimEngine::advance()
                         ++m_frame_line_search_trials;
                         m_frame_last_line_search_alpha = alpha;
 
-                        // A converged trial that ends the Newton loop is
-                        // accepted without reading its energy.
-                        bool evaluated = !terminated || m_line_searcher->m_report_energy;
-
                         // Compute Test Energy:
                         //  * Step Forward => x = x_0 + alpha * dx
                         //  * Compute New Energy => E
                         if(!std::exchange(stepped, false))
-                            step_to_trial(alpha, evaluated);
-
-                        if(!evaluated)
-                        {
-                            m_line_searcher->discard_energy();
-                            m_line_searcher->m_skipped_contact_energy_frame = m_current_frame;
-                            break;
-                        }
+                            step_to_trial(alpha, true);
 
                         Float E = m_line_searcher->compute_energy(false);
                         last_E  = E;
