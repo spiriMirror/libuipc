@@ -42,7 +42,7 @@ libuipc is organized in three layers: a friendly scene API on top, a reusable si
 
 - **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
 - **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: implicit time integration, line search with continuous collision detection, frictional contact with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
-- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels. CUDA-graph replay reduces launch overhead; default block replay still checks convergence on the host between blocks.
+- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels. By default, a conditional CUDA Graph controls the PCG loop on the GPU, with block replay as the fallback on runtimes without conditional nodes.
 
 ### Why libuipc
 

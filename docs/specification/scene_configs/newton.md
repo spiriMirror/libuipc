@@ -141,13 +141,13 @@ has been checked to move the same with both values.
 
 ## CUDA graph modes
 
-`linear_system/use_cuda_graph` is a mode, despite its historical name:
+`linear_system/use_cuda_graph` selects the fused PCG execution mode.
 
 | Mode | Execution |
 | --- | --- |
 | `0` | Plain per-iteration kernel launches. |
-| `1` | Replays blocks of `check_interval` iterations, then checks convergence on the host. This is the measured default. |
-| `2` | Uses a CUDA conditional while-loop graph (CUDA 12.4+). It removes the CPU from the loop but is not necessarily faster. It falls back when unavailable. |
+| `1` | Replays blocks of `check_interval` iterations, then checks convergence on the host. |
+| `2` (default) | Uses a conditional CUDA Graph to control the while loop on the GPU. It requires CUDA 12.4+ toolkit and driver support and selects mode 1 when conditional nodes are unavailable. |
 
 Graph replay is currently gated to the standard `ipc` pipeline. Selecting
 `al-ipc` forces the plain path. MAS may also fall back to plain launches if a

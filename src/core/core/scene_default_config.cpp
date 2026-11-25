@@ -162,7 +162,7 @@ static SceneConfigContract make_scene_config_contract()
         {"src/backends/cuda/finite_element"},
         Json{{"enum", Json::array({"diag", "mas"})}});
     add("linear_system/use_cuda_graph",
-        IndexT{1},
+        IndexT{2},
         "integer",
         "Fused-PCG launch mode: plain, block replay, or a device-side loop.",
         {"src/backends/cuda/linear_system/linear_fused_pcg.cu"},

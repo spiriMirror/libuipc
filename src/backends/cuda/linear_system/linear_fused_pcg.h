@@ -124,7 +124,7 @@ class LinearFusedPCG : public IterativeSolver
     SizeT check_interval  = 5;
 
     // --- CUDA graph state ---
-    IndexT m_use_cuda_graph = 1;  // config: linear_system/use_cuda_graph
+    IndexT m_use_cuda_graph = 2;  // config: linear_system/use_cuda_graph
     // 0 = plain loop, 1 = block replay, 2 = full-GPU while-loop graph
     IndexT                  m_graph_mode = 0;
     cuda_tool::GraphCapture m_graph;

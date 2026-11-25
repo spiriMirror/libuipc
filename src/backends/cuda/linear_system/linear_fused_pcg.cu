@@ -469,13 +469,9 @@ void LinearFusedPCG::do_build(BuildInfo& info)
         logger::info("LinearFusedPCG: contact/constitution != ipc — CUDA graph replay disabled");
     }
 
-    // graph mode: 2 = full-GPU while-loop (CUDA >= 12.4 toolkit+driver),
-    // 1 = host-checked block replay, 0 = plain launches.
-    // Measured on case2-scale scenes (RTX 5090, ~85 iters/solve): block
-    // replay median 203ms/frame vs while-loop 221-226ms — the WHILE node's
-    // per-iteration evaluation costs more than the amortized host check
-    // every 5 iterations, so 1 is the default; 2 keeps the CPU completely
-    // out of the loop if that matters more than raw frame time.
+    // Mode 2 uses a device-side WHILE loop on supported CUDA runtimes.
+    // Mode 1 replays blocks with host checks and is the fallback when the
+    // conditional node is unavailable. Mode 0 uses plain launches.
     bool conditional_while_supported = false;
 #if CUDA_TOOL_GRAPH_WHILE
     conditional_while_supported = cuda_tool::GraphWhile::runtime_supported();
