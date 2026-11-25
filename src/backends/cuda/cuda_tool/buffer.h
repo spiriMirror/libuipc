@@ -1,9 +1,36 @@
+/*
+ * NVIDIA contributions: PinnedHostBuffer, ReadbackBuffer with mapped
+ * read-backs, store_value and the device allocation epoch.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <cuda_tool/stream.h>
 #include <cuda_tool/view.h>
 #include <cuda_tool/view_nd.h>
 #include <cuda_tool/launch.h>
 #include <algorithm>
+#include <atomic>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <vector>
@@ -12,6 +39,13 @@ namespace uipc::backend::cuda_tool
 {
 namespace details
 {
+    // See device_allocation_epoch().
+    inline std::atomic<std::uint64_t> device_allocation_epoch{0};
+    inline void                       bump_device_allocation_epoch() noexcept
+    {
+        device_allocation_epoch.fetch_add(1, std::memory_order_relaxed);
+    }
+
     // raw template kernels backing BufferLaunch (no lambda machinery)
     template <typename T>
     __global__ void buffer_fill_kernel(BufferView<T> dst, T value)
@@ -32,13 +66,25 @@ namespace details
     }
 }  // namespace details
 
+// Counts every change of the device memory a DeviceVar or DeviceVector holds:
+// an allocation, a free and a move to another object. Work recorded with
+// buffer pointers (a cached CUDA graph) stays valid while it is unchanged.
+inline std::uint64_t device_allocation_epoch() noexcept
+{
+    return details::device_allocation_epoch.load(std::memory_order_relaxed);
+}
+
 // A single element in device memory (replacement for muda::DeviceVar).
 template <typename T>
 class DeviceVar
 {
   public:
     using value_type = T;
-    DeviceVar() { CUDA_TOOL_CHECK(cudaMalloc(&m_data, sizeof(T))); }
+    DeviceVar()
+    {
+        CUDA_TOOL_CHECK(cudaMalloc(&m_data, sizeof(T)));
+        details::bump_device_allocation_epoch();
+    }
     explicit DeviceVar(const T& value)
         : DeviceVar()
     {
@@ -47,12 +93,16 @@ class DeviceVar
     ~DeviceVar()
     {
         if(m_data)
+        {
             cudaFree(m_data);
+            details::bump_device_allocation_epoch();
+        }
     }
     DeviceVar(DeviceVar&& o) noexcept
         : m_data(o.m_data)
     {
         o.m_data = nullptr;
+        details::bump_device_allocation_epoch();
     }
     DeviceVar& operator=(DeviceVar&& o) noexcept
     {
@@ -62,6 +112,7 @@ class DeviceVar
                 cudaFree(m_data);
             m_data   = o.m_data;
             o.m_data = nullptr;
+            details::bump_device_allocation_epoch();
         }
         return *this;
     }
@@ -247,7 +298,10 @@ class DeviceVector
     void release()
     {
         if(m_data)
+        {
             cudaFree(m_data);
+            details::bump_device_allocation_epoch();
+        }
         m_data     = nullptr;
         m_size     = 0;
         m_capacity = 0;
@@ -368,6 +422,7 @@ class DeviceVector
             CUDA_TOOL_CHECK(cudaFree(m_data));
         m_data     = p;
         m_capacity = capacity;
+        details::bump_device_allocation_epoch();
     }
 
     void move_from(DeviceVector&& o)
@@ -378,6 +433,7 @@ class DeviceVector
         o.m_data     = nullptr;
         o.m_size     = 0;
         o.m_capacity = 0;
+        details::bump_device_allocation_epoch();
     }
 
     T*     m_data     = nullptr;
@@ -388,6 +444,225 @@ class DeviceVector
 // muda used DeviceBuffer as a fixed-size array; map it to the same implementation.
 template <typename T>
 using DeviceBuffer = DeviceVector<T>;
+
+// Page-locked host array for small device-to-host read-backs. A copy into it
+// does not block the host (a copy into pageable memory waits for the stream),
+// so several read-backs can be enqueued and then waited for with one stream
+// synchronization before the host reads the elements.
+template <typename T>
+class PinnedHostBuffer
+{
+  public:
+    PinnedHostBuffer() = default;
+    ~PinnedHostBuffer() { release(); }
+    PinnedHostBuffer(const PinnedHostBuffer&)            = delete;
+    PinnedHostBuffer& operator=(const PinnedHostBuffer&) = delete;
+
+    // Grows only; the contents are not preserved when the buffer grows.
+    void resize_discard(size_t n)
+    {
+        if(n > m_capacity)
+        {
+            release();
+            CUDA_TOOL_CHECK(cudaMallocHost(reinterpret_cast<void**>(&m_data),
+                                           n * sizeof(T)));
+            m_capacity = n;
+        }
+        m_size = n;
+    }
+    void release()
+    {
+        if(m_data)
+            cudaFreeHost(m_data);
+        m_data     = nullptr;
+        m_size     = 0;
+        m_capacity = 0;
+    }
+
+    size_t   size() const noexcept { return m_size; }
+    T*       data() noexcept { return m_data; }
+    const T* data() const noexcept { return m_data; }
+    T&       operator[](size_t i) noexcept { return m_data[i]; }
+    const T& operator[](size_t i) const noexcept { return m_data[i]; }
+
+    // Enqueue the copy of `src` into elements [offset, offset + src.size())
+    // on `s` without waiting for it.
+    void copy_from(size_t offset, CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        if(offset + src.size() > m_size)
+            throw std::length_error{"PinnedHostBuffer::copy_from: out of range"};
+        if(src.size())
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_data + offset, src.data(), src.size() * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+    // Enqueue the copy of `src` into the first src.size() elements.
+    void copy_from(CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        copy_from(0, src, s);
+    }
+
+  private:
+    T*     m_data     = nullptr;
+    size_t m_size     = 0;
+    size_t m_capacity = 0;
+};
+
+namespace details
+{
+    // -1: not decided yet (see mapped_readbacks()); 0: copy path; 1: mapped
+    inline std::atomic<int> mapped_readbacks{-1};
+}  // namespace details
+
+// Whether a ReadbackBuffer may use mapped host memory: the current device
+// can map page-locked host memory (cudaDevAttrCanMapHostMemory) into the
+// unified address space (cudaDevAttrUnifiedAddressing). Decided once per
+// process, at the first call.
+inline bool mapped_readbacks()
+{
+    int mode = details::mapped_readbacks.load(std::memory_order_relaxed);
+    if(mode < 0)
+    {
+        int device = 0, can_map = 0, unified = 0;
+        CUDA_TOOL_CHECK(cudaGetDevice(&device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&can_map, cudaDevAttrCanMapHostMemory, device));
+        CUDA_TOOL_CHECK(cudaDeviceGetAttribute(&unified, cudaDevAttrUnifiedAddressing, device));
+        mode = (can_map && unified) ? 1 : 0;
+        details::mapped_readbacks.store(mode, std::memory_order_relaxed);
+    }
+    return mode == 1;
+}
+
+enum class ReadbackPath
+{
+    Auto,  // mapped host memory when mapped_readbacks(), else the copy path
+    Copy   // always the copy path (tests compare it with the mapped one)
+};
+
+// Small values a kernel or a CUB call stores for the host: counts, a TOI, an
+// energy total. The producer stores through device_data(); enqueue_copy(s)
+// follows it on its stream s, and the host reads data() after synchronizing
+// s. On the mapped path device_data() is the device address of page-locked
+// host memory allocated with cudaHostAlloc(cudaHostAllocMapped) (cached, not
+// write-combined, so host reads are fast): the producer's own stores land in
+// host memory, so no copy follows the producer (a device-to-host copy after
+// a kernel waits for the copy engine to take over from the kernel, a few
+// microseconds on the critical path when the host leads). enqueue_copy() then
+// enqueues nothing, and the stream synchronization makes the stores visible:
+// the host never polls. On the copy path (a device without mapped host
+// memory, or ReadbackPath::Copy) device_data() is
+// device memory and enqueue_copy() enqueues the device-to-host copy into a
+// page-locked host array, as PinnedHostBuffer::copy_from does. Both paths
+// read back the bytes the producer stored.
+//
+// A host value goes into a read-back slot through store_value() (a
+// host-to-device copy into mapped host memory would be undefined behaviour),
+// and a device array through copy_from().
+template <typename T>
+class ReadbackBuffer
+{
+  public:
+    explicit ReadbackBuffer(ReadbackPath path = ReadbackPath::Auto)
+        : m_path(path)
+    {
+    }
+    ~ReadbackBuffer() { release(); }
+    ReadbackBuffer(const ReadbackBuffer&)            = delete;
+    ReadbackBuffer& operator=(const ReadbackBuffer&) = delete;
+
+    // Grows only; the contents are not preserved when the buffer grows.
+    void resize_discard(size_t n)
+    {
+        if(n > m_capacity)
+        {
+            release();
+            m_mapped = m_path == ReadbackPath::Auto && mapped_readbacks();
+            if(m_mapped)
+            {
+                CUDA_TOOL_CHECK(cudaHostAlloc(reinterpret_cast<void**>(&m_host),
+                                              n * sizeof(T),
+                                              cudaHostAllocMapped));
+                CUDA_TOOL_CHECK(cudaHostGetDevicePointer(
+                    reinterpret_cast<void**>(&m_device), m_host, 0));
+            }
+            else
+            {
+                CUDA_TOOL_CHECK(cudaMallocHost(reinterpret_cast<void**>(&m_host),
+                                               n * sizeof(T)));
+                CUDA_TOOL_CHECK(cudaMalloc(reinterpret_cast<void**>(&m_device),
+                                           n * sizeof(T)));
+            }
+            m_capacity = n;
+            // work recorded with the device address must not outlive it
+            details::bump_device_allocation_epoch();
+        }
+        m_size = n;
+    }
+    void release()
+    {
+        if(m_host)
+        {
+            cudaFreeHost(m_host);
+            if(!m_mapped)
+                cudaFree(m_device);
+            details::bump_device_allocation_epoch();
+        }
+        m_host     = nullptr;
+        m_device   = nullptr;
+        m_size     = 0;
+        m_capacity = 0;
+    }
+
+    bool   mapped() const noexcept { return m_mapped; }
+    size_t size() const noexcept { return m_size; }
+    // where the producer stores (device-accessible)
+    T* device_data() noexcept { return m_device; }
+    // the host values: valid after enqueue_copy(s) and a synchronization of s
+    T*       data() noexcept { return m_host; }
+    const T* data() const noexcept { return m_host; }
+    T&       operator[](size_t i) noexcept { return m_host[i]; }
+    const T& operator[](size_t i) const noexcept { return m_host[i]; }
+
+    // Follows the producer on its stream `s`: the copy path enqueues the
+    // device-to-host copy of every element, the mapped path nothing.
+    void enqueue_copy(cudaStream_t s = default_stream())
+    {
+        if(!m_mapped && m_size)
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_host, m_device, m_size * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+    // Instead of enqueue_copy(): enqueue the copy of `src` (device memory
+    // another producer wrote) into the host elements [offset, offset +
+    // src.size()) on `s`.
+    void copy_from(size_t offset, CBufferView<T> src, cudaStream_t s = default_stream())
+    {
+        if(offset + src.size() > m_size)
+            throw std::length_error{"ReadbackBuffer::copy_from: out of range"};
+        if(src.size())
+            CUDA_TOOL_CHECK(cudaMemcpyAsync(
+                m_host + offset, src.data(), src.size() * sizeof(T), cudaMemcpyDeviceToHost, s));
+    }
+
+  private:
+    ReadbackPath m_path;
+    bool         m_mapped   = false;
+    T*           m_host     = nullptr;
+    T*           m_device   = nullptr;
+    size_t       m_size     = 0;
+    size_t       m_capacity = 0;
+};
+
+// Stores the host value `value` at `dst` on `s` without a kernel: `dst` is
+// device memory or a ReadbackBuffer's device_data(), which may be mapped
+// host memory. With mapped read-backs the copy's direction is inferred from
+// the address (UVA): a host-to-device copy into host memory is undefined
+// behaviour. A host destination is written before the call returns, so no
+// work pending on `s` may still write it.
+template <typename T>
+void store_value(T* dst, const T& value, cudaStream_t s = default_stream())
+{
+    CUDA_TOOL_CHECK(cudaMemcpyAsync(
+        dst, &value, sizeof(T), mapped_readbacks() ? cudaMemcpyDefault : cudaMemcpyHostToDevice, s));
+}
 
 // 2D / 3D dense buffers -----------------------------------------------------
 template <typename T>

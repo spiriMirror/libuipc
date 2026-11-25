@@ -93,6 +93,14 @@ record it here in the same commit.**
 
 ## CUDA backend
 
+- **Keep community performance standards independent of a particular computer
+  or GPU model.** Version portable workloads and metrics, offer small/standard/
+  stress sizes, and record hardware as measurement metadata. Compare revisions
+  on the same machine and configuration; any regression allowance belongs to
+  that runner. Retain device-specific historical data as labeled experiments,
+  never as project-wide requirements or universal time limits. (Set 2026-10-24;
+  implementation requested 2026-10-28.)
+
 9. **Raw kernels only**: business GPU code is written as named
    `__global__` functions with `<<<>>>` launches — no lambda kernels, no
    ParallelFor-style wrappers.
@@ -144,8 +152,11 @@ record it here in the same commit.**
     concurrency/synchronization defect (for example, lost contributions, data
     races, missing synchronization, out-of-bounds access or uninitialized reads).
     Do not add sorting, fixed-order reductions or serialization merely to obtain
-    bitwise reproducibility without an explicit requirement. (Set and clarified
-    2026-09-11.)
+    bitwise reproducibility without an explicit requirement. For a suspected
+    race, trace how the competing accesses affect the solver's decisions or
+    outputs. Identify a concrete correctness or performance consequence from
+    code analysis or a reproducer before changing the hot path or treating the
+    finding as a merge blocker. (Set 2026-09-11 and refined 2026-11-25.)
 
 ## Task-scoped (recorded for context, not general policy)
 

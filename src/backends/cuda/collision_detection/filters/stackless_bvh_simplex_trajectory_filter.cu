@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: stream and start-position plumbing of the TOI filter.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/filters/stackless_bvh_simplex_trajectory_filter.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
@@ -1610,7 +1634,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     if(candidate_AllP_CodimP_pairs.size() > 0)
     {
         auto k1 = StacklessBVHSimplexTrajectoryFilter_filter_toi_k1_kernel;
-        k1<<<cuda_tool::best_grid_dim((int)candidate_AllP_CodimP_pairs.size(), k1), cuda_tool::best_block_dim(k1), 0, nullptr>>>(
+        k1<<<cuda_tool::best_grid_dim((int)candidate_AllP_CodimP_pairs.size(), k1), cuda_tool::best_block_dim(k1), 0, info.stream()>>>(
             PP_tois,
             candidate_AllP_CodimP_pairs.viewer(),
             info.codim_vertices(),
@@ -1630,7 +1654,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     if(candidate_CodimP_AllE_pairs.size() > 0)
     {
         auto k2 = StacklessBVHSimplexTrajectoryFilter_filter_toi_k2_kernel;
-        k2<<<cuda_tool::best_grid_dim((int)candidate_CodimP_AllE_pairs.size(), k2), cuda_tool::best_block_dim(k2), 0, nullptr>>>(
+        k2<<<cuda_tool::best_grid_dim((int)candidate_CodimP_AllE_pairs.size(), k2), cuda_tool::best_block_dim(k2), 0, info.stream()>>>(
             PE_tois,
             candidate_CodimP_AllE_pairs.viewer(),
             info.codim_vertices(),
@@ -1650,7 +1674,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     if(candidate_AllP_AllT_pairs.size() > 0)
     {
         auto k3 = StacklessBVHSimplexTrajectoryFilter_filter_toi_k3_kernel;
-        k3<<<cuda_tool::best_grid_dim((int)candidate_AllP_AllT_pairs.size(), k3), cuda_tool::best_block_dim(k3), 0, nullptr>>>(
+        k3<<<cuda_tool::best_grid_dim((int)candidate_AllP_AllT_pairs.size(), k3), cuda_tool::best_block_dim(k3), 0, info.stream()>>>(
             PT_tois,
             candidate_AllP_AllT_pairs.viewer(),
             info.surf_vertices(),
@@ -1670,7 +1694,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     if(candidate_AllE_AllE_pairs.size() > 0)
     {
         auto k4 = StacklessBVHSimplexTrajectoryFilter_filter_toi_k4_kernel;
-        k4<<<cuda_tool::best_grid_dim((int)candidate_AllE_AllE_pairs.size(), k4), cuda_tool::best_block_dim(k4), 0, nullptr>>>(
+        k4<<<cuda_tool::best_grid_dim((int)candidate_AllE_AllE_pairs.size(), k4), cuda_tool::best_block_dim(k4), 0, info.stream()>>>(
             EE_tois,
             candidate_AllE_AllE_pairs.viewer(),
             info.surf_edges(),
@@ -1688,11 +1712,11 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     if(tois.size())
     {
         // get min toi
-        DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
+        DeviceReduce(info.stream()).Min(tois.data(), info.toi().data(), tois.size());
     }
     else
     {
-        info.toi().fill(large_enough_toi);
+        info.toi().fill(large_enough_toi, info.stream());
     }
 }
 }  // namespace uipc::backend::cuda

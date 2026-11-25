@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream interfaces for the prelaunched kinetic
+ * assembly and energy.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <affine_body/affine_body_dynamics.h>
@@ -86,6 +111,9 @@ class AffineBodyKinetic : public SimSystem
 
         auto dt() const noexcept { return base_info->dt(); }
 
+        // Every launch of the kinetic energy goes to this stream.
+        auto stream() const noexcept { return base_info->stream(); }
+
       private:
         ABDLineSearchReporter::ComputeEnergyInfo* base_info = nullptr;
     };
@@ -100,10 +128,14 @@ class AffineBodyKinetic : public SimSystem
         {
         }
 
-        auto gradient_only() const noexcept { return base_info->gradient_only(); }
+        auto gradient_only() const noexcept
+        {
+            return base_info->gradient_only();
+        }
         auto gradients() const noexcept { return base_info->gradients(); }
         auto hessians() const noexcept { return base_info->hessians(); }
         auto dt() const noexcept { return base_info->dt(); }
+        auto stream() const noexcept { return base_info->stream(); }
 
       private:
         ABDLinearSubsystem::ComputeGradientHessianInfo* base_info = nullptr;

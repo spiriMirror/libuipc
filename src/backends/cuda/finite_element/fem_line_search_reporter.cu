@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: line-search energy producers on side streams, the
+ * cached energy graph, batched start-point copies and the batched step
+ * forward.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/fem_line_search_reporter.h>
 #include <finite_element/fem_line_search_subreporter.h>
 #include <finite_element/finite_element_kinetic.h>
@@ -62,15 +88,27 @@ void FEMLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& i
     m_impl.compute_energy(info);
 }
 
+void FEMLineSearchReporter::do_reduce_energy(LineSearcher::ComputeEnergyInfo& info)
+{
+    m_impl.reduce_energy(info);
+}
+
 void FEMLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& info)
 {
-    using namespace cuda_tool;
-
-    fem().x_temps = fem().xs;
+    // x_temps = xs
+    fem().x_temps.resize_discard(fem().xs.size());
+    info.copies().copy<Vector3>(fem().x_temps.view(), std::as_const(fem().xs).view());
 }
 
 void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
+    if(auto steps = info.batch())
+    {
+        steps->dofs(fem().xs.view(),
+                    std::as_const(fem().x_temps).view(),
+                    std::as_const(fem().dxs).view());
+        return;
+    }
     auto k = FEMLineSearchReporter_step_forward_kernel;
     int  n = (int)fem().xs.size();
     if(n > 0)
@@ -84,16 +122,17 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 {
     using namespace cuda_tool;
 
+    // The kinetic and reporter energies are written on the side streams
+    // (one per producer); reduce_energy() sums them on the default stream
+    // after LineSearcher joined the producers.
+    auto side_streams = info.side_streams();
+
     // Compute Kinetic (special)
     {
         auto vertex_count = fem().xs.size();
         kinetic_energies.resize_discard(vertex_count);
-        auto kinetic_info = ComputeEnergyInfo{kinetic_energies.view(), info.dt()};
+        ComputeEnergyInfo kinetic_info{kinetic_energies.view(), info.dt(), side_streams};
         finite_element_kinetic->compute_energy(kinetic_info);
-
-        DeviceReduce().Sum(kinetic_energies.data(),
-                           total_kinetic_energy.data(),
-                           kinetic_energies.size());
     }
 
     // Collect the energy from all reporters
@@ -113,17 +152,29 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         for(auto&& [i, R] : enumerate(reporter_view))
         {
             auto [offset, count] = reporter_energy_offsets_counts[i];
-            auto this_info =
-                ComputeEnergyInfo{reporter_energies.view(offset, count), info.dt()};
+            ComputeEnergyInfo this_info{
+                reporter_energies.view(offset, count), info.dt(), side_streams};
             R->compute_energy(this_info);
         }
-
-        DeviceReduce().Sum(reporter_energies.data(),
-                           total_reporter_energy.data(),
-                           reporter_energies.size());
     }
+}
 
-    FEMLineSearchReporter_combine_energy_kernel<<<1, 1>>>(
+void FEMLineSearchReporter::Impl::reduce_energy(LineSearcher::ComputeEnergyInfo& info)
+{
+    using namespace cuda_tool;
+
+    // Every launch goes to the reduction stream (after the producers).
+    cudaStream_t stream = info.stream();
+
+    DeviceReduce(stream).Sum(kinetic_energies.data(),
+                             total_kinetic_energy.data(),
+                             kinetic_energies.size());
+
+    DeviceReduce(stream).Sum(reporter_energies.data(),
+                             total_reporter_energy.data(),
+                             reporter_energies.size());
+
+    FEMLineSearchReporter_combine_energy_kernel<<<1, 1, 0, stream>>>(
         total_kinetic_energy.cview(), total_reporter_energy.cview(), info.energy());
 }
 

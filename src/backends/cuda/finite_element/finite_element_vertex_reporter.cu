@@ -1,9 +1,35 @@
+/*
+ * NVIDIA contributions: fused retrieval of the step and the vertex
+ * displacements with their per-axis maximum, and batched start-point copies.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
 #include <cuda_tool/cuda_tool.h>
 #include <finite_element/finite_element_body_reporter.h>
 #include <uipc/builtin/attribute_name.h>
+#include <global_geometry/axis_max.h>
 
 namespace uipc::backend::cuda
 {
@@ -87,9 +113,52 @@ void FiniteElementVertexReporter::Impl::update_attributes(VertexAttributeInfo& i
     info.require_discard_friction();
 }
 
+namespace
+{
+    // A deferred retrieval and the displacements in one kernel (the step as
+    // FEMLinearSubsystem_retrieve_solution_kernel, copied into the
+    // displacements and folded into the per-axis maximum)
+    __global__ void FiniteElementVertexReporter_retrieve_displacements_kernel(
+        cuda_tool::BufferView<Vector3>     displacements,
+        cuda_tool::BufferView<Vector3>     dxs,
+        cuda_tool::CDenseVectorView<Float> x,
+        int                                n,
+        unsigned long long*                axis_max,
+        unsigned long long*                axis_max_clear)
+    {
+        int        i      = blockIdx.x * blockDim.x + threadIdx.x;
+        const bool active = i < n;
+        Vector3    dx     = Vector3::Zero();
+        if(active)
+        {
+            dx               = -x.segment<3>(i * 3).as_eigen();
+            dxs(i)           = dx;
+            displacements(i) = dx;
+        }
+        axis_max_add(axis_max, axis_max_clear, active, dx);
+    }
+}  // namespace
+
 void FiniteElementVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
 {
-    info.displacements().copy_from(fem().dxs);
+    if(fem().solution_pending)
+    {
+        fem().solution_pending = false;
+        auto k = FiniteElementVertexReporter_retrieve_displacements_kernel;
+        int  n = (int)fem().dxs.size();
+        if(n == 0)
+        {
+            info.zero_displacements();
+            return;
+        }
+        auto a = info.axis_max();
+        {
+            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.displacements(), fem().dxs.view(), fem().pending_solution, n, a.slot, a.clear);
+        }
+        return;
+    }
+    info.copy_displacements_from(fem().dxs);
 }
 
 void FiniteElementVertexReporter::do_report_count(VertexCountInfo& info)

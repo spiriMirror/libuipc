@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: stream plumbing and direct gradients of the
+ * prelaunched FEM assembly and the line-search energy.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/finite_element_elastics.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
@@ -84,22 +109,41 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
 
     auto offset = 0;
 
+    // With direct gradients, the doublets of a constitution that does not
+    // add its gradient itself are added right after it.
+    auto direct = [&](ComputeGradientHessianInfo& this_info)
+    {
+        if(this_info.direct_gradients_available() && !this_info.m_added_directly)
+            info.add_gradients(this_info.gradients());
+    };
+
     for(auto&& [I, c] : enumerate(constitutions))
     {
         ComputeGradientHessianInfo this_info{
-            this, I, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
+            this, I, info.gradient_only(), info.dt(), info.gradients(), info.hessians(), info.stream()};
+        this_info.m_assemble = &info;
 
         c->compute_gradient_hessian(this_info);
+        direct(this_info);
     }
     offset += constitutions.size();
 
     for(auto&& [I, c] : enumerate(extras))
     {
-        ComputeGradientHessianInfo this_info{
-            this, offset + I, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
+        ComputeGradientHessianInfo this_info{this,
+                                             offset + I,
+                                             info.gradient_only(),
+                                             info.dt(),
+                                             info.gradients(),
+                                             info.hessians(),
+                                             info.stream()};
+        this_info.m_assemble = &info;
         c->compute_gradient_hessian(this_info);
+        direct(this_info);
     }
     offset += extras.size();
+    if(info.direct_gradients_available())
+        info.gradients_added_directly();
 
     UIPC_ASSERT(offset == constitutions.size() + extras.size(),
                 "offset mismatching, offset = {}, expected = {}",
@@ -114,13 +158,14 @@ void FiniteElementElastics::Impl::compute_energy(FEMLineSearchReporter::ComputeE
     auto offset        = 0;
     for(auto&& [I, c] : enumerate(constitutions))
     {
-        ComputeEnergyInfo this_info{this, I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{this, I, info.dt(), info.energies(), info.side_streams()};
         c->compute_energy(this_info);
     }
     offset += constitutions.size();
     for(auto&& [I, c] : enumerate(extras))
     {
-        ComputeEnergyInfo this_info{this, offset + I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{
+            this, offset + I, info.dt(), info.energies(), info.side_streams()};
         c->compute_energy(this_info);
     }
     offset += extras.size();

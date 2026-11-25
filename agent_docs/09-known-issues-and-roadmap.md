@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
+repository metadata returned HTTP 404 before project compilation. The workflow
+now clears metadata, refreshes required OS repositories, temporarily excludes
+the unused CUDA repository, and retries installation three times. A persistent
+required-repository outage still fails the job; it is not treated as a passing
+wheel build. The pinned manylinux/CUDA image is unchanged.
+
 Issue #504 fixed by PR #505 (merged 2026-11-05): the IPC barrier and its first
 two distance derivatives return zero at/above `(xi + d_hat)^2`, while energy
 kernels retain the lower-bound check. Follow-up coverage directly exercises
@@ -10,6 +17,28 @@ passed 28 cases / 1562 assertions. The full simulation aggregate remains
 94/95 with only the existing case 86 plastic-bending residual failure;
 its approximately 0.03314-rad result fails two 0.05-rad-based assertions.
 This separate test/model issue was not changed by the contact fix.
+
+MAS apply optimization (2026-10-28): each local-solve row has one writer, so
+the kernel now assigns its reduced `float3` directly and skips the redundant
+solution-buffer clear. It retains coarse residual atomics, solver settings,
+mixed precision and all material/scene parameters. In a controlled local
+comparison, the clear-plus-local-solve path improved by 23–30% for 3–512
+clusters, the enclosing MAS-bunny FusedPCG scope by 1.35%, and timer-free
+MAS-bunny throughput by 0.55%. Other complete scenes remained within repeat
+variation. These are experiment results, not community performance gates.
+See [the evidence record](performance/2026-10-28-mas-local-solve.md).
+The 2026-10-29 correctness follow-up additionally passed output/graph reuse,
+changing-input and convergence-transition probes with memcheck/racecheck/
+initcheck, plus 60-frame before/after MAS runs in each graph mode 0/1/2.
+These remain single-environment checks; production code is unchanged.
+
+**Existing aggregate failure found during this validation:**
+`86_discrete_shell_bending_stress_plastic_residual` produces approximately
+0.03314 rad, failing its two 0.05-rad-based residual assertions. Both the
+before and after backends give 94/95 passing simulation cases and
+14211/14213 passing assertions; the test uses the diagonal preconditioner.
+Investigate the test's loading/calibration and constitutive response separately.
+No threshold relaxation or material change was included in the MAS optimization.
 
 Directional Baraff-Witkin stretch added (2026-10-20): the new three-modulus
 overload independently controls Ka/Kb while retaining old APIs, defaults and
@@ -43,6 +72,10 @@ and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
 for both fold signs and rigid transforms. No additional coefficient or derivative
 mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
 
+Test follow-up (2026-10-18): the lifetime of a temporary in the LBVH CPU
+point-query oracle was corrected in the test only; see `handoff.md`. This does
+not settle unrelated audit findings or establish a speedup.
+
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
 temporary reads that corrupted topology or raised spurious vertex-range errors,
@@ -68,16 +101,16 @@ tracking and CUDA stream explanations are corrected. This is documentation
 maintenance only; audit implementation findings and the pending GPU
 performance measurements below remain open.
 
-Performance follow-up, 2026-10-03: the owner prioritizes a fresh, matching-runtime
+Historical performance preparation, 2026-10-03: the owner prioritized a fresh, matching-runtime
 baseline and measured optimization; the audit-remediation stages remain deferred.
 The benchmark runner now supports isolated samples worktrees and pre/post hashes
 of declared inputs, installed native binaries, and Python package sources. This
 closes a measurement-provenance gap, not a simulation performance improvement.
 The Release/CUDA 13.2 CPython 3.14 baseline has been rebuilt, installed, and
 hash-matched to an isolated runtime snapshot (details in `handoff.md`). GPU
-measurements await the owner's completion of another GPU workload.
-The September reference below is not replaced until fresh uncontended GPU runs
-and repeated comparisons are available.
+measurements were deferred while another GPU workload was running. This dated
+environment is not a community requirement. The 2026-10-28 policy below replaces
+the former designation of the September record as the current reference.
 
 PR #494 scoped integration (2026-09-16) preserves the contributor's commits and
 retains explicit Python build requirements plus shared CMake/XMake stub generation.
@@ -206,25 +239,26 @@ These previously verified gaps are closed on `refactor-main` as of 2026-08-25:
   immutable vcpkg commit as the generated registry baseline. The repository
   contracts workflow rejects floating action and revision refs.
 
-## Current performance baseline
+## Community performance workflow
 
-The current machine-specific reference is the
-[2026-09-01 cross-domain baseline](performance/2026-09-01-cross-domain-baseline.md):
-RTX 5090, CUDA 13.2, Windows Release, three fresh processes per scene, canonical
-Timer-free throughput paths.
+Updated 2026-10-28: the project standardizes portable workloads, metrics and
+reproduction commands, with hardware recorded as metadata. There is no required
+GPU model or universal ms/frame target. Follow the
+[benchmark guide](../docs/development/testing_and_benchmarks.md) for small,
+standard and stress workloads and repeated same-machine before/after runs.
+The procedural small cloth workload has 243 vertices and 384 triangles; larger
+contact scenes retain their existing parameters. `--quick` shortens time only.
 
-| Benchmark | Frames | Reference mean | Three-run range | Newton/frame | PCG/frame |
-|---|---:|---:|---:|---:|---:|
-| pure ABD wrecking balls | 120 | 129.5 ms | 126.4–131.3 ms | 3.95 | 107.3 |
-| case2 FEM + cloth | 250 | 201.1 ms | 199.0–230.6 ms | 6.64 | 246.8 |
-| MAS bunny | 100 | 60.2 ms | 60.1–62.0 ms | 4.67 | 358.8 |
-| ABD wall + cloth | 100 | 125.6 ms | 121.8–165.0 ms | 5.13 | 200.1 |
+Samples/main now supplies the headless/reporting helper required by the root
+manifest, including sample 6's GUI-free path. Repository Contracts CI initializes
+the pinned samples and validates declared inputs and syntax without a GPU.
+The runner rejects incomplete/malformed frame results while archiving failures.
+No solver algorithm or material parameter changes are part of this update.
 
-All 12 throughput runs completed and converged without hitting iteration
-limits. Collision-rich scenes have trajectory and WDDM/dynamic-memory
-variability, so future work must compare three-run envelopes plus structured
-iteration counts. The older Stiff-GIPC ratios below have not been refreshed
-under this contract and must not be presented as current cross-project results.
+The [September measurements](performance/2026-09-01-cross-domain-baseline.md)
+and the older Stiff-GIPC ratios below remain historical evidence for their
+recorded environments and revisions. Neither defines current cross-project
+performance or a gate for another machine.
 
 ### Superseded Stiff-GIPC comparison context
 
@@ -277,6 +311,35 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
    conservative swept test — tightening it needs a provably conservative
    exact swept-distance predicate, more delicate.
+   **2026-10-27**: the PT and EE DCD predicates first reject pairs whose
+   conservative FP32 distance bound (`utils/distance/float_lower_bound.h`)
+   clearly exceeds `d_hat + thickness`; see doc 05. The PT and EE trajectory
+   predicates first reject pairs that stay apart for the whole step and that
+   ACCD would not hit (`utils/distance/swept_lower_bound.h`); the ACCD guard
+   constant `kAccd` assumes `large_enough_toi == 1.1` and `eta <= 0.1`, which
+   no compile-time check ties together yet. The EE and PT queries start only
+   from a vertex cover of the contact tabular (doc 05); the cover is recomputed
+   when the tabular buffer pointer, its size or a primitive count changes, not
+   when its contents are edited in place, which the backend does not do (the
+   mask tabular and the contact ids are fixed at `World::init`, doc 05). A frame skips the pre-Newton DCD pass
+   while the vertex positions equal those of the previous frame's last
+   line-search trial (doc 05); a future path that edits thickness, `d_hat`,
+   contact ids or tabulars at runtime without moving vertices must call
+   `GlobalTrajectoryFilter::require_discard_friction()` (or otherwise drop the
+   recorded active set). Between BVH refreshes the trajectory filter judges
+   stored pairs (doc 05); it trusts the topology-rebuild signal of every
+   frame's first detect for changed contact ids, masks or topology (the Newton
+   loop itself only refits, so that signal now comes once per frame). The
+   cover split, however, is made once per cover set and kept across those
+   signals, so a feature that changes contact ids at runtime must also clear
+   `cover_split_ready` (doc 05). Newton
+   iterations `k > 0` keep the trajectory candidates while every vertex stays
+   inside the detection skin of their swept segments (doc 05); that argument
+   needs the skin at most `d_hat / 2` and the per-primitive box expansion to
+   keep its pair `d_hat` of slack over the leaf tests, so a change to either
+   must revisit `GlobalTrajectoryFilter::reuse_candidates`. The filter's Other
+   queries run the warp-cooperative traversal (doc 05); the EE self-join used
+   when the cover is not usable still runs the per-lane Self kernel.
 3. ~~SNH/FEM assembly kernel throughput~~ **DONE (2026-08-24)**: the SNH
    constitution was replaced wholesale by Stiff-GIPC's SNK1 (their energy
    `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, their gradient, and their analytic
@@ -477,7 +540,7 @@ assertions).
   interaction with stream capture in the test binary; if someone revisits,
   start from `scripts/run_sim_case_isolated.py` + a binary-search over
   engine-count.
-- **Performance work must start from the current four-scene baseline**: graph
+- **Performance work must start with fresh same-environment measurements of the relevant registered workloads**: graph
   replay, DCD distance fusion, SNK1, discard-aware growth, batched readbacks,
   and direct FEM/contact assembly are already included. The synchronized
   diagnostic has no single universal hotspot: rigid is global-solve/assembly
@@ -518,7 +581,7 @@ assertions).
 ## Samples submodule state (spiriMirror/libuipc-samples)
 
 The root repository tracks this repository as the `libuipc-samples/` submodule.
-It currently has 53 example directories; numbering is non-contiguous and two
+It currently has 54 example directories; numbering is non-contiguous and two
 directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
 reference.
 

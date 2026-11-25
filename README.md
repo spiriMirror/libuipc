@@ -12,7 +12,8 @@ Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io
 
 ![teaser](docs/media/teaser.png)
 
-**Libuipc** is a GPU-accelerated simulation library built around a unified **Incremental Potential Contact** framework. It couples rigid bodies (affine body dynamics), soft bodies (FEM), cloth, and threads in one scene. Collision detection, contact assembly and linear algebra run on CUDA, with host-side orchestration and convergence checks. IPC's non-penetration guarantees depend on valid initial geometry and successful collision/solve steps; inspect diagnostics rather than treating every completed call as a physical-accuracy certificate. Differentiable-simulation interfaces are under development, not a complete end-to-end autodiff promise.
+**Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of **rigid bodies, soft bodies, cloth, threads and fluids, and their strong couplings**. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
+
 
 We are **actively** developing Libuipc. Feedback and contributions are welcome!
 
@@ -42,14 +43,14 @@ libuipc is organized in three layers: a friendly scene API on top, a reusable si
 
 - **Simulation Interface** — Python and C++ APIs for building scenes: geometry IO (OBJ/MSH/URDF/glTF), constitutions (SNK elasticity, Baraff-Witkin cloth, shell bending, ABD affine bodies, joint systems), contact tabulars, animation scripting, and a Polyscope-based GUI.
 - **Simulation Core** — scene/world/engine abstractions with the incremental-potential Newton solver: implicit time integration, line search with continuous collision detection, frictional contact with scene-adaptive tolerances, and a scene-adaptive kappa corridor.
-- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels. CUDA-graph replay reduces launch overhead; default block replay still checks convergence on the host between blocks.
+- **CUDA Backend** — GPU PCG linear solver with [StiffGIPC MAS (Multi-Level Additive Schwarz) preconditioner](https://dl.acm.org/doi/10.1145/3735126), stackless-BVH collision detection, and per-constitution GPU kernels. By default, a conditional CUDA Graph controls the PCG loop on the GPU, with block replay as the fallback on runtimes without conditional nodes.
 
 ### Why libuipc
 
-- **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
-- **Fast & Robust**: GPU-parallel contact and constitutive kernels with Stiff-GIPC-derived solver techniques for stiff, frictional, coupled scenarios.
-- **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
-- **Differentiation roadmap**: partial Diff-Sim interfaces for future backward optimization; coverage is still under development.
+- **Easy & Powerful**: Libuipc provides an intuitive and unified way to create and access vivid simulation scenes. It supports a variety of object types, including threads, cloth, shells, soft bodies, rigid bodies and fluids (coming soon), and constraints can be added with ease.
+- **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
+- **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
+- **Differentiation roadmap**: Libuipc provides differentiable simulation APIs for backward optimizations. (Will Release Soon!)
 
 ## Catalogue
 
@@ -57,8 +58,8 @@ Runnable examples live in [libuipc-samples/examples/](https://github.com/spiriMi
 
 ### Stiff-GIPC Benchmark Suite (88–93)
 
-The reproducible headless cross-domain registry and current machine-specific
-reference are documented in [Testing and Benchmarks](https://spirimirror.github.io/libuipc-doc/development/testing_and_benchmarks/).
+The portable small/standard/stress workloads and same-environment comparison
+protocol are documented in [Testing and Benchmarks](https://spirimirror.github.io/libuipc-doc/development/testing_and_benchmarks/).
 
 - [88: set_case2](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/88_stiff_gipc_benchmark)
 - [89: set_case7](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/89_mas_bunny)
@@ -190,6 +191,8 @@ Reference](https://spirimirror.github.io/libuipc-doc/specification/scene_config/
 - **For maintainers**: `.cursor/` holds AI-assisted build/test/commit/PR commands and style rules; `agent_docs/` documents the architecture.
 
 ## News
+
+**2026-11-24**: Many thanks to [NVIDIA](https://www.nvidia.cn/) for contributing the CUDA optimizations in PRs #512–#517. Their work substantially improved libuipc’s end-to-end simulation performance.
 
 **2026-8-24**: We preliminarily optimized the CUDA backend, improving the framework's simulation performance across the board — and **Libuipc v1.0 will be ready soon**!
 

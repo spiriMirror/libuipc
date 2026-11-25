@@ -1,20 +1,80 @@
+/*
+ * NVIDIA contributions: fused iteration kernels, convergence/direction-state
+ * publication, ping-pong workspaces and CUDA Graph lifecycle integration; the
+ * WHILE-loop body of two fused iterations whose direction kernel publishes the
+ * decision without a grid-wide protocol, the non-blocking launch with a
+ * pending iteration count and one result read-back, parallel preconditioner
+ * branches, and the WHILE setup that zeroes the solution.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <linear_system/linear_fused_pcg.h>
 #include <sim_engine.h>
 #include <linear_system/global_linear_system.h>
+#include <linear_system/fused_pcg_kernels.h>
 #include <cuda_tool/linear_reduction.h>
 #include <uipc/common/timer.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <cuda_tool/cub.h>
 #include <algorithm>
+#include <limits>
 #include <optional>
 namespace uipc::backend::cuda
 {
 namespace
 {
+    constexpr int FusedPcgDirectionBlockSize = 256;
+    constexpr IndexT FusedPcgPublishClaimed = std::numeric_limits<IndexT>::min();
+    // Published solve states in d_converged. Running (0) and the negative
+    // per-block countdown belong to the direction kernel; Stopped marks a
+    // WHILE solve that used its last iteration without converging. Every
+    // nonzero state turns the remaining captured nodes into no-ops.
+    constexpr IndexT FusedPcgRunning   = 0;
+    constexpr IndexT FusedPcgConverged = 1;
+    constexpr IndexT FusedPcgStopped   = 2;
+
+    static_assert(IndexT{0} > FusedPcgPublishClaimed);
+
+    constexpr IndexT select_graph_mode(IndexT requested, bool conditional_while_supported)
+    {
+        if(requested <= 0)
+            return 0;
+        if(requested == 1)
+            return 1;
+        return conditional_while_supported ? 2 : 1;
+    }
+
+    static_assert(select_graph_mode(0, false) == 0);
+    static_assert(select_graph_mode(1, false) == 1);
+    static_assert(select_graph_mode(2, false) == 1);
+    static_assert(select_graph_mode(2, true) == 2);
+
+    // d_result += x^T y; with a non-null `y_copy` also y_copy = y (the
+    // while-loop setup's p = z, fused into its r^T z pass).
     __global__ void fused_dot_kernel(cuda_tool::CDenseVectorView<Float> x,
                                      cuda_tool::CDenseVectorView<Float> y,
                                      cuda_tool::Dense<Float> d_result,
-                                     int                     n)
+                                     int                     n,
+                                     Float*                  y_copy = nullptr)
     {
         constexpr int block_dim = 256;
         constexpr int warp_size = 32;
@@ -25,6 +85,8 @@ namespace
 
         int   i   = blockIdx.x * blockDim.x + threadIdx.x;
         Float val = (i < n) ? x(i) * y(i) : Float(0);
+        if(y_copy && i < n)
+            y_copy[i] = y(i);
 
         int   warp_id  = threadIdx.x / warp_size;
         int   lane_id  = threadIdx.x & (warp_size - 1);
@@ -104,15 +166,250 @@ namespace
         *d_converged = abs(rz_new) <= rz_tol ? 1 : 0;
     }
 
+    // Block replay: converged once |rz_new| <= rz_tol; the host bounds the
+    // iteration count between replays.
+    struct FusedPcgToleranceDecision
+    {
+        cuda_tool::CDense<Float> rz_tol;
+
+        __device__ IndexT operator()(Float rz_new) const
+        {
+            return ::fabs(rz_new) <= *rz_tol ? FusedPcgConverged : FusedPcgRunning;
+        }
+    };
+
+#if CUDA_TOOL_GRAPH_WHILE
+    // WHILE body: the decisions of the plain loop on device. The iteration
+    // count is double-buffered by the body slot like rz: an iteration reads
+    // k - 1 from iter_cur, and its publisher writes k to iter_next and to
+    // iter_out and the state it returns to state_out, the count and state
+    // the host reads after the solve. The loop runs at most max_iter-1
+    // iterations, and the conditional node re-executes the body only while
+    // the solve is Running.
+    struct FusedPcgWhileDecision
+    {
+        cuda_tool::CDense<Float>   rz_tol;
+        cuda_tool::CDense<IndexT>  iter_cur;
+        cuda_tool::Dense<IndexT>   iter_next;
+        cuda_tool::Dense<IndexT>   iter_out;
+        cuda_tool::Dense<IndexT>   state_out;
+        int                        max_iter_minus_1;
+        cudaGraphConditionalHandle handle;
+
+        // whether the solve goes on after this iteration, without the side
+        // effects of operator(): every block can ask
+        __device__ bool running(Float rz_new) const
+        {
+            const int k = (int)(*iter_cur) + 1;
+            return !(::abs(rz_new) <= *rz_tol) && k < max_iter_minus_1;
+        }
+
+        // the publisher's decision
+        __device__ IndexT operator()(Float rz_new) const
+        {
+            UIPC_KERNEL_ASSERT(::isfinite(rz_new), "FusedPCG Iter: r^T*z = %e is not finite", rz_new);
+            const bool converged = ::abs(rz_new) <= *rz_tol;
+            const int  k         = (int)(*iter_cur) + 1;
+            *iter_next           = k;
+            *iter_out            = k;
+            const bool keep      = !converged && (k < max_iter_minus_1);
+            cudaGraphSetConditional(handle, keep ? 1u : 0u);
+            const IndexT state = converged ? FusedPcgConverged :
+                                             (keep ? FusedPcgRunning : FusedPcgStopped);
+            *state_out         = state;
+            return state;
+        }
+    };
+#endif
+
+    template <typename Decision>
+    __global__ void fused_pcg_publish_update_direction_kernel(
+        cuda_tool::DenseVectorView<Float>  p,
+        cuda_tool::CDenseVectorView<Float> z,
+        cuda_tool::Dense<Float>            rz,
+        cuda_tool::CDense<Float>           rz_accum,
+        cuda_tool::Dense<Float>            published_rz_new,
+        cuda_tool::Dense<Float>            next_rz_accum,
+        cuda_tool::Dense<Float>            beta,
+        cuda_tool::Dense<IndexT>           converged,
+        Decision                           decide,
+        int                                n)
+    {
+        __shared__ Float  block_beta;
+        __shared__ IndexT block_updates_p;
+
+        if(threadIdx.x == 0)
+        {
+            block_updates_p = 0;
+            IndexT observed =
+                atomicCAS(converged.data(), FusedPcgRunning, FusedPcgPublishClaimed);
+
+            if(observed == FusedPcgRunning)
+            {
+                const Float old_value = *rz;
+                const Float new_value = *rz_accum;
+                *published_rz_new     = new_value;
+                const IndexT state    = decide(new_value);
+
+                if(state != FusedPcgRunning)
+                {
+                    __threadfence();
+                    atomicExch(converged.data(), state);
+                    observed = state;
+                }
+                else
+                {
+                    const Float next_beta = new_value / old_value;
+                    *beta                 = next_beta;
+                    *rz                   = new_value;
+                    *next_rz_accum        = Float{0};
+
+                    // Publish the scalar state before exposing the negative
+                    // per-block countdown. Running is restored only after
+                    // every block has consumed beta and updated its p slice.
+                    __threadfence();
+                    const IndexT countdown = -static_cast<IndexT>(gridDim.x);
+                    atomicExch(converged.data(), countdown);
+                    observed = countdown;
+                }
+            }
+            else
+            {
+                while(observed == FusedPcgPublishClaimed)
+                    observed = atomicAdd(converged.data(), IndexT{0});
+            }
+
+            if(observed < 0 && observed != FusedPcgPublishClaimed)
+            {
+                // Acquire the publisher's beta and next-iteration scalars.
+                __threadfence();
+                block_beta      = *beta;
+                block_updates_p = 1;
+            }
+        }
+        __syncthreads();
+
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(block_updates_p && i < n)
+            p(i) = z(i) + block_beta * p(i);
+
+        __syncthreads();
+        if(threadIdx.x == 0 && block_updates_p)
+            atomicAdd(converged.data(), IndexT{1});
+    }
+
+#if CUDA_TOOL_GRAPH_WHILE
+    // WHILE-body direction step without a grid-wide protocol. rz and the
+    // iteration count are double-buffered by the body slot (this iteration
+    // reads rz_cur and publishes rz_new to rz_next), so every block computes
+    // beta = rz_new / rz_cur from the same two scalars, getting the bits of
+    // the publisher's beta, and decides whether the solve goes on from the
+    // same inputs as block 0, which alone writes the shared state and the
+    // loop decision. The state is read before the decision: a block that
+    // already sees block 0's terminal state skips p, which is unused then.
+    // z and p do not depend on the decision, so every thread reads them
+    // before the barrier, overlapping thread 0's scalar work.
+    __global__ void fused_pcg_while_update_direction_kernel(
+        cuda_tool::DenseVectorView<Float>  p,
+        cuda_tool::CDenseVectorView<Float> z,
+        cuda_tool::CDense<Float>           rz_cur,
+        cuda_tool::Dense<Float>            rz_next,
+        cuda_tool::CDense<Float>           rz_accum,
+        cuda_tool::Dense<Float>            published_rz_new,
+        cuda_tool::Dense<Float>            next_rz_accum,
+        cuda_tool::Dense<Float>            beta,
+        cuda_tool::Dense<IndexT>           converged,
+        FusedPcgWhileDecision              decide,
+        int                                n)
+    {
+        __shared__ Float block_beta;
+        __shared__ int   block_updates_p;
+
+        if(threadIdx.x == 0)
+        {
+            block_updates_p = 0;
+            const IndexT state = *static_cast<volatile const IndexT*>(converged.data());
+            if(state == FusedPcgRunning)
+            {
+                const Float old_value = *rz_cur;
+                const Float new_value = *rz_accum;
+                bool        running   = false;
+                if(blockIdx.x == 0)
+                {
+                    *published_rz_new = new_value;
+                    const IndexT next = decide(new_value);
+                    running           = next == FusedPcgRunning;
+                    if(running)
+                    {
+                        *beta          = new_value / old_value;
+                        *rz_next       = new_value;
+                        *next_rz_accum = Float{0};
+                    }
+                    else
+                    {
+                        atomicExch(converged.data(), next);
+                    }
+                }
+                else
+                {
+                    running = decide.running(new_value);
+                }
+                if(running)
+                {
+                    block_beta      = new_value / old_value;
+                    block_updates_p = 1;
+                }
+            }
+        }
+
+        const int i   = blockIdx.x * blockDim.x + threadIdx.x;
+        Float     z_i = 0, p_i = 0;
+        if(i < n)
+        {
+            z_i = z(i);
+            p_i = p(i);
+        }
+        __syncthreads();
+
+        if(block_updates_p && i < n)
+            p(i) = z_i + block_beta * p_i;
+    }
+#endif
+
 #if CUDA_TOOL_GRAPH_WHILE
     // --- full-GPU while-loop mode kernels (conditional node, CUDA >= 12.4) ---
 
-    // per-launch reset, first node of the setup chain
-    __global__ void pcg_while_reset_kernel(cuda_tool::Dense<IndexT> d_converged,
-                                           cuda_tool::Dense<IndexT> d_iter)
+    // First node of the setup chain: per-launch resets, x = 0, r = b, and
+    // the zeroed accumulators the first body slot consumes. From then on the
+    // pipelined SpMV and the direction kernel clear the opposite slot.
+    __global__ void pcg_while_init_kernel(cuda_tool::DenseVectorView<Float>  x,
+                                          cuda_tool::CDenseVectorView<Float> b,
+                                          cuda_tool::DenseVectorView<Float>  r,
+                                          cuda_tool::DenseVectorView<Float> Ap0,
+                                          cuda_tool::Dense<Float>  pAp0,
+                                          cuda_tool::Dense<Float>  rz_accum0,
+                                          cuda_tool::Dense<Float>  rz0,
+                                          cuda_tool::Dense<IndexT> d_converged,
+                                          cuda_tool::Dense<IndexT> d_iter,
+                                          cuda_tool::Dense<IndexT> iter0,
+                                          int                      n)
     {
-        *d_converged = 0;
-        *d_iter      = 0;
+        const int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i == 0)
+        {
+            *d_converged = FusedPcgRunning;
+            *d_iter      = 0;
+            *iter0       = 0;
+            *pAp0        = 0;
+            *rz_accum0   = 0;
+            *rz0         = 0;
+        }
+        if(i < n)
+        {
+            x(i)   = 0;
+            r(i)   = b(i);
+            Ap0(i) = 0;
+        }
     }
 
     // last node of the setup chain: rz_tol = tol_rate * |rz0| on device,
@@ -127,27 +424,6 @@ namespace
         *d_rz_tol = ::abs(rz0) * tol_rate;
         if(::abs(rz0) == Float{0.0})
             cudaGraphSetConditional(handle, 0u);
-    }
-
-    // last node of the loop body: publish convergence and decide whether the
-    // WHILE node re-executes the body. `k` counts completed iterations;
-    // the plain loop runs at most max_iter-1 of them.
-    __global__ void pcg_while_control_kernel(cudaGraphConditionalHandle handle,
-                                             cuda_tool::CDense<Float> d_rz_new,
-                                             cuda_tool::CDense<Float> d_rz_tol,
-                                             cuda_tool::Dense<IndexT> d_converged,
-                                             cuda_tool::Dense<IndexT> d_iter,
-                                             int max_iter_minus_1)
-    {
-        Float rz_new = *d_rz_new;
-        UIPC_KERNEL_ASSERT(::isfinite(rz_new), "FusedPCG Iter: r^T*z = {} is not finite", rz_new);
-        bool converged = ::abs(rz_new) <= *d_rz_tol;
-        *d_converged   = converged ? 1 : 0;
-
-        int k     = (int)(*d_iter) + 1;
-        *d_iter   = k;
-        bool keep = !converged && (k < max_iter_minus_1);
-        cudaGraphSetConditional(handle, keep ? 1u : 0u);
     }
 #endif
 }  // namespace
@@ -193,20 +469,14 @@ void LinearFusedPCG::do_build(BuildInfo& info)
         logger::info("LinearFusedPCG: contact/constitution != ipc — CUDA graph replay disabled");
     }
 
-    // graph mode: 2 = full-GPU while-loop (CUDA >= 12.4 toolkit+driver),
-    // 1 = host-checked block replay, 0 = plain launches.
-    // Measured on case2-scale scenes (RTX 5090, ~85 iters/solve): block
-    // replay median 203ms/frame vs while-loop 221-226ms — the WHILE node's
-    // per-iteration evaluation costs more than the amortized host check
-    // every 5 iterations, so 1 is the default; 2 keeps the CPU completely
-    // out of the loop if that matters more than raw frame time.
-    m_graph_mode = 0;
-    if(m_use_cuda_graph == 1)
-        m_graph_mode = 1;
+    // Mode 2 uses a device-side WHILE loop on supported CUDA runtimes.
+    // Mode 1 replays blocks with host checks and is the fallback when the
+    // conditional node is unavailable. Mode 0 uses plain launches.
+    bool conditional_while_supported = false;
 #if CUDA_TOOL_GRAPH_WHILE
-    else if(m_use_cuda_graph >= 2)
-        m_graph_mode = cuda_tool::GraphWhile::runtime_supported() ? 2 : 1;
+    conditional_while_supported = cuda_tool::GraphWhile::runtime_supported();
 #endif
+    m_graph_mode = select_graph_mode(m_use_cuda_graph, conditional_while_supported);
 
     auto dump_attr = config.find<IndexT>("extras/debug/dump_linear_pcg");
     if(dump_attr && dump_attr->view()[0] != 0)
@@ -227,8 +497,6 @@ void LinearFusedPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     auto x = info.x();
     auto b = info.b();
 
-    x.buffer_view().fill(0);
-
     auto N = x.size();
     if(r.capacity() < N)
     {
@@ -244,9 +512,36 @@ void LinearFusedPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     p.resize(N);
     Ap.resize(N);
 
-    auto iter = fused_pcg(x, b, max_iter_ratio * b.size());
+    if(m_graph_mode != 0)
+    {
+        for(auto& graph_Ap : m_graph_Ap)
+        {
+            if(graph_Ap.capacity() < N)
+                graph_Ap.reserve(reserve_ratio * N);
+            graph_Ap.resize_discard(N);
+        }
+    }
 
-    info.iter_count(iter);
+    m_while_result_pending = false;
+    auto iter              = fused_pcg(x, b, max_iter_ratio * b.size());
+
+    if(m_while_result_pending)
+        info.iter_count_pending();
+    else
+        info.iter_count(iter);
+}
+
+SizeT LinearFusedPCG::do_pending_iter_count()
+{
+    UIPC_ASSERT(m_while_result_pending, "LinearFusedPCG: no while-loop solve result is pending");
+    m_while_result_pending = false;
+    // returns at once when the solve and the copies behind it are done
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(m_while.launch_stream()));
+    IndexT iters = m_while_result[0];
+    if(iters <= 0)
+        return 0;
+    IndexT converged = m_while_result[1];
+    return converged == FusedPcgConverged ? (SizeT)iters : m_while_result_max_iter;
 }
 
 void LinearFusedPCG::check_init_rz_nan_inf(Float rz)
@@ -313,6 +608,113 @@ void fused_dot(cuda_tool::CDenseVectorView<Float> x,
     }
 }
 
+// Graph-only accumulation variant. The ping-pong residual-dot destination is
+// cleared by the preceding direction kernel (or by the once-per-replay prefix).
+void fused_dot_accumulate(cuda_tool::CDenseVectorView<Float> x,
+                          cuda_tool::CDenseVectorView<Float> y,
+                          cuda_tool::VarView<Float>          d_result,
+                          cudaStream_t                       stream)
+{
+    constexpr int block_dim   = 256;
+    int           n           = x.size();
+    int           block_count = (n + block_dim - 1) / block_dim;
+
+    if(block_count > 0)
+    {
+        fused_dot_kernel<<<block_count, block_dim, 0, stream>>>(
+            x.cviewer(), y.cviewer(), d_result.viewer(), n);
+    }
+}
+
+// d_result += r^T z and p = z in one pass; d_result must already be zero
+// (the while-loop setup chain's init kernel clears it).
+void fused_copy_dot_accumulate(cuda_tool::CDenseVectorView<Float> r,
+                               cuda_tool::CDenseVectorView<Float> z,
+                               cuda_tool::DenseVectorView<Float>  p,
+                               cuda_tool::VarView<Float>          d_result,
+                               cudaStream_t                       stream)
+{
+    constexpr int block_dim   = 256;
+    int           n           = r.size();
+    int           block_count = (n + block_dim - 1) / block_dim;
+
+    if(block_count > 0)
+    {
+        fused_dot_kernel<<<block_count, block_dim, 0, stream>>>(
+            r.cviewer(), z.cviewer(), d_result.viewer(), n, p.data());
+    }
+}
+
+void launch_fused_pcg_publish_update_direction(cuda_tool::DenseVectorView<Float> p,
+                                               cuda_tool::CDenseVectorView<Float> z,
+                                               cuda_tool::VarView<Float> rz,
+                                               cuda_tool::CVarView<Float> rz_accum,
+                                               cuda_tool::VarView<Float> published_rz_new,
+                                               cuda_tool::VarView<Float> next_rz_accum,
+                                               cuda_tool::VarView<Float> beta,
+                                               cuda_tool::VarView<IndexT> converged,
+                                               cuda_tool::CVarView<Float> rz_tol,
+                                               cudaStream_t stream)
+{
+    const int n = (int)p.size();
+    const int grid_size =
+        std::max(1, (n + FusedPcgDirectionBlockSize - 1) / FusedPcgDirectionBlockSize);
+    fused_pcg_publish_update_direction_kernel<<<grid_size, FusedPcgDirectionBlockSize, 0, stream>>>(
+        p,
+        z,
+        rz.viewer(),
+        rz_accum.cviewer(),
+        published_rz_new.viewer(),
+        next_rz_accum.viewer(),
+        beta.viewer(),
+        converged.viewer(),
+        FusedPcgToleranceDecision{rz_tol.cviewer()},
+        n);
+}
+
+#if CUDA_TOOL_GRAPH_WHILE
+void launch_fused_pcg_while_update_direction(cuda_tool::DenseVectorView<Float> p,
+                                             cuda_tool::CDenseVectorView<Float> z,
+                                             cuda_tool::CVarView<Float> rz_cur,
+                                             cuda_tool::VarView<Float>  rz_next,
+                                             cuda_tool::CVarView<Float> rz_accum,
+                                             cuda_tool::VarView<Float> published_rz_new,
+                                             cuda_tool::VarView<Float> next_rz_accum,
+                                             cuda_tool::VarView<Float> beta,
+                                             cuda_tool::VarView<IndexT> converged,
+                                             cuda_tool::CVarView<Float> rz_tol,
+                                             cuda_tool::CVarView<IndexT> iter_cur,
+                                             cuda_tool::VarView<IndexT> iter_next,
+                                             cuda_tool::VarView<IndexT> iter_out,
+                                             cuda_tool::VarView<IndexT> state_out,
+                                             int max_iter_minus_1,
+                                             cudaGraphConditionalHandle handle,
+                                             cudaStream_t               stream)
+{
+    const int n = (int)p.size();
+    const int grid_size =
+        std::max(1, (n + FusedPcgDirectionBlockSize - 1) / FusedPcgDirectionBlockSize);
+    fused_pcg_while_update_direction_kernel<<<grid_size, FusedPcgDirectionBlockSize, 0, stream>>>(
+        p,
+        z,
+        rz_cur.cviewer(),
+        rz_next.viewer(),
+        rz_accum.cviewer(),
+        published_rz_new.viewer(),
+        next_rz_accum.viewer(),
+        beta.viewer(),
+        converged.viewer(),
+        FusedPcgWhileDecision{rz_tol.cviewer(),
+                              iter_cur.cviewer(),
+                              iter_next.viewer(),
+                              iter_out.viewer(),
+                              state_out.viewer(),
+                              max_iter_minus_1,
+                              handle},
+        n);
+}
+#endif
+
 // Same as linear_pcg update_xr: alpha = rz/pAp, x += alpha*p, r -= alpha*Ap. Alpha computed on device from d_rz, d_pAp.
 void fused_update_xr(cuda_tool::CVarView<Float>         d_rz,
                      cuda_tool::CVarView<Float>         d_pAp,
@@ -378,8 +780,9 @@ void fused_update_converged(cuda_tool::CVarView<Float> d_rz_new,
         d_rz_new.cviewer(), d_converged.viewer(), d_rz_tol.cviewer(), n);
 }
 
-// One PCG iteration on `stream`; the unit of both graph capture and the
-// uncaptured fallback. Kernels/arguments/order are identical either way.
+// One reference PCG iteration on `stream`, used by the uncaptured fallback.
+// The Graph path below implements the same recurrence with its specialized
+// pipelined and fused kernels.
 // `timed` adds the per-iteration "SpMV"/"Apply Preconditioner" Timers —
 // plain path only; during graph capture no Timer objects may be created
 // (empirically corrupts state in the single-process test suite binary).
@@ -414,6 +817,66 @@ void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x, cudaStre
     fused_swap_rz(d_rz_new.view(), d_rz.view(), d_converged.view(), stream);
 }
 
+void LinearFusedPCG::run_graph_update_apply_dot(cuda_tool::DenseVectorView<Float> x,
+                                                SizeT                     slot,
+                                                cuda_tool::VarView<Float> rz,
+                                                cudaStream_t stream)
+{
+    const SizeT next_slot = slot ^ SizeT { 1 };
+
+    // Ap = A * p and pAp = p^T * Ap. The same pipelined kernel clears the
+    // opposite slot for its next use and skips the full sparse traversal once
+    // an earlier iteration in this replay block converges.
+    spmv_dot_pipelined(p.cview(),
+                       m_graph_Ap[slot].view(),
+                       m_graph_pAp[slot].view(),
+                       m_graph_Ap[next_slot].view(),
+                       m_graph_pAp[next_slot].view(),
+                       d_converged.view(),
+                       stream);
+
+    const bool fused = fused_pcg_update_apply_dot(x,
+                                                  p.cview(),
+                                                  r.view(),
+                                                  m_graph_Ap[slot].cview(),
+                                                  z.view(),
+                                                  rz,
+                                                  m_graph_pAp[slot].view(),
+                                                  m_graph_rz_accum[slot].view(),
+                                                  d_converged.view(),
+                                                  stream);
+    if(!fused)
+    {
+        fused_update_xr(rz,
+                        m_graph_pAp[slot].view(),
+                        d_converged.view(),
+                        x,
+                        p.cview(),
+                        r.view(),
+                        m_graph_Ap[slot].cview(),
+                        stream);
+        apply_preconditioner(z, r, d_converged.view(), stream);
+        fused_dot_accumulate(r.cview(), z.cview(), m_graph_rz_accum[slot].view(), stream);
+    }
+}
+
+void LinearFusedPCG::run_graph_iteration(cuda_tool::DenseVectorView<Float> x,
+                                         SizeT                             slot,
+                                         cudaStream_t stream)
+{
+    run_graph_update_apply_dot(x, slot, d_rz.view(), stream);
+    launch_fused_pcg_publish_update_direction(p.view(),
+                                              z.cview(),
+                                              d_rz.view(),
+                                              m_graph_rz_accum[slot].view(),
+                                              d_rz_new.view(),
+                                              m_graph_rz_accum[slot ^ SizeT{1}].view(),
+                                              m_graph_beta.view(),
+                                              d_converged.view(),
+                                              d_rz_tol.view(),
+                                              stream);
+}
+
 // ---------------------------------------------------------------------------
 // CUDA graph block replay
 // ---------------------------------------------------------------------------
@@ -421,14 +884,41 @@ void LinearFusedPCG::run_iteration(cuda_tool::DenseVectorView<Float> x, cudaStre
 void LinearFusedPCG::destroy_graph()
 {
     m_graph.reset_graph();
-    m_graph_n = 0;
+    m_graph_n                 = 0;
+    m_graph_layout_generation = 0;
+}
+
+LinearFusedPCG::GraphBufferKey LinearFusedPCG::graph_buffer_key(
+    cuda_tool::DenseVectorView<Float> x, cuda_tool::CDenseVectorView<Float> b) const
+{
+    auto A = matrix_data_ptrs();
+    return {x.data(),
+            b.data(),
+            r.buffer_view().data(),
+            z.buffer_view().data(),
+            p.buffer_view().data(),
+            Ap.buffer_view().data(),
+            m_graph_Ap[0].buffer_view().data(),
+            m_graph_Ap[1].buffer_view().data(),
+            A[0],
+            A[1],
+            A[2],
+            d_rz.data(),
+            d_rz_new.data(),
+            d_pAp.data(),
+            m_graph_pAp[0].data(),
+            m_graph_pAp[1].data(),
+            m_graph_rz_accum[0].data(),
+            m_graph_rz_accum[1].data(),
+            m_graph_beta.data()};
 }
 
 #if CUDA_TOOL_GRAPH_WHILE
 void LinearFusedPCG::destroy_while()
 {
     m_while.reset_graph();
-    m_while_n = 0;
+    m_while_n                 = 0;
+    m_while_layout_generation = 0;
 }
 
 bool LinearFusedPCG::while_key_matches(cuda_tool::DenseVectorView<Float>  x,
@@ -437,20 +927,9 @@ bool LinearFusedPCG::while_key_matches(cuda_tool::DenseVectorView<Float>  x,
 {
     if(!m_while.ready())
         return false;
-    auto                        A    = matrix_data_ptrs();
-    std::array<const void*, 12> ptrs = {x.data(),
-                                        b.data(),
-                                        r.buffer_view().data(),
-                                        z.buffer_view().data(),
-                                        p.buffer_view().data(),
-                                        Ap.buffer_view().data(),
-                                        A[0],
-                                        A[1],
-                                        A[2],
-                                        d_rz.data(),
-                                        d_rz_new.data(),
-                                        d_pAp.data()};
-    return m_while_n == x.size() && m_while_max_iter == max_iter && m_while_ptrs == ptrs;
+    return m_while_n == x.size() && m_while_max_iter == max_iter
+           && m_while_layout_generation == linear_system_layout_generation()
+           && m_while_ptrs == graph_buffer_key(x, b);
 }
 
 void LinearFusedPCG::rebuild_while(cuda_tool::DenseVectorView<Float>  x,
@@ -460,28 +939,60 @@ void LinearFusedPCG::rebuild_while(cuda_tool::DenseVectorView<Float>  x,
     destroy_while();
 
     auto result = m_while.capture(
-        // setup chain: reset -> r=b -> precond -> p=z -> rz = r^T z -> rz_tol
+        // setup chain: reset (rz = 0 too), r=b and slot-0 clears -> precond
+        // -> p=z with rz = r^T z in one pass -> rz_tol
         [&](cudaStream_t stream, cudaGraphConditionalHandle handle)
         {
-            pcg_while_reset_kernel<<<1, 1, 0, stream>>>(d_converged.viewer(),
-                                                        d_iter.viewer());
-            cuda_tool::BufferLaunch(stream).copy(r.buffer_view(), b.buffer_view());
+            const int n          = (int)x.size();
+            const int block_size = FusedPcgDirectionBlockSize;
+            const int grid_size = std::max(1, (n + block_size - 1) / block_size);
+            pcg_while_init_kernel<<<grid_size, block_size, 0, stream>>>(
+                x,
+                b,
+                r.view(),
+                m_graph_Ap[0].view(),
+                m_graph_pAp[0].viewer(),
+                m_graph_rz_accum[0].viewer(),
+                m_while_rz[0].viewer(),
+                d_converged.viewer(),
+                cuda_tool::Dense<IndexT>{m_while_out.data()},
+                m_while_iter[0].viewer(),
+                n);
             apply_preconditioner(z, r, d_converged.view(), stream);
-            cuda_tool::BufferLaunch(stream).copy(p.buffer_view(), z.buffer_view());
-            fused_dot(r.cview(), z.cview(), d_rz.view(), stream);
+            fused_copy_dot_accumulate(
+                r.cview(), z.cview(), p.view(), m_while_rz[0].view(), stream);
             pcg_while_setup_kernel<<<1, 1, 0, stream>>>(
-                d_rz.cviewer(), d_rz_tol.viewer(), global_tol_rate, handle);
+                m_while_rz[0].cviewer(), d_rz_tol.viewer(), global_tol_rate, handle);
         },
-        // loop body: one iteration + the keep-going decision
+        // loop body: two iterations of the block-replay recurrence, one per
+        // ping-pong slot; each direction kernel publishes the solve state and
+        // the keep-going decision. The iteration on slot s reads rz from
+        // m_while_rz[s] and publishes the next one to the other slot. After a
+        // terminal state the rest of the body runs as no-ops.
         [&](cudaStream_t stream, cudaGraphConditionalHandle handle)
         {
-            run_iteration(x, stream, false);
-            pcg_while_control_kernel<<<1, 1, 0, stream>>>(handle,
-                                                          d_rz_new.cviewer(),
-                                                          d_rz_tol.cviewer(),
-                                                          d_converged.viewer(),
-                                                          d_iter.viewer(),
-                                                          (int)max_iter - 1);
+            for(SizeT slot = 0; slot < 2; ++slot)
+            {
+                run_graph_update_apply_dot(x, slot, m_while_rz[slot].view(), stream);
+                launch_fused_pcg_while_update_direction(
+                    p.view(),
+                    z.cview(),
+                    m_while_rz[slot].view(),
+                    m_while_rz[slot ^ SizeT{1}].view(),
+                    m_graph_rz_accum[slot].view(),
+                    d_rz_new.view(),
+                    m_graph_rz_accum[slot ^ SizeT{1}].view(),
+                    m_graph_beta.view(),
+                    d_converged.view(),
+                    d_rz_tol.view(),
+                    m_while_iter[slot].view(),
+                    m_while_iter[slot ^ SizeT{1}].view(),
+                    cuda_tool::VarView<IndexT>{m_while_out.data()},
+                    cuda_tool::VarView<IndexT>{m_while_out.data() + 1},
+                    (int)max_iter - 1,
+                    handle,
+                    stream);
+            }
         });
 
     if(result != cuda_tool::GraphWhile::Result::Ok)
@@ -494,21 +1005,10 @@ void LinearFusedPCG::rebuild_while(cuda_tool::DenseVectorView<Float>  x,
         return;
     }
 
-    auto A           = matrix_data_ptrs();
-    m_while_ptrs     = {x.data(),
-                        b.data(),
-                        r.buffer_view().data(),
-                        z.buffer_view().data(),
-                        p.buffer_view().data(),
-                        Ap.buffer_view().data(),
-                        A[0],
-                        A[1],
-                        A[2],
-                        d_rz.data(),
-                        d_rz_new.data(),
-                        d_pAp.data()};
-    m_while_n        = x.size();
-    m_while_max_iter = max_iter;
+    m_while_ptrs              = graph_buffer_key(x, b);
+    m_while_n                 = x.size();
+    m_while_max_iter          = max_iter;
+    m_while_layout_generation = linear_system_layout_generation();
     logger::info("LinearFusedPCG: captured full-GPU while-loop graph (n = {})", x.size());
 }
 #endif
@@ -520,21 +1020,10 @@ bool LinearFusedPCG::graph_key_matches(cuda_tool::DenseVectorView<Float>  x,
 {
     if(!m_graph.ready())
         return false;
-    auto                        A    = matrix_data_ptrs();
-    std::array<const void*, 12> ptrs = {x.data(),
-                                        b.data(),
-                                        r.buffer_view().data(),
-                                        z.buffer_view().data(),
-                                        p.buffer_view().data(),
-                                        Ap.buffer_view().data(),
-                                        A[0],
-                                        A[1],
-                                        A[2],
-                                        d_rz.data(),
-                                        d_rz_new.data(),
-                                        d_pAp.data()};
     return m_graph_n == x.size() && m_graph_interval == interval
-           && m_graph_max_iter == max_iter && m_graph_ptrs == ptrs;
+           && m_graph_max_iter == max_iter
+           && m_graph_layout_generation == linear_system_layout_generation()
+           && m_graph_ptrs == graph_buffer_key(x, b);
 }
 
 void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
@@ -548,8 +1037,15 @@ void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
     auto result = m_graph.capture(
         [&](cudaStream_t capture_stream)
         {
+            // Every replay starts at slot 0. This prefix keeps odd intervals
+            // correct; for an even configured interval it is a cheap
+            // once-per-block redundant clear, not a per-iteration node.
+            cuda_tool::BufferLaunch(capture_stream).fill<Float>(m_graph_Ap[0].buffer_view(), 0);
+            CUDA_TOOL_CHECK(cudaMemsetAsync(m_graph_pAp[0].data(), 0, sizeof(Float), capture_stream));
+            CUDA_TOOL_CHECK(cudaMemsetAsync(
+                m_graph_rz_accum[0].data(), 0, sizeof(Float), capture_stream));
             for(SizeT i = 0; i < interval; ++i)
-                run_iteration(x, capture_stream, false);
+                run_graph_iteration(x, i & SizeT{1}, capture_stream);
         });
 
     if(result != cuda_tool::GraphCapture::Result::Ok)
@@ -567,22 +1063,11 @@ void LinearFusedPCG::rebuild_graph(cuda_tool::DenseVectorView<Float>  x,
                  interval,
                  x.size());
 
-    auto A           = matrix_data_ptrs();
-    m_graph_ptrs     = {x.data(),
-                        b.data(),
-                        r.buffer_view().data(),
-                        z.buffer_view().data(),
-                        p.buffer_view().data(),
-                        Ap.buffer_view().data(),
-                        A[0],
-                        A[1],
-                        A[2],
-                        d_rz.data(),
-                        d_rz_new.data(),
-                        d_pAp.data()};
-    m_graph_n        = x.size();
-    m_graph_interval = interval;
-    m_graph_max_iter = max_iter;
+    m_graph_ptrs              = graph_buffer_key(x, b);
+    m_graph_n                 = x.size();
+    m_graph_interval          = interval;
+    m_graph_max_iter          = max_iter;
+    m_graph_layout_generation = linear_system_layout_generation();
 }
 
 SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
@@ -599,17 +1084,25 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
 
         if(m_while.ready())
         {
-            // one launch for the whole solve; zero D2H/H2D inside the loop
-            CUDA_TOOL_CHECK(m_while.launch_sync());
-            IndexT iters = d_iter;
-            if(iters <= 0)
-                return 0;
-            IndexT converged = d_converged;
-            return converged ? (SizeT)iters : max_iter;
+            // One launch for the whole solve; zero D2H/H2D inside the loop.
+            // The host does not wait for it: work on the legacy stream that
+            // consumes x waits for the graph's blocking stream by itself, and
+            // the iteration count and state are copied to pinned memory
+            // behind the graph for do_pending_iter_count().
+            CUDA_TOOL_CHECK(m_while.launch());
+            auto stream = m_while.launch_stream();
+            m_while_result.resize_discard(2);
+            m_while_result.copy_from(0, {m_while_out.data(), 2}, stream);
+            m_while_result_max_iter = max_iter;
+            m_while_result_pending  = true;
+            return 0;
         }
         // capture failed: fall through to block replay / plain launches
     }
 #endif
+
+    // the while-loop graph zeroes x in its first node
+    x.buffer_view().fill(0);
 
     d_converged = 0;
 
@@ -650,7 +1143,7 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
     {
         SizeT block = std::min(effective_check_interval, total_iters - iter_done);
 
-        bool graph_block = m_use_cuda_graph && !m_graph.disabled()
+        bool graph_block = m_graph_mode != 0 && !m_graph.disabled()
                            && block == effective_check_interval;
         if(graph_block)
         {

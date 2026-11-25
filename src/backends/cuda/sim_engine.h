@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: frame statistics of active-set and
+ * trajectory-candidate reuse.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <sstream>
@@ -126,6 +151,8 @@ class SimEngine final : public backend::SimEngine
     Float m_frame_last_line_search_alpha   = 1.0;
     Float m_frame_last_ccd_toi             = 1.0;
     Float m_frame_last_cfl_alpha           = 1.0;
+    bool  m_frame_active_set_reused        = false;
+    SizeT m_frame_trajectory_reuses        = 0;
 
     bool  m_semi_implicit_enabled  = true;
     Float m_semi_implicit_beta_tol = 1e-3;

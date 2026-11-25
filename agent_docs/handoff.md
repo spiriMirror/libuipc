@@ -1,46 +1,24 @@
 # Handoff — Current State of the Repo
 
-> **FEM data export feature, branch `fem-data-export` (2026-11-16)**:
-> implements issue #344. `FEMExporterManager`
-> (`src/backends/cuda/finite_element/`) registers `core::FEMSystemFeature`
-> (`include/uipc/core/fem_system_feature.h`); instead of snapshotting solver
-> buffers, it drives `FiniteElementElastics`' compute path on demand at the
-> current `xs`, never stale line-search state. This covers every
-> base and extra constitution (0D–3D, bending included) with no
-> per-constitution code. Exports carry the scene dt's `dt^2`
-> incremental-potential scaling — deliberately the same convention as
-> ContactSystemFeature (the dt^2 factor can be dropped from both if the
-> maintainers prefer physical units; flagged in the PR). SNK1 is nonzero
-> at rest by design (Psi(I) = mu^2 / (2 lambda_hat)); the constant offset
-> is handled client-side (the testbench subtracts the frame-1 free-fall
-> energy). Measured
-> export cost on a 10368-tet grid: energy 0.048 ms,
-> gradient 0.119 ms, Hessian 0.689 ms, vertex gradient 0.040 ms per call;
-> zero cost unless an export is called. The example is an
-> energy-conservation testbench (SNH tet dropped on an implicit ground,
-> frictionless): elastic/kinetic/potential/contact energy per frame to CSV,
-> both energy exports divided by dt^2;
-> the free-fall drain is exactly the BDF1 dissipation 1/2 m g^2 dt^2 per step
-> (2.08 J/frame here; it is a bookkeeping artifact — evaluating PE at the
-> staggered position x - dt/2 v makes free-fall total constant to 1e-4
-> relative), the impact drop is genuine non-symplectic dissipation (the
-> barrier stores only ~2.3 J at rest vs the ~4 kJ lost). Exports:
-> per-element energy (+ element `topo`),
-> per-element gradient doublets (`i`/`grad`), per-element Hessian triplets
-> (`i`/`j`/`hess`), and per-vertex aggregated gradient into a
-> state-accessor geometry (force = -gradient/dt^2). Python bindings under
-> `src/pybind/pyuipc/core/` verified end-to-end: rebuilt with
-> `UIPC_BUILD_PYBIND=ON`, imported, and a GPU smoke test of all export
-> methods from Python. The case-86 failure was confirmed pre-existing by
-> rebuilding clean `origin/main` and reproducing the identical value.
-> Verification: sim case 94 (`apps/tests/sim_case/94_fem_data_export.cpp`)
-> — rigid-motion invariance, analytic spring energy, gradient/Hessian vs
-> central finite differences through the state accessor, uid discovery,
-> unknown-uid tolerance; plus `apps/examples/fem_export/`. Aggregate run:
-> 96/97 cases; only the previously recorded case-86 plastic-bending failure
-> (see 2026-11-05 entry) reproduces identically, i.e. not a regression.
-> Local clang-format is 19 vs CI's 18. Open questions are collected in the
-> untracked summary file `FEM_DATA_EXPORT_SUMMARY.md` at the repo root.
+> **Opt-in preconditioner reuse (2026-11-18)**: `linear_system/keep_preconditioner`
+> (default 0) lets every odd Newton iteration from the third on keep the
+> previous iteration's preconditioner on the standard IPC pipeline. It is off
+> by default: PCG measures its relative tolerance in the norm of its
+> preconditioner, so a one-step-old preconditioner changes the stopping
+> threshold and can end PCG and Newton early, losing momentum (doc 05,
+> doc 08). With the key at 0 every iteration assembles its preconditioners,
+> as before. Tests: `preconditioner_reuse.cu` (which iterations keep, the
+> default and the opt-in, a kept preconditioner preserving the PCG tolerance)
+> and the scene-config schema tests.
+
+> **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
+> metadata and refreshes OS repositories before installing build tools, with
+> three attempts and 10/20-second backoff. CUDA repositories are disabled only
+> for those `yum` commands; the pinned image and CUDA compilation settings are
+> unchanged. Required AlmaLinux repositories stay enabled and permanent failure
+> stops the job before vcpkg initialization. Fault injection verified recovery
+> after two metadata failures and nonzero exit after three persistent failures;
+> the original command failed on the first transient error.
 
 > **Issue #504 / PR #505 regression coverage (2026-11-05)**: PR #505 was
 > merged into main as `b116f19b`; issue #504 is closed. The follow-up native
@@ -79,6 +57,92 @@
 > `d_hat` apart, tilted pose, gravity off): unpatched main aborts in the first
 > `advance()` 3/3, patched passes 3/3; `test_contact_fd.py` 42/42 before and
 > after.
+
+> **MAS correctness follow-up (2026-10-29)**: rechecked aligned hierarchy
+> offsets, unique row writers, convergence guards and same-stream consumption.
+> Expanded the actual-kernel probe to change matrices/residuals while reusing
+> the output and captured graph, including skip/resume and zero-input cases;
+> before/after comparisons and independent dense references passed. Memcheck,
+> racecheck and initcheck reported no errors/hazards in this isolated probe.
+> Both frozen backends completed/converged for 60 MAS-bunny frames in each
+> graph mode 0/1/2 (360 total), with actual capture confirmed for modes 1/2.
+> Production code/binaries are unchanged; this is additional single-environment
+> evidence, not a universal guarantee. The existing case 86 failure remains.
+> See [the follow-up record](performance/2026-10-28-mas-local-solve.md#correctness-follow-up-2026-10-29).
+
+> **MAS local-solve optimization (2026-10-28)**: each cluster row already has a
+> single writer after its CUB reduction. Assign the resulting `float3` directly
+> and remove the preceding `multi_level_Z` clear. This removes one launch per
+> MAS application and three atomics per row, retaining multi-writer coarse
+> residual atomics, existing reductions, precision, partitions and solver/material
+> settings. Rejected inversion-layout experiments were confined to ignored
+> probes; no inversion code changed. See
+> [the scoped evidence record](performance/2026-10-28-mas-local-solve.md).
+>
+> CUDA-event probes measured 23–30% lower clear-plus-local-solve cost for
+> 3–512 clusters; paired stage profiles measured 1.35% lower MAS-bunny FusedPCG
+> time. Three full-window fresh-process runs per version gave 75.065 to 74.650
+> ms/frame (-0.55%) for MAS bunny. Case2, wall/cloth and the pure-ABD control
+> remained within repeat variation; no broad frame-rate claim is made. All
+> 24 throughput runs completed/converged with stable pre/post fingerprints.
+> Hardware details belong only to this experiment's metadata.
+>
+> Validation: exact before/after local results and independent dense references;
+> complete overwrite and converged-skip probes; memcheck zero errors and
+> racecheck zero hazards. CPU common/core/geometry passed, CUDA backend passed
+> 27 cases / 805 assertions, sanity checking 3 / 100, regression 1 / 4, and
+> 67 repository script tests passed. **The full simulation aggregate is not
+> fully green:** both before and after backends pass 94/95 cases and
+> 14211/14213 assertions. Case 86 stress-plastic bending fails two residual-angle
+> thresholds (about 0.03314 rad versus 0.05); it uses diagonal preconditioning
+> and also fails in isolation with the frozen before backend. No test threshold
+> or constitutive change was folded into this performance task; doc 09 tracks
+> the existing failure for separate investigation.
+>
+> Release build and uninstall-first installation succeeded in the selected
+> build environment and default CPython 3.12. Installed MAS/cloth GPU smoke
+> runs passed. Installed/backend build SHA-256 is
+> `30c01f5ea7117645496f5420b7138ee5bee0f9ba49695a31529a0569cc8ae251`.
+> Local evidence/snapshots are under `output/perf-2026-10-28/`; the samples
+> gitlink remains `77f4341`. Nsight hardware counters were unavailable, so the
+> record explicitly distinguishes CUDA-event timing from counter attribution.
+
+> **Community benchmark policy and runnable samples (2026-10-28)**: workload
+> definitions, metrics and reproduction commands are portable; GPU/CPU/driver
+> details are result metadata. Removed the designation of historical desktop
+> measurements as the project's current reference from the README, benchmark
+> guide, agent docs and GPU skill. Historical evidence retains its original
+> values and environment. New comparisons use repeated before/after runs on
+> the same machine with fixed inputs/settings; no universal GPU model or
+> absolute time gate is introduced. The existing `uipc.profile` baseline/check
+> tools remain separate from registry JSON and are documented accordingly.
+>
+> Root registry now has small/standard/stress tiers. The small workload uses
+> sample 95 at resolution 8 (243 vertices / 384 triangles), 30 frames; existing
+> scene parameters and sample 95's default resolution remain unchanged.
+> `--quick` means three frames, not reduced mesh size or memory consumption.
+> Samples/main `77f4341` restores shared headless reporting from historical
+> `8701983`, including sample 6's viewer-free path, adds sample 95 reporting,
+> and ensures samples 89/93 read final observables at the requested last frame.
+> The parent gitlink follows the pushed samples commit.
+>
+> `scripts/run_benchmark.py validate` checks actual declared files and Python
+> syntax without importing GPU dependencies. Repository Contracts initializes
+> only the pinned samples submodule and runs this check. Runtime results must
+> contain the requested completed frame sequence and finite non-negative times;
+> missing/malformed results fail even if the child exits zero, retaining raw
+> logs, child status and validation errors. Runtime/input fingerprints remain
+> outside frame timing. No native solver or material implementation changed.
+>
+> Validation: 67 repository script tests passed; all five registered workloads
+> passed three-frame GPU smoke runs. The small default 30-frame workload and an
+> 11-frame MAS run also passed, with completion/convergence, no iteration-limit
+> hits and stable pre/post runtime/input hashes. These are execution checks,
+> not a new performance baseline or speedup claim. Zero-byte/API/workflow-pin
+> checks and both repositories' diff checks passed. Ignored evidence:
+> `output/benchmark-runs/`, `output/benchmark-*-smoke.log`,
+> `output/benchmark-small-full.log`, `output/benchmark-mas-eleven.log`,
+> `output/benchmark-repository-tests.log`. No native rebuild was needed.
 
 > **PR #502 Eigen 5 header dependency (2026-10-20)**: Linux XMake uses Eigen
 > 5.0.1 and caught the BW formula header relying on callers to include
@@ -1896,3 +1960,21 @@ regression).
   repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
   real Python 3.14 CUDA doctor probe, and the complete documentation build all
   passed.
+# BVH scene-bounds contribution preparation (2026-10-18)
+
+The focused scene-bounds fix was prepared against `ac89e100`. Bounds initialization is ordered before the reduction, inactive
+lanes participate with neutral values, and signed zero uses IEEE sign-bit
+ordering. The three BVH variants have a shared CPU bounds oracle. This is a
+correctness prerequisite for matched optimization comparisons; validation is
+recorded separately from historical performance results.
+
+# CUDA test-oracle correction (2026-10-18)
+
+The LBVH point-query CPU oracle returned an Eigen cast expression referring
+to a destroyed temporary. A host-only AddressSanitizer reproduction reports
+stack-use-after-scope. Returning a concrete `Vector3` fixes the lifetime;
+the existing bunny section then matches 101,802 CPU/GPU point candidates.
+No BVH implementation or overlap predicate changed. This is a test-only
+correction: no production tolerance, algorithm, graph mode or parallel
+accumulation order was changed.
+

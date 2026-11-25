@@ -31,6 +31,8 @@ jobs:
 
       - name: Check repository contracts
         run: |
+          git submodule update --init --depth 1 libuipc-samples
+          python scripts/run_benchmark.py validate
           python scripts/detect_0kb_files.py --check
           python scripts/check_constitution_api.py
           python scripts/check_workflow_pins.py

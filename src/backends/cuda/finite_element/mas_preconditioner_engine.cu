@@ -1,3 +1,34 @@
+/*
+ * NVIDIA contributions: partition-aware MAS direct-store, vector passes and
+ * reference fallbacks; cluster-Hessian clears by memset, prepared beside the
+ * BCOO conversion; a direct-store, upper-triangle scatter; register-resident
+ * cluster inversion by symmetric pivot sweeps, one 96-thread block per cluster
+ * in a single wave; skipping of the empty banks; the fused update/apply/dot
+ * step with the diagonal fallback; parallel graph branches for the
+ * preconditioner segments; and operand-first restriction, Schwarz and
+ * prolongation kernels.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/mas_preconditioner_engine.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
@@ -7,6 +38,7 @@
 #include <fmt/format.h>
 #include <uipc/common/json.h>
 #include <fstream>
+#include <utility>
 #include <vector>
 
 namespace uipc::backend::cuda
@@ -18,6 +50,7 @@ static constexpr int BANKSIZE = MASPreconditionerEngine::BANKSIZE;
 static constexpr int DEFAULT_BLOCKSIZE = MASPreconditionerEngine::DEFAULT_BLOCKSIZE;
 static constexpr int DEFAULT_WARPNUM = MASPreconditionerEngine::DEFAULT_WARPNUM;
 static constexpr int SYM_BLOCK_COUNT = MASPreconditionerEngine::SYM_BLOCK_COUNT;
+static_assert(DEFAULT_BLOCKSIZE == BANKSIZE * BANKSIZE);
 
 using ClusterMatrixSym  = MASPreconditionerEngine::ClusterMatrixSym;
 using ClusterMatrixSymF = MASPreconditionerEngine::ClusterMatrixSymF;
@@ -28,6 +61,33 @@ using Int2              = MASPreconditionerEngine::Int2;
 UIPC_GENERIC unsigned int lanemask_lt(int lane_id)
 {
     return (1U << lane_id) - 1;
+}
+
+// MAS uses two independent 16-lane logical groups inside each hardware warp.
+// Volta and newer GPUs do not guarantee implicit lockstep execution between
+// dependent shared-memory accesses, so every publish/read phase needs an
+// explicit synchronization mask for the calling thread's logical group. The
+// mask names the lanes that reach the barrier, taken from the launch bounds
+// (__activemask() would name the lanes converged at the call, which can miss
+// a lane that has not reconverged yet).
+
+// Every lane of the group reaches the barriers.
+__device__ __forceinline__ unsigned int mas_logical_group_mask()
+{
+    constexpr unsigned int GROUP_MASK = (1U << BANKSIZE) - 1U;
+    const unsigned int     base = ((threadIdx.x & 31) / BANKSIZE) * BANKSIZE;
+    return GROUP_MASK << base;
+}
+
+// The lanes whose global index is below n reach the barriers (the others
+// returned): a group holds the BANKSIZE consecutive indices from a multiple
+// of BANKSIZE (blockDim.x is a multiple of BANKSIZE).
+__device__ __forceinline__ unsigned int mas_logical_group_mask(int index, int n)
+{
+    constexpr unsigned int GROUP_MASK = (1U << BANKSIZE) - 1U;
+    const unsigned int     base = ((threadIdx.x & 31) / BANKSIZE) * BANKSIZE;
+    const int              live = n - (index - index % BANKSIZE);
+    return (live >= BANKSIZE ? GROUP_MASK : (1U << live) - 1U) << base;
 }
 
 // Symmetric upper-triangle index for a BANKSIZE x BANKSIZE block
@@ -120,13 +180,17 @@ namespace
         auto                    cache_mask = make_dense_1d(cache_mask_s);
         auto                    prefix_sum = make_dense_1d(prefix_sum_s);
 
+        const unsigned int group_mask  = mas_logical_group_mask(tid, N);
+        unsigned int       connect_msk = idx >= 0 ? fine_connect_mask(idx) : 0U;
+
+        if(lane_id == 0)
+            prefix_sum(local_warp_id) = 0;
+        cache_mask(threadIdx.x) = connect_msk;
+        __syncwarp(group_mask);
+
         if(idx >= 0)
         {
-            unsigned int connect_msk = fine_connect_mask(idx);
-            if(lane_id == 0)
-                prefix_sum(local_warp_id) = 0;
-            cache_mask(threadIdx.x) = connect_msk;
-            unsigned int visited    = (1U << lane_id);
+            unsigned int visited = (1U << lane_id);
 
             while(connect_msk != ~0U)
             {
@@ -143,9 +207,11 @@ namespace
             unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
             if(elected_prefix == 0)
                 atomicAdd(&prefix_sum(local_warp_id), 1);
-            if(lane_id == 0)
-                prefix_orig(warp_id) = prefix_sum(local_warp_id);
         }
+
+        __syncwarp(group_mask);
+        if(lane_id == 0)
+            prefix_orig(warp_id) = prefix_sum(local_warp_id);
     }
 
     __global__ void MASPreconditionerEngine_build_level1_kernel(
@@ -176,6 +242,8 @@ namespace
 
         if(lane_id == 0)
             elected_mask(local_warp_id) = 0;
+        const unsigned int group_mask = mas_logical_group_mask(tid, N);
+        __syncwarp(group_mask);
 
         if(tid == N - 1)
         {
@@ -183,18 +251,26 @@ namespace
             level_size(1).y = level1_begin;
         }
 
-        int idx = part_to_real(tid);
+        int          idx      = part_to_real(tid);
+        unsigned int conn_msk = idx >= 0 ? fine_connect_mask(idx) : 0U;
+        unsigned int elected_prefix =
+            idx >= 0 ? __popc(conn_msk & lanemask_lt(lane_id)) : 1U;
+        if(idx >= 0 && elected_prefix == 0)
+            atomicOr(&elected_mask(local_warp_id), (1U << lane_id));
+
+        __syncwarp(group_mask);
+
         if(idx >= 0)
         {
-            unsigned int conn_msk = fine_connect_mask(idx);
-            unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
-            if(elected_prefix == 0)
-                atomicOr(&elected_mask(local_warp_id), (1U << lane_id));
-
             lane_prefix(threadIdx.x) =
                 __popc(elected_mask(local_warp_id) & lanemask_lt(lane_id));
             lane_prefix(threadIdx.x) += prefix_sum_orig(warp_id);
+        }
 
+        __syncwarp(group_mask);
+
+        if(idx >= 0)
+        {
             unsigned int elected_lane = __ffs(conn_msk) - 1;
             unsigned int the_lane_prefix =
                 lane_prefix(elected_lane + BANKSIZE * local_warp_id);
@@ -222,67 +298,72 @@ namespace
         if(tid >= N)
             return;
 
-        int local_warp_id = threadIdx.x / BANKSIZE;
-        int lane_id       = tid % BANKSIZE;
+        int                local_warp_id = threadIdx.x / BANKSIZE;
+        int                lane_id       = tid % BANKSIZE;
+        const unsigned int group_mask    = mas_logical_group_mask(tid, N);
 
         __shared__ int cache_msk_s[DEFAULT_BLOCKSIZE];
         auto           cache_msk = make_dense_1d(cache_msk_s);
 
-        int idx = part_to_real(tid);
-        if(idx < 0)
-            return;
+        int  idx   = part_to_real(tid);
+        bool valid = idx >= 0;
 
-        unsigned int prefix_msk = fine_connect_mask(idx);
+        unsigned int prefix_msk = valid ? fine_connect_mask(idx) : 0U;
         unsigned int conn_msk   = 0;
-        int          coarse_idx = coarse_table((level - 1) * vert_num + idx);
-        if(coarse_idx < 0 || coarse_idx >= N)
+        int coarse_idx = valid ? coarse_table((level - 1) * vert_num + idx) : -1;
+        valid = valid && coarse_idx >= 0 && coarse_idx < N;
+        if(valid)
         {
-            return;
-        }
-        int kn       = neighbor_num(idx);
-        int nk       = 0;
-        int start_id = neighbor_start(idx);
+            int kn       = neighbor_num(idx);
+            int nk       = 0;
+            int start_id = neighbor_start(idx);
 
-        for(int i = 0; i < kn; i++)
-        {
-            unsigned int connect = neighbor_list(start_id + i);
-            int coarse_connect = coarse_table((level - 1) * vert_num + connect);
-            if(coarse_connect < 0 || coarse_connect >= N)
+            for(int i = 0; i < kn; i++)
             {
-                neighbor_list(start_id + nk) = connect;
-                nk++;
-                continue;
+                unsigned int connect = neighbor_list(start_id + i);
+                int coarse_connect = coarse_table((level - 1) * vert_num + connect);
+                if(coarse_connect < 0 || coarse_connect >= N)
+                {
+                    neighbor_list(start_id + nk) = connect;
+                    nk++;
+                    continue;
+                }
+                if(coarse_idx / BANKSIZE == coarse_connect / BANKSIZE)
+                {
+                    conn_msk |= (1U << (coarse_connect % BANKSIZE));
+                }
+                else
+                {
+                    neighbor_list(start_id + nk) = connect;
+                    nk++;
+                }
             }
-            if(coarse_idx / BANKSIZE == coarse_connect / BANKSIZE)
-            {
-                conn_msk |= (1U << (coarse_connect % BANKSIZE));
-            }
-            else
-            {
-                neighbor_list(start_id + nk) = connect;
-                nk++;
-            }
+            neighbor_num(idx) = nk;
         }
-        neighbor_num(idx)      = nk;
+
         cache_msk(threadIdx.x) = 0;
+        __syncwarp(group_mask);
 
-        if(__popc(prefix_msk) == BANKSIZE)
+        int shared_slot = threadIdx.x;
+        if(valid && __popc(prefix_msk) == BANKSIZE)
         {
-            atomicOr(&cache_msk(local_warp_id * BANKSIZE), static_cast<int>(conn_msk));
-            conn_msk = static_cast<unsigned int>(cache_msk(local_warp_id * BANKSIZE));
+            shared_slot = local_warp_id * BANKSIZE;
+            atomicOr(&cache_msk(shared_slot), static_cast<int>(conn_msk));
         }
-        else
+        else if(valid)
         {
             unsigned int elected_lane = __ffs(prefix_msk) - 1;
+            shared_slot               = local_warp_id * BANKSIZE + elected_lane;
             if(conn_msk)
-                atomicOr(&cache_msk(local_warp_id * BANKSIZE + elected_lane),
-                         static_cast<int>(conn_msk));
-            conn_msk = static_cast<unsigned int>(
-                cache_msk(local_warp_id * BANKSIZE + elected_lane));
+                atomicOr(&cache_msk(shared_slot), static_cast<int>(conn_msk));
         }
 
+        __syncwarp(group_mask);
+        if(valid)
+            conn_msk = static_cast<unsigned int>(cache_msk(shared_slot));
+
         unsigned int elected_prefix = __popc(prefix_msk & lanemask_lt(lane_id));
-        if(conn_msk && elected_prefix == 0)
+        if(valid && conn_msk && elected_prefix == 0)
             atomicOr(&next_connect_mask(coarse_idx), conn_msk);
     }
 
@@ -310,7 +391,9 @@ namespace
 
         unsigned int conn_msk   = (1U << lane_id) | next_connect_mask(idx);
         cached_msk(threadIdx.x) = conn_msk;
-        unsigned int visited    = (1U << lane_id);
+        const unsigned int group_mask = mas_logical_group_mask(idx, N);
+        __syncwarp(group_mask);
+        unsigned int visited = (1U << lane_id);
 
         while(true)
         {
@@ -326,6 +409,7 @@ namespace
         unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
         if(elected_prefix == 0)
             atomicAdd(&prefix_sum_s(local_warp_id), 1);
+        __syncwarp(group_mask);
         if(lane_id == 0)
             next_prefix(idx / BANKSIZE) = prefix_sum_s(local_warp_id);
     }
@@ -357,6 +441,8 @@ namespace
 
         if(lane_id == 0)
             elected_mask(local_warp_id) = 0;
+        const unsigned int group_mask = mas_logical_group_mask(idx, N);
+        __syncwarp(group_mask);
 
         if(idx == N - 1)
         {
@@ -369,9 +455,13 @@ namespace
         if(elected_prefix == 0)
             atomicOr(&elected_mask(local_warp_id), (1U << lane_id));
 
+        __syncwarp(group_mask);
+
         lane_prefix(threadIdx.x) =
             __popc(elected_mask(local_warp_id) & lanemask_lt(lane_id));
         lane_prefix(threadIdx.x) += next_prefix_sum(warp_id);
+
+        __syncwarp(group_mask);
 
         unsigned int elected_lane = __ffs(conn_msk) - 1;
         unsigned int the_lane_prefix = lane_prefix(elected_lane + BANKSIZE * local_warp_id);
@@ -492,17 +582,21 @@ namespace
 
         if(vert_col / BANKSIZE == vert_row / BANKSIZE)
         {
+            // The upper BCOO holds one entry per unordered node pair, and
+            // real_to_part is a bijection, so this cluster slot receives
+            // exactly this entry: store what the atomic addition onto the
+            // cleared slot would give (0.0 + h; also turns -0.0 into +0.0).
             int cluster_id = vert_col / BANKSIZE;
             if(vert_col >= vert_row)
             {
                 int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
-                cuda_tool::eigen::atomic_add(cluster_hess(cluster_id).M[si], H);
+                cluster_hess(cluster_id).M[si] = Eigen::Matrix3d::Zero() + H;
             }
             else
             {
                 Eigen::Matrix3d Ht = H.transpose();
                 int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
-                cuda_tool::eigen::atomic_add(cluster_hess(cluster_id).M[si], Ht);
+                cluster_hess(cluster_id).M[si] = Eigen::Matrix3d::Zero() + Ht;
             }
         }
         else
@@ -546,18 +640,25 @@ namespace
                 if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                 {
                     int cluster_id = vert_col / BANKSIZE;
-                    if(vert_col >= vert_row)
+                    if(vert_col == vert_row)
+                    {
+                        // Both nodes merged into one: a diagonal block gets
+                        // H + H^T. The inversion reads only the upper
+                        // triangle of diagonal blocks, so add just that, the
+                        // two terms summed first (6 atomics instead of 18).
+                        int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
+                        for(int i = 0; i < 3; i++)
+                            for(int j = i; j < 3; j++)
+                                atomicAdd(&(cluster_hess(cluster_id).M[si](i, j)),
+                                          H(i, j) + H(j, i));
+                    }
+                    else if(vert_col > vert_row)
                     {
                         int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
                         for(int i = 0; i < 3; i++)
                             for(int j = 0; j < 3; j++)
-                            {
                                 atomicAdd(&(cluster_hess(cluster_id).M[si](i, j)),
                                           H(i, j));
-                                if(vert_col == vert_row)
-                                    atomicAdd(&(cluster_hess(cluster_id).M[si](i, j)),
-                                              H(j, i));
-                            }
                     }
                     else
                     {
@@ -575,16 +676,27 @@ namespace
         }
     }
 
-    __global__ void MASPreconditionerEngine_scatter_hessian_to_clusters_k2_kernel(
-        int                                     level_num,
-        cuda_tool::CBufferView<int>             going_next,
-        cuda_tool::CBufferView<Int2>            level_size,
-        cuda_tool::BufferView<ClusterMatrixSym> cluster_hess,
-        cuda_tool::CBufferView<int>             part_to_real,
-        cuda_tool::CBufferView<unsigned int>    fine_connect,
-        cuda_tool::CBufferView<int>             prefix_orig,
-        int                                     map_nodes,
-        int                                     n)
+    // Launched with BANKSIZE * BANKSIZE = 256 threads per block. At most 48
+    // registers (5 blocks per SM instead of 4 at the 52 the compiler picks
+    // otherwise), so more blocks fit in one wave; only the register
+    // allocation changes, not the operations. sm_75 runs at most 1024
+    // threads, 4 such blocks, per SM.
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
+#define UIPC_MAS_SCATTER_K2_MIN_BLOCKS 4
+#else
+#define UIPC_MAS_SCATTER_K2_MIN_BLOCKS 5
+#endif
+    __global__ void __launch_bounds__(256, UIPC_MAS_SCATTER_K2_MIN_BLOCKS)
+        MASPreconditionerEngine_scatter_hessian_to_clusters_k2_kernel(
+            int                                     level_num,
+            cuda_tool::CBufferView<int>             going_next,
+            cuda_tool::CBufferView<Int2>            level_size,
+            cuda_tool::BufferView<ClusterMatrixSym> cluster_hess,
+            cuda_tool::CBufferView<int>             part_to_real,
+            cuda_tool::CBufferView<unsigned int>    fine_connect,
+            cuda_tool::CBufferView<int>             prefix_orig,
+            int                                     map_nodes,
+            int                                     n)
     {
         using namespace cuda_tool;
 
@@ -637,8 +749,10 @@ namespace
             __shared__ typename WarpReduceD::TempStorage temp_reduce_d[BANKSIZE * BANKSIZE / 32];
             int hw_warp = threadIdx.x / 32;
 
+            // the sum goes to a coarse diagonal block, of which only the
+            // upper triangle is added (all the inversion reads)
             for(int i = 0; i < 3; i++)
-                for(int j = 0; j < 3; j++)
+                for(int j = i; j < 3; j++)
                     mat3(i, j) = WarpReduceD(temp_reduce_d[hw_warp]).Sum(mat3(i, j));
 
             // Lane 0 of each hw warp writes the warp's sum to coarser levels,
@@ -659,11 +773,13 @@ namespace
                                        level_size(level).y,
                                        level_size(level + 1).y);
 
+                    // a diagonal block: the inversion reads only its upper
+                    // triangle
                     int cid = next_id / BANKSIZE;
                     int bv  = next_id % BANKSIZE;
                     int si  = sym_index(bv, bv);
                     for(int i = 0; i < 3; i++)
-                        for(int j = 0; j < 3; j++)
+                        for(int j = i; j < 3; j++)
                             atomicAdd(&(cluster_hess(cid).M[si](i, j)), mat3(i, j));
                     next_id = going_next(next_id);
                 }
@@ -703,9 +819,11 @@ namespace
                 {
                     if(cdx >= rdx)
                     {
+                        // the upper triangle only on the diagonal (all the
+                        // inversion reads there)
                         int si = sym_index(rdx % BANKSIZE, cdx % BANKSIZE);
                         for(int i = 0; i < 3; i++)
-                            for(int j = 0; j < 3; j++)
+                            for(int j = cdx == rdx ? i : 0; j < 3; j++)
                                 atomicAdd(&(cluster_hess(cid).M[si](i, j)), mat3(i, j));
                     }
                 }
@@ -714,91 +832,176 @@ namespace
         }
     }
 
-    __global__ void MASPreconditionerEngine_invert_cluster_matrices_kernel(
-        cuda_tool::BufferView<ClusterMatrixSymF> cluster_inv,
-        cuda_tool::CBufferView<ClusterMatrixSym> cluster_hess,
-        int                                      total_threads)
+    // Inversion of each 48x48 cluster matrix by sweeping its pivots
+    // (Goodnight's sweep operator, no pivoting). Sweeping pivot k maps the
+    // matrix to a_ij - a_ik a_kj / a_kk (i, j != k), a_ik / a_kk (i != k) and
+    // -1 / a_kk; after all pivots it holds -A^{-1}. Every sweep keeps the
+    // matrix symmetric, so only its upper triangle is kept, in registers.
+    // Like the former Gauss-Jordan elimination it repairs zero diagonal
+    // entries (padding nodes) to 1 and reads only the upper triangle of each
+    // diagonal 3x3 block, whose lower entries it writes from the upper ones.
+    //
+    // One 96-thread block per cluster (block g inverts cluster g, or
+    // g + skip_count from skip_begin on). The 48 columns are paired (c, 47 - c);
+    // a pair's 49 upper-triangle entries form a sequence (slot sg <= c: row sg
+    // of column c, else row 48 - sg of column 47 - c), and thread t holds
+    // part t % 4 of pair t / 4: slots [0, 13), [13, 25), [25, 37) or [37, 49).
+    // Per pivot, with C = column k (= row k) and inv_d = 1 / a_kk:
+    //   1. every holder of a column-k entry publishes it to shared memory,
+    //      and the holder of a_kk alone computes inv_d;
+    //   2. threads 0..47 publish R_j = C_j * inv_d (R_k = -inv_d);
+    //   3. every entry is updated: a_ij = fma(-C_i, R_j, a_ij) for i, j != k,
+    //      a_kj = R_j (a_kk = -inv_d), and a_ik = C_i * inv_d computed as
+    //      fma(-C_i, -inv_d, -0.0), which rounds the exact product once.
+    // Each entry thus gets exactly the operations, operands and roundings of
+    // the 24-thread sweep this replaced, so the inverse is bitwise the same;
+    // with four times the warps per cluster the FP64 pipe stays busy (and
+    // the empty level-0 banks are skipped).
+    //
+    // Launch-bounded to 6 blocks per SM. An SM's registers are split among
+    // its 4 warp schedulers: at the 117 registers the kernel takes
+    // otherwise (or at 112) 4 warps fit per scheduler, 5 blocks of 3 warps
+    // per SM, so a cluster count just above a multiple of that leaves a
+    // nearly empty second wave. The bound keeps the kernel at 96 registers
+    // (a few values spill: 20 bytes per thread, two reloads per pivot), so 5
+    // warps fit per scheduler and 6 blocks per SM. Only the register
+    // allocation changes, not the operations.
+    constexpr int   MAS_INVERT_THREADS = 96;
+    __global__ void __launch_bounds__(MAS_INVERT_THREADS, 6)
+        MASPreconditionerEngine_invert_cluster_matrices_kernel(
+            cuda_tool::BufferView<ClusterMatrixSymF> cluster_inv,
+            cuda_tool::CBufferView<ClusterMatrixSym> cluster_hess,
+            int                                      skip_begin,
+            int                                      skip_count)
     {
-        using namespace cuda_tool;
-
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if(idx >= total_threads)
-            return;
-
         constexpr int MAT_DIM = BANKSIZE * 3;  // 48
+        constexpr int SLOTS   = 13;  // upper-triangle values per thread
+        static_assert(MAS_INVERT_THREADS == 2 * MAT_DIM);
 
-        int mat_id       = idx / MAT_DIM;
-        int col          = idx % MAT_DIM;
-        int block_mat_id = threadIdx.x / MAT_DIM;
+        const int g      = blockIdx.x;
+        const int mat_id = g < skip_begin ? g : g + skip_count;
+        const int t      = threadIdx.x;
+        const int part   = t % 4;
+        const int p      = t / 4;            // column of the pair's slots 0..p
+        const int q      = MAT_DIM - 1 - p;  // column of slots p+1..48
+        const int s0     = part == 0 ? 0 : 12 * part + 1;  // first pair slot
+        const int len    = part == 0 ? 13 : 12;
+        // this thread's slots [0, n_p) are in column p, [n_p, len) in column q
+        const int n_p = min(max(p - s0 + 1, 0), len);
 
-        __shared__ double s_mat_raw[32 / BANKSIZE][MAT_DIM][MAT_DIM];
-        __shared__ double s_col_raw[32 / BANKSIZE][MAT_DIM];
-        auto s_mat = make_dense_2d(&s_mat_raw[block_mat_id][0][0], MAT_DIM, MAT_DIM);
-        auto s_col = make_dense_1d(&s_col_raw[block_mat_id][0], MAT_DIM);
+        // double-buffered by pivot parity: a pivot's publication cannot
+        // overwrite what a slower thread still reads for the previous pivot
+        __shared__ double s_c[2][MAT_DIM];  // column k
+        __shared__ double s_r[2][MAT_DIM];  // R_j
+        __shared__ double s_inv_d[2];
 
-        for(int row = 0; row < MAT_DIM; row++)
+        double a[SLOTS];
+#pragma unroll
+        for(int s = 0; s < SLOTS; ++s)
         {
-            int node_row = row / 3;
-            int node_col = col / 3;
-            if(node_col >= node_row)
+            const bool first = s < n_p;
+            const int  row   = first ? s0 + s : MAT_DIM - s0 - s;
+            const int  col   = first ? p : q;
+            double     v     = 0.0;
+            if(s < len)
             {
-                int si          = sym_index(node_row, node_col);
-                s_mat(row, col) = cluster_hess(mat_id).M[si](row % 3, col % 3);
+                v = cluster_hess(mat_id).M[sym_index(row / 3, col / 3)](row % 3, col % 3);
+                if(row == col && v == 0.0)
+                    v = 1.0;
             }
-            else
-            {
-                int si          = sym_index(node_col, node_row);
-                s_mat(row, col) = cluster_hess(mat_id).M[si](col % 3, row % 3);
-            }
-            if(row == col && s_mat(row, col) == 0.0)
-                s_mat(row, col) = 1.0;
+            a[s] = v;
         }
 
-        for(int pivot = 0; pivot < MAT_DIM; pivot++)
+#pragma unroll 1
+        for(int k = 0; k < MAT_DIM; ++k)
         {
-            __syncthreads();
-            double pivot_val = s_mat(pivot, pivot);
-            s_col(col)       = s_mat(col, pivot);
-            __syncthreads();
-
-            s_mat(col == pivot ? col : col, pivot) = (col == pivot) ? 1.0 : 0.0;
-
-            __syncthreads();
-            s_mat(pivot, col) /= pivot_val;
-            __syncthreads();
-
-            for(int row = 0; row < MAT_DIM; row++)
+            const int  buf    = k & 1;
+            const bool p_is_k = p == k;
+            const bool q_is_k = q == k;
+            // publish column k: rows 0..k from the holders of column k, row k
+            // of every later column from the holder of that entry
+            double a_kk = 0.0;
+            bool   own  = false;
+#pragma unroll
+            for(int s = 0; s < SLOTS; ++s)
             {
-                if(row != pivot)
+                if(s < len)
                 {
-                    double factor = -s_col(row);
-                    s_mat(row, col) += factor * s_mat(pivot, col);
+                    const bool first = s < n_p;
+                    const int  row   = first ? s0 + s : MAT_DIM - s0 - s;
+                    const bool col_k = first ? p_is_k : q_is_k;
+                    const int  dst   = col_k ? row : (first ? p : q);
+                    if(col_k || row == k)
+                        s_c[buf][dst] = a[s];
+                    if(col_k && row == k)
+                    {
+                        a_kk = a[s];
+                        own  = true;
+                    }
+                }
+            }
+            if(own)
+                s_inv_d[buf] = 1.0 / a_kk;
+            __syncthreads();
+            const double inv_d = s_inv_d[buf];
+            if(t < MAT_DIM)  // -1 * inv_d is exact
+                s_r[buf][t] = (t == k ? -1.0 : s_c[buf][t]) * inv_d;
+            __syncthreads();
+            const double r_p = s_r[buf][p];
+            const double r_q = s_r[buf][q];
+#pragma unroll
+            for(int s = 0; s < SLOTS; ++s)
+            {
+                if(s < len)
+                {
+                    const bool   first = s < n_p;
+                    const int    row   = first ? s0 + s : MAT_DIM - s0 - s;
+                    const bool   col_k = first ? p_is_k : q_is_k;
+                    const double r_col = first ? r_p : r_q;
+                    const double v = fma(-s_c[buf][row], r_col, col_k ? -0.0 : a[s]);
+                    a[s] = row == k ? r_col : v;
                 }
             }
         }
-        __syncthreads();
 
-        if(col % 3 < 2)
-            s_mat(col + 1, col) = s_mat(col, col + 1);
-        else
-            s_mat(col, col - 2) = s_mat(col - 2, col);
-        __syncthreads();
-
-        for(int row = 0; row < MAT_DIM; row++)
+        // the sweeps leave -A^{-1}; inside a diagonal 3x3 block the holder of
+        // an upper entry also writes the mirrored lower one
+#pragma unroll
+        for(int s = 0; s < SLOTS; ++s)
         {
-            int node_row = row / 3;
-            int node_col = col / 3;
-            if(node_col >= node_row)
+            if(s < len)
             {
-                int si = sym_index(node_row, node_col);
-                cluster_inv(mat_id).M[si](row % 3, col % 3) =
-                    static_cast<float>(s_mat(row, col));
+                const bool  first = s < n_p;
+                const int   row   = first ? s0 + s : MAT_DIM - s0 - s;
+                const int   col   = first ? p : q;
+                const int   si    = sym_index(row / 3, col / 3);
+                const float v     = static_cast<float>(-a[s]);
+                cluster_inv(mat_id).M[si](row % 3, col % 3) = v;
+                if(row / 3 == col / 3 && row < col)
+                    cluster_inv(mat_id).M[si](col % 3, row % 3) = v;
             }
         }
     }
 
+    // The restriction launches 64-thread blocks (four BANKSIZE groups; its
+    // shared arrays are indexed by the thread, so any multiple of BANKSIZE
+    // up to DEFAULT_BLOCKSIZE works): the fine nodes then fill four times as
+    // many blocks, spread over the SMs instead of 8 warps sharing an SM's
+    // FP64 units. The coarse levels' float atomics then
+    // arrive in another order (each node gets the same addends).
+    constexpr int MAS_RESTRICT_BLOCKSIZE = 64;
+    static_assert(MAS_RESTRICT_BLOCKSIZE % BANKSIZE == 0
+                  && MAS_RESTRICT_BLOCKSIZE <= DEFAULT_BLOCKSIZE);
+
+    template <bool UpdateXR>
     __global__ void MASPreconditionerEngine_build_multi_level_R_kernel(
+        cuda_tool::DenseVectorView<Float>      X_view,
+        cuda_tool::CDenseVectorView<Float>     P_view,
+        cuda_tool::DenseVectorView<Float>      R_write_view,
         cuda_tool::CDenseVectorView<Float>     R_view,
+        cuda_tool::CDenseVectorView<Float>     Ap_view,
+        cuda_tool::CDense<Float>               rz,
+        cuda_tool::CDense<Float>               pAp,
         cuda_tool::BufferView<Eigen::Vector3f> multi_lr,
         cuda_tool::CBufferView<int>            going_next,
         cuda_tool::CBufferView<Int2>           level_size,
@@ -811,21 +1014,59 @@ namespace
     {
         using namespace cuda_tool;
 
-        if(*converged != 0)
+        // The flag, the partition index and every operand are loaded before
+        // any store: x, r and the r written back may alias across components
+        // for the compiler, which otherwise serializes load, update and store
+        // per component. Each component keeps its expression.
+        int          pdx      = blockIdx.x * blockDim.x + threadIdx.x;
+        bool         in_range = (pdx < N);
+        const IndexT conv     = *converged;
+        int          idx      = in_range ? part_to_real(pdx) : -1;
+        if(conv != 0)
             return;
-        int pdx = blockIdx.x * blockDim.x + threadIdx.x;
-
-        bool in_range = (pdx < N);
-        int  idx      = in_range ? part_to_real(pdx) : -1;
         bool is_valid = (idx >= 0);
 
         Eigen::Vector3f r = Eigen::Vector3f::Zero();
         if(is_valid)
         {
-            auto seg = R_view.segment<3>(3 * idx);
-            r[0]     = static_cast<float>(seg(0));
-            r[1]     = static_cast<float>(seg(1));
-            r[2]     = static_cast<float>(seg(2));
+            auto r_read = R_view.segment<3>(3 * idx);
+            if constexpr(UpdateXR)
+            {
+                auto  x     = X_view.segment<3>(3 * idx);
+                auto  p     = P_view.segment<3>(3 * idx);
+                auto  r_out = R_write_view.segment<3>(3 * idx);
+                auto  Ap    = Ap_view.segment<3>(3 * idx);
+                Float xs[3], ps[3], rs[3], aps[3];
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    xs[component]  = x(component);
+                    ps[component]  = p(component);
+                    rs[component]  = r_read(component);
+                    aps[component] = Ap(component);
+                }
+                const Float alpha = *rz / *pAp;
+                Float       xn[3], rn[3];
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    xn[component] = xs[component] + alpha * ps[component];
+                    rn[component] = rs[component] - alpha * aps[component];
+                    r[component]  = static_cast<float>(rn[component]);
+                }
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    x(component)     = xn[component];
+                    r_out(component) = rn[component];
+                }
+            }
+            else
+            {
+                r[0] = static_cast<float>(r_read(0));
+                r[1] = static_cast<float>(r_read(1));
+                r[2] = static_cast<float>(r_read(2));
+            }
         }
 
         int lane_id       = threadIdx.x % BANKSIZE;
@@ -843,6 +1084,12 @@ namespace
         if(lane_id == 0)
             prefix_sum_v(local_warp_id) = in_range ? prefix_orig(global_warp) : 0;
 
+        const unsigned int group_mask = mas_logical_group_mask();
+        sum_residual(threadIdx.x)     = 0;
+        sum_residual(threadIdx.x + DEFAULT_BLOCKSIZE)     = 0;
+        sum_residual(threadIdx.x + 2 * DEFAULT_BLOCKSIZE) = 0;
+        __syncwarp(group_mask);
+
         unsigned int connect_msk = is_valid ? fine_conn(idx) : 0U;
 
         if(prefix_sum_v(local_warp_id) == 1)
@@ -851,7 +1098,9 @@ namespace
             __shared__ typename WarpReduceF::TempStorage temp_reduce_f[DEFAULT_WARPNUM];
 
             r[0] = WarpReduceF(temp_reduce_f[local_warp_id]).Sum(r[0]);
+            __syncwarp(group_mask);
             r[1] = WarpReduceF(temp_reduce_f[local_warp_id]).Sum(r[1]);
+            __syncwarp(group_mask);
             r[2] = WarpReduceF(temp_reduce_f[local_warp_id]).Sum(r[2]);
 
             if(lane_id == 0 && is_valid)
@@ -875,22 +1124,23 @@ namespace
                 }
             }
         }
-        else if(is_valid)
+        else
         {
-            int elected_lane = __ffs(connect_msk) - 1;
+            int elected_lane = is_valid ? __ffs(connect_msk) - 1 : 0;
 
-            sum_residual(threadIdx.x)                         = 0;
-            sum_residual(threadIdx.x + DEFAULT_BLOCKSIZE)     = 0;
-            sum_residual(threadIdx.x + 2 * DEFAULT_BLOCKSIZE) = 0;
+            if(is_valid)
+            {
+                atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane), r[0]);
+                atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE),
+                          r[1]);
+                atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE),
+                          r[2]);
+            }
 
-            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane), r[0]);
-            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE),
-                      r[1]);
-            atomicAdd(&sum_residual(local_warp_id * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE),
-                      r[2]);
+            __syncwarp(group_mask);
 
             unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
-            if(elected_prefix == 0)
+            if(is_valid && elected_prefix == 0)
             {
                 int cur = idx;
                 for(int l = 0; l < level_num - 1; l++)
@@ -915,22 +1165,32 @@ namespace
         }
     }
 
+    // Besides z = M^{-1} r per cluster, the solve clears the coarse residual
+    // levels (index >= coarse_begin) once it has read them, so the next
+    // restriction, which accumulates into them, needs no separate clear.
+    // Block g solves cluster g, or g + skip_count from skip_begin on (the
+    // empty banks between level 0 and level 1 are skipped).
     __global__ void MASPreconditionerEngine_schwarz_local_solve_kernel(
         cuda_tool::CBufferView<ClusterMatrixSymF> cluster_inv,
-        cuda_tool::CBufferView<Eigen::Vector3f>   multi_lr,
+        cuda_tool::BufferView<Eigen::Vector3f>    multi_lr,
         cuda_tool::BufferView<float3>             multi_lz,
         cuda_tool::CDense<IndexT>                 converged,
+        int                                       coarse_begin,
+        int                                       skip_begin,
+        int                                       skip_count,
         int                                       N)
     {
         using namespace cuda_tool;
 
         if(*converged != 0)
             return;
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        constexpr int cluster_stride = BANKSIZE * BANKSIZE;
+
+        const int g = blockIdx.x;
+        int       idx =
+            (g < skip_begin ? g : g + skip_count) * cluster_stride + threadIdx.x;
         if(idx >= N)
             return;
-
-        constexpr int cluster_stride = BANKSIZE * BANKSIZE;
 
         int cluster_id = idx / cluster_stride;
         int local_row  = (idx % cluster_stride) / BANKSIZE;
@@ -939,45 +1199,56 @@ namespace
         int vert_row = cluster_id * BANKSIZE + local_row;
         int vert_col = cluster_id * BANKSIZE + local_col;
 
+        // This thread's inverse block does not depend on the shared residual:
+        // read it before the barrier, so the loads overlap.
+        const bool            upper = vert_col >= vert_row;
+        const Eigen::Matrix3f inv =
+            cluster_inv(cluster_id).M[upper ? sym_index(local_row, local_col) : sym_index(local_col, local_row)];
+
         __shared__ Eigen::Vector3f s_R_raw[BANKSIZE];
         auto                       s_R = make_dense_1d(s_R_raw);
         if(threadIdx.x < BANKSIZE)
             s_R(threadIdx.x) = multi_lr(vert_col);
         __syncthreads();
 
+        // Only the loading threads touch multi_lr, and only this block reads
+        // these entries, so they can be cleared right after the barrier.
+        if(threadIdx.x < BANKSIZE && vert_col >= coarse_begin)
+            multi_lr(vert_col) = Eigen::Vector3f::Zero();
+
         Eigen::Vector3f result;
-        if(vert_col >= vert_row)
-        {
-            int si = sym_index(local_row, local_col);
-            result = cluster_inv(cluster_id).M[si] * s_R(local_col);
-        }
+        if(upper)
+            result = inv * s_R(local_col);
         else
-        {
-            int si = sym_index(local_col, local_row);
-            result = cluster_inv(cluster_id).M[si].transpose() * s_R(local_col);
-        }
+            result = inv.transpose() * s_R(local_col);
 
         using WarpReduceF = cub::WarpReduce<float, BANKSIZE>;
         __shared__ typename WarpReduceF::TempStorage temp_reduce_f[BANKSIZE];
-        int logical_warp = threadIdx.x / BANKSIZE;
+        int                logical_warp = threadIdx.x / BANKSIZE;
+        const unsigned int group_mask   = mas_logical_group_mask();
 
         result[0] = WarpReduceF(temp_reduce_f[logical_warp]).Sum(result[0]);
+        __syncwarp(group_mask);
         result[1] = WarpReduceF(temp_reduce_f[logical_warp]).Sum(result[1]);
+        __syncwarp(group_mask);
         result[2] = WarpReduceF(temp_reduce_f[logical_warp]).Sum(result[2]);
 
         if((threadIdx.x % BANKSIZE) == 0)
         {
-            atomicAdd(&(multi_lz(vert_row).x), result[0]);
-            atomicAdd(&(multi_lz(vert_row).y), result[1]);
-            atomicAdd(&(multi_lz(vert_row).z), result[2]);
+            // Each cluster row is owned by exactly one logical warp. The
+            // reduction completely overwrites its result, including padded
+            // rows, so no zero-fill or atomic accumulation is needed.
+            multi_lz(vert_row) = make_float3(result[0], result[1], result[2]);
         }
     }
 
     __global__ void MASPreconditionerEngine_collect_final_Z_kernel(
         cuda_tool::DenseVectorView<Float>  Z_view,
+        cuda_tool::CDenseVectorView<Float> R_view,
         cuda_tool::CBufferView<float3>     multi_lz,
         cuda_tool::CBufferView<LevelTable> coarse_table,
         cuda_tool::CBufferView<int>        real_to_part,
+        cuda_tool::CBufferView<Matrix3x3>  unpart_diag_inv,
         cuda_tool::CDense<IndexT>          converged,
         int                                level_num,
         int                                n)
@@ -992,9 +1263,15 @@ namespace
             return;
         int rdx = real_to_part(idx);
 
-        // Skip unpartitioned vertices (handled by diagonal fallback)
+        // Unpartitioned vertices: the diagonal fallback when it is given
+        // (the expression of FEMMASPreconditioner's former separate pass)
         if(rdx < 0)
+        {
+            if(unpart_diag_inv.size() != 0)
+                Z_view.segment<3>(idx * 3).as_eigen() =
+                    unpart_diag_inv(idx) * R_view.segment<3>(idx * 3).as_eigen();
             return;
+        }
 
         // Start with the fine-level solution
         float3 cz = multi_lz(rdx);
@@ -1017,6 +1294,112 @@ namespace
         seg(0)   = static_cast<double>(cz.x);
         seg(1)   = static_cast<double>(cz.y);
         seg(2)   = static_cast<double>(cz.z);
+    }
+
+    // Prolongation and r^T z of the fused PCG step. Partitioned vertices hold
+    // the r updated by build_multi_level_R<true>. The MAS passes never touch
+    // an unpartitioned vertex, so with a diagonal fallback (non-empty
+    // unpart_diag_inv) its x/r update and z = D^{-1} r happen here.
+    __global__ void MASPreconditionerEngine_collect_final_Z_dot_kernel(
+        cuda_tool::DenseVectorView<Float>  X_view,
+        cuda_tool::CDenseVectorView<Float> P_view,
+        cuda_tool::DenseVectorView<Float>  Z_view,
+        cuda_tool::DenseVectorView<Float>  R_view,
+        cuda_tool::CDenseVectorView<Float> Ap_view,
+        cuda_tool::CDense<Float>           rz,
+        cuda_tool::CDense<Float>           pAp,
+        cuda_tool::CBufferView<float3>     multi_lz,
+        cuda_tool::CBufferView<LevelTable> coarse_table,
+        cuda_tool::CBufferView<int>        real_to_part,
+        cuda_tool::CBufferView<Matrix3x3>  unpart_diag_inv,
+        cuda_tool::Dense<Float>            rz_new,
+        cuda_tool::CDense<IndexT>          converged,
+        int                                level_num,
+        int                                n)
+    {
+        using BlockReduce = cub::BlockReduce<Float, DEFAULT_BLOCKSIZE>;
+        __shared__ typename BlockReduce::TempStorage reduce_storage;
+
+        const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        Float     dot = Float{0};
+
+        // The flag, the partition index and every operand are loaded before
+        // any store (x, r and z may alias for the compiler, which otherwise
+        // serializes load, update and store per component); each value keeps
+        // its expression.
+        const bool   in_range = idx < n;
+        const IndexT conv     = *converged;
+        const int    rdx      = in_range ? real_to_part(idx) : -1;
+        if(in_range && conv == 0)
+        {
+            if(rdx < 0 && unpart_diag_inv.size() != 0)
+            {
+                auto  x  = X_view.segment<3>(3 * idx);
+                auto  p  = P_view.segment<3>(3 * idx);
+                auto  r  = R_view.segment<3>(3 * idx);
+                auto  Ap = Ap_view.segment<3>(3 * idx);
+                Float xs[3], ps[3], rs[3], aps[3];
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    xs[component]  = x(component);
+                    ps[component]  = p(component);
+                    rs[component]  = r(component);
+                    aps[component] = Ap(component);
+                }
+                const Matrix3x3 D     = unpart_diag_inv(idx);
+                const Float     alpha = *rz / *pAp;
+                Vector3         r_new;
+                Float           xn[3];
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    xn[component]    = xs[component] + alpha * ps[component];
+                    r_new(component) = rs[component] - alpha * aps[component];
+                }
+                const Vector3 z_new = D * r_new;
+#pragma unroll
+                for(int component = 0; component < 3; ++component)
+                {
+                    x(component) = xn[component];
+                    r(component) = r_new(component);
+                }
+                auto z = Z_view.segment<3>(3 * idx);
+                z(0)   = z_new(0);
+                z(1)   = z_new(1);
+                z(2)   = z_new(2);
+                dot = r_new(0) * z_new(0) + r_new(1) * z_new(1) + r_new(2) * z_new(2);
+            }
+            else if(rdx >= 0)
+            {
+                auto             r     = R_view.segment<3>(3 * idx);
+                const Float      r0    = r(0);
+                const Float      r1    = r(1);
+                const Float      r2    = r(2);
+                float3           cz    = multi_lz(rdx);
+                const LevelTable table = coarse_table(idx);
+                for(int l = 1; l < level_num; ++l)
+                {
+                    const float3 val = multi_lz(table.index[l - 1]);
+                    cz.x += val.x;
+                    cz.y += val.y;
+                    cz.z += val.z;
+                }
+
+                auto        z  = Z_view.segment<3>(3 * idx);
+                const Float z0 = static_cast<Float>(cz.x);
+                const Float z1 = static_cast<Float>(cz.y);
+                const Float z2 = static_cast<Float>(cz.z);
+                z(0)           = z0;
+                z(1)           = z1;
+                z(2)           = z2;
+                dot            = r0 * z0 + r1 * z1 + r2 * z2;
+            }
+        }
+
+        const Float block_sum = BlockReduce(reduce_storage).Sum(dot);
+        if(threadIdx.x == 0 && block_sum != Float{0})
+            atomicAdd(rz_new.data(), block_sum);
     }
 }  // namespace
 
@@ -1057,6 +1440,7 @@ void MASPreconditionerEngine::init_neighbor(int vert_num,
     compute_num_levels(max_nodes);
 
     m_total_map_nodes = part_map_size;
+    m_coarse_R_zero   = false;
     m_total_nodes     = vert_num;
 
     // Hierarchy buffers
@@ -1108,6 +1492,7 @@ void MASPreconditionerEngine::init_matrix()
     cluster_inverses.resize(num_blocks);
     multi_level_R.resize(total_cluster);
     multi_level_Z.resize(total_cluster);
+    m_coarse_R_zero = false;
 
     m_initialized = true;
 }
@@ -1141,6 +1526,7 @@ int MASPreconditionerEngine::reorder_realtime()
     level_sizes.view(m_level_num, 1).copy_to(&m_h_level_size);
 
     m_total_num_clusters = m_h_level_size.y;
+    m_coarse_R_zero      = false;
     aggregation_kernel();
 
     return m_total_num_clusters;
@@ -1222,6 +1608,7 @@ void MASPreconditionerEngine::build_level1()
     //     in all subsequent kernels.
     int padded_N     = bank_align(N);
     int level1_begin = bank_align(std::max(padded_N, m_total_nodes));
+    m_level1_begin   = level1_begin;
 
     MASPreconditionerEngine_build_level1_kernel<<<num_blocks, block_size, 0, nullptr>>>(
         level_sizes.view(),
@@ -1347,28 +1734,71 @@ void MASPreconditionerEngine::aggregation_kernel()
 // Phase 2: Assemble preconditioner
 // ============================================================================
 
+int MASPreconditionerEngine::assembled_cluster_count() const
+{
+    return m_total_nodes < 1 ? 0 : m_total_num_clusters / BANKSIZE;
+}
+
+void MASPreconditionerEngine::clear_cluster_hessians(int num_cluster_blocks, cudaStream_t stream)
+{
+    // ClusterMatrixSym{} is all +0.0, i.e. all-zero bits: one memset instead of a
+    // fill kernel whose threads each write a whole cluster matrix serially. The
+    // empty banks between level 0 and level 1 are never written or read, so
+    // they keep the zeros of the allocation.
+    const int level0_count = std::min(level0_cluster_count(), num_cluster_blocks);
+    const int empty_count = empty_cluster_count();
+    const int coarse_first = std::min(level0_count + empty_count, num_cluster_blocks);
+    if(level0_count > 0)
+        CUDA_TOOL_CHECK(cudaMemsetAsync(
+            cluster_hessians.data(), 0, sizeof(ClusterMatrixSym) * level0_count, stream));
+    if(num_cluster_blocks > coarse_first)
+        CUDA_TOOL_CHECK(cudaMemsetAsync(cluster_hessians.data() + coarse_first,
+                                        0,
+                                        sizeof(ClusterMatrixSym) * (num_cluster_blocks - coarse_first),
+                                        stream));
+}
+
+void MASPreconditionerEngine::prepare_preconditioner()
+{
+    // Only once set_preconditioner() has sized the buffers (they keep their
+    // size, as the hierarchy is fixed after init_matrix()).
+    const int num_cluster_blocks = assembled_cluster_count();
+    if(num_cluster_blocks < 1
+       || num_cluster_blocks > static_cast<int>(cluster_hessians.size()))
+        return;
+
+    // After everything enqueued on the default stream so far: the last
+    // inversion (and a debug dump) read the Hessians.
+    clear_cluster_hessians(num_cluster_blocks, m_hessian_clear_stream.fork());
+    m_hessians_cleared = true;
+}
+
 void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
                                                  cuda_tool::CBufferView<int> row_ids,
                                                  cuda_tool::CBufferView<int> col_ids,
                                                  int dof_offset)
 {
-    if(m_total_nodes < 1)
-        return;
-
     // The partition adjacency and its multi-level hierarchy are invariant for the
     // lifetime of this engine. init_matrix() builds them once; rebuilding here
     // would repeat scans, kernel launches, and host synchronizations every Newton
     // iteration without changing the result.
 
     // Resize cluster matrices if needed
-    int num_cluster_blocks = m_total_num_clusters / BANKSIZE;
+    int num_cluster_blocks = assembled_cluster_count();
     if(num_cluster_blocks < 1)
         return;
+
+    // The default stream waits for a clear by prepare_preconditioner(),
+    // which covered the buffers as they are sized now.
+    bool cleared = std::exchange(m_hessians_cleared, false);
+    if(cleared)
+        m_hessian_clear_stream.join();
 
     if(num_cluster_blocks > static_cast<int>(cluster_hessians.size()))
     {
         cluster_hessians.resize(num_cluster_blocks);
         cluster_inverses.resize(num_cluster_blocks);
+        cleared = false;
     }
 
     // Resize multi-level buffers if needed
@@ -1376,14 +1806,16 @@ void MASPreconditionerEngine::set_preconditioner(cuda_tool::CBufferView<Eigen::M
     {
         multi_level_R.resize(m_total_num_clusters);
         multi_level_Z.resize(m_total_num_clusters);
+        m_coarse_R_zero = false;
     }
 
-    cluster_hessians.view(0, num_cluster_blocks).fill(ClusterMatrixSym{});
+    if(!cleared)
+        clear_cluster_hessians(num_cluster_blocks, cuda_tool::default_stream());
 
     // Scatter BCOO Hessian blocks into cluster matrices
     scatter_hessian_to_clusters(triplet_values, row_ids, col_ids, dof_offset);
 
-    // Invert each cluster matrix (Gauss-Jordan)
+    // Invert each cluster matrix (symmetric pivot sweeps)
     invert_cluster_matrices();
 }
 
@@ -1428,6 +1860,7 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
         return;
     int thread_num = BANKSIZE * BANKSIZE;
     int block_num  = (total_entries + thread_num - 1) / thread_num;
+    static_assert(BANKSIZE * BANKSIZE == 256, "the k2 kernel's launch bounds");
 
     MASPreconditionerEngine_scatter_hessian_to_clusters_k2_kernel<<<block_num, thread_num, 0, nullptr>>>(
         m_level_num,
@@ -1442,20 +1875,51 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
 }
 
 // ---------------------------------------------------------------------------
-// Gauss-Jordan inversion of each 48x48 cluster matrix
+// Inversion of each 48x48 cluster matrix (symmetric pivot sweeps)
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::invert_cluster_matrices()
 {
+    // m_total_num_clusters counts nodes of bank-aligned levels, BANKSIZE per cluster
+    UIPC_ASSERT(m_total_num_clusters % BANKSIZE == 0,
+                "MAS cluster node count {} is not bank aligned",
+                m_total_num_clusters);
+    // The banks between level 0 and level 1 hold no Hessian entry and no
+    // pass reads what is computed from their inverses: they are skipped.
+    invert_cluster_matrices(cluster_hessians.cview(),
+                            cluster_inverses.view(),
+                            m_total_num_clusters / BANKSIZE,
+                            nullptr,
+                            level0_cluster_count(),
+                            empty_cluster_count());
+}
+
+int MASPreconditionerEngine::level0_cluster_count() const
+{
+    return bank_align(m_total_map_nodes) / BANKSIZE;
+}
+
+int MASPreconditionerEngine::empty_cluster_count() const
+{
+    return std::max(m_level1_begin / BANKSIZE - level0_cluster_count(), 0);
+}
+
+void MASPreconditionerEngine::invert_cluster_matrices(
+    cuda_tool::CBufferView<ClusterMatrixSym> cluster_hess,
+    cuda_tool::BufferView<ClusterMatrixSymF> cluster_inv,
+    int                                      cluster_count,
+    cudaStream_t                             stream,
+    int                                      skip_begin,
+    int                                      skip_count)
+{
     using namespace cuda_tool;
-    int total_threads = m_total_num_clusters * 3;  // 48 threads per cluster
-    if(total_threads < 1)
+    skip_begin = std::clamp(skip_begin, 0, std::max(cluster_count, 0));
+    skip_count = std::clamp(skip_count, 0, std::max(cluster_count - skip_begin, 0));
+    const int num_blocks = cluster_count - skip_count;  // one block per cluster
+    if(num_blocks < 1)
         return;
 
-    int block_size = 32 * 3;  // 96 threads = 2 clusters per block
-    int num_blocks = (total_threads + block_size - 1) / block_size;
-
-    MASPreconditionerEngine_invert_cluster_matrices_kernel<<<num_blocks, block_size, 0, nullptr>>>(
-        cluster_inverses.view(), cluster_hessians.cview(), total_threads);
+    MASPreconditionerEngine_invert_cluster_matrices_kernel<<<num_blocks, MAS_INVERT_THREADS, 0, stream>>>(
+        cluster_inv, cluster_hess, skip_begin, skip_count);
 }
 
 // ============================================================================
@@ -1474,20 +1938,26 @@ void MASPreconditionerEngine::build_multi_level_R(cuda_tool::CDenseVectorView<Fl
     if(N < 1)
         return;
 
-    int block_size = DEFAULT_BLOCKSIZE;
+    int block_size = MAS_RESTRICT_BLOCKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
 
-    MASPreconditionerEngine_build_multi_level_R_kernel<<<num_blocks, block_size, 0, stream>>>(
-        R,
-        multi_level_R.view(),
-        going_next.cview(0, m_total_num_clusters),
-        level_sizes.cview(),
-        prefix_original.cview(),
-        fine_connect_masks.cview(),
-        part_to_real.cview(),
-        converged.cviewer(),
-        m_level_num,
-        N);
+    MASPreconditionerEngine_build_multi_level_R_kernel<false>
+        <<<num_blocks, block_size, 0, stream>>>({},
+                                                {},
+                                                {},
+                                                R,
+                                                {},
+                                                {},
+                                                {},
+                                                multi_level_R.view(),
+                                                going_next.cview(0, m_total_num_clusters),
+                                                level_sizes.cview(),
+                                                prefix_original.cview(),
+                                                fine_connect_masks.cview(),
+                                                part_to_real.cview(),
+                                                converged.cviewer(),
+                                                m_level_num,
+                                                N);
 }
 
 // ---------------------------------------------------------------------------
@@ -1501,14 +1971,27 @@ void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> co
     if(N < 1)
         return;
 
-    int block_size = BANKSIZE * BANKSIZE;
-    int num_blocks = (N + block_size - 1) / block_size;
+    UIPC_ASSERT(m_total_num_clusters % BANKSIZE == 0,
+                "MAS hierarchy size {} must be aligned to BANKSIZE {}",
+                m_total_num_clusters,
+                BANKSIZE);
+    // one block per cluster but the empty banks between level 0 and level 1,
+    // whose residuals nothing writes and whose solutions nothing reads
+    constexpr int block_size = DEFAULT_BLOCKSIZE;
+    const int     skip_begin = level0_cluster_count();
+    const int     skip_count = empty_cluster_count();
+    const int     num_blocks = m_total_num_clusters / BANKSIZE - skip_count;
+    if(num_blocks < 1)
+        return;
 
     MASPreconditionerEngine_schwarz_local_solve_kernel<<<num_blocks, block_size, 0, stream>>>(
         cluster_inverses.cview(),
-        multi_level_R.cview(),
+        multi_level_R.view(),
         multi_level_Z.view(),
         converged.cviewer(),
+        m_level1_begin,
+        skip_begin,
+        skip_count,
         N);
 }
 
@@ -1517,20 +2000,29 @@ void MASPreconditionerEngine::schwarz_local_solve(cuda_tool::CVarView<IndexT> co
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
                                               cuda_tool::CVarView<IndexT> converged,
-                                              cudaStream_t stream)
+                                              cudaStream_t stream,
+                                              cuda_tool::CDenseVectorView<Float> R,
+                                              cuda_tool::CBufferView<Matrix3x3> unpart_diag_inv)
 {
     using namespace cuda_tool;
     int N = m_total_nodes;
     if(N < 1)
         return;
+    UIPC_ASSERT(unpart_diag_inv.size() == 0
+                    || (unpart_diag_inv.size() == (SizeT)N && R.size() == Z.size()),
+                "MAS diagonal fallback has {} blocks for {} vertices",
+                unpart_diag_inv.size(),
+                N);
 
     int level_num = (m_active_level_num > 0) ? m_active_level_num : m_level_num;
     auto k        = MASPreconditionerEngine_collect_final_Z_kernel;
     k<<<cuda_tool::best_grid_dim(N, k), cuda_tool::best_block_dim(k), 0, stream>>>(
         Z,
+        R,
         multi_level_Z.cview(),
         coarse_tables.cview(),
         real_to_part.cview(),
+        unpart_diag_inv,
         converged.cviewer(),
         level_num,
         N);
@@ -1543,7 +2035,8 @@ void MASPreconditionerEngine::collect_final_Z(cuda_tool::DenseVectorView<Float> 
 void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
                                     cuda_tool::DenseVectorView<Float>  z,
                                     cuda_tool::CVarView<IndexT> converged,
-                                    cudaStream_t                stream)
+                                    cudaStream_t                stream,
+                                    cuda_tool::CBufferView<Matrix3x3> unpart_diag_inv)
 {
     if(m_total_nodes < 1)
         return;
@@ -1553,16 +2046,16 @@ void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
     {
         multi_level_R.resize(m_total_num_clusters);
         multi_level_Z.resize(m_total_num_clusters);
+        m_coarse_R_zero = false;
     }
 
-    if(m_total_num_clusters > m_total_map_nodes)
+    if(m_total_num_clusters > m_level1_begin)
     {
         multi_level_R
-            .view(m_total_map_nodes, m_total_num_clusters - m_total_map_nodes)
+            .view(m_level1_begin, m_total_num_clusters - m_level1_begin)
             .fill(Eigen::Vector3f::Zero(), stream);
     }
-
-    multi_level_Z.view(0, m_total_num_clusters).fill(float3{0, 0, 0}, stream);
+    m_coarse_R_zero = true;
 
     // 1. Restrict: accumulate residual down through levels
     build_multi_level_R(r, converged, stream);
@@ -1570,8 +2063,99 @@ void MASPreconditionerEngine::apply(cuda_tool::CDenseVectorView<Float> r,
     // 2. Local solve: Z = cluster_inverse * R at each level
     schwarz_local_solve(converged, stream);
 
-    // 3. Prolongate: sum Z from all levels back to fine nodes
-    collect_final_Z(z, converged, stream);
+    // 3. Prolongate: sum Z from all levels back to fine nodes (and apply the
+    //    diagonal fallback of the unpartitioned vertices)
+    collect_final_Z(z, converged, stream, r, unpart_diag_inv);
+}
+
+void MASPreconditionerEngine::fused_pcg_update_apply_dot(
+    cuda_tool::DenseVectorView<Float>  x,
+    cuda_tool::CDenseVectorView<Float> p,
+    cuda_tool::DenseVectorView<Float>  r,
+    cuda_tool::CDenseVectorView<Float> Ap,
+    cuda_tool::DenseVectorView<Float>  z,
+    cuda_tool::CVarView<Float>         rz,
+    cuda_tool::CVarView<Float>         pAp,
+    cuda_tool::VarView<Float>          rz_new,
+    cuda_tool::CVarView<IndexT>        converged,
+    cudaStream_t                       stream,
+    cuda_tool::CBufferView<Matrix3x3>  unpart_diag_inv)
+{
+    if(m_total_nodes < 1)
+        return;
+
+    UIPC_ASSERT(x.size() == 3 * m_total_nodes && p.size() == x.size()
+                    && r.size() == x.size() && Ap.size() == x.size()
+                    && z.size() == x.size(),
+                "MAS fused PCG vectors must contain exactly all FEM degrees of freedom");
+    UIPC_ASSERT(unpart_diag_inv.size() == 0 || unpart_diag_inv.size() == (SizeT)m_total_nodes,
+                "MAS fused PCG diagonal fallback has {} blocks for {} vertices",
+                unpart_diag_inv.size(),
+                m_total_nodes);
+
+    if(m_total_num_clusters > static_cast<int>(multi_level_R.size()))
+    {
+        multi_level_R.resize(m_total_num_clusters);
+        multi_level_Z.resize(m_total_num_clusters);
+        m_coarse_R_zero = false;
+    }
+
+    // The previous local solve left the coarse levels zero; clear them here
+    // only before the first use after an allocation.
+    if(!m_coarse_R_zero && m_total_num_clusters > m_level1_begin)
+    {
+        multi_level_R
+            .view(m_level1_begin, m_total_num_clusters - m_level1_begin)
+            .fill(Eigen::Vector3f::Zero(), stream);
+    }
+    m_coarse_R_zero = true;
+
+    // every vertex unpartitioned: no hierarchy to restrict into (the
+    // diagonal fallback below still serves them)
+    if(m_total_map_nodes > 0)
+    {
+        const int build_blocks =
+            (m_total_map_nodes + MAS_RESTRICT_BLOCKSIZE - 1) / MAS_RESTRICT_BLOCKSIZE;
+        MASPreconditionerEngine_build_multi_level_R_kernel<true>
+            <<<build_blocks, MAS_RESTRICT_BLOCKSIZE, 0, stream>>>(
+                x,
+                p,
+                r,
+                r.cviewer(),
+                Ap,
+                rz.cviewer(),
+                pAp.cviewer(),
+                multi_level_R.view(),
+                going_next.cview(0, m_total_num_clusters),
+                level_sizes.cview(),
+                prefix_original.cview(),
+                fine_connect_masks.cview(),
+                part_to_real.cview(),
+                converged.cviewer(),
+                m_level_num,
+                m_total_map_nodes);
+    }
+
+    schwarz_local_solve(converged, stream);
+
+    const int level_num = (m_active_level_num > 0) ? m_active_level_num : m_level_num;
+    const int collect_blocks = (m_total_nodes + DEFAULT_BLOCKSIZE - 1) / DEFAULT_BLOCKSIZE;
+    MASPreconditionerEngine_collect_final_Z_dot_kernel<<<collect_blocks, DEFAULT_BLOCKSIZE, 0, stream>>>(
+        x,
+        p,
+        z,
+        r,
+        Ap,
+        rz.cviewer(),
+        pAp.cviewer(),
+        multi_level_Z.cview(),
+        coarse_tables.cview(),
+        real_to_part.cview(),
+        unpart_diag_inv,
+        rz_new.viewer(),
+        converged.cviewer(),
+        level_num,
+        m_total_nodes);
 }
 
 void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view output_dir,
@@ -1592,6 +2176,19 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(std::string_view outpu
 
     cluster_hessians.view(0, nb).copy_to(h_hess.data());
     cluster_inverses.view(0, nb).copy_to(h_inv.data());
+
+    // The scatter adds only the upper triangle of the coarse diagonal blocks
+    // (all the inversion reads); mirror it so the dump shows whole blocks.
+    const size_t coarse_first = static_cast<size_t>(
+        std::max(0, level0_cluster_count() + empty_cluster_count()));
+    for(size_t c = coarse_first; c < nb; ++c)
+        for(int b = 0; b < BANKSIZE; ++b)
+        {
+            auto& D = h_hess[c].M[sym_index(b, b)];
+            for(int i = 0; i < 3; ++i)
+                for(int j = 0; j < i; ++j)
+                    D(i, j) = D(j, i);
+        }
 
     // Block-upper-triangle dump: coordinate real general, (nb*48) × (nb*48) block-diagonal.
     // Each cluster writes SYM_BLOCK_COUNT full 3×3 blocks at their upper-triangle positions.

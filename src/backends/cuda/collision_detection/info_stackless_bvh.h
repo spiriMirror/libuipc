@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: BVH refit/query-reuse interfaces and state; launch
+ * streams of build, refit and query, and the warp-cooperative Other-query
+ * configuration.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <collision_detection/aabb.h>
@@ -94,7 +120,9 @@ class InfoStacklessBVH
         cuda_tool::DeviceBuffer<int>          m_querySortedId;
         cuda_tool::DeviceVar<int>             m_cpNum;
 
-        void build(cuda_tool::CBufferView<AABB> aabbs);
+        void build(cuda_tool::CBufferView<AABB> aabbs,
+                   bool                         reuse_order = false,
+                   cudaStream_t stream = cuda_tool::default_stream());
     };
 
     struct Node
@@ -110,14 +138,32 @@ class InfoStacklessBVH
     {
       public:
         Float reserve_ratio = 1.2;
+        // Other queries share each warp's queries among its lanes and batch
+        // their leaf predicates. false selects the per-lane traversal, which
+        // yields the same pair multiset in another order (kept as the
+        // validation reference).
+        bool warp_cooperative_query = true;
+        // Queries per warp of the cooperative traversal (1..32); 0 chooses
+        // the largest power of two that still leaves 32 warps per SM.
+        int queries_per_warp = 0;
     };
 
     InfoStacklessBVH(cuda_tool::Stream& stream = cuda_tool::Stream::Default()) noexcept;
 
+    // build/refit/launch_query enqueue all their work on `stream`.
     void build(cuda_tool::CBufferView<AABB>   aabbs,
                cuda_tool::CBufferView<IndexT> BIDs,
-               cuda_tool::CBufferView<IndexT> CIDs);
+               cuda_tool::CBufferView<IndexT> CIDs,
+               cudaStream_t stream = cuda_tool::default_stream());
     void build(cuda_tool::CBufferView<AABB> aabbs);
+
+    // Reuse the existing Morton topology while updating bounds and informative
+    // metadata. A false result leaves the tree untouched so callers can fall
+    // back to a full build when the primitive count or cache is incompatible.
+    bool refit(cuda_tool::CBufferView<AABB>   aabbs,
+               cuda_tool::CBufferView<IndexT> BIDs,
+               cuda_tool::CBufferView<IndexT> CIDs,
+               cudaStream_t stream = cuda_tool::default_stream());
 
     template <typename NodePred, typename LeafPred>
     void detect(cuda_tool::CBuffer2DView<IndexT> cmts, NodePred np, LeafPred lp, QueryBuffer& qbuffer);
@@ -135,7 +181,8 @@ class InfoStacklessBVH
                cuda_tool::CBuffer2DView<IndexT> cmts,
                NodePred                         np,
                LeafPred                         lp,
-               QueryBuffer&                     qbuffer);
+               QueryBuffer&                     qbuffer,
+               bool                             reuse_query_order = false);
 
     template <typename NodePred, typename LeafPred>
     void launch_query(cuda_tool::CBufferView<AABB>     query_aabbs,
@@ -145,7 +192,9 @@ class InfoStacklessBVH
                       NodePred                         np,
                       LeafPred                         lp,
                       QueryBuffer&                     qbuffer,
-                      bool                             rebuild_query = true);
+                      bool                             rebuild_query = true,
+                      bool         reuse_query_order                 = false,
+                      cudaStream_t stream = cuda_tool::default_stream());
 
     // Publish a device-produced count and grow the output if a retry is
     // required. The caller relaunches the same query when this returns true.
@@ -159,21 +208,29 @@ class InfoStacklessBVH
     {
       public:
         static void calcMaxBVFromBox(cuda_tool::CBufferView<AABB> aabbs,
-                                     cuda_tool::VarView<AABB>     scene_box);
+                                     cuda_tool::VarView<AABB>     scene_box,
+                                     cudaStream_t stream = cuda_tool::default_stream());
         static void calcMCsFromBox(cuda_tool::CBufferView<AABB>    aabbs,
                                    cuda_tool::CVarView<AABB>       scene_box,
-                                   cuda_tool::BufferView<uint32_t> codes);
-        void        calcInverseMapping();
-        void        buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs);
-        void        calcExtNodeSplitMetrics();
-        void        buildIntNodes(int size);
-        void        calcIntNodeOrders(int size);
-        void        updateBvhExtNodeLinks(int size);
-        void        reorderNode(int intSize);
-        void        propagateInformativeMetadata(int intSize);
-        void        build(cuda_tool::CBufferView<AABB>   aabbs,
-                          cuda_tool::CBufferView<IndexT> bids,
-                          cuda_tool::CBufferView<IndexT> cids);
+                                   cuda_tool::BufferView<uint32_t> codes,
+                                   cudaStream_t stream = cuda_tool::default_stream());
+        void calcInverseMapping(cudaStream_t stream = cuda_tool::default_stream());
+        void buildPrimitivesFromBox(cuda_tool::CBufferView<AABB> aabbs,
+                                    cudaStream_t stream = cuda_tool::default_stream());
+        void calcExtNodeSplitMetrics(cudaStream_t stream = cuda_tool::default_stream());
+        void buildIntNodes(int size, cudaStream_t stream = cuda_tool::default_stream());
+        void calcIntNodeOrders(int size, cudaStream_t stream = cuda_tool::default_stream());
+        void updateBvhExtNodeLinks(int size, cudaStream_t stream = cuda_tool::default_stream());
+        void reorderNode(int intSize, cudaStream_t stream = cuda_tool::default_stream());
+        void propagateInformativeMetadata(int intSize);
+        void build(cuda_tool::CBufferView<AABB>   aabbs,
+                   cuda_tool::CBufferView<IndexT> bids,
+                   cuda_tool::CBufferView<IndexT> cids,
+                   cudaStream_t stream = cuda_tool::default_stream());
+        bool refit(cuda_tool::CBufferView<AABB>   aabbs,
+                   cuda_tool::CBufferView<IndexT> bids,
+                   cuda_tool::CBufferView<IndexT> cids,
+                   cudaStream_t stream = cuda_tool::default_stream());
 
         // Pre-loads query bid/cid into shared memory before the traversal loop.
         // node_cull receives NodePredInfo with query_bid/query_cid from SMem.
@@ -181,7 +238,8 @@ class InfoStacklessBVH
         void stacklessSelf(NodeCull                        node_cull,
                            PairPred                        pair_pred,
                            cuda_tool::VarView<int>         cpNum,
-                           cuda_tool::BufferView<Vector2i> buffer);
+                           cuda_tool::BufferView<Vector2i> buffer,
+                           cudaStream_t stream = cuda_tool::default_stream());
 
         // Pre-loads query_bids/query_cids into shared memory before the traversal loop.
         // node_cull receives NodePredInfo with query_bid/query_cid from SMem.
@@ -193,7 +251,8 @@ class InfoStacklessBVH
                             cuda_tool::CBufferView<IndexT>  query_cids,
                             cuda_tool::CBufferView<int>     query_sorted_id,
                             cuda_tool::VarView<int>         cpNum,
-                            cuda_tool::BufferView<Vector2i> buffer);
+                            cuda_tool::BufferView<Vector2i> buffer,
+                            cudaStream_t stream = cuda_tool::default_stream());
 
         cuda_tool::CBufferView<AABB>      objs;
         cuda_tool::CBufferView<IndexT>    bids;
@@ -217,6 +276,14 @@ class InfoStacklessBVH
         cuda_tool::DeviceVector<int>      int_par;
         cuda_tool::DeviceVector<int>      int_range_x;
         cuda_tool::DeviceVector<int>      int_range_y;
+        // Maximum Morton-sorted leaf rank for each reordered internal node.
+        // stacklessSelf uses it to skip the already-covered half-tree.
+        cuda_tool::DeviceVector<int> self_max_rank;
+        // Stable reordered-tree links and per-refit publication state. The
+        // last arriving child publishes each parent before walking upward.
+        cuda_tool::DeviceVector<int>      refit_parent;
+        cuda_tool::DeviceVector<int>      refit_right_child;
+        cuda_tool::DeviceVector<int>      refit_arrivals;
         cuda_tool::DeviceVector<uint32_t> int_mark;
         cuda_tool::DeviceVector<AABB>     int_aabb;
         cuda_tool::DeviceVector<IndexT>   ext_bid;

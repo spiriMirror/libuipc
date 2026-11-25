@@ -1,3 +1,30 @@
+/*
+ * NVIDIA contributions: interfaces and state supporting MAS direct-store and
+ * vector-pass specializations, the prepared cluster clear, the symmetric-sweep
+ * cluster inversion, the empty-bank skip, the fused step with the diagonal
+ * fallback and the preconditioner's launch streams.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <type_define.h>
 #include <cuda_tool/cuda_tool.h>
@@ -79,6 +106,12 @@ class MASPreconditionerEngine
 
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
+    // Optional, before set_preconditioner(): clear the cluster Hessians on a
+    // side stream, ordered after the work enqueued on the default stream so
+    // far, so the clear runs beside whatever the default stream does until
+    // set_preconditioner(), which then waits for it instead of clearing.
+    void prepare_preconditioner();
+
     void set_preconditioner(cuda_tool::CBufferView<Eigen::Matrix3d> triplet_values,
                             cuda_tool::CBufferView<int> row_ids,
                             cuda_tool::CBufferView<int> col_ids,
@@ -86,10 +119,36 @@ class MASPreconditionerEngine
 
     // ---- Phase 3: Apply preconditioning z = M^{-1} r (per PCG iteration) ----
 
+    // Unpartitioned vertices (no MAS cluster) get z = D^{-1} r from the
+    // diagonal fallback `unpart_diag_inv` (one inverse block per FEM vertex,
+    // as FEMMASPreconditioner assembles it) in the prolongation pass; with an
+    // empty view their z is left untouched.
     void apply(cuda_tool::CDenseVectorView<Float> r,
                cuda_tool::DenseVectorView<Float>  z,
                cuda_tool::CVarView<IndexT>        converged,
-               cudaStream_t                       stream = nullptr);
+               cudaStream_t                       stream          = nullptr,
+               cuda_tool::CBufferView<Matrix3x3>  unpart_diag_inv = {});
+
+    /**
+     * @brief Execute the PCG x/r update, MAS apply, and r^T z accumulation.
+     *
+     * This is the graph-friendly MAS path. The caller must provide a zeroed
+     * rz_new accumulation slot. Unpartitioned vertices (no MAS cluster) need
+     * the per-vertex diagonal fallback `unpart_diag_inv` (one inverse block
+     * per FEM vertex, as FEMMASPreconditioner assembles it); an empty view
+     * means every vertex is partitioned.
+     */
+    void fused_pcg_update_apply_dot(cuda_tool::DenseVectorView<Float>  x,
+                                    cuda_tool::CDenseVectorView<Float> p,
+                                    cuda_tool::DenseVectorView<Float>  r,
+                                    cuda_tool::CDenseVectorView<Float> Ap,
+                                    cuda_tool::DenseVectorView<Float>  z,
+                                    cuda_tool::CVarView<Float>         rz,
+                                    cuda_tool::CVarView<Float>         pAp,
+                                    cuda_tool::VarView<Float>          rz_new,
+                                    cuda_tool::CVarView<IndexT> converged,
+                                    cudaStream_t stream = nullptr,
+                                    cuda_tool::CBufferView<Matrix3x3> unpart_diag_inv = {});
 
     bool is_initialized() const { return m_initialized; }
 
@@ -148,6 +207,16 @@ class MASPreconditionerEngine
                                      cuda_tool::CBufferView<int> col_ids,
                                      int                         dof_offset);
     void invert_cluster_matrices();
+    // cluster_inv(k) = inverse of cluster_hess(k) (its upper triangle) for
+    // the first cluster_count clusters except the skip_count clusters from
+    // skip_begin on, whose inverses are left untouched (one 96-thread block
+    // per inverted 48x48 cluster)
+    static void invert_cluster_matrices(cuda_tool::CBufferView<ClusterMatrixSym> cluster_hess,
+                                        cuda_tool::BufferView<ClusterMatrixSymF> cluster_inv,
+                                        int          cluster_count,
+                                        cudaStream_t stream,
+                                        int          skip_begin = 0,
+                                        int          skip_count = 0);
 
     // Preconditioning steps
     void build_multi_level_R(cuda_tool::CDenseVectorView<Float> R,
@@ -155,18 +224,37 @@ class MASPreconditionerEngine
                              cudaStream_t stream = nullptr);
     void schwarz_local_solve(cuda_tool::CVarView<IndexT> converged,
                              cudaStream_t                stream = nullptr);
-    void collect_final_Z(cuda_tool::DenseVectorView<Float> Z,
-                         cuda_tool::CVarView<IndexT>       converged,
-                         cudaStream_t                      stream = nullptr);
+    // With a non-empty `unpart_diag_inv` (see apply()) the pass also writes
+    // Z = D^{-1} R for the unpartitioned vertices.
+    void collect_final_Z(cuda_tool::DenseVectorView<Float>  Z,
+                         cuda_tool::CVarView<IndexT>        converged,
+                         cudaStream_t                       stream = nullptr,
+                         cuda_tool::CDenseVectorView<Float> R      = {},
+                         cuda_tool::CBufferView<Matrix3x3> unpart_diag_inv = {});
 
   private:
+    friend class MASPreconditionerEngineTestAccess;
+
+    // Clusters of level 0, and of the empty banks after it (m_level1_begin)
+    int level0_cluster_count() const;
+    int empty_cluster_count() const;
+    // Cluster blocks set_preconditioner() assembles (0: nothing to assemble)
+    int assembled_cluster_count() const;
+    // Zero the cluster Hessians that the scatter accumulates into
+    void clear_cluster_hessians(int num_cluster_blocks, cudaStream_t stream);
+
     // ---- State ----
     bool m_initialized     = false;
     int  m_total_nodes     = 0;
     int  m_total_map_nodes = 0;
     int  m_level_num       = 0;
     int m_active_level_num = 0;  // levels used during apply(); 0 = use m_level_num
-    int  m_total_num_clusters = 0;
+    int m_total_num_clusters = 0;
+    // First node of level 1. Level 0 occupies the nodes [0, m_total_map_nodes)
+    // (bank aligned); the banks between there and m_level1_begin, which
+    // exist when unpartitioned vertices make m_total_nodes larger, belong to
+    // no level: no Hessian entry, residual or prolongation ever reaches them.
+    int  m_level1_begin = 0;
     Int2 m_h_level_size;
 
     // ---- GPU buffers: hierarchy ----
@@ -197,9 +285,18 @@ class MASPreconditionerEngine
     // ---- GPU buffers: cluster matrices ----
     cuda_tool::DeviceBuffer<ClusterMatrixSym> cluster_hessians;  // assembled Hessian blocks (double)
     cuda_tool::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;  // inverted preconditioner (float, matches GIPC)
+    // prepare_preconditioner() cleared cluster_hessians on this stream;
+    // the next set_preconditioner() joins that stream instead of clearing
+    cuda_tool::SideStream m_hessian_clear_stream;
+    bool                  m_hessians_cleared = false;
 
     // ---- GPU buffers: multi-level residual / solution (float, matches GIPC) ----
     cuda_tool::DeviceBuffer<Eigen::Vector3f> multi_level_R;
     cuda_tool::DeviceBuffer<float3>          multi_level_Z;
+    // The coarse levels of multi_level_R (from m_level1_begin on) are
+    // zero in stream order: the restriction accumulates into them and the
+    // Schwarz local solve clears them again after reading. False until the
+    // first clear after an allocation; apply() always clears.
+    bool m_coarse_R_zero = false;
 };
 }  // namespace uipc::backend::cuda

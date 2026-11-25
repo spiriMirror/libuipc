@@ -1,10 +1,42 @@
+/*
+ * NVIDIA contributions: the DeviceReduce::Sum regression test for an empty
+ * reused reduction range, and the PinnedHostBuffer read-back and
+ * device_allocation_epoch tests.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <cuda_tool/cuda_tool.h>
+#include <cuda_tool/cub.h>
 
 #include <app/app.h>
+
+#include <array>
 
 namespace
 {
 using uipc::backend::cuda_tool::DeviceBuffer;
+using uipc::backend::cuda_tool::DeviceReduce;
+using uipc::backend::cuda_tool::DeviceVar;
+using uipc::backend::cuda_tool::PinnedHostBuffer;
 
 TEST_CASE("cuda_tool DeviceVector growth policies", "[cuda][cuda_tool][buffer]")
 {
@@ -89,5 +121,93 @@ TEST_CASE("cuda_tool DeviceVector growth policies", "[cuda][cuda_tool][buffer]")
         values.resize_discard(11);
         REQUIRE(values.capacity() == 11);
     }
+}
+
+TEST_CASE("cuda_tool device_allocation_epoch counts allocations, frees and moves",
+          "[cuda][cuda_tool][buffer]")
+{
+    using uipc::backend::cuda_tool::device_allocation_epoch;
+
+    auto epoch  = device_allocation_epoch();
+    auto bumped = [&]
+    {
+        auto now  = device_allocation_epoch();
+        bool diff = now != epoch;
+        epoch     = now;
+        return diff;
+    };
+
+    DeviceBuffer<int> values;
+    REQUIRE_FALSE(bumped());
+    values.resize(4);  // allocates
+    REQUIRE(bumped());
+    values.resize(2);  // within the allocation
+    values.resize(4, 3);
+    values.resize_discard(1);
+    REQUIRE_FALSE(bumped());
+    values.resize(100);  // grows
+    REQUIRE(bumped());
+
+    DeviceBuffer<int> moved{std::move(values)};
+    REQUIRE(bumped());
+    values = std::move(moved);
+    REQUIRE(bumped());
+    values.release();
+    REQUIRE(bumped());
+
+    {
+        DeviceVar<int> var;
+        REQUIRE(bumped());
+    }
+    REQUIRE(bumped());  // freed
+}
+
+TEST_CASE("cuda_tool DeviceReduce Sum writes zero for an empty reused range", "[cuda][cuda_tool][reduce]")
+{
+    DeviceBuffer<double> values;
+    DeviceVar<double>    sum{41.0};
+    DeviceReduce         reduce;
+
+    const std::array<double, 2> first = {1.25, 2.75};
+    values.copy_from(first.data(), first.size());
+    reduce.Sum(values.data(), sum.data(), values.size());
+    REQUIRE(static_cast<double>(sum) == 4.0);
+
+    values.resize_discard(0);
+    reduce.Sum(values.data(), sum.data(), values.size());
+    REQUIRE(static_cast<double>(sum) == 0.0);
+
+    const std::array<double, 2> second = {8.0, -3.5};
+    values.copy_from(second.data(), second.size());
+    reduce.Sum(values.data(), sum.data(), values.size());
+    REQUIRE(static_cast<double>(sum) == 4.5);
+}
+TEST_CASE("cuda_tool PinnedHostBuffer gathers several read-backs for one synchronization",
+          "[cuda][cuda_tool][buffer]")
+{
+    DeviceBuffer<int> first;
+    DeviceBuffer<int> second;
+    first.resize(3, 4);
+    second.resize(2, -6);
+
+    PinnedHostBuffer<int> host;
+    host.resize_discard(5);
+    host.copy_from(first.cview());
+    host.copy_from(3, second.cview());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
+    REQUIRE(std::vector<int>(host.data(), host.data() + host.size())
+            == std::vector<int>{4, 4, 4, -6, -6});
+
+    // growing discards, shrinking keeps the allocation
+    const int* data = host.data();
+    host.resize_discard(2);
+    REQUIRE(host.data() == data);
+    REQUIRE(host.size() == 2);
+    REQUIRE_THROWS(host.copy_from(1, first.cview()));
+    host.resize_discard(8);
+    host.copy_from(5, first.cview());
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(nullptr));
+    REQUIRE(host[5] == 4);
+    REQUIRE(host[7] == 4);
 }
 }  // namespace

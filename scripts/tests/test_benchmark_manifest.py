@@ -26,6 +26,7 @@ from scripts.run_benchmark import (
     runtime_fingerprint,
     run_benchmark,
     use_samples_directory,
+    validate_registry,
 )
 from scripts.benchmark_runtime import collect_runtime
 
@@ -36,6 +37,7 @@ class BenchmarkManifestTests(unittest.TestCase):
         self.assertEqual(
             set(registry),
             {
+                "anisotropic-cloth-small",
                 "rigid-wrecking-balls",
                 "stiff-gipc-case2",
                 "mas-bunny",
@@ -62,6 +64,26 @@ class BenchmarkManifestTests(unittest.TestCase):
                 "libuipc-samples/examples/benchmark_utils.py",
                 benchmark["requiredPaths"],
             )
+        self.assertEqual({entry["tier"] for entry in registry.values()},
+                         {"small", "standard", "stress"})
+        self.assertEqual(registry["anisotropic-cloth-small"]["arguments"],
+                         ["--headless", "{frames}", "--resolution", "8"])
+
+    def test_registry_validation_checks_real_helper_and_syntax(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / "main.py").write_text("pass\n", encoding="utf-8")
+            entry = {"entrypoint": "main.py", "workingDirectory": ".",
+                     "requiredPaths": ["main.py", "benchmark_utils.py"]}
+            with patch("scripts.run_benchmark.REPO_ROOT", root):
+                with self.assertRaisesRegex(ValueError, "benchmark_utils.py"):
+                    validate_registry({"sample": entry})
+                helper = root / "benchmark_utils.py"
+                helper.write_text("if broken syntax\n", encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "invalid Python input"):
+                    validate_registry({"sample": entry})
+                helper.write_text("pass\n", encoding="utf-8")
+                validate_registry({"sample": entry})
 
     def test_runtime_asset_check_reports_partial_checkout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -103,7 +125,8 @@ class BenchmarkManifestTests(unittest.TestCase):
     def test_structured_benchmark_result_is_validated(self) -> None:
         payload = {
             "frame_ms": [12.0, 10.0],
-            "frame_stats": [{"frame": 1}, {"frame": 2}],
+            "frame_stats": [{"frame": 1, "completed": True},
+                            {"frame": 2, "completed": True}],
             "observables": {"height": 0.5},
         }
         output = "BENCHMARK_RESULT " + __import__("json").dumps(payload)
@@ -112,6 +135,17 @@ class BenchmarkManifestTests(unittest.TestCase):
             parse_reported_benchmark(
                 'BENCHMARK_RESULT {"frame_ms":[1],"frame_stats":[]}'
             )
+        with self.assertRaisesRegex(ValueError, "requested frames"):
+            parse_reported_benchmark(output, expected_frames=3)
+        for value in (-1, float("inf"), float("nan"), True):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                parse_reported_benchmark("BENCHMARK_RESULT " + json.dumps(
+                    {**payload, "frame_ms": [value, 1.0]}))
+        for stats in ({"frame": 1, "completed": False}, {"frame": 1},
+                      {"frame": 0, "completed": True}, None):
+            with self.subTest(stats=stats), self.assertRaises(ValueError):
+                parse_reported_benchmark("BENCHMARK_RESULT " + json.dumps(
+                    {**payload, "frame_stats": [stats, payload["frame_stats"][1]]}))
 
     def test_gpu_memory_csv_parser_handles_multiple_devices(self) -> None:
         self.assertEqual(parse_gpu_memory_mib("1024\n2048 MiB"), [1024, 2048])
@@ -187,7 +221,7 @@ class BenchmarkManifestTests(unittest.TestCase):
             args = SimpleNamespace(name="fake", samples_directory=samples, quick=True,
                                    frames=None, python=sys.executable, env=[], dry_run=False)
             child = SimpleNamespace(stdout=io.StringIO('BENCHMARK_RESULT '
-                                    '{"frame_ms":[1.0],"frame_stats":[{"frame":1}]}\n'),
+                                    '{"frame_ms":[1.0],"frame_stats":[{"frame":1,"completed":true}]}\n'),
                                     wait=lambda: 0)
             fingerprints = [{"available": True, "nativeFiles": ["before"]},
                             {"available": True, "nativeFiles": ["after"]}]
@@ -206,6 +240,29 @@ class BenchmarkManifestTests(unittest.TestCase):
             self.assertFalse(metadata["provenance"]["runtimeUnchanged"])
             self.assertTrue(metadata["provenance"]["inputsUnchanged"])
             self.assertEqual(metadata["reportedFrameTiming"]["meanFrameMs"], 1.0)
+
+            # A successful process without a usable result must not masquerade
+            # as a benchmark success; retain both the raw log and error metadata.
+            for output, child_code in (("no result\n", 0),
+                                       ("BENCHMARK_RESULT invalid\n", 0),
+                                       ("failed simulation\n", 7)):
+                child.stdout = io.StringIO(output)
+                child.wait = lambda: child_code
+                with patch("scripts.run_benchmark.REPO_ROOT", root), \
+                     patch("scripts.run_benchmark.git_state", return_value={}), \
+                     patch("scripts.run_benchmark.runtime_facts", return_value={}), \
+                     patch("scripts.run_benchmark.runtime_fingerprint", return_value=fingerprints[0]), \
+                     patch("scripts.run_benchmark.GpuMemoryMonitor") as monitor, \
+                     patch("scripts.run_benchmark.subprocess.Popen", return_value=child), \
+                     patch("sys.stdout", new_callable=io.StringIO), \
+                     patch("sys.stderr", new_callable=io.StringIO):
+                    monitor.return_value.stop.return_value = None
+                    self.assertEqual(run_benchmark(args, {"fake": entry}), child_code or 2)
+                metadata = json.loads((root / "output/results/fake.json").read_text(encoding="utf-8"))
+                self.assertEqual(metadata["childReturnCode"], child_code)
+                self.assertTrue(metadata["resultError"])
+                log = root / "output/results" / f"fake-{metadata['runId']}.log"
+                self.assertEqual(log.read_text(encoding="utf-8"), output)
 
 
 if __name__ == "__main__":
