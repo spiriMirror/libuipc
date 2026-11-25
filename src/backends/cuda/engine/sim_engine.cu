@@ -301,6 +301,7 @@ void SimEngine::do_apply_recover(RecoverInfo& info)
 {
     // If success, set the current frame to the recovered frame
     m_current_frame = info.frame();
+    reset_frame_stats();
 }
 
 void SimEngine::do_clear_recover(RecoverInfo& info)

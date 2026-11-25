@@ -70,6 +70,7 @@ class SimEngine final : public backend::SimEngine
     SimEngine& operator=(const SimEngine&) = delete;
 
     SimEngineState state() const noexcept;
+    bool frame_completed() const noexcept { return m_frame_completed; }
 
     SizeT newton_iter() const noexcept;
     SizeT line_search_iter() const noexcept;

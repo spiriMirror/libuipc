@@ -502,8 +502,8 @@ trials, cumulative iterative-linear-solver iterations, limit-hit flags, the
 last line-search/CCD/CFL step factors, and whether the frame started from the
 previous frame's active set (`active_set_reused`, IPC pipeline only) and how
 many Newton iterations reused trajectory candidates (`trajectory_reuses`).
-`reset_frame_stats()` runs immediately
-after incrementing the frame; `completed` is set only after the end-of-frame
+`reset_frame_stats()` runs immediately after incrementing the frame and
+after a successful recovery. The engine sets `completed` after the end-of-frame
 iteration checks. `GlobalLinearSystem::last_solve_iterations()` transfers each
 solver's `SolvingInfo::iter_count` into the per-frame accumulator. A solver may
 instead report the count pending (`SolvingInfo::iter_count_pending()`, the
@@ -512,6 +512,11 @@ mode-2 FusedPCG below): the solve is only enqueued, and
 waits for that solve. The IPC Newton loop therefore collects the count after
 the line search, whose read-backs have already waited for the solve. Keep this
 contract host-only and cheap: profilers call it once per measured frame.
+
+`ContactSystemFeature` exports zero instances until a completed advance after
+initialization or recovery. On a completed IPC frame, per-pair energies come
+from the accepted trial, and gradients and Hessians come from the last system
+assembly.
 
 During `do_init/do_advance/do_retrieve/do_sync`, the callbacks each sim system registered via `SimActionCollection` (`on_init_scene/on_rebuild_scene/on_write_scene`) are invoked in sequence.
 

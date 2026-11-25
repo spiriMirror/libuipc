@@ -2,6 +2,7 @@
 #include <contact_system/contact_exporter_manager.h>
 #include <contact_system/contact_system_feature.h>
 #include <contact_system/contact_exporter.h>
+#include <sim_engine.h>
 
 namespace uipc::backend::cuda
 {
@@ -45,30 +46,27 @@ void ContactExporterManager::init()
 void ContactExporterManager::get_contact_energy(std::string_view    prim_type,
                                                 geometry::Geometry& prim_energy)
 {
-    auto exporter = find_exporter(prim_type);
+    auto exporter = prepare_export(prim_type, prim_energy);
     if(!exporter)
         return;
-    _create_prim_type_on_geo(prim_type, prim_energy);
     exporter->contact_energy(prim_type, prim_energy);
 }
 
 void ContactExporterManager::get_contact_gradient(std::string_view    prim_type,
                                                   geometry::Geometry& prim_grad)
 {
-    auto exporter = find_exporter(prim_type);
+    auto exporter = prepare_export(prim_type, prim_grad);
     if(!exporter)
         return;
-    _create_prim_type_on_geo(prim_type, prim_grad);
     exporter->contact_gradient(prim_type, prim_grad);
 }
 
 void ContactExporterManager::get_contact_hessian(std::string_view    prim_type,
                                                  geometry::Geometry& prim_hess)
 {
-    auto exporter = find_exporter(prim_type);
+    auto exporter = prepare_export(prim_type, prim_hess);
     if(!exporter)
         return;
-    _create_prim_type_on_geo(prim_type, prim_hess);
     exporter->contact_hessian(prim_type, prim_hess);
 }
 
@@ -84,12 +82,20 @@ void ContactExporterManager::add_exporter(ContactExporter* exporter)
     m_contact_exporters.register_sim_system(*exporter);
 }
 
-ContactExporter* ContactExporterManager::find_exporter(std::string_view prim_type) const
+ContactExporter* ContactExporterManager::prepare_export(std::string_view prim_type,
+                                                        geometry::Geometry& geo)
 {
     auto it = m_exporter_map.find(std::string{prim_type});
     if(it != m_exporter_map.end())
     {
-        return it->second;
+        _create_prim_type_on_geo(prim_type, geo);
+        if(engine().frame_completed())
+            return it->second;
+
+        // Checkpoints restore the simulation state. Contact diagnostics are
+        // populated by a completed advance.
+        geo.instances().resize(0);
+        return nullptr;
     }
     else
     {

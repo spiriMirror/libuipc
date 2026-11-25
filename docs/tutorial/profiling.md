@@ -104,7 +104,9 @@ if not frame['completed'] or not frame['converged']:
 ```
 
 `frame_stats()` returns an empty dictionary for a backend that does not publish
-frame statistics (including the `none` backend). The CUDA schema is:
+frame statistics (including the `none` backend). After `world.recover()`, CUDA
+reports the restored frame number with cleared statistics and `completed=false`
+until the next completed advance.
 
 | Key | Meaning |
 |---|---|
