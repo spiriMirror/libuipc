@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream and energy-count interfaces of the
+ * animator constraints.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <animator/animator.h>
 #include <affine_body/affine_body_dynamics.h>
@@ -73,16 +98,24 @@ class AffineBodyAnimator final : public Animator
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, cuda_tool::BufferView<Float> energy)
+        ComputeEnergyInfo(Impl*                        impl,
+                          SizeT                        index,
+                          Float                        dt,
+                          cuda_tool::BufferView<Float> energy,
+                          cuda_tool::SideStreams*      side_streams = nullptr)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
+            , m_stream(side_streams)
         {
         }
         cuda_tool::BufferView<Float> energies() const noexcept;
+        // Stream for every launch of this constraint's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
 
       private:
         friend class AffineBodyAnimator;
         cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -93,22 +126,27 @@ class AffineBodyAnimator final : public Animator
                                    Float dt,
                                    cuda_tool::DoubletVectorView<Float, 12> gradients,
                                    cuda_tool::TripletMatrixView<Float, 12> hessians,
-                                   bool gradient_only)
+                                   bool gradient_only,
+                                   cuda_tool::SideStreams* side_streams = nullptr)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
             , m_gradient_only(gradient_only)
+            , m_stream(side_streams)
         {
         }
         cuda_tool::DoubletVectorView<Float, 12> gradients() const noexcept;
         cuda_tool::TripletMatrixView<Float, 12> hessians() const noexcept;
         bool                                    gradient_only() const noexcept;
+        // Stream for every launch of this constraint's gradient/Hessian.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
 
       private:
         friend class AffineBodyAnimator;
         cuda_tool::DoubletVectorView<Float, 12> m_gradients;
         cuda_tool::TripletMatrixView<Float, 12> m_hessians;
         bool                                    m_gradient_only = false;
+        cuda_tool::LazySideStream               m_stream;
     };
 
     class ReportExtentInfo
@@ -167,9 +205,13 @@ class AffineBodyAnimator final : public Animator
 
     Impl m_impl;
 
-    virtual void do_init() override;
-    virtual void do_step() override;
-    virtual void do_build(BuildInfo& info) override;
+    virtual void               do_init() override;
+    virtual void               do_step() override;
+    virtual void               do_build(BuildInfo& info) override;
+    virtual span<const IndexT> do_energy_counts() const noexcept override
+    {
+        return m_impl.constraint_energy_offsets_counts.counts();
+    }
 };
 }  // namespace uipc::backend::cuda
 

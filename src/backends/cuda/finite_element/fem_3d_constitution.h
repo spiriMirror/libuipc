@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: stream and direct-gradient interfaces of the
+ * prelaunched FEM assembly and the line-search energy; the grid cap of the
+ * gradient and Hessian launch.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <finite_element/finite_element_constitution.h>
 
@@ -43,16 +69,24 @@ class FEM3DConstitution : public FiniteElementConstitution
         ComputeEnergyInfo(FEM3DConstitution*           impl,
                           SizeT                        index_in_dim,
                           Float                        dt,
-                          cuda_tool::BufferView<Float> energies)
+                          cuda_tool::BufferView<Float> energies,
+                          const FiniteElementConstitution::ComputeEnergyInfo* base = nullptr)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
+            , m_base(base)
         {
         }
 
         auto energies() const noexcept { return m_energies; }
+        // Stream for every launch of the energy.
+        cudaStream_t stream() const noexcept
+        {
+            return m_base ? m_base->stream() : cuda_tool::default_stream();
+        }
 
       private:
-        cuda_tool::BufferView<Float> m_energies;
+        cuda_tool::BufferView<Float>                        m_energies;
+        const FiniteElementConstitution::ComputeEnergyInfo* m_base = nullptr;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -63,22 +97,54 @@ class FEM3DConstitution : public FiniteElementConstitution
                                    bool               gradient_only,
                                    Float              dt,
                                    cuda_tool::DoubletVectorView<Float, 3> gradients,
-                                   cuda_tool::TripletMatrixView<Float, 3> hessians)
+                                   cuda_tool::TripletMatrixView<Float, 3> hessians,
+                                   cudaStream_t stream = nullptr)
             : BaseInfo(impl, index_in_dim, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
             , m_gradient_only(gradient_only)
+            , m_stream(stream)
         {
         }
 
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
         auto gradient_only() const noexcept { return m_gradient_only; }
+        // Stream for every launch of the gradient and Hessian.
+        cudaStream_t stream() const noexcept { return m_stream; }
+
+        // Direct gradients: see FiniteElementElastics::ComputeGradientHessianInfo.
+        bool direct_gradients_available() const noexcept
+        {
+            return m_base && m_base->direct_gradients_available();
+        }
+        cuda_tool::DenseVectorView<Float> direct_gradients() const noexcept
+        {
+            return m_base->direct_gradients();
+        }
+        cuda_tool::CBufferView<IndexT> is_fixed() const noexcept
+        {
+            return m_base->is_fixed();
+        }
+        void gradients_added_directly() const noexcept
+        {
+            m_base->gradients_added_directly();
+        }
+        // Grid cap of the gradient and Hessian launch (0: none); a capped
+        // kernel loops over the elements (see
+        // FEMLinearSubsystem::AssembleInfo::block_cap()).
+        int block_cap() const noexcept
+        {
+            return m_base ? m_base->block_cap() : 0;
+        }
 
       private:
+        friend class FEM3DConstitution;
+        const FiniteElementConstitution::ComputeGradientHessianInfo* m_base = nullptr;
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
         bool                                   m_gradient_only = false;
+        cudaStream_t                           m_stream        = nullptr;
     };
 
   protected:

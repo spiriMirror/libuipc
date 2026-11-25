@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: line-search energy producers on side streams, the
+ * cached energy graph, batched start-point copies and the batched step
+ * forward.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/affine_body_constitution.h>
 #include <cuda_tool/cub.h>
@@ -73,15 +99,22 @@ void ABDLineSearchReporter::Impl::init(LineSearchReporter::InitInfo& info)
 
 void ABDLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& info)
 {
-    using namespace cuda_tool;
-
-    BufferLaunch().template copy<Vector12>(abd().body_id_to_q_temp.view(),
-                                           abd().body_id_to_q.view());
+    info.copies().copy<Vector12>(abd().body_id_to_q_temp.view(),
+                                 std::as_const(abd().body_id_to_q).view());
 }
 
 void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
     int n = (int)abd().abd_body_count;
+    if(auto steps = info.batch())
+    {
+        steps->dofs(abd().body_id_to_q.view(),
+                    std::as_const(abd().body_id_to_q_temp).view(),
+                    std::as_const(abd().body_id_to_dq).view(),
+                    std::as_const(abd().body_id_to_is_fixed).view(),
+                    n);
+        return;
+    }
     if(n > 0)
     {
         auto k = abd_line_search_reporter_step_forward_kernel;
@@ -99,34 +132,22 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 {
     using namespace cuda_tool;
 
-    auto body_count = abd().body_count();
+    auto body_count   = abd().body_count();
+    auto side_streams = info.side_streams();
+
+    // The kinetic, shape and reporter energies are written on the side
+    // streams (one per producer); reduce_energy() sums them on the default
+    // stream after LineSearcher joined the producers.
 
     // Compute kinetic energy
     {
         body_id_to_kinetic_energy.resize_discard(body_count);
 
-        ABDLineSearchReporter::ComputeEnergyInfo this_info;
+        ABDLineSearchReporter::ComputeEnergyInfo this_info{side_streams};
         this_info.m_energies = body_id_to_kinetic_energy.view();
         this_info.m_dt       = info.dt();
 
         abd().kinetic->compute_energy(this_info);
-
-        // Zero out the kinetic energy of fixed bodies and bodies with external kinetic
-        int n = (int)abd().abd_body_count;
-        if(n > 0)
-        {
-            auto k = abd_line_search_reporter_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                abd().body_id_to_is_fixed.cview(),
-                abd().body_id_to_external_kinetic.cview(),
-                body_id_to_kinetic_energy.view(),
-                n);
-        }
-
-        // Sum up the kinetic energy
-        DeviceReduce().Sum(body_id_to_kinetic_energy.data(),
-                           abd_kinetic_energy.data(),
-                           body_id_to_kinetic_energy.size());
     }
 
     // Compute shape energy
@@ -138,16 +159,11 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         {
             auto shape_energy = abd().subview(body_id_to_shape_energy, cst->m_index);
 
-            ABDLineSearchReporter::ComputeEnergyInfo this_info;
+            ABDLineSearchReporter::ComputeEnergyInfo this_info{side_streams};
             this_info.m_energies = shape_energy;
             this_info.m_dt       = info.dt();
             cst->compute_energy(this_info);
         }
-
-        // Sum up the shape energy
-        DeviceReduce().Sum(body_id_to_shape_energy.data(),
-                           abd_shape_energy.data(),
-                           body_id_to_shape_energy.size());
     }
 
     // Collect the energy from other reporters
@@ -166,20 +182,50 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {
-            ComputeEnergyInfo this_info;
+            ComputeEnergyInfo this_info{side_streams};
             auto [offset, count] = reporter_energy_offsets_counts[i];
             this_info.m_energies = reporter_energies.view(offset, count);
             this_info.m_dt       = info.dt();
             R->compute_energy(this_info);
         }
+    }
+}
 
-        // Compute the total energy from all reporters
-        DeviceReduce().Sum(reporter_energies.data(),
-                           total_reporter_energy.data(),
-                           reporter_energies.size());
+void ABDLineSearchReporter::Impl::reduce_energy(LineSearcher::ComputeEnergyInfo& info)
+{
+    using namespace cuda_tool;
+
+    // Every launch goes to the reduction stream (after the producers).
+    cudaStream_t stream = info.stream();
+
+    // Zero out the kinetic energy of fixed bodies and bodies with external kinetic
+    int n = (int)abd().abd_body_count;
+    if(n > 0)
+    {
+        auto k = abd_line_search_reporter_compute_energy_kernel;
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, stream>>>(
+            abd().body_id_to_is_fixed.cview(),
+            abd().body_id_to_external_kinetic.cview(),
+            body_id_to_kinetic_energy.view(),
+            n);
     }
 
-    abd_line_search_reporter_combine_energy_kernel<<<1, 1>>>(
+    // Sum up the kinetic energy
+    DeviceReduce(stream).Sum(body_id_to_kinetic_energy.data(),
+                             abd_kinetic_energy.data(),
+                             body_id_to_kinetic_energy.size());
+
+    // Sum up the shape energy
+    DeviceReduce(stream).Sum(body_id_to_shape_energy.data(),
+                             abd_shape_energy.data(),
+                             body_id_to_shape_energy.size());
+
+    // Compute the total energy from all reporters
+    DeviceReduce(stream).Sum(reporter_energies.data(),
+                             total_reporter_energy.data(),
+                             reporter_energies.size());
+
+    abd_line_search_reporter_combine_energy_kernel<<<1, 1, 0, stream>>>(
         abd_kinetic_energy.cview(),
         abd_shape_energy.cview(),
         total_reporter_energy.cview(),
@@ -204,6 +250,11 @@ void ABDLineSearchReporter::do_step_forward(LineSearcher::StepInfo& info)
 void ABDLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
     m_impl.compute_energy(info);
+}
+
+void ABDLineSearchReporter::do_reduce_energy(LineSearcher::ComputeEnergyInfo& info)
+{
+    m_impl.reduce_energy(info);
 }
 
 void ABDLineSearchReporter::add_reporter(ABDLineSearchSubreporter* reporter)

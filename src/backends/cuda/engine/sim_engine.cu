@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: frame statistics of active-set and
+ * trajectory-candidate reuse.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <sim_engine.h>
 #include <uipc/common/log.h>
 #include <cuda_tool/cuda_tool.h>
@@ -142,6 +167,8 @@ void SimEngine::reset_frame_stats()
     m_frame_last_line_search_alpha   = 1.0;
     m_frame_last_ccd_toi             = 1.0;
     m_frame_last_cfl_alpha           = 1.0;
+    m_frame_active_set_reused        = false;
+    m_frame_trajectory_reuses        = 0;
 }
 
 Json SimEngine::do_frame_stats() const
@@ -161,6 +188,8 @@ Json SimEngine::do_frame_stats() const
     stats["last_line_search_alpha"]   = m_frame_last_line_search_alpha;
     stats["last_ccd_toi"]             = m_frame_last_ccd_toi;
     stats["last_cfl_alpha"]           = m_frame_last_cfl_alpha;
+    stats["active_set_reused"]        = m_frame_active_set_reused;
+    stats["trajectory_reuses"]        = m_frame_trajectory_reuses;
     return stats;
 }
 

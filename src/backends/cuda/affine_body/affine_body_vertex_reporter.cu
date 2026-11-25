@@ -1,7 +1,33 @@
+/*
+ * NVIDIA contributions: fused retrieval of the body step and the vertex
+ * displacements with their per-axis maximum.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <affine_body/affine_body_body_reporter.h>
 #include <uipc/builtin/attribute_name.h>
+#include <global_geometry/axis_max.h>
 
 namespace uipc::backend::cuda
 {
@@ -62,6 +88,37 @@ namespace
         const ABDJacobi& J       = Js(i);
         auto&            dx      = displacements(i);
         dx                       = J * dq;
+    }
+
+    // A deferred retrieval and the displacements in one kernel: thread i
+    // retrieves body i's step (as abd_linear_subsystem_retrieve_solution_kernel)
+    // and computes vertex i's displacement from the same values, and folds it
+    // into the per-axis maximum (axis_max_add()).
+    __global__ void affine_body_vertex_reporter_retrieve_displacements_kernel(
+        cuda_tool::BufferView<Vector3>     displacements,
+        cuda_tool::CBufferView<IndexT>     v2b,
+        cuda_tool::CDenseVectorView<Float> x,
+        cuda_tool::BufferView<Vector12>    dqs,
+        cuda_tool::CBufferView<ABDJacobi>  Js,
+        int                                vertex_count,
+        int                                body_count,
+        unsigned long long*                axis_max,
+        unsigned long long*                axis_max_clear)
+    {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if(i < body_count)
+            dqs(i) = -x.segment<12>(i * 12).as_eigen();
+        const bool active = i < vertex_count;
+        Vector3    dx     = Vector3::Zero();
+        if(active)
+        {
+            auto             body_id = v2b(i);
+            const Vector12   dq      = -x.segment<12>(body_id * 12).as_eigen();
+            const ABDJacobi& J       = Js(i);
+            dx                       = J * dq;
+            displacements(i)         = dx;
+        }
+        axis_max_add(axis_max, axis_max_clear, active, dx);
     }
 }  // namespace
 
@@ -146,6 +203,32 @@ void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo
 {
     auto N = info.coindices().size();
     int  n = (int)N;
+    if(abd().solution_pending)
+    {
+        abd().solution_pending = false;
+        int bodies             = (int)abd().body_count();
+        int m                  = std::max(n, bodies);
+        if(m == 0)
+        {
+            info.zero_displacements();
+            return;
+        }
+        auto a = info.axis_max();
+        auto k = affine_body_vertex_reporter_retrieve_displacements_kernel;
+        {
+            k<<<cuda_tool::best_grid_dim(m, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+                info.displacements(),
+                abd().vertex_id_to_body_id.cview(),
+                abd().pending_solution,
+                abd().body_id_to_dq.view(),
+                abd().vertex_id_to_J.cview(),
+                n,
+                bodies,
+                a.slot,
+                a.clear);
+        }
+        return;
+    }
     if(n > 0)
     {
         auto k = affine_body_vertex_reporter_report_displacements_kernel;

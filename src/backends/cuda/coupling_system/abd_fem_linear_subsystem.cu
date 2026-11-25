@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: the 64-thread launch shape of the ABD-FEM coupling
+ * assembly.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <linear_system/off_diag_linear_subsystem.h>
 #include <coupling_system/abd_fem_dytopo_effect_receiver.h>
 #include <coupling_system/fem_abd_dytopo_effect_receiver.h>
@@ -127,11 +152,14 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
         if(count > 0)
         {
-            auto k = ABDFEMLinearSubsystem_assemble_kernel;
-            int  n = (int)count;
+            // A few thousand FP64-heavy threads: small blocks spread them
+            // over many SMs (the occupancy block size put them on three).
+            constexpr int block_dim = 64;
+            auto          k         = ABDFEMLinearSubsystem_assemble_kernel;
+            int           n         = (int)count;
             if(n > 0)
             {
-                k<<<best_grid_dim(n, k), best_block_dim(k), 0, nullptr>>>(
+                k<<<(n + block_dim - 1) / block_dim, block_dim, 0, nullptr>>>(
                     affine_body_dynamics->v2b().viewer(),
                     affine_body_dynamics->Js().viewer(),
                     affine_body_dynamics->body_is_fixed().viewer(),
