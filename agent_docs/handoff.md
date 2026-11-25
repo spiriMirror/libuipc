@@ -1,5 +1,16 @@
 # Handoff — Current State of the Repo
 
+> **Opt-in preconditioner reuse (2026-11-18)**: `linear_system/keep_preconditioner`
+> (default 0) lets every odd Newton iteration from the third on keep the
+> previous iteration's preconditioner on the standard IPC pipeline. It is off
+> by default: PCG measures its relative tolerance in the norm of its
+> preconditioner, so a one-step-old preconditioner changes the stopping
+> threshold and can end PCG and Newton early, losing momentum (doc 05,
+> doc 08). With the key at 0 every iteration assembles its preconditioners,
+> as before. Tests: `preconditioner_reuse.cu` (which iterations keep, the
+> default and the opt-in, a kept preconditioner preserving the PCG tolerance)
+> and the scene-config schema tests.
+
 > **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
 > metadata and refreshes OS repositories before installing build tools, with
 > three attempts and 10/20-second backoff. CUDA repositories are disabled only
@@ -1949,3 +1960,21 @@ regression).
   repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
   real Python 3.14 CUDA doctor probe, and the complete documentation build all
   passed.
+# BVH scene-bounds contribution preparation (2026-10-18)
+
+The focused scene-bounds fix was prepared against `ac89e100`. Bounds initialization is ordered before the reduction, inactive
+lanes participate with neutral values, and signed zero uses IEEE sign-bit
+ordering. The three BVH variants have a shared CPU bounds oracle. This is a
+correctness prerequisite for matched optimization comparisons; validation is
+recorded separately from historical performance results.
+
+# CUDA test-oracle correction (2026-10-18)
+
+The LBVH point-query CPU oracle returned an Eigen cast expression referring
+to a destroyed temporary. A host-only AddressSanitizer reproduction reports
+stack-use-after-scope. Returning a concrete `Vector3` fixes the lifetime;
+the existing bunny section then matches 101,802 CPU/GPU point candidates.
+No BVH implementation or overlap predicate changed. This is a test-only
+correction: no production tolerance, algorithm, graph mode or parallel
+accumulation order was changed.
+

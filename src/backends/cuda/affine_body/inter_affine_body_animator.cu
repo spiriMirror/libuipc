@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream launches and producer ordering of the
+ * inter-body constraints.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/inter_affine_body_animator.h>
 #include <affine_body/inter_affine_body_constraint.h>
 #include <uipc/builtin/attribute_name.h>
@@ -146,7 +171,8 @@ void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnerg
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, dt, info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, dt, info.energies(), info.side_streams()};
         constraint->compute_energy(this_info);
     }
 }
@@ -156,8 +182,15 @@ void InterAffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::Assem
     Float dt = m_impl.dt_attr->view()[0];
     for(auto constraint : m_impl.constraints.view())
     {
-        GradientHessianInfo this_info{
-            &m_impl, constraint->m_index, dt, info.gradients(), info.hessians(), info.gradient_only()};
+        if(!info.launches(constraint->leads_assembly()))
+            continue;
+        GradientHessianInfo this_info{&m_impl,
+                                      constraint->m_index,
+                                      dt,
+                                      info.gradients(),
+                                      info.hessians(),
+                                      info.gradient_only(),
+                                      info.side_streams()};
         constraint->compute_gradient_hessian(this_info);
     }
 }

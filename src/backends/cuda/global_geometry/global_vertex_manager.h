@@ -1,6 +1,32 @@
+/*
+ * NVIDIA contributions: interfaces for candidate-reuse bounds, batched copies
+ * and step forward, read-back buffers and the per-axis maximum.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <cuda_tool/cuda_tool.h>
+#include <cuda_tool/copy_batch.h>
 #include <functional>
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>
@@ -11,6 +37,7 @@ namespace uipc::backend::cuda
 {
 class GlobalTrajectoryFilter;
 class GlobalActiveSetManager;
+class StepBatch;
 class GlobalJointDofManager;
 class VertexReporter;
 class GlobalVertexManager final : public SimSystem
@@ -66,14 +93,34 @@ class GlobalVertexManager final : public SimSystem
     class VertexDisplacementInfo
     {
       public:
-        VertexDisplacementInfo(Impl* impl, SizeT index) noexcept;
+        VertexDisplacementInfo(Impl* impl, SizeT index, cuda_tool::CopyBatch* copies = nullptr) noexcept;
         cuda_tool::BufferView<Vector3> displacements() const noexcept;
         cuda_tool::CBufferView<IndexT> coindices() const noexcept;
+        // displacements() = src, or every displacement zero. Both join the
+        // batched copies of the line-search start point when the engine
+        // collects the displacements with them, and run at once otherwise.
+        void copy_displacements_from(cuda_tool::CBufferView<Vector3> src) const;
+        void zero_displacements() const;
+
+        // A reporter that writes its displacements with its own kernel can
+        // take their per-axis maximum |d| there (axis_max_add() in
+        // global_geometry/axis_max.h, every displacement of its range): when
+        // every reporter did so or zeroed its range,
+        // compute_axis_max_displacement() reads that maximum instead of
+        // reducing the displacements (the same value: a maximum does not
+        // depend on the order). Calling this commits the reporter to it.
+        struct AxisMax
+        {
+            unsigned long long* slot  = nullptr;
+            unsigned long long* clear = nullptr;
+        };
+        AxisMax axis_max() const noexcept;
 
       private:
         friend class GlobalVertexManager;
-        SizeT m_index;
-        Impl* m_impl;
+        SizeT                 m_index;
+        Impl*                 m_impl;
+        cuda_tool::CopyBatch* m_copies = nullptr;
     };
 
     /**
@@ -178,16 +225,19 @@ class GlobalVertexManager final : public SimSystem
         void rebuild();
 
         void record_prev_positions();
-        void record_start_point();
+        void record_start_point(cuda_tool::CopyBatch& copies);
         void step_forward(Float alpha);
+        void step_forward(StepBatch& steps);
 
-        void collect_vertex_displacements();
+        void collect_vertex_displacements(cuda_tool::CopyBatch* copies);
 
         void setup_ccd(cuda_tool::CBufferView<Vector3> base_positions);
         void restore_ccd();
         void overwrite_positions(cuda_tool::CBufferView<Vector3> src);
 
         Float compute_axis_max_displacement();
+        void  launch_axis_max_displacement(cuda_tool::VarView<Float> max_disp,
+                                           cudaStream_t              stream);
         AABB  compute_vertex_bounding_box();
 
         template <typename T>
@@ -216,10 +266,28 @@ class GlobalVertexManager final : public SimSystem
         cuda_tool::DeviceBuffer<Vector3> displacements;
         cuda_tool::DeviceBuffer<Float>   displacement_norms;
 
-        cuda_tool::DeviceVar<Float>   axis_max_disp;
-        cuda_tool::DeviceVar<Float>   max_disp_norm;
-        cuda_tool::DeviceVar<Vector3> min_pos;
-        cuda_tool::DeviceVar<Vector3> max_pos;
+        // compute_axis_max_displacement()'s reduction stores its result here
+        // (cuda_tool::ReadbackBuffer)
+        cuda_tool::ReadbackBuffer<Float> axis_max_disp;
+        cuda_tool::DeviceVar<Float>      max_disp_norm;
+        cuda_tool::DeviceVar<Vector3>    min_pos;
+        cuda_tool::DeviceVar<Vector3>    max_pos;
+
+        // The reporters' maxima of the current displacements
+        // (VertexDisplacementInfo::axis_max()): two slots, used in turn by
+        // successive collections; the first reporter of a collection clears
+        // the other one for the next.
+        cuda_tool::DeviceBuffer<unsigned long long> axis_max_slots;
+        SizeT                                       axis_max_generation = 0;
+        SizeT axis_max_covered    = 0;      // reporters that took or zeroed
+        bool  axis_max_taken      = false;  // a reporter took the slot
+        bool  axis_max_fused      = false;  // the slot holds the maximum
+        bool  axis_max_next_clear = true;   // the next collection's slot is 0
+
+        // compute_axis_max_displacement() of the current displacements, valid
+        // until collect_vertex_displacements or setup_ccd rewrites them
+        Float h_axis_max_disp       = 0.0;
+        bool  h_axis_max_disp_valid = false;
 
 
         SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;
@@ -259,14 +327,22 @@ class GlobalVertexManager final : public SimSystem
     // Update the surface attributes
     void update_attributes();
 
-    void  rebuild();
-    void  record_prev_positions();
-    void  collect_vertex_displacements();
+    void rebuild();
+    void record_prev_positions();
+    void collect_vertex_displacements();
+    // The displacement copies join `copies` (launched by the caller).
+    void  collect_vertex_displacements(cuda_tool::CopyBatch& copies);
     Float compute_axis_max_displacement();
+    // The same maximum written to `max_disp` on `stream`, without a host read.
+    void launch_axis_max_displacement(cuda_tool::VarView<Float> max_disp, cudaStream_t stream);
 
     AABB compute_vertex_bounding_box();
     void step_forward(Float alpha);
+    // The position step joins `steps` (launched by the caller).
+    void step_forward(StepBatch& steps);
     void record_start_point();
+    // The start-point copy joins `copies` (launched by the caller).
+    void record_start_point(cuda_tool::CopyBatch& copies);
 
     void setup_ccd(cuda_tool::CBufferView<Vector3> base_positions);
     void restore_ccd();

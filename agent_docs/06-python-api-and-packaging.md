@@ -41,6 +41,28 @@ borrows memory and does not normalize strides: binding authors must keep a
 matching-dtype owner alive and supply the layout expected by the native span.
 CPU regression coverage is in `python/tests/test_soft_vertex_stitch.py`.
 
+## Attribute views (`uipc.view`, `as_numpy.h`)
+
+`uipc.view` has three overloads: one for all 20 numeric `AttributeSlot<T>`
+classes, then `AttributeSlotString`, then `ParameterCollection`. pybind11
+tries overloads one by one (about 0.3 us per failed try), so the former one
+overload per slot class made a view of the k-th class cost k failed tries
+(2.8-8.3 us). The numeric overload (`geometry/attribute_slot.cpp`, registered
+with `py::prepend()`) takes a `NumericSlot` whose caster finds the argument's
+Python class in a table filled by `def_attribute_slot<T>`; it loads exactly the
+objects the per-class overloads accepted, so string slots still reach their
+overload. The signature names the union of the 20 classes (stubs keep the same
+accepted argument types). A new numeric slot class must be added to both the
+`DEF_ATTRIBUTE_SLOT` list and `NumericSlotTypes` (import asserts the counts).
+
+`as_numpy` builds arrays through `make_array`, which reuses the dtype
+`py::dtype(buffer_info)` derives from the PEP 3118 format, created once per
+scalar type (`buffer_dtype`), instead of calling numpy's format parser on every
+call. Keep that dtype: `dtype::of<int64_t>()` is `'l'`, while the buffer
+format gives `'q'` (`numpy.longlong`), which views of I64/U64 slots have
+always returned. A view now costs about 0.2 us; `python/tests/test_attribute.py`
+covers every creatable slot class.
+
 ## Python package layout (`python/src/uipc/`)
 
 - `__init__.py`: on import, first calls `pyuipc.init(config)` (injecting `module_dir` pointing to `_native`), then `from ._native.pyuipc import *`.

@@ -1,3 +1,30 @@
+/*
+ * NVIDIA contributions: the feasible-step CCD on the line-search prologue
+ * stream, the contact-tabular version, one-warp launch shapes of the
+ * feasible-step kernels and the read-back of their minimum through mapped
+ * memory.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/global_contact_manager.h>
 #include <sim_engine.h>
 #include <contact_system/contact_reporter.h>
@@ -17,6 +44,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <numeric>
 #include <cmath>
+#include <utility>
 #include <cuda_tool/cub.h>
 
 namespace uipc::backend
@@ -543,12 +571,28 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
 Float GlobalContactManager::Impl::compute_feasible_step()
 {
-    if(!global_trajectory_filter)
+    launch_feasible_step(cuda_tool::default_stream());
+    return finish_feasible_step();
+}
+
+Float GlobalContactManager::Impl::finish_feasible_step()
+{
+    if(!std::exchange(feasible_pending, false))
         return 1.0;
+    CUDA_TOOL_CHECK(cudaStreamSynchronize(feasible_stream));
+    Float h_min = min_feasible_toi[0];
+    return h_min < 1.0 ? h_min : 1.0;
+}
+
+void GlobalContactManager::Impl::launch_feasible_step(cudaStream_t stream)
+{
+    feasible_pending = false;
+    if(!global_trajectory_filter)
+        return;
 
     auto simplex = global_trajectory_filter->find<SimplexTrajectoryFilter>();
     if(!simplex)
-        return 1.0;
+        return;
 
     // Stiff-GIPC slackness: keep >= 20% of every active pair's current gap
     constexpr Float eta = 0.2;
@@ -565,7 +609,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     SizeT n_pt = PTs.size(), n_ee = EEs.size(), n_pe = PEs.size(), n_pp = PPs.size();
     SizeT total = n_pt + n_ee + n_pe + n_pp;
     if(total == 0)
-        return 1.0;
+        return;
 
     feasible_tois.resize_discard(total);
     SizeT off = 0;
@@ -574,7 +618,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PT_kernel;
         int  n = (int)n_pt;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PTs, positions, displacements, thicknesses, feasible_tois.view(off, n_pt), eta, n);
     }
     off += n_pt;
@@ -583,7 +627,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_EE_kernel;
         int  n = (int)n_ee;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             EEs, positions, displacements, thicknesses, feasible_tois.view(off, n_ee), eta, n);
     }
     off += n_ee;
@@ -592,7 +636,7 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PE_kernel;
         int  n = (int)n_pe;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PEs, positions, displacements, thicknesses, feasible_tois.view(off, n_pe), eta, n);
     }
     off += n_pe;
@@ -601,13 +645,16 @@ Float GlobalContactManager::Impl::compute_feasible_step()
     {
         auto k = compute_feasible_step_PP_kernel;
         int  n = (int)n_pp;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, stream>>>(
             PPs, positions, displacements, thicknesses, feasible_tois.view(off, n_pp), eta, n);
     }
 
-    cuda_tool::DeviceReduce().Min(feasible_tois.data(), min_feasible_toi.data(), total);
-    Float h_min = min_feasible_toi;
-    return h_min < 1.0 ? h_min : 1.0;
+    min_feasible_toi.resize_discard(1);
+    cuda_tool::DeviceReduce(stream).Min(
+        feasible_tois.data(), min_feasible_toi.device_data(), total);
+    min_feasible_toi.enqueue_copy(stream);
+    feasible_stream  = stream;
+    feasible_pending = true;
 }
 
 }  // namespace uipc::backend::cuda
@@ -623,6 +670,7 @@ cuda_tool::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInf
 S<cuda_tool::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
     S<cuda_tool::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
 {
+    ++m_impl->contact_tabular_version;
     return std::exchange(m_impl->contact_tabular, new_buffer);
 }
 
@@ -634,6 +682,16 @@ Float GlobalContactManager::compute_cfl_condition()
 Float GlobalContactManager::compute_feasible_step()
 {
     return m_impl.compute_feasible_step();
+}
+
+void GlobalContactManager::launch_feasible_step(cudaStream_t stream)
+{
+    m_impl.launch_feasible_step(stream);
+}
+
+Float GlobalContactManager::finish_feasible_step()
+{
+    return m_impl.finish_feasible_step();
 }
 
 
@@ -649,6 +707,8 @@ void GlobalContactManager::compute_adaptive_parameters()
 
     auto info = AdaptiveParameterInfo(&m_impl);
     m_impl.adaptive_contact_parameter_reporter->compute_parameters(info);
+    // The reporter may have written new coefficients.
+    ++m_impl.contact_tabular_version;
 }
 
 Float GlobalContactManager::d_hat() const
@@ -696,6 +756,11 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
 cuda_tool::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
     return m_impl.contact_tabular->view();
+}
+
+SizeT GlobalContactManager::contact_tabular_version() const noexcept
+{
+    return m_impl.contact_tabular_version;
 }
 
 }  // namespace uipc::backend::cuda

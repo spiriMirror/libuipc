@@ -72,6 +72,10 @@ and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
 for both fold signs and rigid transforms. No additional coefficient or derivative
 mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
 
+Test follow-up (2026-10-18): the lifetime of a temporary in the LBVH CPU
+point-query oracle was corrected in the test only; see `handoff.md`. This does
+not settle unrelated audit findings or establish a speedup.
+
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
 temporary reads that corrupted topology or raised spurious vertex-range errors,
@@ -307,6 +311,35 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
    conservative swept test — tightening it needs a provably conservative
    exact swept-distance predicate, more delicate.
+   **2026-10-27**: the PT and EE DCD predicates first reject pairs whose
+   conservative FP32 distance bound (`utils/distance/float_lower_bound.h`)
+   clearly exceeds `d_hat + thickness`; see doc 05. The PT and EE trajectory
+   predicates first reject pairs that stay apart for the whole step and that
+   ACCD would not hit (`utils/distance/swept_lower_bound.h`); the ACCD guard
+   constant `kAccd` assumes `large_enough_toi == 1.1` and `eta <= 0.1`, which
+   no compile-time check ties together yet. The EE and PT queries start only
+   from a vertex cover of the contact tabular (doc 05); the cover is recomputed
+   when the tabular buffer pointer, its size or a primitive count changes, not
+   when its contents are edited in place, which the backend does not do (the
+   mask tabular and the contact ids are fixed at `World::init`, doc 05). A frame skips the pre-Newton DCD pass
+   while the vertex positions equal those of the previous frame's last
+   line-search trial (doc 05); a future path that edits thickness, `d_hat`,
+   contact ids or tabulars at runtime without moving vertices must call
+   `GlobalTrajectoryFilter::require_discard_friction()` (or otherwise drop the
+   recorded active set). Between BVH refreshes the trajectory filter judges
+   stored pairs (doc 05); it trusts the topology-rebuild signal of every
+   frame's first detect for changed contact ids, masks or topology (the Newton
+   loop itself only refits, so that signal now comes once per frame). The
+   cover split, however, is made once per cover set and kept across those
+   signals, so a feature that changes contact ids at runtime must also clear
+   `cover_split_ready` (doc 05). Newton
+   iterations `k > 0` keep the trajectory candidates while every vertex stays
+   inside the detection skin of their swept segments (doc 05); that argument
+   needs the skin at most `d_hat / 2` and the per-primitive box expansion to
+   keep its pair `d_hat` of slack over the leaf tests, so a change to either
+   must revisit `GlobalTrajectoryFilter::reuse_candidates`. The filter's Other
+   queries run the warp-cooperative traversal (doc 05); the EE self-join used
+   when the cover is not usable still runs the per-lane Self kernel.
 3. ~~SNH/FEM assembly kernel throughput~~ **DONE (2026-08-24)**: the SNH
    constitution was replaced wholesale by Stiff-GIPC's SNK1 (their energy
    `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, their gradient, and their analytic
