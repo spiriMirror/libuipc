@@ -16,6 +16,20 @@ Newton iteration assembles the global system, solves it with PCG, limits the
 step for contact, performs backtracking line search, and then asks every active
 tolerance checker whether it converged.
 
+The line search accepts the first trial whose total energy does not exceed the
+energy at the start of the step, halving the step after each rejected trial.
+With `line_search/cubic_refinement = 1` (default `0`), a step accepted after
+at least one rejection is refined once: the solver evaluates the minimizer of
+the cubic that interpolates the start energy, the energy slope `g.dx` along
+the Newton step and the energies of the last rejected and the accepted trial,
+when that minimizer lies between 5% of the rejected step and the rejected step
+and differs from the accepted step by more than 25%, and keeps whichever of the
+two trials has the lower energy. The refinement runs only while at least two
+of the `line_search/max_iter` trials remain. It changes which step is
+accepted, so trajectories differ from the default. Only the standard IPC
+pipeline refines; with `contact/constitution = "al-ipc"` the key has no effect
+and a warning is logged.
+
 Ordinary termination requires all applicable checks to pass:
 
 1. animation targets have been reached;
@@ -111,6 +125,19 @@ The FEM local preconditioner is independent of the global solver selector:
 MAS affects FEM degrees of freedom only. ABD and other subsystems keep their
 own preconditioners, so mixed ABD/FEM scenes can enable MAS safely for the FEM
 portion.
+
+Every Newton iteration assembles fresh preconditioners by default.
+`linear_system/keep_preconditioner = 1` lets every odd iteration from the
+third on reuse the preconditioners of the previous iteration. This saves their
+assembly time but is not accuracy-neutral. PCG stops when `|r^T z|` has
+fallen by `tol_rate` relative to its start, and both values are measured in
+the norm of the preconditioner. A one-step-old preconditioner changes that
+threshold: the solve can stop while the step of the freely moving bodies is
+still about zero, Newton's displacement test then passes and the frame ends
+early. The scene loses momentum (falling bodies fall too slowly, stacked or
+swinging bodies lose kinetic energy) although every frame converges. The key
+applies to the standard `ipc` pipeline only; keep it at `0` unless a scene
+has been checked to move the same with both values.
 
 ## CUDA graph modes
 

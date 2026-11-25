@@ -3,6 +3,12 @@ target("backend_cuda")
     add_rules("uipc_test")
     add_deps("cuda")
     add_files("**.cu", "**.cpp")
+    -- parity with CMakeLists.txt: the tests under internals/ link against
+    -- symbols of the CUDA backend library itself, which the backend DLL on
+    -- Windows does not export, so Windows builds leave them out.
+    if is_plat("windows") then
+        remove_files("internals/**")
+    end
     if has_config("dev") then
         add_rules("clangd")
     end
@@ -16,6 +22,9 @@ target("backend_cuda")
     -- use cuda_tool launch/dense math (needs extended lambdas + relaxed
     -- constexpr), and CUDA >= 13 CCCL requires the conforming MSVC preprocessor.
     add_cuflags("--extended-lambda", "--expt-relaxed-constexpr")
+    -- parity with CMakeLists.txt: the tests include CUDA backend
+    -- implementation headers, which include <backends/common/...> from src/.
+    add_includedirs(path.join(os.projectdir(), "src"))
     if is_plat("windows") then
         add_cuflags("-Xcompiler=/Zc:preprocessor")
     end

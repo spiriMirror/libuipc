@@ -1,4 +1,33 @@
+/*
+ * NVIDIA contributions: fused sparse-matrix/vector multiplication and
+ * dot-product launch paths; the device triplet-count guard that skips warps
+ * past the live triplets, the unit-scale specialization, one segment analysis
+ * per warp with a shared diagonal/off-diagonal dot path, and 128-thread
+ * blocks.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <linear_system/spmv.h>
+#include <algorithm/fast_segmental_reduce.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
 #include <cub/warp/warp_reduce.cuh>
@@ -38,6 +67,15 @@ struct Flags
 
 namespace
 {
+    // Four warps per block, each still reducing its own 32 triplets: the
+    // grid covers the BCOO capacity, so a call with nothing to do (the
+    // pipelined no-op slot) schedules a quarter of the blocks; the dot and y
+    // atomics keep their addends and only arrive in another order.
+    constexpr int RbkSymSpmvDotBlockDim = 128;
+    static_assert(RbkSymSpmvDotBlockDim >= 32);
+    static_assert(RbkSymSpmvDotBlockDim <= 1024);
+    static_assert(RbkSymSpmvDotBlockDim % 32 == 0);
+
     // y = b * y, shared by sym_spmv / rbk_spmv / rbk_sym_spmv / rbk_sym_spmv_dot
     __global__ void Spmv_scale_y_kernel(Float b, cuda_tool::DenseVectorView<Float> y, int n)
     {
@@ -342,28 +380,90 @@ namespace
         }
     }
 
+    // Head-segmented warp sums of the three components of v, each with
+    // exactly the additions of CUB's WarpReduce<Float, 32>::HeadSegmentedReduce
+    // (shuffle variant): at offsets 1, 2, 4, 8 and 16 a lane adds the value of
+    // lane + offset when that lane is in its segment. No lane adds anything at
+    // an offset of at least the warp's longest segment, so those steps are
+    // skipped (warp-uniformly; rows of the BCOO upper triangle are a few
+    // blocks long, so usually the last one or two of the five). One loop
+    // serves the three components, so their shuffle-add chains interleave.
+    __device__ __forceinline__ void spmv_segmented_sum(Vector3& v,
+                                                       const cuda_tool::WarpHeadSegments& seg,
+                                                       int lane_id)
+    {
+#pragma unroll
+        for(int offset = 1; offset < 32; offset <<= 1)
+        {
+            if(offset >= seg.max_len)
+                break;
+            const Float ox = __shfl_down_sync(0xffffffffu, v.x(), offset);
+            const Float oy = __shfl_down_sync(0xffffffffu, v.y(), offset);
+            const Float oz = __shfl_down_sync(0xffffffffu, v.z(), offset);
+            if(offset + lane_id <= seg.last_lane)
+            {
+                v.x() = v.x() + ox;
+                v.y() = v.y() + oy;
+                v.z() = v.z() + oz;
+            }
+        }
+    }
+
+    // UnitScale: the caller passes a == 1 (the fused PCG always does). The
+    // kernel then skips every multiplication by a (13 of the about 55 FP64
+    // instructions of an off-diagonal triplet; GB20x runs FP64 at 1:64 and
+    // this kernel is FP64-bound). Multiplying by 1 is exact, so the results
+    // are bitwise those of the general kernel with a == 1.
+    template <bool Pipelined, bool UnitScale>
     __global__ void Spmv_rbk_sym_spmv_dot_kernel(Float a,
                                                  cuda_tool::CBCOOMatrixView<Float, 3> A,
                                                  cuda_tool::CDenseVectorView<Float> x,
                                                  cuda_tool::DenseVectorView<Float> y,
                                                  cuda_tool::Dense<Float> d_dot,
-                                                 cuda_tool::CDense<IndexT> d_triplet_count)
+                                                 cuda_tool::CDense<IndexT> d_triplet_count,
+                                                 Float*        next_y,
+                                                 int           next_y_size,
+                                                 Float*        next_dot,
+                                                 const IndexT* converged)
     {
+        auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
+        auto thread_id_in_block = threadIdx.x;
+
         // count lives on device: a graph capturing this kernel then stays
         // valid when the matrix nnz changes within the reserved capacity
-        const int     triplet_count = (int)(*d_triplet_count);
-        constexpr int warp_size     = 32;
-        constexpr int block_dim     = 256;
-        constexpr int N             = 3;
-        using T                     = Float;
+        // (read together with the converged flag)
+        const int triplet_count = (int)(*d_triplet_count);
+        if constexpr(Pipelined)
+        {
+            // Every thread observes the same stream-ordered scalar. Returning
+            // here is therefore uniform across the block and cannot strand a
+            // later collective.
+            if(*converged != 0)
+                return;
+
+            for(int i = global_thread_id; i < next_y_size;
+                i += gridDim.x * blockDim.x)
+                next_y[i] = Float{0};
+            if(global_thread_id == 0)
+                *next_dot = Float{0};
+        }
+
+        constexpr int warp_size = 32;
+
+        // The grid covers the capacity, which can be several times the live
+        // count. A warp wholly past the count writes nothing, so it leaves
+        // here (warp-uniform) instead of running the FP64 warp reductions.
+        if((int)(global_thread_id & ~(warp_size - 1u)) >= triplet_count)
+            return;
+        constexpr int block_dim = RbkSymSpmvDotBlockDim;
+        constexpr int N         = 3;
+        using T                 = Float;
 
         using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
         using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
 
-        auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
-        auto thread_id_in_block = threadIdx.x;
-        auto warp_id            = thread_id_in_block / warp_size;
-        auto lane_id            = thread_id_in_block & (warp_size - 1);
+        auto warp_id = thread_id_in_block / warp_size;
+        auto lane_id = thread_id_in_block & (warp_size - 1);
 
         __shared__ union
         {
@@ -401,16 +501,24 @@ namespace
 
             flags.is_valid = 1;
 
-            if(i == j)
-            {
-                dot_local = a * x_j.dot(vec);
-            }
+            // One dot path for diagonal and off-diagonal blocks, so a warp
+            // holding both issues it once: x_i is x_j on the diagonal, and
+            // the factor (1 or 2, times a) is exact, so every lane gets the
+            // bits of its former branch (x_j.dot(vec) times a, or
+            // 2 * a * x_i.dot(vec)).
+            Eigen::Vector<T, N> x_i = x.segment<N>(i * N).as_eigen();
+            if constexpr(UnitScale)
+                dot_local = (i == j ? T{1} : T{2}) * x_i.dot(vec);
             else
-            {
-                Eigen::Vector<T, N> x_i = x.segment<N>(i * N).as_eigen();
-                dot_local               = 2.0 * a * x_i.dot(vec);
+                dot_local = (i == j ? a : T{2} * a) * x_i.dot(vec);
 
-                Vector3 vec_ = a * vals[global_thread_id].transpose() * x_i;
+            if(i != j)
+            {
+                Vector3 vec_;
+                if constexpr(UnitScale)
+                    vec_ = vals[global_thread_id].transpose() * x_i;
+                else
+                    vec_ = a * vals[global_thread_id].transpose() * x_i;
                 y.segment<N>(j * N).atomic_add(vec_);
             }
 
@@ -420,46 +528,23 @@ namespace
                 flags.is_head = b2i(prev_i != i);
         }
 
-        vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
-                      .HeadSegmentedReduce(vec.x(),
-                                           flags.is_head,
-                                           [](Float a, Float b) { return a + b; });
-
-        vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
-                      .HeadSegmentedReduce(vec.y(),
-                                           flags.is_head,
-                                           [](Float a, Float b) { return a + b; });
-
-        vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
-                      .HeadSegmentedReduce(vec.z(),
-                                           flags.is_head,
-                                           [](Float a, Float b) { return a + b; });
+        const cuda_tool::WarpHeadSegments segments =
+            cuda_tool::warp_head_segments(flags.is_head, lane_id);
+        spmv_segmented_sum(vec, segments, lane_id);
 
         if(flags.is_head && flags.is_valid)
         {
-            auto seg_y  = y.segment<N>(i * N);
-            auto result = a * vec;
-            seg_y.atomic_add(result.eval());
+            auto seg_y = y.segment<N>(i * N);
+            if constexpr(UnitScale)
+                seg_y.atomic_add(vec);
+            else
+                seg_y.atomic_add((a * vec).eval());
         }
 
         dot_local = WarpReduceFloat(temp_storage_float[warp_id]).Sum(dot_local);
 
-        // two-level reduction: one atomicAdd per BLOCK, not per warp —
-        // ~9k same-address atomic doubles serialized ~20-30us per call
-        __shared__ Float s_dot_partials[block_dim / warp_size];
-        if(lane_id == 0)
-            s_dot_partials[warp_id] = dot_local;
-        __syncthreads();
-        if(thread_id_in_block < warp_size)
-        {
-            Float partial = (thread_id_in_block < block_dim / warp_size) ?
-                                s_dot_partials[thread_id_in_block] :
-                                Float{0};
-            __syncwarp();
-            partial = WarpReduceFloat(temp_storage_float[0]).Sum(partial);
-            if(thread_id_in_block == 0)
-                atomicAdd(d_dot.data(), partial);
-        }
+        if(lane_id == 0 && dot_local != Float{0})
+            atomicAdd(d_dot.data(), dot_local);
     }
 }  // namespace
 
@@ -580,13 +665,54 @@ void Spmv::rbk_sym_spmv_dot(Float                                a,
     // grid covers the reserved capacity: blocks beyond the current
     // (device-side) count exit through the is_valid guard with zero work,
     // so the launch shape need not change when the count does
-    constexpr int block_dim = 256;
+    constexpr int block_dim = RbkSymSpmvDotBlockDim;
     int block_count = (int)((triplet_capacity + block_dim - 1) / block_dim);
 
     if(block_count > 0)
     {
-        Spmv_rbk_sym_spmv_dot_kernel<<<block_count, block_dim, 0, stream>>>(
-            a, A, x, y, d_dot.viewer(), d_triplet_count);
+        // a == 1 (every fused PCG call) takes the kernel without the scale
+        // multiplications; it computes bitwise the same y and dot.
+        auto kernel = a == Float{1} ? Spmv_rbk_sym_spmv_dot_kernel<false, true> :
+                                      Spmv_rbk_sym_spmv_dot_kernel<false, false>;
+        kernel<<<block_count, block_dim, 0, stream>>>(
+            a, A, x, y, d_dot.viewer(), d_triplet_count, nullptr, 0, nullptr, nullptr);
+    }
+}
+
+void Spmv::rbk_sym_spmv_dot_pipelined(Float                                a,
+                                      cuda_tool::CBCOOMatrixView<Float, 3> A,
+                                      cuda_tool::CDenseVectorView<Float>   x,
+                                      cuda_tool::DenseVectorView<Float>    y,
+                                      cuda_tool::VarView<Float>         d_dot,
+                                      cuda_tool::DenseVectorView<Float> next_y,
+                                      cuda_tool::VarView<Float>   next_dot,
+                                      cuda_tool::CVarView<IndexT> converged,
+                                      cuda_tool::CDense<IndexT> d_triplet_count,
+                                      SizeT        triplet_capacity,
+                                      cudaStream_t stream)
+{
+    constexpr int block_dim = RbkSymSpmvDotBlockDim;
+    int block_count = (int)((triplet_capacity + block_dim - 1) / block_dim);
+
+    // Keep the clear contract valid for an empty-capacity matrix as well.
+    if(block_count == 0 && next_y.size() != 0)
+        block_count = 1;
+
+    if(block_count > 0)
+    {
+        // a == 1 (every fused PCG call): no scale multiplications, same bits
+        auto kernel = a == Float{1} ? Spmv_rbk_sym_spmv_dot_kernel<true, true> :
+                                      Spmv_rbk_sym_spmv_dot_kernel<true, false>;
+        kernel<<<block_count, block_dim, 0, stream>>>(a,
+                                                      A,
+                                                      x,
+                                                      y,
+                                                      d_dot.viewer(),
+                                                      d_triplet_count,
+                                                      next_y.data(),
+                                                      (int)next_y.size(),
+                                                      next_dot.data(),
+                                                      converged.data());
     }
 }
 

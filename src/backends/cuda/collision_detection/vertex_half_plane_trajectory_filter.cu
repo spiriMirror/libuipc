@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: TOI filtering on a launch stream and two-phase
+ * active-set filtering.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 namespace uipc::backend::cuda
@@ -61,11 +86,38 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
     logger::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
 }
 
+bool VertexHalfPlaneTrajectoryFilter::do_launch_filter_active(FilterActiveInfo& info)
+{
+    return false;
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(FilterActiveInfo& info)
+{
+    UIPC_ASSERT(false, "{} launched no two-phase filter_active", name());
+}
+
+bool VertexHalfPlaneTrajectoryFilter::do_launch_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    this_info.m_stream = info.stream();
+    return do_launch_filter_active(this_info);
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_finish_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    FilterActiveInfo this_info{&m_impl};
+    do_finish_filter_active(this_info);
+
+    logger::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
+}
+
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
 {
     FilterTOIInfo this_info{&m_impl};
-    this_info.m_alpha = info.alpha();
-    this_info.m_toi   = info.toi();
+    this_info.m_alpha     = info.alpha();
+    this_info.m_toi       = info.toi();
+    this_info.m_positions = info.positions();
+    this_info.m_stream    = info.stream();
     do_filter_toi(this_info);
 }
 
@@ -177,6 +229,16 @@ void VertexHalfPlaneTrajectoryFilter::FilterActiveInfo::PHs(cuda_tool::CBufferVi
 cuda_tool::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
+}
+
+cuda_tool::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::positions() const noexcept
+{
+    return m_positions;
+}
+
+cudaStream_t VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::stream() const noexcept
+{
+    return m_stream;
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_clear_friction_candidates()

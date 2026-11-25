@@ -1,8 +1,34 @@
+/*
+ * NVIDIA contributions: cached constant joint Hessians, side-stream launches
+ * and one-warp launch shapes.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/inter_affine_body_constitution.h>
 #include <affine_body/constitutions/affine_body_fixed_joint_function.h>
 #include <uipc/builtin/attribute_name.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
+#include <limits>
 
 namespace uipc::backend::cuda
 {
@@ -72,6 +98,8 @@ namespace
         cuda_tool::CBufferView<Vector12>            qs,
         cuda_tool::DoubletVectorView<Float, 12>     G12s,
         cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+        cuda_tool::BufferView<Float>                cached_kappas,
+        cuda_tool::BufferView<Matrix24x24>          cached_hessians,
         bool                                        gradient_only,
         SizeT                                       HalfHessianSize,
         int                                         n)
@@ -135,31 +163,47 @@ namespace
 
         if(!gradient_only)
         {
-            Matrix9x9 ddEdFr_val;
-            FJ::ddEdFr(ddEdFr_val, kappa, Fr_val);
-            make_spd(ddEdFr_val);
+            // Fr and Ft are linear in q and the energies quadratic in them, so
+            // the Hessian depends only on kappa and the rest frames. It is
+            // computed once and replayed while kappa is unchanged; do_init,
+            // the only writer of the rest frames, clears the cache.
+            Matrix24x24 H;
+            if(cached_kappas(I) == kappa)
+            {
+                H = cached_hessians(I);
+            }
+            else
+            {
+                Matrix9x9 ddEdFr_val;
+                FJ::ddEdFr(ddEdFr_val, kappa, Fr_val);
+                make_spd(ddEdFr_val);
 
-            Matrix24x24 JrT_Hr_Jr_val;
-            FJ::JrT_Hr_Jr<Float>(JrT_Hr_Jr_val,
-                                 ddEdFr_val,
-                                 rest_t.segment<3>(0),
-                                 rest_n.segment<3>(0),
-                                 rest_b.segment<3>(0),
-                                 qi,
-                                 rest_t.segment<3>(3),
-                                 rest_n.segment<3>(3),
-                                 rest_b.segment<3>(3),
-                                 qj);
+                Matrix24x24 JrT_Hr_Jr_val;
+                FJ::JrT_Hr_Jr<Float>(JrT_Hr_Jr_val,
+                                     ddEdFr_val,
+                                     rest_t.segment<3>(0),
+                                     rest_n.segment<3>(0),
+                                     rest_b.segment<3>(0),
+                                     qi,
+                                     rest_t.segment<3>(3),
+                                     rest_n.segment<3>(3),
+                                     rest_b.segment<3>(3),
+                                     qj);
 
-            Matrix3x3 ddEdFt_val;
-            FJ::ddEdFt(ddEdFt_val, kappa, Ft_val);
-            make_spd(ddEdFt_val);
+                Matrix3x3 ddEdFt_val;
+                FJ::ddEdFt(ddEdFt_val, kappa, Ft_val);
+                make_spd(ddEdFt_val);
 
-            Matrix24x24 JtT_Ht_Jt_val;
-            FJ::JtT_Ht_Jt<Float>(
-                JtT_Ht_Jt_val, ddEdFt_val, rest_c.segment<3>(0), rest_c.segment<3>(3));
+                Matrix24x24 JtT_Ht_Jt_val;
+                FJ::JtT_Ht_Jt<Float>(JtT_Ht_Jt_val,
+                                     ddEdFt_val,
+                                     rest_c.segment<3>(0),
+                                     rest_c.segment<3>(3));
 
-            Matrix24x24            H = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
+                H                  = JrT_Hr_Jr_val + JtT_Ht_Jt_val;
+                cached_hessians(I) = H;
+                cached_kappas(I)   = kappa;
+            }
             TripletMatrixAssembler TMA{H12x12s};
             TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
         }
@@ -182,15 +226,20 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
     cuda_tool::DeviceBuffer<Vector6> rest_bs;  // b_bar in body space
     cuda_tool::DeviceBuffer<Float>   strength_ratios;
 
+    using Vector24    = Vector<Float, 24>;
+    using Matrix24x24 = Matrix<Float, 24, 24>;
+
+    // Hessian cache: the kappa each joint's Hessian was computed with (NaN
+    // until the first Hessian evaluation) and that Hessian.
+    cuda_tool::DeviceBuffer<Float>       cached_kappas;
+    cuda_tool::DeviceBuffer<Matrix24x24> cached_hessians;
+
     vector<Vector2i> h_body_ids;
     vector<Vector6>  h_rest_cs;
     vector<Vector6>  h_rest_ts;
     vector<Vector6>  h_rest_ns;
     vector<Vector6>  h_rest_bs;
     vector<Float>    h_strength_ratios;
-
-    using Vector24    = Vector<Float, 24>;
-    using Matrix24x24 = Matrix<Float, 24, 24>;
 
     void do_build(BuildInfo& info) override
     {
@@ -302,6 +351,10 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
         rest_ns.copy_from(h_rest_ns);
         rest_bs.copy_from(h_rest_bs);
         strength_ratios.copy_from(h_strength_ratios);
+
+        cached_kappas.resize_discard(h_body_ids.size());
+        cached_kappas.fill(std::numeric_limits<Float>::quiet_NaN());
+        cached_hessians.resize_discard(h_body_ids.size());
     }
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
@@ -315,7 +368,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_fixed_joint_compute_energy_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),
@@ -344,7 +397,7 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_fixed_joint_compute_gradient_hessian_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),
@@ -355,6 +408,8 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
                 info.qs(),
                 info.gradients(),
                 info.hessians(),
+                cached_kappas.view(),
+                cached_hessians.view(),
                 gradient_only,
                 HalfHessianSize,
                 n);

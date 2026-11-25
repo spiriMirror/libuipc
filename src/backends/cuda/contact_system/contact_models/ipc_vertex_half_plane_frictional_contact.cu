@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: assembly and energy launches on the provided streams.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/vertex_half_plane_frictional_contact.h>
 #include <implicit_geometry/half_plane.h>
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
@@ -136,20 +160,20 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                 cuda_tool::best_grid_dim((int)info.friction_PHs().size(), do_compute_energy_kernel),
                 cuda_tool::best_block_dim(do_compute_energy_kernel),
                 0,
-                nullptr>>>(info.energies().viewer(),
-                           info.friction_PHs().viewer(),
-                           half_plane->positions().viewer(),
-                           half_plane->normals().viewer(),
-                           info.contact_tabular().viewer(),
-                           info.contact_element_ids().viewer(),
-                           info.positions().viewer(),
-                           info.prev_positions().viewer(),
-                           info.thicknesses().viewer(),
-                           info.eps_velocity(),
-                           info.d_hats().viewer(),
-                           info.half_plane_vertex_offset(),
-                           info.dt(),
-                           (int)info.friction_PHs().size());
+                info.stream()>>>(info.energies().viewer(),
+                                 info.friction_PHs().viewer(),
+                                 half_plane->positions().viewer(),
+                                 half_plane->normals().viewer(),
+                                 info.contact_tabular().viewer(),
+                                 info.contact_element_ids().viewer(),
+                                 info.positions().viewer(),
+                                 info.prev_positions().viewer(),
+                                 info.thicknesses().viewer(),
+                                 info.eps_velocity(),
+                                 info.d_hats().viewer(),
+                                 info.half_plane_vertex_offset(),
+                                 info.dt(),
+                                 (int)info.friction_PHs().size());
     }
 
     virtual void do_assemble(ContactInfo& info) override
@@ -163,22 +187,22 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                                      (int)info.friction_PHs().size(), do_assemble_kernel),
                                  cuda_tool::best_block_dim(do_assemble_kernel),
                                  0,
-                                 nullptr>>>(info.gradient_only(),
-                                            info.gradients().viewer(),
-                                            info.hessians().viewer(),
-                                            info.friction_PHs().viewer(),
-                                            half_plane->positions().viewer(),
-                                            half_plane->normals().viewer(),
-                                            info.contact_tabular().viewer(),
-                                            info.contact_element_ids().viewer(),
-                                            info.positions().viewer(),
-                                            info.prev_positions().viewer(),
-                                            info.thicknesses().viewer(),
-                                            info.eps_velocity(),
-                                            info.d_hats().viewer(),
-                                            info.half_plane_vertex_offset(),
-                                            info.dt(),
-                                            (int)info.friction_PHs().size());
+                                 info.stream()>>>(info.gradient_only(),
+                                                  info.gradients().viewer(),
+                                                  info.hessians().viewer(),
+                                                  info.friction_PHs().viewer(),
+                                                  half_plane->positions().viewer(),
+                                                  half_plane->normals().viewer(),
+                                                  info.contact_tabular().viewer(),
+                                                  info.contact_element_ids().viewer(),
+                                                  info.positions().viewer(),
+                                                  info.prev_positions().viewer(),
+                                                  info.thicknesses().viewer(),
+                                                  info.eps_velocity(),
+                                                  info.d_hats().viewer(),
+                                                  info.half_plane_vertex_offset(),
+                                                  info.dt(),
+                                                  (int)info.friction_PHs().size());
         }
     }
 

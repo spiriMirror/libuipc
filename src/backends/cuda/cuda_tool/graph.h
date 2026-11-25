@@ -1,3 +1,29 @@
+/*
+ * NVIDIA contributions: non-blocking graph launches, in-place recapture, the
+ * WHILE-loop launch, the invalidated-capture fallback and shared stream and
+ * instantiation helpers.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 // ---------------------------------------------------------------------------
 // Minimal CUDA-graph block capture/replay helper (host-side only).
@@ -25,16 +51,88 @@
 // Contract / traps (see agent_docs/08):
 //  - everything the graph consumes must be launched on the stream handed to
 //    the capture body; a legacy-default-stream launch inside the body
-//    invalidates the capture (reported as Result::CaptureInvalidated).
+//    invalidates the capture (reported as Result::CaptureInvalidated). So
+//    does a body that throws after such an invalidation (a later checked
+//    call on a captured stream fails, e.g. SideStreams::join's event
+//    record): capture() ends the capture first, so no stream is left
+//    capturing. Other exceptions propagate once the capture is ended.
 //  - kernel arguments are baked at capture time, including by-value counts
 //    inside views — the caller must key validity on anything that can change.
 //  - no host-side reads of the captured region's outputs during capture.
 // ---------------------------------------------------------------------------
 #include <cuda_runtime.h>
 #include <string>
+#include <utility>
 
 namespace uipc::backend::cuda_tool
 {
+namespace details
+{
+    // Capture and launch streams are blocking on purpose. A callee that
+    // launches into the legacy default stream during a capture then
+    // INVALIDATES the capture (the automatic fallback signal); with a
+    // non-blocking capture stream such kernels would silently EXECUTE during
+    // capture and be missing from the graph, and the replayed graph would
+    // run the solver with the preconditioner frozen at its capture-time
+    // output (this produced false PCG convergence on MAS scenes). A replay
+    // on a blocking launch stream is ordered with the legacy stream.
+    inline void create_blocking_stream(cudaStream_t& stream)
+    {
+        if(!stream)
+            cudaStreamCreateWithFlags(&stream, cudaStreamDefault);
+    }
+
+    inline void destroy_stream(cudaStream_t& stream)
+    {
+        if(stream)
+        {
+            cudaStreamDestroy(stream);
+            stream = nullptr;
+        }
+    }
+
+    // cudaGraphInstantiateWithFlags from CUDA 11.4 on, the legacy 5-argument
+    // cudaGraphInstantiate before.
+    inline cudaError_t instantiate(cudaGraphExec_t* exec, cudaGraph_t graph)
+    {
+#if CUDART_VERSION >= 11040
+        return cudaGraphInstantiateWithFlags(exec, graph, 0);
+#else
+        return cudaGraphInstantiate(exec, graph, nullptr, nullptr, 0);
+#endif
+    }
+
+    // Runs a capture body on `stream`. If it throws, the capture is ended
+    // here, which takes every stream that joined it out of capture mode.
+    // Returns false when the capture had been invalidated before the throw:
+    // a callee escaped the capture stream and a later checked call on a
+    // captured stream failed. The caller then reports a failed capture, as
+    // when cudaStreamEndCapture detects the invalidation. Other exceptions
+    // are rethrown. `graph` receives the graph cudaStreamEndCapture returns
+    // (nullptr for a capture into an existing graph).
+    template <typename F>
+    bool run_capture_body(cudaStream_t stream, cudaGraph_t* graph, F&& body)
+    {
+        try
+        {
+            body();
+            return true;
+        }
+        catch(...)
+        {
+            cudaStreamCaptureStatus status = cudaStreamCaptureStatusNone;
+            if(cudaStreamIsCapturing(stream, &status) != cudaSuccess)
+                status = cudaStreamCaptureStatusActive;  // unknown: end it anyway
+            if(status != cudaStreamCaptureStatusNone)
+                cudaStreamEndCapture(stream, graph);
+            cudaGetLastError();
+            if(status != cudaStreamCaptureStatusInvalidated)
+                throw;
+            return false;
+        }
+    }
+}  // namespace details
+
 class GraphCapture
 {
   public:
@@ -64,15 +162,7 @@ class GraphCapture
 
         reset_graph();
 
-        if(!m_capture_stream)
-            // blocking on purpose: any callee launching into the legacy
-            // default stream during capture then INVALIDATES the capture
-            // (our automatic fallback signal). With a non-blocking capture
-            // stream, such kernels would silently EXECUTE during capture and
-            // be missing from the graph — the replayed graph would run the
-            // solver with the preconditioner frozen at its capture-time
-            // output (this produced false PCG convergence on MAS scenes).
-            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamDefault);
+        details::create_blocking_stream(m_capture_stream);
 
         cudaError_t err =
             cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
@@ -82,7 +172,9 @@ class GraphCapture
             return fail(Result::BeginCaptureFailed);
         }
 
-        body(m_capture_stream);
+        if(!details::run_capture_body(
+               m_capture_stream, &m_graph, [&] { body(m_capture_stream); }))
+            return fail(Result::CaptureInvalidated);
 
         err = cudaStreamEndCapture(m_capture_stream, &m_graph);
         if(err != cudaSuccess || m_graph == nullptr)
@@ -92,11 +184,80 @@ class GraphCapture
             return fail(Result::CaptureInvalidated);
         }
 
-#if CUDART_VERSION >= 11040
-        err = cudaGraphInstantiateWithFlags(&m_exec, m_graph, 0);
-#else
-        err = cudaGraphInstantiate(&m_exec, m_graph, nullptr, nullptr, 0);
+        err = details::instantiate(&m_exec, m_graph);
+        if(err != cudaSuccess)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::InstantiateFailed);
+        }
+        return Result::Ok;
+    }
+
+    // capture() for a graph whose launches may have changed: a new capture
+    // updates the instantiated graph in place (cudaGraphExecUpdate) when it
+    // has the same topology, which costs less than a new instantiation, and
+    // is instantiated otherwise. Without an instantiated graph it is
+    // capture(). Failures disable the instance as in capture(), and a body
+    // that throws on a valid capture leaves it as capture() does.
+    template <typename F>
+    Result recapture(F&& body)
+    {
+        if(m_disabled || !m_exec)
+            return capture(std::forward<F>(body));
+
+        cudaGraph_t graph = nullptr;
+        cudaError_t err =
+            cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
+        if(err != cudaSuccess)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::BeginCaptureFailed);
+        }
+        bool captured = false;
+        try
+        {
+            captured = details::run_capture_body(
+                m_capture_stream, &graph, [&] { body(m_capture_stream); });
+        }
+        catch(...)
+        {
+            // As in capture(): the instance keeps the graph of the ended
+            // capture (reset() frees it) and no instantiated graph, so
+            // ready() turns false and the stale graph cannot be replayed.
+            reset_graph();
+            m_graph = graph;
+            throw;
+        }
+        if(!captured)
+        {
+            if(graph)
+                cudaGraphDestroy(graph);
+            reset_graph();
+            return fail(Result::CaptureInvalidated);
+        }
+        err = cudaStreamEndCapture(m_capture_stream, &graph);
+        if(err != cudaSuccess || graph == nullptr)
+        {
+            cudaGetLastError();
+            reset_graph();
+            return fail(Result::CaptureInvalidated);
+        }
+
+#if CUDART_VERSION >= 12000
+        cudaGraphExecUpdateResultInfo info;
+        if(cudaGraphExecUpdate(m_exec, graph, &info) == cudaSuccess)
+        {
+            cudaGraphDestroy(m_graph);
+            m_graph = graph;
+            return Result::Ok;
+        }
+        cudaGetLastError();
 #endif
+        reset_graph();
+        m_graph = graph;
+        err     = details::instantiate(&m_exec, m_graph);
         if(err != cudaSuccess)
         {
             cudaGetLastError();
@@ -112,10 +273,17 @@ class GraphCapture
     // using a synchronous cudaMemcpy.)
     void launch_sync()
     {
-        if(!m_launch_stream)
-            cudaStreamCreateWithFlags(&m_launch_stream, cudaStreamDefault);
+        details::create_blocking_stream(m_launch_stream);
         cudaGraphLaunch(m_exec, m_launch_stream);
         cudaStreamSynchronize(m_launch_stream);
+    }
+
+    // Enqueue the captured graph on `stream` without waiting for it: it runs
+    // after the work enqueued on `stream` so far, and work enqueued on
+    // `stream` afterwards runs after it.
+    cudaError_t launch(cudaStream_t stream)
+    {
+        return cudaGraphLaunch(m_exec, stream);
     }
 
     bool ready() const { return m_exec != nullptr; }
@@ -139,16 +307,8 @@ class GraphCapture
     void reset()
     {
         reset_graph();
-        if(m_capture_stream)
-        {
-            cudaStreamDestroy(m_capture_stream);
-            m_capture_stream = nullptr;
-        }
-        if(m_launch_stream)
-        {
-            cudaStreamDestroy(m_launch_stream);
-            m_launch_stream = nullptr;
-        }
+        details::destroy_stream(m_capture_stream);
+        details::destroy_stream(m_launch_stream);
     }
 
   private:
@@ -238,15 +398,7 @@ class GraphWhile
         if(!runtime_supported())
             return fail(Result::Unsupported);
 
-        if(!m_capture_stream)
-            // blocking on purpose: any callee launching into the legacy
-            // default stream during capture then INVALIDATES the capture
-            // (our automatic fallback signal). With a non-blocking capture
-            // stream, such kernels would silently EXECUTE during capture and
-            // be missing from the graph — the replayed graph would run the
-            // solver with the preconditioner frozen at its capture-time
-            // output (this produced false PCG convergence on MAS scenes).
-            cudaStreamCreateWithFlags(&m_capture_stream, cudaStreamDefault);
+        details::create_blocking_stream(m_capture_stream);
 
         cudaError_t err;
         // 1) main graph + conditional handle first: both bodies bake the
@@ -267,7 +419,13 @@ class GraphWhile
             cudaGetLastError();
             return fail(Result::CaptureFailed);
         }
-        setup_body(m_capture_stream, handle);
+        if(!details::run_capture_body(m_capture_stream,
+                                      &m_setup_graph,
+                                      [&]
+                                      { setup_body(m_capture_stream, handle); }))
+            return fail(Result::CaptureFailed,
+                        "setup chain threw on the invalidated capture",
+                        cudaErrorStreamCaptureInvalidated);
         err = cudaStreamEndCapture(m_capture_stream, &m_setup_graph);
         if(err != cudaSuccess || m_setup_graph == nullptr)
         {
@@ -311,20 +469,30 @@ class GraphWhile
             cudaGetLastError();
             return fail(Result::CaptureFailed);
         }
-        loop_body(m_capture_stream, handle);
+        // A failed capture into the conditional body leaves the main graph
+        // unsafe to destroy (CUDA 13.4: the body graph handle turns invalid
+        // and cudaGraphDestroy of the main graph crashes), so it is
+        // abandoned; this happens once, as the instance is then disabled.
+        if(!details::run_capture_body(m_capture_stream,
+                                      nullptr,
+                                      [&]
+                                      { loop_body(m_capture_stream, handle); }))
+        {
+            m_graph = nullptr;
+            return fail(Result::CaptureFailed,
+                        "loop body threw on the invalidated capture",
+                        cudaErrorStreamCaptureInvalidated);
+        }
         err = cudaStreamEndCapture(m_capture_stream, nullptr);
         if(err != cudaSuccess)
         {
             cudaGetLastError();
-            return fail(Result::CaptureFailed);
+            m_graph = nullptr;
+            return fail(Result::CaptureFailed, "cudaStreamEndCapture(loop body)", err);
         }
 
         // 5) instantiate
-#if CUDART_VERSION >= 11040
-        err = cudaGraphInstantiateWithFlags(&m_exec, m_graph, 0);
-#else
-        err = cudaGraphInstantiate(&m_exec, m_graph, nullptr, nullptr, 0);
-#endif
+        err = details::instantiate(&m_exec, m_graph);
         if(err != cudaSuccess)
         {
             cudaGetLastError();
@@ -337,11 +505,23 @@ class GraphWhile
 #endif
     }
 
+    // Enqueue the graph on the internal blocking stream without waiting for
+    // it: work enqueued afterwards on the legacy default stream waits for it,
+    // the host does not.
+    cudaError_t launch()
+    {
+        details::create_blocking_stream(m_launch_stream);
+        return cudaGraphLaunch(m_exec, m_launch_stream);
+    }
+
+    // Stream of launch() (null before the first launch).
+    cudaStream_t launch_stream() const { return m_launch_stream; }
+
     cudaError_t launch_sync()
     {
-        if(!m_launch_stream)
-            cudaStreamCreateWithFlags(&m_launch_stream, cudaStreamDefault);
-        cudaGraphLaunch(m_exec, m_launch_stream);
+        cudaError_t err = launch();
+        if(err != cudaSuccess)
+            return err;
         return cudaStreamSynchronize(m_launch_stream);
     }
 
@@ -373,16 +553,8 @@ class GraphWhile
     void reset()
     {
         reset_graph();
-        if(m_capture_stream)
-        {
-            cudaStreamDestroy(m_capture_stream);
-            m_capture_stream = nullptr;
-        }
-        if(m_launch_stream)
-        {
-            cudaStreamDestroy(m_launch_stream);
-            m_launch_stream = nullptr;
-        }
+        details::destroy_stream(m_capture_stream);
+        details::destroy_stream(m_launch_stream);
     }
 
   private:

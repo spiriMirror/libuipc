@@ -1,3 +1,30 @@
+/*
+ * NVIDIA contributions: interfaces for raw-entry distribution, side-stream
+ * assembly, batched count read-backs, the prelaunch hook and prelaunched
+ * energies; for the packed distribution, the hook after the leading assembly
+ * launches and the one-warp assembly-block count.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <sim_system.h>
 #include <energy_component_flags.h>
@@ -6,6 +33,7 @@
 #include <utils/offset_count_collection.h>
 #include <algorithm/matrix_converter.h>
 #include <dytopo_effect_system/dytopo_classify_info.h>
+#include <functional>
 
 namespace uipc::backend::cuda
 {
@@ -16,6 +44,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
+    ~GlobalDyTopoEffectManager() override;
 
     class Impl;
 
@@ -47,6 +76,10 @@ class GlobalDyTopoEffectManager final : public SimSystem
         {
             return m_hessians;
         }
+        // Stream for every launch of this reporter's assembly. Reporters
+        // write disjoint ranges, so each runs on its own side stream; one
+        // that keeps the legacy stream stays correct but runs serially.
+        cudaStream_t stream() const noexcept { return m_stream; }
 
 
       private:
@@ -54,6 +87,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
         bool                                   m_gradient_only = false;
         cuda_tool::DoubletVectorView<Float, 3> m_gradients;
         cuda_tool::TripletMatrixView<Float, 3> m_hessians;
+        cudaStream_t                           m_stream = nullptr;
     };
 
     class EnergyExtentInfo
@@ -67,20 +101,63 @@ class GlobalDyTopoEffectManager final : public SimSystem
         SizeT m_energy_count = 0;
     };
 
+    // The extent of a trial energy launched before the read-back of the
+    // trial's active-set counts (DyTopoEffectLineSearchReporter, see
+    // GlobalTrajectoryFilter::filter_active's before_sync): the count the
+    // energy will report, or, for an energy count that the pending
+    // filter_active completes on the device, an upper bound of it.
+    class PrelaunchEnergyExtentInfo
+    {
+      public:
+        void energy_count(SizeT count) noexcept { m_count = count; }
+        void pending_energy_count(SizeT capacity) noexcept
+        {
+            m_count   = capacity;
+            m_pending = true;
+        }
+
+      private:
+        friend class DyTopoEffectLineSearchReporter;
+        SizeT m_count   = 0;
+        bool  m_pending = false;
+    };
+
     class EnergyInfo
     {
       public:
+        explicit EnergyInfo(cuda_tool::SideStreams* side_streams = nullptr,
+                            cudaEvent_t             after = nullptr) noexcept
+            : m_stream(side_streams, after)
+        {
+        }
+
         cuda_tool::BufferView<Float> energies() const { return m_energies; }
         bool                         is_initial() const { return m_is_initial; }
+        // Stream for every launch of the reporter's energy.
+        cudaStream_t stream() const noexcept { return m_stream.get(); }
+        // Launched before the count read-back (the reporter reported a
+        // prelaunch extent): energies() spans the reported count, or the
+        // capacity of a pending count.
+        bool prelaunch() const noexcept { return m_prelaunch; }
+        // That launch computed this evaluation's energies already: the
+        // reporter only takes its ranges and launches nothing.
+        bool prelaunched() const noexcept { return m_prelaunched; }
 
       private:
         friend class DyTopoEffectLineSearchReporter;
         cuda_tool::BufferView<Float> m_energies;
-        bool                         m_is_initial = false;
+        bool                         m_is_initial  = false;
+        bool                         m_prelaunch   = false;
+        bool                         m_prelaunched = false;
+        cuda_tool::LazySideStream    m_stream;
     };
 
     using ClassifyInfo = DyTopoClassifyInfo;
 
+    // The raw assembled entries in the receiver's range, unsorted: the same
+    // vertex i or block (i, j) may appear several times, and a receiver must
+    // accumulate them (for example atomic gradient adds, or Hessian triplets
+    // that the global linear system's conversion sums).
     class ClassifiedDyTopoEffectInfo
     {
       public:
@@ -107,11 +184,26 @@ class GlobalDyTopoEffectManager final : public SimSystem
         {
             m_component_flags = v;
         }
+        // Called once the reporters' assembly kernels are launched and
+        // before the distribution synchronizes with them: work launched here
+        // is dispatched after the contact assembly and overlaps it.
+        void after_assembly_launch(std::function<void()> f) noexcept
+        {
+            m_after_assembly_launch = std::move(f);
+        }
+        // Called once the latency-bound assembly kernels (reporters with
+        // assembly blocks, launched first) are launched, before the others.
+        void after_leading_launch(std::function<void()> f) noexcept
+        {
+            m_after_leading_launch = std::move(f);
+        }
 
       private:
         friend class Impl;
-        bool                 m_gradient_only   = false;
-        EnergyComponentFlags m_component_flags = EnergyComponentFlags::All;
+        bool                  m_gradient_only   = false;
+        EnergyComponentFlags  m_component_flags = EnergyComponentFlags::All;
+        std::function<void()> m_after_assembly_launch;
+        std::function<void()> m_after_leading_launch;
     };
 
     class Impl
@@ -120,7 +212,6 @@ class GlobalDyTopoEffectManager final : public SimSystem
         void init(WorldVisitor& world);
         void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
         void _assemble(ComputeDyTopoEffectInfo& info);
-        void _convert_matrix();
         void _distribute(ComputeDyTopoEffectInfo& info);
 
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
@@ -143,9 +234,11 @@ class GlobalDyTopoEffectManager final : public SimSystem
         cuda_tool::DeviceTripletMatrix<Float, 3> collected_dytopo_effect_hessian;
         cuda_tool::DeviceDoubletVector<Float, 3> collected_dytopo_effect_gradient;
 
-        MatrixConverter<Float, 3>             matrix_converter;
-        cuda_tool::DeviceBCOOMatrix<Float, 3> sorted_dytopo_effect_hessian;
-        cuda_tool::DeviceBCOOVector<Float, 3> sorted_dytopo_effect_gradient;
+        // One side stream per reporter (up to a few): the reporters' assembly
+        // kernels write disjoint ranges of the collected buffers and overlap.
+        cuda_tool::SideStreams assembly_streams;
+        // the packed gradient selection (on a side stream) is complete
+        cudaEvent_t gradient_selected = nullptr;
 
         /***********************************************************************
         *                               Receiver                               *
@@ -153,9 +246,28 @@ class GlobalDyTopoEffectManager final : public SimSystem
 
         SimSystemSlotCollection<DyTopoEffectReceiver> dytopo_effect_receivers;
 
-        cuda_tool::DeviceVar<Vector2i>  gradient_range;
-        cuda_tool::DeviceBuffer<IndexT> selected_hessian;
-        cuda_tool::DeviceBuffer<IndexT> selected_hessian_offsets;
+        // Selection flags and their exclusive scans (one trailing element
+        // for the count), per receiver, so that every receiver's counts come
+        // back in one host synchronization.
+        struct ReceiverSelection
+        {
+            cuda_tool::DeviceBuffer<IndexT> gradient;
+            cuda_tool::DeviceBuffer<IndexT> gradient_offsets;
+            cuda_tool::DeviceBuffer<IndexT> hessian;
+            cuda_tool::DeviceBuffer<IndexT> hessian_offsets;
+        };
+        vector<ReceiverSelection> receiver_selections;
+        // packed selections of every receiver (_distribute_packed())
+        cuda_tool::DeviceBuffer<uint64_t> packed_gradient;
+        cuda_tool::DeviceBuffer<uint64_t> packed_gradient_offsets;
+        cuda_tool::DeviceBuffer<uint64_t> packed_hessian;
+        cuda_tool::DeviceBuffer<uint64_t> packed_hessian_offsets;
+        bool _distribute_packed(ComputeDyTopoEffectInfo& info);
+        vector<DyTopoClassifyInfo> receiver_classify_infos;
+        // gradient and Hessian count of receiver i at 2i and 2i + 1, stored
+        // by one gathering kernel (a read-back buffer: no copies on the
+        // mapped path)
+        cuda_tool::ReadbackBuffer<IndexT> receiver_selected_counts;
 
         vector<cuda_tool::DeviceTripletMatrix<Float, 3>> classified_dytopo_effect_hessians;
         vector<cuda_tool::DeviceDoubletVector<Float, 3>> classified_dytopo_effect_gradients;
@@ -173,10 +285,11 @@ class GlobalDyTopoEffectManager final : public SimSystem
         }
     };
 
-    cuda_tool::CBCOOVectorView<Float, 3> gradients() const noexcept;
-    cuda_tool::CBCOOMatrixView<Float, 3> hessians() const noexcept;
-
     void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
+
+    // One-warp blocks of the latency-bound assembly kernels the next
+    // compute_dytopo_effect() launches (DyTopoEffectReporter hints).
+    SizeT assembly_blocks();
 
   protected:
     virtual void do_build() override;
