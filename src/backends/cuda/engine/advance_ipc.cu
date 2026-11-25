@@ -734,9 +734,9 @@ void SimEngine::advance()
                                     }
                                     else
                                     {
-                                        // restore the accepted trial's state and
-                                        // active set; its energy is E
+                                        // Restore the accepted trial and its contact energies.
                                         step_to_trial(alpha, false);
+                                        last_E = m_line_searcher->compute_energy(false);
                                     }
                                     m_frame_last_line_search_alpha = alpha;
                                 }
