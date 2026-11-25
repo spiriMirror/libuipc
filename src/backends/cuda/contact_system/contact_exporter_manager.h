@@ -37,7 +37,7 @@ class ContactExporterManager final : public SimSystem
     friend class ContactExporter;
     void add_exporter(ContactExporter* exporter);
 
-    ContactExporter* find_exporter(std::string_view prim_type) const;
+    ContactExporter* prepare_export(std::string_view prim_type, geometry::Geometry& geo);
     void _create_prim_type_on_geo(std::string_view prim_type, geometry::Geometry& geo);
 };
 }  // namespace uipc::backend::cuda
