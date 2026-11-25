@@ -26,7 +26,7 @@ dependency building. Samples:
 
 - `libuipc-samples/examples/20_contact_system_feature/`
 - `libuipc-samples/examples/31_state_accessor_feature/`
-- `libuipc-samples/examples/40_distance_diagnoser/`
+- `libuipc-samples/examples/41_distance_diagnoser/`
 
 ## Sanity Checker Module
 
@@ -108,38 +108,36 @@ parametrized runtime coverage. See the dated inventory in doc 14.
 
 ## Sample Repository as Executable API Evidence
 
-`libuipc-samples/` is a tracked git submodule, not an untracked sibling. At the
-current revision it contains 54 directories under `examples/`. Numbering is
-historical: it is non-contiguous and `40_abd_four_box_revolute_chain` and
-`40_distance_diagnoser` intentionally share the numeric prefix. Use names and
-paths, not numeric uniqueness, in automation or documentation.
+`libuipc-samples/` is a tracked Git submodule with 54 example directories
+numbered 0 through 53. Automation uses the full example directory paths.
+Previous IDs 84–95 map to 42–53. The distance diagnosis example is 41.
 
 Representative map:
 
 | Need to understand | Start with |
 |---|---|
 | installation/backend smoke | `0_check_libuipc`, `1_hello_libuipc` |
-| animated FEM constraint | `3_periodically_pressed_tetrahedron`, `92_twisting_bar` |
+| animated FEM constraint | `3_periodically_pressed_tetrahedron`, `50_twisting_bar` |
 | affine rigid bodies and contact | `6_wrecking_balls`, `10_ramp_sliding` |
-| pure cloth | `11_bunny_cloth`, `34_cloth_stack`, `91_pinned_cloth` |
-| independent directional cloth stiffness | `95_anisotropic_cloth` (procedural biaxial comparison, GUI/headless validation) |
-| volumetric FEM | `3_periodically_pressed_tetrahedron`, `89_mas_bunny` |
+| pure cloth | `11_bunny_cloth`, `34_cloth_stack`, `49_pinned_cloth` |
+| independent directional cloth stiffness | `53_anisotropic_cloth` (procedural biaxial comparison, GUI/headless validation) |
+| volumetric FEM | `3_periodically_pressed_tetrahedron`, `47_mas_bunny` |
 | rods/codimension-one bending | `23_kirchoff_rod_bending` |
-| mixed ABD + FEM/cloth | `90_abd_fem_cube_stack`, `93_cube_wall_cloth` |
+| mixed ABD + FEM/cloth | `48_abd_fem_cube_stack`, `51_cube_wall_cloth` |
 | scene save/load | `14_load_scene` |
 | incremental scene commits | `15_scene_commit` (read doc 11 baseline/lifecycle contract first) |
 | geometry operations | `16_geometry_operation`, `27_compute_mesh_d_hat` |
 | joints/articulation | `17_affine_body_revolute_joint`, `18_pendulum_joint`, `33_external_articulation_constraint`, `38_*`, `39_*` |
 | contact pair materials | `14_load_scene` |
 | subscene collision filtering | `29_subscene` |
-| backend features/interoperability | `20_contact_system_feature`, `21_interop`, `31_state_accessor_feature`, `40_distance_diagnoser` |
-| URDF robot | `87_robot_hand` (manual posing), `94_robot_hand_grasp_apple` (scripted, four-finger physical pick/place) |
-| advanced solver config/performance alignment | `28_advanced_scene_config`, `88_stiff_gipc_benchmark`, `89`–`93` |
+| backend features/interoperability | `20_contact_system_feature`, `21_interop`, `31_state_accessor_feature`, `41_distance_diagnoser` |
+| URDF robot | `45_robot_hand` (manual posing), `52_robot_hand_grasp_apple` (scripted, four-finger physical pick/place) |
+| advanced solver config/performance alignment | `28_advanced_scene_config`, `46_stiff_gipc_benchmark`, `47`–`51` |
 
 Samples often include polyscope GUI loops. For CI or agent experiments, prefer a
 headless branch with a finite frame count, `advance/retrieve` pairing, and one
-small numerical assertion. Examples 6 and 88–94 already demonstrate this pattern.
-The root `benchmarks/manifest.json` promotes examples 6, 88, 89, and 93 as the
+small numerical assertion. Examples 6 and 46–52 already demonstrate this pattern.
+The root `benchmarks/manifest.json` promotes examples 6, 46, 47, 51, and 53 as the
 canonical cross-domain performance suite. Run them through
 `scripts/run_benchmark.py` so the sample submodule revision, canonical
 environment, full frame distribution, backend iteration counts, physical

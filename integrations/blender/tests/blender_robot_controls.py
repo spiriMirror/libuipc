@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 spiriMirror
-"""Actual sample-87 import: joint sliders, pose/keying, review and native bake."""
+"""Actual sample-45 import: joint sliders, pose/keying, review and native bake."""
 
 import argparse
 import importlib

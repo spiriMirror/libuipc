@@ -3,7 +3,7 @@
 """Export immutable benchmark inputs once; --measure reuses the saved source.
 
 Run in background Blender with -- --python <native-python> --output <fresh-dir>
-and optionally --urdf <sample-87 robot_hand.urdf>. See the integration guide.
+and optionally --urdf <sample-45 robot_hand.urdf>. See the integration guide.
 """
 import argparse
 import importlib

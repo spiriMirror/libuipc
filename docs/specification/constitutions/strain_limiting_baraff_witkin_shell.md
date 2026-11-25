@@ -163,7 +163,7 @@ incomplete; these are intended input domains, not a new validation guarantee.
   coefficients.
 
 See the [cloth tutorial](../../tutorial/cloth.md) and sample
-[`95_anisotropic_cloth`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/95_anisotropic_cloth)
+[`53_anisotropic_cloth`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/53_anisotropic_cloth)
 for API usage and a biaxial comparison.
 
 ## Attributes

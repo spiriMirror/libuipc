@@ -58,7 +58,7 @@ Single-run encoding checks under `output/blender-affine-08-native-{abd,hand}`
 compare every output vertex to the same native state within float32 cache precision.
 
 Verification includes 54 portable tests on Python 3.11/3.14; native 61-frame mixed
-contact, 41-frame FEM, 81-frame motion and sample-87 controller regressions; cached
+contact, 41-frame FEM, 81-frame motion and sample-45 controller regressions; cached
 EEVEE/OptiX multi-view rendering; old schema-3 500-frame playback; and installed GUI
 rod/affine overlays with repeated GPU resource reuse (exit 0). The synthetic affine
 contract reopens and checks ALL 500 varying-transform frames without the addon,
@@ -128,7 +128,7 @@ not Scene RNA, and are cleared on load/unregister. Quality UI displays the summa
 
 Reproduce the baseline with background Blender running
 `integrations/blender/tests/blender_performance.py` and arguments
-`-- --python <native-python> --output <inputs-dir> --urdf <sample-87 robot_hand.urdf>`.
+`-- --python <native-python> --output <inputs-dir> --urdf <sample-45 robot_hand.urdf>`.
 Then run the external Python on `integrations/blender/tests/benchmark_worker.py`
 with `--inputs <inputs-dir> --output <fresh-results-dir>`.
 The latter uses one warmup + three measured fresh-process trials per workload and
@@ -447,7 +447,7 @@ controller hierarchy in Blender. Link vertices already include each collision
 origin. Undo the URDF-to-UIPC basis for the exported controller poses so Blender's
 Z-up targets use native URDF frames; explicitly set the native root pose to zero
 before export. Validate a nonzero joint pose against the native controller (the
-sample 87 import measured maximum matrix error 1.64e-7).
+sample 45 import measured maximum matrix error 1.64e-7).
 
 Separate controllers can animate ABD bodies through `SoftTransformConstraint`.
 For ordinary driven bodies, the first target pose defines the offset:
@@ -541,7 +541,7 @@ potentially stale last-progress status. Native defaults remain unchanged;
 these are accuracy comparisons, not isolated throughput benchmarks.
 
 The verified joint plan was also extracted into standalone sample
-`libuipc-samples/examples/94_robot_hand_grasp_apple/`. Unlike the Blender scene,
+`libuipc-samples/examples/52_robot_hand_grasp_apple/`. Unlike the Blender scene,
 the focused Y-up sample uses only the hand, a procedural free ABD apple and a
 fixed table plane. It retains all four contact checks and a 500-output-frame
 headless validation without depending on Blender or MDD playback.

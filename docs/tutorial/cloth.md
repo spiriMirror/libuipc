@@ -115,7 +115,7 @@ parameters. Arbitrary UV/fiber orientations are not exposed by this API.
 
 Calling an old overload again restores shared stretch. Older saved scenes,
 which lack `stretch_stiffness_b`, also use shared stretch. The
-[`95_anisotropic_cloth`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/95_anisotropic_cloth)
+[`53_anisotropic_cloth`](https://github.com/spiriMirror/libuipc-samples/tree/main/examples/53_anisotropic_cloth)
 sample generates three cloth meshes and compares shared, a-stiff and b-stiff
 materials under equal biaxial traction, with GUI and headless validation.
 
@@ -143,7 +143,7 @@ set of support vertices.
 For moving grippers or prescribed motion, do not overwrite positions after
 `world.init()`. Add a soft position constraint and update its animation
 attributes through the scene's animation/update path. The
-[`91_pinned_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/91_pinned_cloth/main.py)
+[`49_pinned_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/49_pinned_cloth/main.py)
 sample is the static-pin baseline.
 
 ## Contact and self-collision
@@ -172,7 +172,7 @@ more candidates and make the solve unnecessarily stiff.
 - multiple self-contacting sheets:
   [`34_cloth_stack`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/34_cloth_stack/main.py)
 - pinned source-backed scene:
-  [`91_pinned_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/91_pinned_cloth/main.py)
+  [`49_pinned_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/49_pinned_cloth/main.py)
 - C++ pin, bending, and MAS regressions:
   [`19_shell_fixed_point.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/19_shell_fixed_point.cpp),
   [`33_discrete_shell_bending.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/33_discrete_shell_bending.cpp),

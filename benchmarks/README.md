@@ -18,9 +18,9 @@ python scripts/run_benchmark.py run mas-bunny --frames 100
 python scripts/run_benchmark.py run cube-wall-cloth --frames 100
 ```
 
-The suite offers small (procedural cloth, sample 95), standard (affine-body
-contact and MAS FEM, samples 6/89) and stress (FEM/cloth contact and a large
-affine-body wall on cloth, samples 88/93) workloads. Tiers describe problem
+The suite offers small (procedural cloth, sample 53), standard (affine-body
+contact and MAS FEM, samples 6/47) and stress (FEM/cloth contact and a large
+affine-body wall on cloth, samples 46/51) workloads. Tiers describe problem
 size, with no prescribed GPU model or universal speed threshold. `--quick`
 shortens only the frame count, not mesh size or memory demand. `validate` checks
 required inputs and syntax at the pinned samples revision without a GPU.

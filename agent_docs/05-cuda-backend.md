@@ -1129,7 +1129,7 @@ The IPC simplex normal/friction assembly kernels deliberately keep PT, EE, PE,
 and PP in one launch. Although splitting by stencil lowers each specialized
 kernel's static stack frame, PT/EE Hessian evaluation is expensive even for a
 few contacts. The fused launch overlaps those threads with the much larger PE
-population; four sequential launches regressed case-88 DyTopo assembly by
+population; four sequential launches regressed case-46 DyTopo assembly by
 about 70%. The uniform `gradient_only` decision is compile-time specialized
 instead, giving lightweight gradient variants without changing the full
 Hessian launch topology. Resource counts alone are therefore insufficient:
