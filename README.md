@@ -12,7 +12,8 @@ Website ➡️ [spirimirror.github.io/libuipc-web](https://spirimirror.github.io
 
 ![teaser](docs/media/teaser.png)
 
-**Libuipc** is a GPU-accelerated simulation library built around a unified **Incremental Potential Contact** framework. It couples rigid bodies (affine body dynamics), soft bodies (FEM), cloth, and threads in one scene. Collision detection, contact assembly and linear algebra run on CUDA, with host-side orchestration and convergence checks. IPC's non-penetration guarantees depend on valid initial geometry and successful collision/solve steps; inspect diagnostics rather than treating every completed call as a physical-accuracy certificate. Differentiable-simulation interfaces are under development, not a complete end-to-end autodiff promise.
+**Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of **rigid bodies, soft bodies, cloth, threads and fluids, and their strong couplings**. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
+
 
 We are **actively** developing Libuipc. Feedback and contributions are welcome!
 
@@ -46,10 +47,10 @@ libuipc is organized in three layers: a friendly scene API on top, a reusable si
 
 ### Why libuipc
 
-- **Easy & Powerful**: an intuitive, unified way to create and drive vivid simulation scenes; objects and constraints compose freely.
-- **Fast & Robust**: GPU-parallel contact and constitutive kernels with Stiff-GIPC-derived solver techniques for stiff, frictional, coupled scenarios.
-- **High Flexibility**: Python and C++ APIs, Linux and Windows, PyPI wheels and source builds.
-- **Differentiation roadmap**: partial Diff-Sim interfaces for future backward optimization; coverage is still under development.
+- **Easy & Powerful**: Libuipc provides an intuitive and unified way to create and access vivid simulation scenes. It supports a variety of object types, including threads, cloth, shells, soft bodies, rigid bodies and fluids (coming soon), and constraints can be added with ease.
+- **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
+- **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
+- **Differentiation roadmap**: Libuipc provides differentiable simulation APIs for backward optimizations. (Will Release Soon!)
 
 ## Catalogue
 
