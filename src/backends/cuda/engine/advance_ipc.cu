@@ -696,6 +696,7 @@ void SimEngine::advance()
                         if(!evaluated)
                         {
                             m_line_searcher->discard_energy();
+                            m_line_searcher->m_skipped_contact_energy_frame = m_current_frame;
                             break;
                         }
 

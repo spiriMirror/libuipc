@@ -452,6 +452,11 @@ truncated (TOI, CFL) or the converged trial ends the Newton loop,
 `discard_energy()` makes the legacy stream wait for the launched part before
 anything it reads is overwritten.
 
+When convergence skips the final trial's energy evaluation, the first
+`ContactSystemFeature::contact_energy()` call for that frame refreshes the
+active-set energy producers. The exporter gets per-pair energies for the
+accepted contact set and subsequent exports reuse those values.
+
 An evaluated `E_0` of the IPC Newton loop is only launched
 (`LineSearcher::launch_initial_energy()`: the evaluation, then a copy of every
 reporter energy and the total into page-locked memory and an event on the

@@ -2,6 +2,7 @@
 #include <contact_system/contact_exporter_manager.h>
 #include <contact_system/contact_system_feature.h>
 #include <contact_system/contact_exporter.h>
+#include <line_search/line_searcher.h>
 
 namespace uipc::backend::cuda
 {
@@ -9,8 +10,9 @@ REGISTER_SIM_SYSTEM(ContactExporterManager);
 
 void ContactExporterManager::do_build()
 {
-    auto overrider = std::make_shared<ContactSystemFeatureOverrider>(this);
-    auto feature   = std::make_shared<core::ContactSystemFeature>(overrider);
+    m_line_searcher = find<LineSearcher>();
+    auto overrider  = std::make_shared<ContactSystemFeatureOverrider>(this);
+    auto feature    = std::make_shared<core::ContactSystemFeature>(overrider);
     features().insert(feature);
 
     on_init_scene([&] { init(); });
@@ -48,6 +50,8 @@ void ContactExporterManager::get_contact_energy(std::string_view    prim_type,
     auto exporter = find_exporter(prim_type);
     if(!exporter)
         return;
+    if(m_line_searcher)
+        m_line_searcher->refresh_contact_energies();
     _create_prim_type_on_geo(prim_type, prim_energy);
     exporter->contact_energy(prim_type, prim_energy);
 }

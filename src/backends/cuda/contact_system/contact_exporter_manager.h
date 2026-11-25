@@ -12,6 +12,7 @@
 namespace uipc::backend::cuda
 {
 class ContactExporter;
+class LineSearcher;
 
 class ContactExporterManager final : public SimSystem
 {
@@ -32,6 +33,7 @@ class ContactExporterManager final : public SimSystem
 
     unordered_map<std::string, ContactExporter*> m_exporter_map;
     SimSystemSlotCollection<ContactExporter>     m_contact_exporters;
+    SimSystemSlot<LineSearcher>                  m_line_searcher;
     vector<std::string>                          m_contact_prim_types;
 
     friend class ContactExporter;
