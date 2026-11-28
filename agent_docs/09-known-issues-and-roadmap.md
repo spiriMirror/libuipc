@@ -1,5 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Resolved in source after v0.0.30: NumPy slices passed to the mesh factories
+could select the wrong vertices or indices, and batch ABD conversion could
+transpose matrices and lose their translation.
+
 Resolved in source after v0.0.30: the Python bindings preserve read-only
 access for Eigen attribute views and registered UID metadata. The release-wheel
 audit reproduced unintended writes through both interfaces.

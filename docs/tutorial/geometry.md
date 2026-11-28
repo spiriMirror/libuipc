@@ -126,6 +126,10 @@ In `libuipc`, a `Simplicial Complex` is a general representation of an explicit 
     points = pointcloud(Vs)
     points.dim() # 0
     ```
+
+    These factories accept NumPy slices for both vertices and connectivity.
+    For example, `pointcloud(Vs[::2])` uses vertices 0, 2, 4, and so on.
+    Connectivity indices refer to the vertex array passed to the factory.
     
     Or, you want to read the meshes from a file, you can use `SimplicialComplexIO`.
     

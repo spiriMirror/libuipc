@@ -1,5 +1,9 @@
 # Handoff — Current State of the Repo
 
+> **Python geometry inputs and ABD batches (2026-11-28)**. Mesh factories
+> honor vertex and topology strides. Batched ABD pose and velocity conversion
+> preserves the scalar API's matrix orientation and translation column.
+
 > **Python read-only bindings (2026-11-28)**. Vector and matrix attribute views
 > now reject NumPy assignment, and UID lookup fields reject reassignment.
 > Use `uipc.view(slot)` to write a numeric attribute with copy-on-write.

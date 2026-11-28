@@ -14,6 +14,12 @@ Numeric attribute slots expose a read-only NumPy array through `slot.view()`.
 Use `uipc.view(slot)` for writes so shared current/rest attributes detach before
 modification. Fields on `UIDRegister.find(uid)` results are read-only.
 
+The four Python mesh factories accept strided vertex and connectivity arrays.
+For matching native dtypes, slices are read directly into mesh storage.
+Batched ABD pose and velocity conversions use NumPy's logical matrix indices,
+including on Fortran-order arrays and reversed slices. Their results follow
+the same row and column conventions as the single-body conversions.
+
 ## Directional cloth parameters
 
 `StrainLimitingBaraffWitkinShell.apply_to` retains both old signatures and
