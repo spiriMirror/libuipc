@@ -1,5 +1,8 @@
 # Handoff — Current State of the Repo
 
+> **Triangle surface closure**. The solid ABD volume path now checks every
+> undirected triangle edge for exactly two occurrences.
+
 > **Python geometry inputs and ABD batches (2026-11-28)**. Mesh factories
 > honor vertex and topology strides. Batched ABD pose and velocity conversion
 > preserves the scalar API's matrix orientation and translation column.

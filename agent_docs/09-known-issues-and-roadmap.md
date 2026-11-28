@@ -1,5 +1,8 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Resolved in source after v0.0.30: the closure check could accept an open box or
+an edge shared by four triangles, allowing invalid input into solid ABD volume integration.
+
 Resolved in source after v0.0.30: NumPy slices passed to the mesh factories
 could select the wrong vertices or indices, and batch ABD conversion could
 transpose matrices and lose their translation.

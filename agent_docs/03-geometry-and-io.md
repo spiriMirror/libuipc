@@ -32,6 +32,8 @@ Common functions (most declarations are under `include/uipc/geometry/utils/`):
 - `extract_surface(sc)` — extracts the surface trimesh
 - `label_triangle_orient(sc)` — for a tetrahedral (dimension-3) complex, marks each surface triangle's parent/orientation (`builtin::parent_id`, `builtin::orient`) so exported/contact normals are consistent. It is not a universal preprocessing call for standalone triangle/line geometry.
 - `label_open_edge` / `flip_inward_triangles`
+- `is_trimesh_closed` checks that every undirected triangle edge occurs exactly
+  twice before a surface is used for solid volume integration.
 - `compute_vertex_volume` / `compute_vertex_mass`
 - `affine_body/compute_affine_body_*` — ABD mass properties (dyadic mass triples, etc.)
 - BVH: `include/uipc/geometry/utils/bvh.h` (CPU-side bounding volume hierarchy)
