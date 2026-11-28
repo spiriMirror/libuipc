@@ -17,6 +17,10 @@ features and may override a base feature implementation. Important families incl
 
 - contact-system inspection/control;
 - ABD and FEM state accessors;
+- FEM data export: `FEMSystemFeature` recomputes per-element elastic
+  energy/gradient/Hessian and per-vertex gradient at the current state,
+  for any base or extra constitution present in the scene
+  (`include/uipc/core/fem_system_feature.h`);
 - distance diagnosis;
 - differentiable-simulation features.
 
