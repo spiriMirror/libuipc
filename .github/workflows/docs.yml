@@ -13,6 +13,7 @@ on:
     branches:
       - main
     paths:
+      - 'include/**'
       - 'docs/**'
       - 'scripts/build_docs.py'
       - 'scripts/gen_uid_doc.py'
@@ -23,10 +24,11 @@ on:
       - 'mkdocs*.yaml'
       - '.github/workflows/docs.yml'
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [opened, synchronize, reopened]
     branches:
       - main
     paths:
+      - 'include/**'
       - 'docs/**'
       - 'scripts/build_docs.py'
       - 'scripts/gen_uid_doc.py'
@@ -43,11 +45,11 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'push' && github.event.repository.fork == false) ||
-      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch'
     
     permissions:
-      contents: write # Required to push to libuipc-doc repository
+      contents: read # Cross-repository deployment uses DOCS_DEPLOY_TOKEN on push.
     
     steps:
       - name: Checkout libuipc repository
@@ -115,11 +117,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              git commit -m "Deploy documentation from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
-            else
-              git commit -m "Deploy documentation from libuipc@${{ github.sha }}"
-            fi
+            git commit -m "Deploy documentation from libuipc@${{ github.sha }}"
             git push
           fi
 

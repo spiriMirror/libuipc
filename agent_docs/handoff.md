@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **Build and release audit follow-up (2026-11-28)**. Source builds require
+> pybind11 2.12 or newer. The post-build helper validates its staging path
+> before cleanup. Wheel matrix jobs distinguish tag and release events.
+> Manual hotfix dispatch retries a selected release in its original workflow.
+> Documentation builds include public-header changes and fork PR validation.
+> Sample 20 advances once per running GUI callback (samples `2c5d0f6`).
+
 > **Tetrahedral geometry (2026-11-28)**. Region splitting preserves instance
 > attributes and remaps triangle parent IDs. Merging offsets existing parent
 > IDs into the combined cell table. Tetrahedralization uses shell-local

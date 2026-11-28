@@ -200,8 +200,9 @@ excluded from `python-wheels.yml`. The native CMake and xmake workflows also
 ignore `agent_docs/`-only changes. Push, release, and manual publication behavior
 is unchanged: release events still build and validate the full wheel matrix.
 
-`hotfix_publish.yml` is a manual artifact-reuse path and depends on the selected
-workflow artifacts still being retained.
+`hotfix_publish.yml` retries the failed jobs of the specified release run.
+GitHub retains the original event, commit, publication environment and wheel
+verification steps. Successful build jobs' artifacts must still be available.
 
 Docs have three entry points: `python scripts/build_docs.py -o site` and
 `mkdocs serve -f mkdocs-with-api.yaml` include generated API pages, while

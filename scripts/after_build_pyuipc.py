@@ -4,9 +4,6 @@ import shutil
 import argparse as ap
 import pathlib
 import subprocess as sp
-import optional_import # help stubgen to detect optional modules' api
-
-from pyuipc_stubgen import generate_uipc_stubs
 
 def is_option_on(option: str):
     # convert the option to uppercase
@@ -52,11 +49,17 @@ Ref: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-t
     
     return ret_config
 
-def clear_binary_python_dir(binary_dir):
-    binary_python_dir = binary_dir / 'python'
+def python_staging_dir(binary_dir, proj_dir):
+    stage = binary_dir.resolve() / 'python'
+    source = (proj_dir / 'python').resolve()
+    if stage.resolve() != stage or stage == source or stage in source.parents or source in stage.parents:
+        raise ValueError(f"Unsafe Python staging directory {stage} for source tree {source}")
+    return stage
+
+def clear_binary_python_dir(binary_python_dir):
     if os.path.exists(binary_python_dir):
         print(f'Clearing binary python directory: {binary_python_dir}')
-        shutil.rmtree(binary_python_dir, ignore_errors=True)
+        shutil.rmtree(binary_python_dir)
     os.makedirs(binary_python_dir, exist_ok=True)
 
 def copy_python_source_code(proj_dir, bin_dir):
@@ -98,6 +101,9 @@ def copy_shared_libs(config:str, binary_dir:pathlib.Path, pyuipc_lib:pathlib.Pat
     return target_dir
 
 def generate_build_stubs(binary_dir):
+    import optional_import
+    from pyuipc_stubgen import generate_uipc_stubs
+
     optional_import.EnabledModules.report()
     typings_dir = binary_dir / 'python' / 'src'
     print(f'Try generating stubs to {typings_dir}')
@@ -137,13 +143,14 @@ if __name__ == '__main__':
     pyuipc_lib = pathlib.Path(args.target)
     binary_dir = pathlib.Path(args.binary_dir)
     proj_dir = pathlib.Path(args.project_dir)
+    stage = python_staging_dir(binary_dir, proj_dir)
 
     # clean up the old package, avoid polluting the stub generation
     print(f'Cleaning up the old package:')
     uninstall_package()
 
     print(f'Clearing binary python directory: {binary_dir}')
-    clear_binary_python_dir(binary_dir)
+    clear_binary_python_dir(stage)
     flush_info()
 
     print(f'Copying package code to the target directory:')

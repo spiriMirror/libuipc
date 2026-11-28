@@ -1,4 +1,4 @@
-add_requires("pybind11","python")
+add_requires("pybind11 >=2.12", "python")
 add_requireconfs("python", "**.python", {
     override = true,
     version = get_config("python_version"),

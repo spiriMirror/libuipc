@@ -1,5 +1,10 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Build/publication follow-up after v0.0.30: the staging alias and manual
+publication findings A03 and A05 are resolved in source. Header-only changes
+trigger the docs workflow. Tag pushes and release events have separate wheel
+job groups, and builds check the minimum pybind11 header version.
+
 Resolved in source after v0.0.30: valid, widely separated small shells could
 fail the tetrahedralizer's volume check before the conservative mesh was saved.
 
