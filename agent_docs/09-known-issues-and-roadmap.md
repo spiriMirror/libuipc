@@ -1,5 +1,8 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Resolved in source after v0.0.30: valid, widely separated small shells could
+fail the tetrahedralizer's volume check before the conservative mesh was saved.
+
 Resolved in source after v0.0.30: parent tetrahedron IDs could become stale
 after splitting or merging labeled meshes, and multi-instance splits could fail.
 

@@ -2,7 +2,8 @@
 
 > **Tetrahedral geometry (2026-11-28)**. Region splitting preserves instance
 > attributes and remaps triangle parent IDs. Merging offsets existing parent
-> IDs into the combined cell table.
+> IDs into the combined cell table. Tetrahedralization uses shell-local
+> origins for its signed boundary-volume check, including cavity boundaries.
 
 > **Triangle surface closure**. The solid ABD volume path now checks every
 > undirected triangle edge for exactly two occurrences. Samples `20045cb`
