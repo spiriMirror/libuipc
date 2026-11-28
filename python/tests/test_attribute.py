@@ -83,7 +83,10 @@ def test_view_of_every_slot_class():
         assert v.base is slot and v.flags.writeable, name
         assert view(slot=slot).ctypes.data == v.ctypes.data, name
         v[...] = 3
-        assert np.all(slot.view() == 3), name
+        read_only = slot.view()
+        assert not read_only.flags.writeable, name
+        assert np.shares_memory(read_only, v), name
+        assert np.all(read_only == 3), name
 
     sc.vertices().create("text", "abc")
     span = view(sc.vertices().find("text"))
@@ -91,3 +94,28 @@ def test_view_of_every_slot_class():
 
     with pytest.raises(TypeError):
         view(sc)
+
+
+@pytest.mark.basic
+@pytest.mark.parametrize(("get_slot", "index", "value"), [
+    pytest.param(lambda g: g.positions(), (0, 0, 0), 2.0, id="position"),
+    pytest.param(lambda g: g.tetrahedra().topo(), (0, slice(None), 0),
+                 [1, 2, 0, 3], id="topology"),
+    pytest.param(lambda g: g.transforms(), (0, 0, 3), 1.0, id="transform"),
+])
+def test_read_only_attribute_keeps_rest_geometry(get_slot, index, value):
+    scene = uipc.Scene()
+    obj = scene.objects().create("tet")
+    mesh = tetmesh(np.eye(4, 3), np.array([[0, 1, 2, 3]]))
+    current, rest = obj.geometries().create(mesh)
+    slot = get_slot(current.geometry())
+    rest_slot = get_slot(rest.geometry())
+    original = rest_slot.view().copy()
+    assert np.shares_memory(slot.view(), rest_slot.view())
+
+    with pytest.raises(ValueError):
+        slot.view()[index] = value
+    np.testing.assert_array_equal(slot.view(), original)
+    view(slot)[index] = value
+    np.testing.assert_array_equal(slot.view()[index], value)
+    np.testing.assert_array_equal(rest_slot.view(), original)

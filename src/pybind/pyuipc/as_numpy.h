@@ -200,6 +200,7 @@ auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle o
     auto arr = make_array<T>(buffer_info(v), obj);
     PYUIPC_ASSERT(!arr.owndata() || v.size() == 0,
                   "the array must share the data with the input span");
+    set_read_write_flags(arr, true);
     return arr;
 }
 

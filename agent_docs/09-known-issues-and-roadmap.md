@@ -1,5 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Resolved in source after v0.0.30: the Python bindings preserve read-only
+access for Eigen attribute views and registered UID metadata. The release-wheel
+audit reproduced unintended writes through both interfaces.
+
 Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
 repository metadata returned HTTP 404 before project compilation. The workflow
 now clears metadata, refreshes required OS repositories, temporarily excludes

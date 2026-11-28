@@ -209,7 +209,9 @@ Note that, till now, we just get a handle of the attribute `position`. To access
     ```python
     const_view = pos.view()
     ```
-    The view of the `position` is a `numpy.ndarray`, which is a const view of the position data. You can not modify the data through the view.
+    `pos.view()` returns a read-only NumPy array. If assignment raises
+    `ValueError: assignment destination is read-only`, use `uipc.view(pos)`
+    to request writable access, as shown below.
 
 If you want to modify the position data, you can create a non-const view of the attribute.
 
@@ -222,7 +224,9 @@ If you want to modify the position data, you can create a non-const view of the 
 === "Python"
 
     ```python
-    non_const_view = view(pos)
+    import uipc
+
+    uipc.view(pos)[1, 0, 0] = 1.1  # Set the second vertex's x coordinate.
     ```
 
 You find that, it need more effort to create a non-const view of the attribute (calling the global function `view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you will modify the data later, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.

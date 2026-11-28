@@ -1,5 +1,9 @@
 # Handoff — Current State of the Repo
 
+> **Python read-only bindings (2026-11-28)**. Vector and matrix attribute views
+> now reject NumPy assignment, and UID lookup fields reject reassignment.
+> Use `uipc.view(slot)` to write a numeric attribute with copy-on-write.
+
 > **Opt-in preconditioner reuse (2026-11-18)**: `linear_system/keep_preconditioner`
 > (default 0) lets every odd Newton iteration from the third on keep the
 > previous iteration's preconditioner on the standard IPC pipeline. It is off

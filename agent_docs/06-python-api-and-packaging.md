@@ -10,6 +10,10 @@
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
+Numeric attribute slots expose a read-only NumPy array through `slot.view()`.
+Use `uipc.view(slot)` for writes so shared current/rest attributes detach before
+modification. Fields on `UIDRegister.find(uid)` results are read-only.
+
 ## Directional cloth parameters
 
 `StrainLimitingBaraffWitkinShell.apply_to` retains both old signatures and
