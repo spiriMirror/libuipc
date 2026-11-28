@@ -214,6 +214,7 @@ Returns:
             [](ContactTabular& self) -> ContactModelCollection
             { return self.contact_models(); },
             py::return_value_policy::move,
+            py::keep_alive<0, 1>(),
             R"(Get the contact model collection.
 Returns:
     ContactModelCollection: Collection of contact models.)");

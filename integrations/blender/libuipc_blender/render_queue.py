@@ -151,13 +151,15 @@ def poll():
     if _job is None:
         return None
     job = _job
+    process = job["process"]
+    if job["cancelled_at"] is not None and time.monotonic() - job["cancelled_at"] > 3 and process.poll() is None:
+        process.kill()
+    returncode = process.poll()
     try:
         status = read_json(job["directory"] / "render_status.json")
     except (OSError, ValueError):
         status = {}
-    if job["cancelled_at"] is not None and time.monotonic() - job["cancelled_at"] > 3 and job["process"].poll() is None:
-        job["process"].kill()
-    if job["process"].poll() is None:
+    if returncode is None:
         if status.get("total") and job["cancelled_at"] is None:
             job["scene"].uipc_settings.progress = status["done"] / status["total"]
             job["scene"].uipc_settings.status = f"Rendering {status['done']}/{status['total']} PNGs"
@@ -167,7 +169,7 @@ def poll():
     if job["cancelled_at"] is not None or status.get("state") == "cancelled":
         job["scene"].uipc_settings.status = "Render cancelled; completed frames retained for resume"
         return {"cancelled": True}
-    if job["process"].returncode != 0 or status.get("state") != "complete":
+    if returncode != 0 or status.get("state") != "complete":
         raise RuntimeError(f"{status.get('message', 'Render worker failed')}. Log: {job['directory'] / 'render.log'}")
     job["scene"].uipc_settings.progress = 1
     job["scene"].uipc_settings.status = f"Rendered {status['rendered']}; verified/skipped {status['skipped']} PNGs"

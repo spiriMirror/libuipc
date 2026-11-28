@@ -111,13 +111,31 @@ namespace pyuipc::core
 {
 using namespace uipc::core;
 using namespace uipc::geometry;
+namespace
+{
+    // Each Python Object handle keeps both native owners alive, even after
+    // deletion from the scene. Repeated lookups reuse the existing wrapper.
+    struct SceneObjects
+    {
+        S<Scene> scene;
+
+        S<Object> own(S<Object> object) const
+        {
+            if(!object)
+                return {};
+            auto owners = std::make_shared<std::pair<S<Scene>, S<Object>>>(scene, object);
+            return {std::move(owners), object.get()};
+        }
+    };
+}  // namespace
+
 PyScene::PyScene(py::module& m)
 {
     // def class
     auto class_Scene = py::class_<Scene, S<Scene>>(
         m, "Scene", R"(Scene class representing a simulation scene containing objects, geometries, and constitutions.)");
-    auto class_Objects = py::class_<Scene::Objects>(
-        class_Scene, "Objects", R"(Collection of objects in the scene.)");
+    auto class_Objects =
+        py::class_<SceneObjects>(class_Scene, "Objects", R"(Collection of objects in the scene.)");
     auto class_Geometries = py::class_<Scene::Geometries>(
         class_Scene, "Geometries", R"(Collection of geometries in the scene.)");
 
@@ -137,9 +155,10 @@ Args:
     class_Scene.def(
         "config",
         [](Scene& self) { return self.config(); },
+        py::keep_alive<0, 1>(),
         R"(Get the scene configuration.
 Returns:
-    dict: Configuration dictionary.)");
+    ConfigAttributes: Attribute collection for the scene configuration.)");
 
     class_Scene.def_static("default_config",
                            &Scene::default_config,
@@ -161,8 +180,9 @@ World.init(scene) calls this automatically before backend initialization.)");
 
     class_Scene.def(
         "objects",  //
-        [](Scene& self) { return self.objects(); },
+        [](S<Scene> scene) { return SceneObjects{std::move(scene)}; },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the objects collection.
 Returns:
     Objects: Collection of objects in the scene.)");
@@ -170,6 +190,7 @@ Returns:
         "geometries",  //
         [](Scene& self) { return self.geometries(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the geometries collection.
 Returns:
     Geometries: Collection of geometries in the scene.)");
@@ -209,8 +230,8 @@ Returns:
 
     class_Objects.def(
         "create",
-        [](Scene::Objects& self, std::string_view name) -> S<Object>
-        { return std::move(self).create(name); },
+        [](SceneObjects& self, std::string_view name) -> S<Object>
+        { return self.own(self.scene->objects().create(name)); },
         py::arg("name"),
         R"(Create a new object with the given name.
 Args:
@@ -220,7 +241,8 @@ Returns:
 
     class_Objects.def(
         "find",
-        [](Scene::Objects& self, IndexT id) { return std::move(self).find(id); },
+        [](SceneObjects& self, IndexT id)
+        { return self.own(self.scene->objects().find(id)); },
         py::arg("id"),
         R"(Find an object by ID.
 Args:
@@ -230,13 +252,13 @@ Returns:
 
     class_Objects.def(
         "find",
-        [](Scene::Objects& self, std::string_view name) -> py::list
+        [](SceneObjects& self, std::string_view name) -> py::list
         {
             py::list ret;
-            auto     objects = std::move(self).find(name);
+            auto     objects = self.scene->objects().find(name);
             for(auto& obj : objects)
             {
-                ret.append(obj);
+                ret.append(self.own(std::move(obj)));
             }
             return ret;
         },
@@ -249,8 +271,7 @@ Returns:
 
     class_Objects.def(
         "destroy",
-        [](Scene::Objects& self, IndexT id)
-        { return std::move(self).destroy(id); },
+        [](SceneObjects& self, IndexT id) { self.scene->objects().destroy(id); },
         py::arg("id"),
         R"(Destroy an object by ID.
 Args:
@@ -258,14 +279,14 @@ Args:
 
     class_Objects.def(
         "size",
-        [](Scene::Objects& self) { return std::move(self).size(); },
+        [](SceneObjects& self) { return self.scene->objects().size(); },
         R"(Get the number of objects in the collection.
 Returns:
     int: Number of objects.)");
 
     class_Objects.def(
         "created_count",
-        [](Scene::Objects& self) { return std::move(self).created_count(); },
+        [](SceneObjects& self) { return self.scene->objects().created_count(); },
         R"(Get the number of object IDs allocated since Scene creation.
 
 This is also the exclusive upper bound for object IDs. Unlike size(), it does

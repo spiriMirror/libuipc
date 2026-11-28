@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Python and Blender audit follow-up (2026-11-28)**. Borrowed collection
+> facades retain their native owners. The addon fingerprints the assigned
+> Action slot, handles winding per outer solid and preserves cavities, and
+> reads final worker status after observing process exit. MeshDoctor checks
+> FEM inputs and supports headless CLI operation.
+
 > **Solver and recovery audit follow-up (2026-11-28)**. The restart control
 > compares the next step after a fresh-engine restore against continuous
 > simulation. Point/plane, point/triangle and edge/edge AL contacts matched at

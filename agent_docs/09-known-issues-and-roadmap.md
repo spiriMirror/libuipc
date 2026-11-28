@@ -1,5 +1,10 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Frontend follow-up after v0.0.30: Python facades retain owners. Blender checks
+the active Action slot for motion edits, handles disjoint rigid-shell mass,
+and reads the final status of completed bake/render workers. MeshDoctor
+validates basic FEM meshes and reports unsupported constitutions explicitly.
+
 Solver follow-up after v0.0.30: AL checkpoints now include lagged contact
 history and reject missing history. BDF2 initial history uses prescribed
 velocity. Standard IPC counts completed iterations for its Newton floor,

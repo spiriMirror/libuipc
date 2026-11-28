@@ -190,10 +190,8 @@ Note that, till now, we just get a handle of the attribute `position`. To access
 
 !!! warning "Borrowed facade and view lifetimes"
 
-    Keep the owning Scene, Object and Geometry alive while using their collection
-    facades. Current Python facade returns such as `mesh.vertices()` and
-    `scene.objects()` do not all retain their owners. Do not save a facade obtained
-    from a temporary parent and then discard that parent.
+    Python collection facades such as `mesh.vertices()` and `scene.objects()`
+    retain their owners for the lifetime of the facade.
 
     NumPy views are live references, not snapshots. Reacquire them after operations
     that can resize, replace or detach attribute storage through copy-on-write.

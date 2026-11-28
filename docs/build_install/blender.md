@@ -365,7 +365,9 @@ thickness. Refer to [cloth modeling](../tutorial/cloth.md) for the full model.
 
 Ordinary ABD bodies require one closed, connected surface with consistent face winding.
 Driven assemblies may contain several closed components in one rigid link.
-Inward global winding is normalized on export without changing vertex order.
+Export orients each separate outer shell outward while preserving vertex order.
+Nested shells retain their winding relative to their enclosing shell: an inward
+inner boundary subtracts a cavity, and an outward nested solid adds its volume.
 Fixed colliders may be open triangle surfaces and use fixed FEM vertices.
 Duplicate/degenerate triangles, non-manifold edges, loose vertices, invalid
 coordinates, singular transforms, and invalid pin groups are rejected.

@@ -211,6 +211,7 @@ void def_attribute_slot_string(py::module& m)
     class_AttributeSlotString.def(
         "view",
         [](AttributeSlot<std::string>& self) { return self.view(); },
+        py::keep_alive<0, 1>(),
         R"(Get a view of the string attribute data.
 Returns:
     StringSpan: View of string attribute data.)");
@@ -220,6 +221,7 @@ Returns:
     top_module().def(
         "view",
         [](AttributeSlot<std::string>& self) { return view(self); },
+        py::keep_alive<0, 1>(),
         py::arg("slot"),
         R"(Get a view of a string attribute slot.
 Args:

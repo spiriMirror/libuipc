@@ -13,6 +13,9 @@
 Numeric attribute slots expose a read-only NumPy array through `slot.view()`.
 Use `uipc.view(slot)` for writes so shared current/rest attributes detach before
 modification. Fields on `UIDRegister.find(uid)` results are read-only.
+Collection facades and string spans retain their originating Python owners.
+The mesh doctor checks primary FEM material compatibility on a mesh copy;
+the mesh-doctor CLI opens its viewer only with `--gui`.
 
 The four Python mesh factories accept strided vertex and connectivity arrays.
 For matching native dtypes, slices are read directly into mesh storage.
@@ -143,6 +146,8 @@ torch/warp adapters still require their own optional frameworks.
   reported as a defect or confused with the independent source/build-directory
   aliasing risk in audit A03.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
+- The staging path must resolve under the build directory and be disjoint from
+  the Python source tree. The binding's dtype cache uses headers from pybind11 2.12+.
 - CMake post-build and `xmake pack` both call `scripts/pyuipc_stubgen.py`.
   It regenerates the complete `uipc` stub tree at the staged package root,
   rather than generating only extension-level stubs inside `_native`.

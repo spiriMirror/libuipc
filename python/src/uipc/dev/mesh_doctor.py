@@ -1,10 +1,8 @@
 import numpy as np
 import uipc
-import polyscope as ps
-from polyscope import imgui
 import os
 
-from uipc.constitution import IConstitution, AffineBodyConstitution
+from uipc.constitution import IConstitution, AffineBodyConstitution, FiniteElementConstitution
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO, linemesh, label_open_edge
 
 class MeshDoctor:
@@ -12,6 +10,8 @@ class MeshDoctor:
         self.workspace = workspace
         self.with_gui = with_gui
         if with_gui:
+            import polyscope as ps
+            self._viewer = ps
             if not ps.is_initialized():
                 ps.init()
     
@@ -19,11 +19,49 @@ class MeshDoctor:
         if constitution.type() == uipc.builtin.AffineBody:
             return self.check_affine_body(constitution, mesh)
         elif constitution.type() == uipc.builtin.FiniteElement:
-            # TODO: Implement finite element mesh check
-            return True
+            return self.check_finite_element(constitution, mesh)
         else:
             raise ValueError(f'Unsupported constitution type: {constitution.type()}')
     
+    def check_finite_element(self, constitution, mesh):
+        """Check rest geometry and the native material's dimension requirements."""
+        if not isinstance(constitution, FiniteElementConstitution):
+            raise NotImplementedError(f'MeshDoctor requires a base FEM material for {constitution.name()}')
+        points = mesh.positions().view().reshape(-1, 3)
+        if not len(points) or not np.isfinite(points).all():
+            uipc.Logger.error('FEM mesh requires finite vertices')
+            return False
+        dim = mesh.dim()
+        if dim > 0:
+            facets = (mesh.edges, mesh.triangles, mesh.tetrahedra)[dim - 1]()
+            topo = facets.find(uipc.builtin.topo)
+            if topo is None:
+                uipc.Logger.error('FEM mesh is missing element topology')
+                return False
+            cells = topo.view().reshape(-1, dim + 1)
+            if np.any(cells < 0) or np.any(cells >= len(points)):
+                uipc.Logger.error('FEM element contains an out-of-range vertex index')
+                return False
+            if dim < 3:
+                delta = points[cells[:, 1:]] - points[cells[:, :1]]
+                measure = delta[:, 0] if dim == 1 else np.cross(delta[:, 0], delta[:, 1])
+                if not np.isfinite(measure).all() or np.any(np.all(measure == 0, axis=1)):
+                    uipc.Logger.error('FEM mesh contains a degenerate element')
+                    return False
+        try:
+            # Each material already validates its dimension. Native volume
+            # assembly also checks the orientation of every tetrahedron.
+            probe = mesh.copy()
+            constitution.apply_to(probe)
+        except uipc.Exception as error:
+            uipc.Logger.error(str(error))
+            return False
+        volumes = probe.vertices().find(uipc.builtin.volume).view()
+        if not np.isfinite(volumes).all() or np.any(volumes <= 0):
+            uipc.Logger.error('FEM mesh contains a vertex with non-positive or non-finite volume')
+            return False
+        return True
+
     def check_affine_body(self, constitution:IConstitution, mesh:SimplicialComplex):
         uipc.Logger.info(f'Checking affine body mesh: {mesh}')
         
@@ -56,7 +94,7 @@ class MeshDoctor:
             uipc.Logger.info('Passed mesh check for AffineBodyConstitution')
         else:
             if self.with_gui:
-                ps.show()
+                self._viewer.show()
             uipc.Logger.error('Failed mesh check for AffineBodyConstitution')
         return success
     
@@ -78,7 +116,7 @@ class MeshDoctor:
     def _visualize_open_edges(self, mesh:SimplicialComplex, open_edges_mesh:SimplicialComplex):
         '''Visualize open edges in polyscope, extracting only vertices referenced by open edges'''
         mesh_name = 'Affine Body Mesh'
-        ps_mesh = ps.register_surface_mesh(
+        ps_mesh = self._viewer.register_surface_mesh(
             mesh_name,
             mesh.positions().view().reshape(-1, 3),
             mesh.triangles().topo().view().reshape(-1, 3)
@@ -95,7 +133,7 @@ class MeshDoctor:
         remapped_edges = np.array([[vertex_remap[v0], vertex_remap[v1]] for v0, v1 in edges], dtype=np.int32).reshape(-1, 2)
         
         edges_name = 'Open Edges'
-        ps_edges = ps.register_curve_network(
+        ps_edges = self._viewer.register_curve_network(
             edges_name,
             positions,
             remapped_edges,

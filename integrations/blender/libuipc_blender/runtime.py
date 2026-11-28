@@ -93,6 +93,9 @@ def poll():
         return render_queue.poll()
     job = _job
     process, scene = job["process"], job["scene"]
+    if job["cancelled_at"] is not None and time.monotonic() - job["cancelled_at"] > 3 and process.poll() is None:
+        process.kill()
+    returncode = process.poll()
     status_path = job["directory"] / "status.json"
     try:
         state = read_json(status_path) if status_path.exists() else {}
@@ -101,9 +104,7 @@ def poll():
     if state.get("state") == "running" and job["cancelled_at"] is None:
         scene.uipc_settings.progress = state["frame"] / state["total"]
         scene.uipc_settings.status = state.get("message", f"Baking {state['frame']}/{state['total']} frames")
-    if job["cancelled_at"] is not None and time.monotonic() - job["cancelled_at"] > 3 and process.poll() is None:
-        process.kill()
-    if process.poll() is None:
+    if returncode is None:
         return False
     job["log"].close()
     _job = None
@@ -111,8 +112,8 @@ def poll():
         scene.uipc_settings.status = "Cancelled; previous bake retained"
         scene.uipc_settings.progress = 0.0
         return {"cancelled": True}
-    if process.returncode != 0 or state.get("state") != "complete":
-        message = state.get("message", f"Worker exited with code {process.returncode}")
+    if returncode != 0 or state.get("state") != "complete":
+        message = state.get("message", f"Worker exited with code {returncode}")
         raise RuntimeError(f"{message}. Log: {job['directory'] / 'worker.log'}")
     if job["request"].get("operation") == "import_robot":
         from .robot_ui import attach_robot

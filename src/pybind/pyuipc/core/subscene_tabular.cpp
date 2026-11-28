@@ -175,6 +175,7 @@ Returns:
             [](SubsceneTabular& self) -> SubsceneModelCollection
             { return self.subscene_models(); },
             py::return_value_policy::move,
+            py::keep_alive<0, 1>(),
             R"(Get the subscene model collection.
 Returns:
     SubsceneModelCollection: Collection of subscene models.)");

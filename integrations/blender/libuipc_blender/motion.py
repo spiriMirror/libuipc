@@ -22,6 +22,22 @@ TRANSFORMS = (
 )
 
 
+def action_fcurves(target):
+    """Yield the curves evaluated by this object's assigned Action slot."""
+    animation = target.animation_data
+    if not animation or not animation.action:
+        return
+    action = animation.action
+    if not getattr(action, "is_action_layered", False):
+        yield from action.fcurves
+    elif animation.action_slot:
+        for layer in action.layers:
+            for strip in layer.strips:
+                bag = strip.channelbag(animation.action_slot)
+                if bag:
+                    yield from bag.fcurves
+
+
 def controller_signature(target, stable_ids=False):
     """Hash authored controls without including frame-dependent channel values.
 
@@ -65,7 +81,7 @@ def controller_signature(target, stable_ids=False):
                     f"{target.name}: robot targets do not support drivers or NLA"
                 )
             if animation.action:
-                for curve in animation.action.fcurves:
+                for curve in action_fcurves(target):
                     if curve.data_path not in TRANSFORMS or curve.modifiers:
                         raise ValueError(
                             f"{target.name}: unsupported animated target channel/modifier: {curve.data_path}"

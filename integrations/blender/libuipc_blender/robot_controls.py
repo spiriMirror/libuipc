@@ -13,6 +13,7 @@ import numpy as np
 from bpy.props import BoolProperty, CollectionProperty, FloatProperty, IntProperty, PointerProperty, StringProperty
 
 from .robot_control_state import layout_signature, validate_pose, trajectory_metrics
+from .motion import action_fcurves
 
 
 def belongs_to(control, root):
@@ -114,7 +115,7 @@ def preview_pose(scene, root):
 
 def key_angle(control, frame):
     control.keyframe_insert(data_path="rotation_axis_angle", index=0, frame=frame)
-    curve = next(c for c in control.animation_data.action.fcurves if c.data_path == "rotation_axis_angle" and c.array_index == 0)
+    curve = next(c for c in action_fcurves(control) if c.data_path == "rotation_axis_angle" and c.array_index == 0)
     for point in curve.keyframe_points:
         if abs(point.co.x - frame) < 1e-4:
             point.interpolation = "BEZIER"
@@ -301,8 +302,7 @@ class UIPC_OT_robot_review(RobotOperator, bpy.types.Operator):
                     continue
                 control = entry.control
                 controller_signature(control)  # Reject drivers/NLA/modifiers like the bake path.
-                action = control.animation_data.action if control.animation_data else None
-                curve = next((c for c in action.fcurves if c.data_path == "rotation_axis_angle" and c.array_index == 0 and not c.mute), None) if action else None
+                curve = next((c for c in action_fcurves(control) if c.data_path == "rotation_axis_angle" and c.array_index == 0 and not c.mute), None)
                 values = [curve.evaluate(float(t)) for t in times] if curve else np.full(count, control.rotation_axis_angle[0])
                 metrics = trajectory_metrics(values, scene.render.fps / scene.render.fps_base, substeps,
                                              scene.frame_start, joint["limits"])
