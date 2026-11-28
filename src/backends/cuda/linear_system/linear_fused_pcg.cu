@@ -1128,10 +1128,8 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
         return 0;
 
     Float rz_tol = global_tol_rate * abs_rz0;
-    // synchronous upload: an async copy on the default stream would race with
-    // the graph launch stream (blocking streams do not wait for
-    // legacy-stream work), letting the converged kernel read a stale/uninit
-    // tolerance. (Symptom was dx=0 -> flat line-search energy.)
+    // Publish the host tolerance before replay, including when the default
+    // stream is per-thread and has no implicit dependency on the replay stream.
     CUDA_TOOL_CHECK(cudaMemcpy(d_rz_tol.data(), &rz_tol, sizeof(Float), cudaMemcpyHostToDevice));
     SizeT effective_check_interval = check_interval > 0 ? check_interval : SizeT{1};
 
@@ -1152,7 +1150,7 @@ SizeT LinearFusedPCG::fused_pcg(cuda_tool::DenseVectorView<Float>  x,
 
             if(m_graph.ready())
             {
-                m_graph.launch_sync();  // replay, then host-check below
+                CUDA_TOOL_CHECK(m_graph.launch_sync());  // replay, then host-check below
             }
             else  // capture failed: plain path
             {

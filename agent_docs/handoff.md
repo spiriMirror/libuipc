@@ -1,5 +1,12 @@
 # Handoff — Current State of the Repo
 
+> **Solver and recovery audit follow-up (2026-11-28)**. The restart control
+> compares the next step after a fresh-engine restore against continuous
+> simulation. Point/plane, point/triangle and edge/edge AL contacts matched at
+> frames 4 and 8. Old AL dumps without the required history report failure.
+> BDF2 free flight and strict-limit error reporting are covered for both
+> body families and both contact pipelines, respectively.
+
 > **File I/O audit follow-up (2026-11-28)**. URDF geometry offsets are applied
 > once in their own link frames. Optional visuals fall back to collision display,
 > and meshless endpoints use ID `-1`. OBJ line records preserve consecutive

@@ -110,6 +110,8 @@ class ContactTabular::Impl
         view(*m_friction_rates)[index] = friction_rate;
         view(*m_resistances)[index]    = resistance;
         view(*m_is_enabled)[index]     = enable;
+        if(index == 0)
+            m_default_model_user_set = true;
 
         return index;
     }

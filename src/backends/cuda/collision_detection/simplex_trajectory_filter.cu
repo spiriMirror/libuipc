@@ -450,10 +450,10 @@ bool SimplexTrajectoryFilter::Impl::try_recover(RecoverInfo& info)
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
-    return dump_PTs.load(fmt::format("{}PTs.{}", path, frame))      //
-           && dump_EEs.load(fmt::format("{}EEs.{}", path, frame))   //
-           && dump_PEs.load(fmt::format("{}PEs.{}", path, frame))   //
-           && dump_PPs.load(fmt::format("{}PPs.{}", path, frame));  //
+    return dump_PTs.load<Vector4i>(fmt::format("{}PTs.{}", path, frame))      //
+           && dump_EEs.load<Vector4i>(fmt::format("{}EEs.{}", path, frame))   //
+           && dump_PEs.load<Vector3i>(fmt::format("{}PEs.{}", path, frame))   //
+           && dump_PPs.load<Vector2i>(fmt::format("{}PPs.{}", path, frame));  //
 }
 
 void SimplexTrajectoryFilter::Impl::apply_recover(RecoverInfo& info)

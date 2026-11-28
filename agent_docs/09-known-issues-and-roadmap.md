@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Solver follow-up after v0.0.30: AL checkpoints now include lagged contact
+history and reject missing history. BDF2 initial history uses prescribed
+velocity. Standard IPC counts completed iterations for its Newton floor,
+and strict IPC/AL errors reach the world status. Checkpoint payloads and
+publication of complete frames are checked. Explicit default-pair inserts
+honor the stiffness setting. Graph replay reports CUDA launch and sync errors.
+
 File I/O follow-up after v0.0.30: the URDF link/joint transforms and absent
 visuals, OBJ polyline truncation, MSH element types, mesh writer keywords and
 USD stage-open failure are covered by regression tests.
@@ -152,18 +159,14 @@ The added custom backend and XMake editable route are deferred, not advertised
 as delivered features. Existing scikit-build-core CMake editable support remains.
 The contributor's fork is not modified; main integration must preserve commit ancestry.
 
-Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
-`4757859c`. This inspection updated documentation only. Open priorities include
-Python facade ownership, BDF2 history startup, build/source-directory aliasing
-during staging cleanup, material validation, manual publishing, MeshDoctor, modified curve
-conversion and CUDA graph error propagation. The report distinguishes focused
-reproductions from source-confirmed paths and unverified risks. Passing current
-tests is not evidence that these uncovered contracts are correct.
+Historical triage: the [2026-09-11 project audit](14-project-audit.md) records
+findings as of `4757859c`. See the post-v0.0.30 entries above for subsequent
+implementation changes. Curve-modifier handling is documented separately.
 
 Owner clarification, 2026-09-16: the existing early uninstall of old `pyuipc` is
 intentional and required, not an open defect. The audit's earlier recommendation
 to retain the old package until replacement was ready is withdrawn. The independent
-source-directory cleanup risk remains a separate finding; no implementation changed.
+source-directory cleanup issue was subsequently fixed in the post-v0.0.30 build changes.
 
 Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
 bending (no twist), edge/curve input, pinning/contact and native surface playback.

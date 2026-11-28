@@ -259,7 +259,7 @@ bool VertexHalfPlaneTrajectoryFilter::Impl::try_recover(RecoverInfo& info)
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
-    return dump_PHs.load(fmt::format("{}PHs.{}", path, frame));
+    return dump_PHs.load<Vector2i>(fmt::format("{}PHs.{}", path, frame));
 }
 
 void VertexHalfPlaneTrajectoryFilter::Impl::apply_recover(RecoverInfo& info)

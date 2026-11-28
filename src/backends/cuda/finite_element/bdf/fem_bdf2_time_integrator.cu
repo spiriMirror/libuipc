@@ -14,21 +14,29 @@ namespace
         cuda_tool::CBufferView<IndexT>  is_dynamic,
         cuda_tool::CBufferView<Vector3> xs,
         cuda_tool::BufferView<Vector3>  x_ns,
-        cuda_tool::CBufferView<Vector3> x_n_1s,
+        cuda_tool::BufferView<Vector3>  x_n_1s,
         cuda_tool::CBufferView<Vector3> v_ns,
-        cuda_tool::CBufferView<Vector3> v_n_1s,
+        cuda_tool::BufferView<Vector3>  v_n_1s,
         cuda_tool::BufferView<Vector3>  x_tildes,
         cuda_tool::CBufferView<Vector3> gravity,
         cuda_tool::CBufferView<Vector3> external_force_accs,
         Float                           dt,
+        bool                            bootstrap,
         int                             n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
         // x_n is tracked in x_prevs for current step.
-        x_ns(i)       = xs(i);
-        auto&   x_n   = x_ns(i);
+        x_ns(i)   = xs(i);
+        auto& x_n = x_ns(i);
+        if(bootstrap)
+        {
+            x_n_1s(i) = x_n;
+            if(!is_fixed(i) && is_dynamic(i))
+                x_n_1s(i) -= dt * v_ns(i);
+            v_n_1s(i) = v_ns(i);
+        }
         Vector3 x_n_1 = x_n_1s(i);
         Vector3 v_n   = v_ns(i);
         Vector3 v_n_1 = v_n_1s(i);
@@ -101,13 +109,9 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
 
     void do_predict_dof(PredictDofInfo& info) override
     {
-        if(state->x_n_1s().size() != info.xs().size())
-        {
+        const bool bootstrap = state->x_n_1s().size() != info.xs().size();
+        if(bootstrap)
             state->resize(info.xs().size());
-            // Bootstrap history from current x_n and v_n.
-            state->x_n_1s().copy_from(info.x_prevs());
-            state->v_n_1s().copy_from(info.vs());
-        }
 
         auto k = FEMBDF2Integrator_do_predict_dof_kernel;
         int  n = (int)info.xs().size();
@@ -118,13 +122,14 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
                 info.is_dynamic().cview(),
                 info.xs().cview(),
                 info.x_prevs(),
-                state->x_n_1s().cview(),
+                state->x_n_1s(),
                 info.vs(),
-                state->v_n_1s().cview(),
+                state->v_n_1s(),
                 info.x_tildes(),
                 info.gravities().cview(),
                 info.external_force_accs().cview(),
                 info.dt(),
+                bootstrap,
                 n);
         }
     }

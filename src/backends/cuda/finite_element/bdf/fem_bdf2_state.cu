@@ -31,8 +31,8 @@ bool FEMBDF2State::Impl::try_recover(RecoverInfo& info)
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
-    return dump_x_n_1s.load(fmt::format("{}q_n_1.{}", path, frame))  //
-           && dump_v_n_1s.load(fmt::format("{}qv_n_1.{}", path, frame));
+    return dump_x_n_1s.load<Vector3>(fmt::format("{}q_n_1.{}", path, frame))  //
+           && dump_v_n_1s.load<Vector3>(fmt::format("{}qv_n_1.{}", path, frame));
 }
 
 void FEMBDF2State::Impl::apply_recover(RecoverInfo& info)

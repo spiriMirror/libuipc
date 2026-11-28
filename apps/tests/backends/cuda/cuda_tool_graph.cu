@@ -77,6 +77,13 @@ void escape_and_throw(cudaStream_t s, cudaEvent_t event)
 }
 }  // namespace
 
+TEST_CASE("cuda_tool synchronous graph replay reports an invalid graph", "[cuda][graph]")
+{
+    cuda_tool::GraphCapture graph;
+    REQUIRE(graph.launch_sync() != cudaSuccess);
+    cudaGetLastError();
+}
+
 TEST_CASE("cuda_tool GraphCapture ends a capture whose body throws", "[cuda][graph]")
 {
     using Result = cuda_tool::GraphCapture::Result;
