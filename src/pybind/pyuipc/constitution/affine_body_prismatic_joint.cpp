@@ -46,8 +46,8 @@ Returns:
             for(auto item : r_geo_slots)
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
 
-            return self.create_geometry(as_span_of<Vector3>(position0s),
-                                        as_span_of<Vector3>(position1s),
+            return self.create_geometry(as_span_of<const Vector3>(position0s),
+                                        as_span_of<const Vector3>(position1s),
                                         span{l_slots},
                                         as_span<IndexT>(l_instance_ids),
                                         span{r_slots},
@@ -98,10 +98,10 @@ Returns:
             for(auto item : r_geo_slots)
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
 
-            return self.create_geometry(as_span_of<Vector3>(l_position0),
-                                        as_span_of<Vector3>(l_position1),
-                                        as_span_of<Vector3>(r_position0),
-                                        as_span_of<Vector3>(r_position1),
+            return self.create_geometry(as_span_of<const Vector3>(l_position0),
+                                        as_span_of<const Vector3>(l_position1),
+                                        as_span_of<const Vector3>(r_position0),
+                                        as_span_of<const Vector3>(r_position1),
                                         span{l_slots},
                                         as_span<IndexT>(l_instance_ids),
                                         span{r_slots},

@@ -54,6 +54,18 @@ borrows memory and does not normalize strides: binding authors must keep a
 matching-dtype owner alive and supply the layout expected by the native span.
 CPU regression coverage is in `python/tests/test_soft_vertex_stitch.py`.
 
+## Packed spans and in-place transforms
+
+`as_span` and `as_span_of` borrow packed native storage. They check
+C contiguity and alignment before exposing a span. Matrix spans require
+row-major storage for types with more than one row and column. For a sliced
+or transposed input to a packed-only API, first use
+`numpy.require(array, requirements=["C", "A"])` with the required dtype.
+
+Mesh factories and batched ABD conversions read logical NumPy indices directly.
+`Transform.apply_to` updates the selected rows of a writable native float64 batch
+in place, including stepped slices. Single-vector calls return a new vector.
+
 ## Attribute views (`uipc.view`, `as_numpy.h`)
 
 `uipc.view` has three overloads: one for all 20 numeric `AttributeSlot<T>`

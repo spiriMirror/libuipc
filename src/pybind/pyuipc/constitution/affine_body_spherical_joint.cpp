@@ -32,13 +32,13 @@ Returns:
     // World create_geometry
     class_AffineBodySphericalJoint.def(
         "create_geometry",
-        [](AffineBodySphericalJoint&    self,
-           py::array_t<Float>           positions,
-           py::list                     l_geo_slots,
-           py::array_t<IndexT>          l_instance_ids,
-           py::list                     r_geo_slots,
-           py::array_t<IndexT>          r_instance_ids,
-           py::array_t<Float>           strength_ratios)
+        [](AffineBodySphericalJoint& self,
+           py::array_t<Float>        positions,
+           py::list                  l_geo_slots,
+           py::array_t<IndexT>       l_instance_ids,
+           py::list                  r_geo_slots,
+           py::array_t<IndexT>       r_instance_ids,
+           py::array_t<Float>        strength_ratios)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -49,7 +49,7 @@ Returns:
             for(auto item : r_geo_slots)
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
 
-            return self.create_geometry(as_span_of<Vector3>(positions),
+            return self.create_geometry(as_span_of<const Vector3>(positions),
                                         span{l_slots},
                                         as_span<IndexT>(l_instance_ids),
                                         span{r_slots},
@@ -78,14 +78,14 @@ Returns:
     // Local create_geometry
     class_AffineBodySphericalJoint.def(
         "create_geometry",
-        [](AffineBodySphericalJoint&    self,
-           py::array_t<Float>           l_positions,
-           py::array_t<Float>           r_positions,
-           py::list                     l_geo_slots,
-           py::array_t<IndexT>          l_instance_ids,
-           py::list                     r_geo_slots,
-           py::array_t<IndexT>          r_instance_ids,
-           py::array_t<Float>           strength_ratios)
+        [](AffineBodySphericalJoint& self,
+           py::array_t<Float>        l_positions,
+           py::array_t<Float>        r_positions,
+           py::list                  l_geo_slots,
+           py::array_t<IndexT>       l_instance_ids,
+           py::list                  r_geo_slots,
+           py::array_t<IndexT>       r_instance_ids,
+           py::array_t<Float>        strength_ratios)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -96,8 +96,8 @@ Returns:
             for(auto item : r_geo_slots)
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
 
-            return self.create_geometry(as_span_of<Vector3>(l_positions),
-                                        as_span_of<Vector3>(r_positions),
+            return self.create_geometry(as_span_of<const Vector3>(l_positions),
+                                        as_span_of<const Vector3>(r_positions),
                                         span{l_slots},
                                         as_span<IndexT>(l_instance_ids),
                                         span{r_slots},

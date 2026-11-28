@@ -1,5 +1,9 @@
 # Handoff — Current State of the Repo
 
+> **PR #519**. Keep the stride-aware mesh factories and ABD conversions.
+> Raw span consumers check contiguity and alignment; batched in-place
+> `Transform.apply_to` follows the caller's writable view.
+
 > **XMake dependency compatibility (2026-11-28)**. The shared flag helper
 > includes magic_enum's separate bitwise header when available.
 

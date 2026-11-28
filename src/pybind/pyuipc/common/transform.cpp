@@ -1,10 +1,50 @@
 #include <pyuipc/common/transform.h>
 #include <Eigen/Geometry>
 #include <uipc/common/type_define.h>
+#include <cstring>
 
 namespace pyuipc
 {
 using namespace uipc;
+
+namespace
+{
+    // Compare the three columns of an (N,3) view. Within each column,
+    // addresses form an arithmetic progression with spacing row_stride.
+    bool overlapping_vectors(const py::array& a)
+    {
+        const auto rows = a.shape(0);
+        if(rows == 0 || (a.flags() & (py::array::c_style | py::array::f_style)))
+            return false;
+        const auto width      = a.itemsize();
+        const auto col_stride = std::abs(a.strides(1));
+        if(col_stride < width)
+            return true;
+        if(rows == 1)
+            return false;
+        const auto row_stride = std::abs(a.strides(0));
+        if(row_stride < width)
+            return true;
+        for(auto gap : {col_stride, 2 * col_stride})
+        {
+            const auto n         = gap / row_stride;
+            const auto remainder = gap % row_stride;
+            if((n < rows && remainder < width)
+               || (n < rows - 1 && row_stride - remainder < width))
+                return true;
+        }
+        return false;
+    }
+
+    Vector3 read_vector(const char* src, py::ssize_t stride)
+    {
+        Vector3 p;
+        for(int j = 0; j < 3; ++j)
+            std::memcpy(&p[j], src + j * stride, sizeof(Float));
+        return p;
+    }
+}  // namespace
+
 PyTransform::PyTransform(py::module& m)
 {
     using Quaternion = Eigen::Quaternion<Float>;
@@ -334,29 +374,62 @@ Returns:
 
     class_Transform.def(
         "apply_to",
-        [](Transform& self, py::array_t<Float> v) -> py::array_t<Float>
+        [](const Transform& self, py::object vectors) -> py::array
         {
-            if(v.ndim() >= 2)
+            auto a = py::array::ensure(vectors);
+            if(!a)
+                throw py::type_error("Expected a 3D vector or an array of 3D vectors");
+            if(a.ndim() == 1)
             {
-                auto span_v = as_span_of<Vector3>(v);
-                for(auto& v3 : span_v)
-                    v3 = self * v3;
+                auto v = py::array_t<Float>::ensure(a);
+                if(!v || v.shape(0) != 3)
+                    throw py::value_error("Expected a numeric vector of length 3");
+                return as_numpy(
+                    self * read_vector(reinterpret_cast<const char*>(v.data()), v.strides(0)));
+            }
+            if(!py::array_t<Float>::check_(vectors))
+                throw py::type_error("In-place apply_to requires a native float64 NumPy array");
+            auto v = py::reinterpret_borrow<py::array_t<Float>>(vectors);
+            if(!is_span_of<Vector3>(v))
+                throw py::value_error("Expected vectors with shape (N,3) or (N,3,1)");
+            if(!v.writeable() || overlapping_vectors(v))
+                throw py::value_error("In-place apply_to requires writable, non-overlapping vectors");
+
+            auto* data = reinterpret_cast<char*>(v.mutable_data());
+            if(v.flags() & py::array::c_style)
+            {
+                for(py::ssize_t i = 0; i < v.shape(0); ++i, data += 3 * sizeof(Float))
+                {
+                    Vector3 p;
+                    std::memcpy(p.data(), data, 3 * sizeof(Float));
+                    p = self * p;
+                    std::memcpy(data, p.data(), 3 * sizeof(Float));
+                }
                 return v;
             }
-
-            Vector3 v3 = to_matrix<Vector3>(v);
-            return as_numpy(self * v3);
+            const auto row_stride = v.strides(0);
+            const auto stride     = v.strides(1);
+            for(py::ssize_t i = 0; i < v.shape(0); ++i)
+            {
+                char*         row         = data + i * row_stride;
+                const Vector3 transformed = self * read_vector(row, stride);
+                for(int j = 0; j < 3; ++j)
+                    std::memcpy(row + j * stride, &transformed[j], sizeof(Float));
+            }
+            return v;
         },
         py::arg("vectors"),
         R"(Apply transform to a vector or array of vectors (in-place for arrays).
 Args:
-    vectors: Single 3D vector or array of 3D vectors.
+    vectors: A single 3D vector, or a writable native float64 NumPy array with
+        shape (N,3) or (N,3,1). Batch elements must occupy non-overlapping memory.
 Returns:
     numpy.ndarray: Transformed vector(s).)");
 
-    class_Transform.def("inverse",
-                        [](const Transform& self) -> Transform { return self.inverse(); },
-                        R"(Get the inverse transform.
+    class_Transform.def(
+        "inverse",
+        [](const Transform& self) -> Transform { return self.inverse(); },
+        R"(Get the inverse transform.
 Returns:
     Transform: Inverse transformation matrix.)");
 }

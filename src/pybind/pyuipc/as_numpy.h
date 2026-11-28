@@ -31,6 +31,7 @@
 #include <uipc/common/span.h>
 #include <uipc/common/log.h>
 #include <Eigen/Core>
+#include <cstdint>
 
 namespace pyuipc
 {
@@ -116,10 +117,23 @@ auto as_numpy(const span<T>& s, py::handle obj)
 }
 
 template <typename T>
-span<T> as_span(py::array_t<T> arr)
+void check_packed_span(const py::array& arr)
+{
+    PYUIPC_ASSERT((arr.flags() & py::array::c_style) != 0,
+                  "array must be C-contiguous (use numpy.ascontiguousarray)");
+    PYUIPC_ASSERT(arr.size() == 0
+                      || reinterpret_cast<std::uintptr_t>(arr.data()) % alignof(T) == 0,
+                  "array data must be aligned to {} bytes",
+                  alignof(T));
+}
+
+template <typename T, typename Scalar, int Flags>
+span<T> as_span(py::array_t<Scalar, Flags> arr)
     requires std::is_arithmetic_v<T>
 {
+    static_assert(std::is_same_v<std::remove_const_t<T>, std::remove_const_t<Scalar>>);
     PYUIPC_ASSERT(arr.ndim() == 1, "array must be 1D, yours={}", arr.ndim());
+    check_packed_span<T>(arr);
 
     if constexpr(std::is_const_v<T>)
         return span<T>(arr.data(), arr.size());
@@ -204,8 +218,8 @@ auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle o
     return arr;
 }
 
-template <typename MatrixT>
-span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
+template <typename MatrixT, typename Scalar, int Flags>
+span<MatrixT> as_span_of(py::array_t<Scalar, Flags> arr)
     requires requires(MatrixT) {
         MatrixT::RowsAtCompileTime > 0;
         MatrixT::ColsAtCompileTime > 0;
@@ -213,6 +227,14 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
 {
     constexpr int Rows = MatrixT::RowsAtCompileTime;
     constexpr int Cols = MatrixT::ColsAtCompileTime;
+
+    // The span views the C-ordered buffer in place as packed MatrixT values: a
+    // column-major matrix with several rows and columns would be read transposed.
+    static_assert(Rows == 1 || Cols == 1 || bool(MatrixT::Flags & Eigen::RowMajorBit),
+                  "as_span_of needs a vector or a row-major matrix type");
+    static_assert(std::is_same_v<typename MatrixT::Scalar, std::remove_const_t<Scalar>>);
+    static_assert(sizeof(MatrixT) == Rows * Cols * sizeof(Scalar),
+                  "as_span_of needs packed matrix elements");
 
     constexpr bool IsConst = std::is_const_v<MatrixT>;
 
@@ -246,10 +268,12 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         throw PyException(PYUIPC_MSG("array must be 2D or 3D, yours={}", arr.ndim()));
     }
 
+    check_packed_span<MatrixT>(arr);
+
     if constexpr(IsConst)
-        return span<MatrixT>((MatrixT*)arr.data(), arr.shape(0));
+        return span<MatrixT>(reinterpret_cast<MatrixT*>(arr.data()), arr.shape(0));
     else
-        return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
+        return span<MatrixT>(reinterpret_cast<MatrixT*>(arr.mutable_data()), arr.shape(0));
 }
 
 template <typename MatrixT>

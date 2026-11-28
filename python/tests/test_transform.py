@@ -54,3 +54,47 @@ def test_transform():
     surf = extract_surface(sc)
     assert surf is not None and surf.triangles().size() > 0, "extract_surface yields surface with triangles"
 
+
+@pytest.mark.parametrize("layout", ["row_slice", "reverse", "fortran", "column_vector", "unaligned"])
+def test_apply_to_updates_only_selected_vectors(layout):
+    base = np.arange(36.0).reshape(6, 6)
+    if layout == "fortran":
+        base = np.asfortranarray(base)
+    if layout == "unaligned":
+        storage = bytearray(base.nbytes + 1)
+        unaligned = np.ndarray(base.shape, dtype=base.dtype, buffer=storage, offset=1)
+        unaligned[:] = base
+        base = unaligned
+    rows = slice(None, None, -2 if layout == "reverse" else 2)
+    cols = slice(None, None, -2 if layout == "reverse" else 2)
+    selected = base[rows, cols]
+    transform = uipc.Transform.Identity()
+    transform.translate(np.array([1., 2., 3.]))
+    transform.rotate(uipc.AngleAxis(np.pi / 2, uipc.Vector3.UnitZ()))
+    matrix = transform.matrix()
+    expected = base.copy()
+    expected[rows, cols] = selected @ matrix[:3, :3].T + matrix[:3, 3]
+    if layout == "column_vector":
+        selected = selected[..., None]
+    assert transform.apply_to(selected) is selected
+    np.testing.assert_allclose(base, expected, atol=1e-12)
+
+
+def test_apply_to_validates_storage_before_writing():
+    transform = uipc.Transform.Identity()
+    transform.translate(np.ones(3))
+    base = np.zeros(6)
+    overlap = np.lib.stride_tricks.sliding_window_view(base, 3, writeable=True)
+    with pytest.raises(ValueError, match="non-overlapping"):
+        transform.apply_to(overlap)
+    np.testing.assert_array_equal(base, np.zeros(6))
+    readonly = base.reshape(2, 3)
+    readonly.flags.writeable = False
+    with pytest.raises(ValueError, match="writable"):
+        transform.apply_to(readonly)
+    with pytest.raises(TypeError, match="float64"):
+        transform.apply_to(np.zeros((2, 3), dtype=np.float32))
+    empty = np.empty((0, 3))
+    assert transform.apply_to(empty) is empty
+    np.testing.assert_array_equal(transform.apply_to([1, 2, 3]).ravel(), [2, 3, 4])
+

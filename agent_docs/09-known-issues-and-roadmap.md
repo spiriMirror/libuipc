@@ -1,5 +1,8 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+PR #519 follow-up: raw span bindings enforce their packed layout requirements,
+and batched `Transform.apply_to` respects the input view's strides during writes.
+
 Frontend follow-up after v0.0.30: Python facades retain owners. Blender checks
 the active Action slot for motion edits, handles disjoint rigid-shell mass,
 and reads the final status of completed bake/render workers. MeshDoctor
