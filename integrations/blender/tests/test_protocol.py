@@ -160,6 +160,29 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "closed"):
             protocol.validate_mesh(vertices, faces[:-1], "RIGID", "open assembly", allow_components=True)
 
+    def test_compound_winding_preserves_cavities_and_corrects_separate_solids(self):
+        # The third tetrahedron is outside the first, but inside its bounding box.
+        vertices = np.vstack((4 * self.vertices, self.vertices + .4,
+                              .2 * self.vertices + [2., 2., 2.]))
+        inward = self.faces[:, [0, 2, 1]]
+        expected = np.vstack((self.faces, inward + 4, self.faces + 8))
+        for faces in (np.vstack((self.faces, inward + 4, inward + 8)),
+                      np.vstack((inward, self.faces + 4, self.faces + 8))):
+            with self.subTest(faces=faces.tolist()):
+                positions, oriented = protocol.validate_mesh(
+                    vertices, faces, "RIGID", "assembly", allow_components=True)
+                np.testing.assert_array_equal(positions, vertices)
+                np.testing.assert_array_equal(oriented, expected)
+
+    def test_crossing_closed_solids_with_nested_bounds_keep_positive_mass(self):
+        # One small-shell vertex is inside the large tetrahedron, three are outside.
+        vertices = np.vstack((4 * self.vertices, 2 * self.vertices + 1))
+        expected = np.vstack((self.faces, self.faces + 4))
+        supplied = np.vstack((self.faces, self.faces[:, [0, 2, 1]] + 4))
+        _, oriented = protocol.validate_mesh(vertices, supplied, "RIGID", "assembly",
+                                             allow_components=True)
+        np.testing.assert_array_equal(oriented, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

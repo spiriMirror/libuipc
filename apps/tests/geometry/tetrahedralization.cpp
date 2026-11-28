@@ -214,6 +214,27 @@ TEST_CASE("native_tetrahedralization_simplex_and_scale", "[tetrahedralization]")
     }
 }
 
+TEST_CASE("tetrahedralization preserves small separated shells", "[tetrahedralization]")
+{
+    constexpr double edge = 1e-3;
+    vector<Vector3> points{{0, 0, 0}, {edge, 0, 0}, {0, edge, 0}, {0, 0, edge}};
+    for(size_t i = 0; i < 4; ++i)
+        points.push_back(points[i] + Vector3::Ones());
+    const vector<Vector3i> faces{
+        {1, 2, 3}, {0, 3, 2}, {0, 1, 3}, {0, 2, 1}, {5, 6, 7}, {4, 7, 6}, {4, 5, 7}, {4, 6, 5}};
+    auto surface = trimesh(points, faces);
+    auto options = tetrahedralization_default_config();
+    if(GENERATE(false, true))
+    {
+        options["quality_passes"]    = 0;
+        options["refinement_budget"] = 0;
+    }
+    auto [mesh, report]          = tetrahedralize(surface, options);
+    const double expected_volume = 2 * edge * edge * edge / 6;
+    check_volume(surface, mesh, expected_volume, true);
+    REQUIRE(report["volume"].get<double>() == Catch::Approx(expected_volume).epsilon(1e-9));
+}
+
 TEST_CASE("native_tetrahedralization_extracted_surface", "[tetrahedralization]")
 {
     vector<Vector3>  points{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};

@@ -13,8 +13,7 @@ PyAffineBodyFixedJoint::PyAffineBodyFixedJoint(py::module& m)
             m, "AffineBodyFixedJoint", R"(AffineBodyFixedJoint constitution for fixed (rigid) joints between affine bodies.)");
 
     class_AffineBodyFixedJoint.def(py::init<const Json&>(),
-                                   py::arg("config") =
-                                       AffineBodyFixedJoint::default_config(),
+                                   py::arg("config") = AffineBodyFixedJoint::default_config(),
                                    R"(Create an AffineBodyFixedJoint.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
@@ -28,12 +27,12 @@ Returns:
     // World create_geometry
     class_AffineBodyFixedJoint.def(
         "create_geometry",
-        [](AffineBodyFixedJoint&    self,
-           py::list                 l_geo_slots,
-           py::array_t<IndexT>      l_instance_ids,
-           py::list                 r_geo_slots,
-           py::array_t<IndexT>      r_instance_ids,
-           py::array_t<Float>       strength_ratios)
+        [](AffineBodyFixedJoint& self,
+           py::list              l_geo_slots,
+           py::array_t<IndexT>   l_instance_ids,
+           py::list              r_geo_slots,
+           py::array_t<IndexT>   r_instance_ids,
+           py::array_t<Float>    strength_ratios)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -70,14 +69,14 @@ Returns:
     // Local create_geometry
     class_AffineBodyFixedJoint.def(
         "create_geometry",
-        [](AffineBodyFixedJoint&    self,
-           py::array_t<Float>       l_positions,
-           py::array_t<Float>       r_positions,
-           py::list                 l_geo_slots,
-           py::array_t<IndexT>      l_instance_ids,
-           py::list                 r_geo_slots,
-           py::array_t<IndexT>      r_instance_ids,
-           py::array_t<Float>       strength_ratios)
+        [](AffineBodyFixedJoint& self,
+           py::array_t<Float>    l_positions,
+           py::array_t<Float>    r_positions,
+           py::list              l_geo_slots,
+           py::array_t<IndexT>   l_instance_ids,
+           py::list              r_geo_slots,
+           py::array_t<IndexT>   r_instance_ids,
+           py::array_t<Float>    strength_ratios)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -88,8 +87,8 @@ Returns:
             for(auto item : r_geo_slots)
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
 
-            return self.create_geometry(as_span_of<Vector3>(l_positions),
-                                        as_span_of<Vector3>(r_positions),
+            return self.create_geometry(as_span_of<const Vector3>(l_positions),
+                                        as_span_of<const Vector3>(r_positions),
                                         span{l_slots},
                                         as_span<IndexT>(l_instance_ids),
                                         span{r_slots},
@@ -120,11 +119,11 @@ Returns:
     //  Single instance mode
     class_AffineBodyFixedJoint.def(
         "apply_to",
-        [](AffineBodyFixedJoint&         self,
-           geometry::SimplicialComplex&  sc,
-           py::list                      l_geo_slots,
-           py::list                      r_geo_slots,
-           Float                         strength_ratio)
+        [](AffineBodyFixedJoint&        self,
+           geometry::SimplicialComplex& sc,
+           py::list                     l_geo_slots,
+           py::list                     r_geo_slots,
+           Float                        strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -154,13 +153,13 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
     //  Multi-instance mode
     class_AffineBodyFixedJoint.def(
         "apply_to",
-        [](AffineBodyFixedJoint&         self,
-           geometry::SimplicialComplex&  sc,
-           py::list                      l_geo_slots,
-           py::array_t<IndexT>           l_instance_ids,
-           py::list                      r_geo_slots,
-           py::array_t<IndexT>           r_instance_ids,
-           py::array_t<Float>            strength_ratios)
+        [](AffineBodyFixedJoint&        self,
+           geometry::SimplicialComplex& sc,
+           py::list                     l_geo_slots,
+           py::array_t<IndexT>          l_instance_ids,
+           py::list                     r_geo_slots,
+           py::array_t<IndexT>          r_instance_ids,
+           py::array_t<Float>           strength_ratios)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;

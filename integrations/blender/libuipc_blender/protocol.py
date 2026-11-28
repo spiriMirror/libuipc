@@ -225,6 +225,39 @@ def file_sha256(path):
     return digest.hexdigest()
 
 
+def _encloses_shell(outer, inner):
+    """Check a point by solid angle, then rule out intersecting boundaries."""
+    a, b, c = (outer - inner[0, 0]).transpose(1, 0, 2)
+    la, lb, lc = (np.linalg.norm(x, axis=1) for x in (a, b, c))
+    determinant = np.einsum("ij,ij->i", a, np.cross(b, c))
+    denominator = (la * lb * lc + np.einsum("ij,ij->i", a, b) * lc
+                   + np.einsum("ij,ij->i", b, c) * la + np.einsum("ij,ij->i", c, a) * lb)
+    if abs(np.arctan2(determinant, denominator).sum()) <= np.pi:
+        return False
+
+    lo, hi = outer.min(axis=1), outer.max(axis=1)
+    for tri in inner:
+        nearby = outer[np.all(hi >= tri.min(axis=0), axis=1) & np.all(lo <= tri.max(axis=0), axis=1)]
+        if not len(nearby):
+            continue
+        # Triangle separating axes include in-plane edge normals for coplanar faces.
+        lhs, rhs = tri - tri[0], nearby - tri[0]
+        u, v = np.roll(lhs, -1, axis=0) - lhs, np.roll(rhs, -1, axis=1) - rhs
+        nu, nv = np.cross(u[0], u[1]), np.cross(v[:, 0], v[:, 1])
+        axes = np.concatenate((
+            np.broadcast_to(nu, (len(rhs), 1, 3)), nv[:, None],
+            np.cross(u[:, None], v[:, None]).reshape(len(rhs), 9, 3),
+            np.broadcast_to(np.cross(nu, u), (len(rhs), 3, 3)),
+            np.cross(nv[:, None], v),
+        ), axis=1)
+        left = np.einsum("vi,nai->nva", lhs, axes)
+        right = np.einsum("nvi,nai->nva", rhs, axes)
+        separated = (left.max(axis=1) < right.min(axis=1)) | (right.max(axis=1) < left.min(axis=1))
+        if np.any(~separated.any(axis=1)):
+            return False
+    return True
+
+
 def validate_mesh(vertices, triangles, role, name, allow_components=False):
     """Validate input before any native call; preserve the original vertex indexing."""
     vertices = np.asarray(vertices, dtype=np.float64)
@@ -266,22 +299,53 @@ def validate_mesh(vertices, triangles, role, name, allow_components=False):
         elif role == "RIGID":
             raise ValueError(prefix + "ABD rigid bodies require a closed surface")
     if role == "RIGID":
-        seen, pending = set(), [0]
-        while pending:
-            face = pending.pop()
-            if face not in seen:
-                seen.add(face)
-                pending.extend(adjacency[face])
-        if len(seen) != len(triangles) and not allow_components:
-            raise ValueError(prefix + "use one connected closed surface per ABD body")
-        # Center before integrating to avoid cancellation for translated meshes.
-        centered = vertices - vertices.mean(axis=0)
-        p = centered[triangles]
-        volume = float(np.einsum("ij,ij->i", p[:, 0], np.cross(p[:, 1], p[:, 2])).sum() / 6)
-        if abs(volume) <= extent**3 * 1e-12:
-            raise ValueError(prefix + "ABD surface encloses no usable volume")
-        if volume < 0:
+        shells = []
+        visited = set()
+        for start in range(len(triangles)):
+            if start in visited:
+                continue
+            if shells and not allow_components:
+                raise ValueError(prefix + "use one connected closed surface per ABD body")
+            pending, faces = [start], []
+            visited.add(start)
+            while pending:
+                face = pending.pop()
+                faces.append(face)
+                for other in adjacency[face]:
+                    if other not in visited:
+                        visited.add(other)
+                        pending.append(other)
+            xyz = p[faces]
+            lower, upper = xyz.min(axis=(0, 1)), xyz.max(axis=(0, 1))
+            a, b, c = (xyz - xyz[0, 0]).transpose(1, 0, 2)
+            volume = float(np.einsum("ij,ij->i", a, np.cross(b, c)).sum() / 6)
+            if not np.isfinite(volume) or abs(volume) <= np.max(upper - lower)**3 * 1e-12:
+                raise ValueError(prefix + "ABD surface encloses no usable volume")
+            shells.append((faces, lower, upper, volume))
+
+        # A separate outer solid must be outward. Preserve the authored relative
+        # winding of nested shells (cavities and solid parts of compound links).
+        if all(shell[3] < 0 for shell in shells):
             triangles = triangles[:, [0, 2, 1]].copy()
+        elif any(shell[3] < 0 for shell in shells):
+            flip = np.zeros(len(triangles), dtype=bool)
+            processed = []
+            total_volume = 0.0
+            for faces, lower, upper, volume in sorted(shells, key=lambda shell: -abs(shell[3])):
+                reverse = volume < 0
+                for outer, outer_lo, outer_hi, outer_flip in reversed(processed):
+                    if (np.all(outer_lo < lower) and np.all(upper < outer_hi)
+                            and _encloses_shell(p[outer], p[faces])):
+                        reverse = outer_flip
+                        break
+                flip[faces] = reverse
+                total_volume += -volume if reverse else volume
+                processed.append((faces, lower, upper, reverse))
+            if total_volume <= sum(abs(shell[3]) for shell in shells) * 1e-12:
+                raise ValueError(prefix + "ABD surface encloses no usable volume")
+            if np.any(flip):
+                triangles = triangles.copy()
+                triangles[flip] = triangles[flip][:, [0, 2, 1]]
     return np.ascontiguousarray(vertices), np.ascontiguousarray(triangles)
 
 

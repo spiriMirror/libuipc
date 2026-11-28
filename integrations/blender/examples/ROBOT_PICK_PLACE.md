@@ -1,6 +1,6 @@
 # Robot hand: pick an apple from the bowl
 
-This example loads the current dining `.blend` and the URDF from sample 87.
+This example loads the current dining `.blend` and the URDF from sample 45.
 It imports the robot through the actual Blender extension operator and bakes
 the hand, cloth, ceramics, apples and cutlery together in one libuipc World.
 The apple is an unconstrained dynamic ABD body throughout the simulation.
@@ -15,7 +15,7 @@ The apple is an unconstrained dynamic ABD body throughout the simulation.
 ```
 
 `robot_hand_grasp.json` contains the reproducible joint-space grasp. It was
-planned from sample 87's actual collision geometry; no additional runtime IK
+planned from sample 45's actual collision geometry; no additional runtime IK
 dependency is needed in Blender or the worker. `plan_hand_grasp.py` can regenerate
 candidate poses using NumPy/SciPy and a `robot_model.py` native URDF export. The
 planner's forward kinematics is checked against exported native controller poses.
@@ -46,10 +46,10 @@ The corrected preset actuates all four chains (the older preset parked joints
 velocity at each stage boundary. These are changes to the physical drive targets,
 not filtering or smoothing of the resulting MDD trajectories.
 
-The 17 links follow sample 87's ABD + `SoftTransformConstraint` design, with
+The 17 links follow sample 45's ABD + `SoftTransformConstraint` design, with
 100 MPa rigidity, density 5000 kg/m^3 and translation/rotation strength ratios
 10000. They use quasi-static position servos, not a joint-torque dynamics model.
-Contact inside the robot assembly is disabled as in sample 87; all robot contacts
+Contact inside the robot assembly is disabled as in sample 45; all robot contacts
 against scene objects are enabled with friction 0.8. Existing dining material,
 gravity and time-step settings come from the selected `.blend`.
 This example explicitly selects the **Converged** solver profile; the library

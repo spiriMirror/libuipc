@@ -17,8 +17,8 @@ def main():
                         help='Workspace directory for output files (default: current working directory)')
     parser.add_argument('--abd', action='store_true', 
                         help='Use AffineBodyConstitution for checking')
-    parser.add_argument('--gui', action='store_true', default=True,
-                        help='Enable GUI visualization (default: True)')
+    parser.add_argument('--gui', action=ap.BooleanOptionalAction, default=False,
+                        help='Open the GUI to inspect mesh errors')
     
     args = parser.parse_args()
     
@@ -46,7 +46,7 @@ def main():
         uipc.Logger.info('Mesh check passed!')
         sys.exit(0)
     else:
-        uipc.Logger.error('Mesh check failed! See visualization for details.')
+        uipc.Logger.error('Mesh check failed! See the diagnostics above.')
         sys.exit(1)
 
 if __name__ == '__main__':

@@ -810,9 +810,9 @@ bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
-    return dump_q.load(fmt::format("{}q.{}", path, frame))                //
-           && dump_q_v.load(fmt::format("{}q_v.{}", path, frame))         //
-           && dump_q_prev.load(fmt::format("{}q_prev.{}", path, frame));  //
+    return dump_q.load<Vector12>(fmt::format("{}q.{}", path, frame))         //
+           && dump_q_v.load<Vector12>(fmt::format("{}q_v.{}", path, frame))  //
+           && dump_q_prev.load<Vector12>(fmt::format("{}q_prev.{}", path, frame));  //
 }
 
 void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info)

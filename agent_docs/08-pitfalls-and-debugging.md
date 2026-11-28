@@ -145,8 +145,8 @@ touching that area; several of these have bitten us more than once.
 - **Cloth membrane `1/sqrt(I5)` singularity** (`strain_limiting_baraff_
   witkin_shell_2d.h`): a fully collapsed triangle (directional stretch
   λ→0) produced inf/NaN forces — and even the NEAR-singular regime was
-  silently poisoning PCG conditioning (case 88: 145 PCG/solve with
-  pathological 14-Newton frames). Fixed with a 1e-12 floor on I5; case 88
+  silently poisoning PCG conditioning (case 46: 145 PCG/solve with
+  pathological 14-Newton frames). Fixed with a 1e-12 floor on I5; case 46
   dropped 266 -> 203 ms/frame as a side effect (35/solve now). Stiff-GIPC
   has the same unguarded hole.
 - **Cloth vs Stiff-GIPC alignment audit (2026-08-24)**: the SLBWS membrane
@@ -229,12 +229,31 @@ touching that area; several of these have bitten us more than once.
   100000000") are the min/max policy working as designed on
   disabled/zero-stiffness pairs — not an error (handoff: "Default kappa
   policy").
+- **PCG's relative tolerance lives in the preconditioner's norm.** PCG
+  stops on `|r^T z| <= tol_rate * |r0^T z0|` with `z = P^-1 r`, so a change
+  to the preconditioner changes what "converged" means. A stale one (the
+  opt-in `linear_system/keep_preconditioner`, doc 05) can make the solve stop
+  while the step of the free bodies is still about zero; Newton's
+  displacement test reads that as convergence, and momentum is lost with
+  every frame converged and no limit hit. Fewer Newton iterations were the
+  symptom, not a gain: judge a solver-path change by body motion (fall per
+  frame, kinetic energy) against upstream and a tight-`tol_rate` reference,
+  not by iteration counts.
 
 ## GPU / cuda_tool
 
 - Kernel launch block sizes come from `cuda_tool::best_block_dim(kernel)`
   with a **per-kernel-address** occupancy cache (see the suite-pollution
-  entry above — never key it by type).
+  entry above — never key it by type). FP64-heavy per-item kernels over
+  short lists (CCD filters) use `cuda_tool::spread_block_dim` instead: the
+  occupancy block size packs a few thousand such threads onto a handful of
+  SMs, whose 1/64-rate FP64 pipes then serialize them.
+  Kernels over a few items with many registers per thread (the ABD
+  producers listed in doc 05's launch-shape exceptions) use it too: their
+  occupancy block is one block that
+  needs most of an SM's registers however few threads work, and on a
+  busy GPU it holds back every later grid of its stream priority until
+  a whole SM is free.
 - **CUDA-graph capture traps** (learned the hard way in the FusedPCG graph
   work):
   - A captured graph bakes every kernel's **by-value arguments** — including
@@ -256,9 +275,29 @@ touching that area; several of these have bitten us more than once.
     The existing graph path retains a synchronous tolerance upload; do not
     remove it based on the obsolete contrary comment in `graph.h`. A new
     concurrency diagnosis must establish the actual streams and dependencies.
+    The mode-2 PCG graph is enqueued without a host wait and relies on this
+    rule: legacy-stream consumers of the solution wait for it, but a
+    consumer on a non-blocking side stream is ordered after the solve only
+    when it is forked from the legacy stream (as `SideStreams::fork` does).
   - A launch into the legacy default stream during capture invalidates the
     capture (detected at `cudaStreamEndCapture`) — use that as the automatic
-    fallback signal for un-plumbed callees.
+    fallback signal for un-plumbed callees. A checked call on a captured
+    stream after the invalidation fails and throws (e.g. the event record of
+    `SideStreams::join` behind the fused PCG step's parallel segments):
+    `GraphCapture`/`GraphWhile::capture` catch that, end the capture (which
+    takes every joined stream out of capture mode) and take the same
+    fallback. An exception on a valid capture is rethrown once the capture
+    is ended; `GraphCapture::recapture()` then also drops its instantiated
+    graph, as `capture()` does, so the stale graph is not replayed. An invalidated capture into a conditional node's body
+    (`cudaStreamBeginCaptureToGraph`, the WHILE loop body) leaves the parent
+    graph unsafe to destroy on CUDA 13.4: the body graph handle turns
+    invalid, and `cudaGraphDestroy` of the parent (or `cudaGraphDestroyNode`
+    of the WHILE node) segfaults. `GraphWhile` therefore abandons that graph
+    (one leak per instance, which is disabled afterwards).
+  - The static cudart gives every DSO its own runtime: `cudaGetLastError`
+    in the backend does not clear an error raised by code compiled into a
+    test executable (or vice versa). Test code that provokes CUDA errors
+    must clear them in its own runtime.
   - Graph replay vs plain launches can schedule blocks differently →
     different atomic-add arrival order → ULP divergence → chaotic scenes
     diverge after contact onset. Expected; do not chase bit-equality there.
@@ -275,7 +314,10 @@ touching that area; several of these have bitten us more than once.
     block replay**: per-iteration condition evaluation + body dispatch cost
     real microseconds; measured on ~85-iteration solves the block path (host
     check every 5) wins by ~10%. Graphs kill *launch* gaps, not *loop-control*
-    gaps — amortize the control decision over several iterations.
+    gaps — amortize the control decision over several iterations. The
+    FusedPCG WHILE body therefore runs two fused iterations per evaluation
+    and publishes the decision from the direction kernel (no separate
+    control node).
 - `DeviceVector::resize(n)` value-initializes the grown tail (thrust
   parity); `loose_resize_entries` deliberately does NOT initialize —
   see below.

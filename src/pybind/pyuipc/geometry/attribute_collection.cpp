@@ -282,7 +282,7 @@ Returns:
     class_AttributeCollection.def(
         "reorder",
         [](AttributeCollection& self, py::array_t<SizeT> arr)
-        { self.reorder(as_span<SizeT>(arr)); },
+        { self.reorder(as_span<const SizeT>(arr)); },
         py::arg("indices"),
         R"(Reorder attributes according to the given indices.
 Args:

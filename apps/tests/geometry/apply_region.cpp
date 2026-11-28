@@ -5,6 +5,74 @@
 using namespace uipc;
 using namespace uipc::geometry;
 
+TEST_CASE("tetrahedral face parents follow region splits and merges", "[connected_components]")
+{
+    vector<Vector3> points{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {0, 0, -1}};
+    for(SizeT i = 0; i < 5; ++i)
+        points.push_back(points[i] + Vector3{3, 0, 0});
+    // Each region has two tetrahedra sharing a face. Interleave their source IDs.
+    const vector<Vector4i> cells{{0, 1, 2, 3}, {5, 6, 7, 8}, {0, 2, 1, 4}, {5, 7, 6, 9}};
+    auto mesh = tetmesh(points, cells);
+    label_surface(mesh);
+    auto check_parents = [](const SimplicialComplex& geo)
+    {
+        auto parents = geo.triangles().find<IndexT>(builtin::parent_id);
+        REQUIRE(parents);
+        auto tets = geo.tetrahedra().topo().view();
+        for(auto&& [i, face] : enumerate(geo.triangles().topo().view()))
+        {
+            const auto id = parents->view()[i];
+            REQUIRE(id >= 0);
+            REQUIRE(static_cast<SizeT>(id) < tets.size());
+            for(auto vertex : face)
+                REQUIRE((tets[id].array() == vertex).any());
+        }
+    };
+
+    SECTION("split")
+    {
+        const auto instances = GENERATE(1, 2);
+        mesh.instances().resize(instances);
+        for(int i = 0; i < instances; ++i)
+            view(mesh.transforms())[i](1, 3) = 2.0 + i;
+        label_region(mesh);
+        auto parts = apply_region(mesh);
+        REQUIRE(parts.size() == 2);
+        for(auto& part : parts)
+        {
+            REQUIRE(part.tetrahedra().size() == 2);
+            check_parents(part);
+            REQUIRE(part.instances().size() == instances);
+            for(int i = 0; i < instances; ++i)
+                REQUIRE(part.transforms().view()[i] == mesh.transforms().view()[i]);
+        }
+    }
+
+    SECTION("merge")
+    {
+        auto merged = merge({&mesh, &mesh});
+        REQUIRE(merged.tetrahedra().size() == 2 * cells.size());
+        check_parents(merged);
+    }
+
+    SECTION("merge partially labelled inputs")
+    {
+        auto unlabelled = tetmesh(points, cells);
+        auto mixed      = merge({&unlabelled, &mesh, &unlabelled});
+        auto parents    = mixed.triangles().find<IndexT>(builtin::parent_id);
+        REQUIRE(parents);
+        auto source = mesh.triangles().find<IndexT>(builtin::parent_id)->view();
+        for(SizeT i = 0; i < source.size(); ++i)
+        {
+            REQUIRE(parents->view()[i] == -1);
+            REQUIRE(parents->view()[i + source.size()]
+                    == source[i] + static_cast<IndexT>(cells.size()));
+            REQUIRE(parents->view()[i + 2 * source.size()] == -1);
+        }
+        REQUIRE_THROWS(label_triangle_orient(mixed));
+    }
+}
+
 TEST_CASE("apply_region", "[connected_components]")
 {
     SimplicialComplexIO io;
@@ -27,11 +95,8 @@ TEST_CASE("apply_region", "[connected_components]")
         SimplicialComplex mesh1 = cube;
         SimplicialComplex mesh2 = cube;
         auto              Ps    = view(mesh2.positions());
-        std::ranges::transform(Ps,
-                               Ps.begin(),
-                               [](const auto& p) {
-                                   return p + Vector3{0, 1, 0};
-                               });
+        std::ranges::transform(
+            Ps, Ps.begin(), [](const auto& p) { return p + Vector3{0, 1, 0}; });
 
         auto merged_mesh = merge({&mesh1, &mesh2});
         label_connected_vertices(merged_mesh);
@@ -108,4 +173,3 @@ TEST_CASE("apply_region", "[connected_components]")
         io.write(fmt::format("{}apart_mesh_1.obj", output_path), apart_meshes[1]);
     }
 }
-

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (C) 2026 spiriMirror
-"""Offline joint-space grasp planning from the sample 87 native URDF export."""
+"""Offline joint-space grasp planning from the sample 45 native URDF export."""
 
 import argparse
 import json
@@ -246,7 +246,7 @@ def solve_grasp(hand, fingers=4):
         "closed_cost": float(closed.cost),
         "open_cost": float(opened.cost),
         "finger_count": fingers,
-        "model": f"sample 87 URDF collision geometry; {fingers}-pad opposition",
+        "model": f"sample 45 URDF collision geometry; {fingers}-pad opposition",
     }
 
 

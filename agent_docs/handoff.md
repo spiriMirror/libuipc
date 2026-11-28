@@ -1,22 +1,75 @@
 # Handoff — Current State of the Repo
 
-> **pyuipc array layout (2026-11-24)**: the four batched affine-body conversions
-> read and write element by element through the arrays' strides; `as_span_of`
-> refuses non-C-contiguous arrays and, by `static_assert`, column-major matrix
-> types with several rows and columns (no caller uses one any more). On main
-> 158d39f the batched `q_to_transform(q)[i]` equalled `q_to_transform(q[i]).T`,
-> and `pointcloud(V[:, :3])` with `V = arange(24).reshape(4, 6)` created the
-> points `(0,1,2), (3,4,5), (6,7,8), (9,10,11)`.
-> Validation: before the fix 27 of the 31 new CPU cases failed; the four passing
-> ones read a transposed storage by coincidence (two), compose two transposed
-> batches (the round trip) or read uipc's own column-major views. After the
-> incremental Release rebuild all 31 pass. The portable Python suite passes 204
-> tests (177 before, plus the 27) with the optional Warp module skipped, and the
-> 79 CUDA cases pass before and after (Linux, g++ 11.4, CUDA 12.8, CPython
-> 3.12.12, NumPy 2.5.3; `test_assets.py` excluded: `huggingface_hub` absent).
-> clang-format 18.1.8 (`scripts/format_changed.py --check`) and
-> `git diff --check` pass; formatting also reflowed the unchanged rigid-body
-> bindings in `affine_body.cpp` (whitespace only).
+> **PR #519**. Keep the stride-aware mesh factories and ABD conversions.
+> Raw span consumers check contiguity and alignment; batched in-place
+> `Transform.apply_to` follows the caller's writable view.
+
+> **XMake dependency compatibility (2026-11-28)**. The shared flag helper
+> includes magic_enum's separate bitwise header when available.
+
+> **Python and Blender audit follow-up (2026-11-28)**. Borrowed collection
+> facades retain their native owners. The addon fingerprints the assigned
+> Action slot, handles winding per outer solid and preserves cavities, and
+> reads final worker status after observing process exit. MeshDoctor checks
+> FEM inputs and supports headless CLI operation.
+
+> **Solver and recovery audit follow-up (2026-11-28)**. The restart control
+> compares the next step after a fresh-engine restore against continuous
+> simulation. Point/plane, point/triangle and edge/edge AL contacts matched at
+> frames 4 and 8. Old AL dumps without the required history report failure.
+> BDF2 free flight and strict-limit error reporting are covered for both
+> body families and both contact pipelines, respectively.
+
+> **File I/O audit follow-up (2026-11-28)**. URDF geometry offsets are applied
+> once in their own link frames. Optional visuals fall back to collision display,
+> and meshless endpoints use ID `-1`. OBJ line records preserve consecutive
+> segments. MSH exports use Gmsh simplex types, and Python mesh writing accepts
+> `filename=` and `sc=`. OpenUSD stage opening reports a missing file immediately.
+
+> **Geometry and material audit follow-up (2026-11-28)**. Outward face labels
+> survive relabeling, motor targets use local axes, and a shell reassigned
+> to solid ABD uses the solid body-force integral. For plastic bending,
+> the isolated hinge checks the residual against the achieved peak angle
+> minus the yield angle, including the below-yield elastic control.
+
+> **Build and release audit follow-up (2026-11-28)**. Source builds require
+> pybind11 2.12 or newer. The post-build helper validates its staging path
+> before cleanup. Wheel matrix jobs distinguish tag and release events.
+> Manual hotfix dispatch retries a selected release in its original workflow.
+> Documentation builds include public-header changes and fork PR validation.
+> Sample 20 advances once per running GUI callback (samples `2c5d0f6`).
+
+> **Tetrahedral geometry (2026-11-28)**. Region splitting preserves instance
+> attributes and remaps triangle parent IDs. Merging offsets existing parent
+> IDs into the combined cell table. Tetrahedralization uses shell-local
+> origins for its signed boundary-volume check, including cavity boundaries.
+
+> **Triangle surface closure**. The solid ABD volume path now checks every
+> undirected triangle edge for exactly two occurrences. Samples `20045cb`
+> removes a double-sided sheet from `thumb_distal.obj` and closes a gap in
+> `thumb_tip.obj`. All 17 imported collision meshes pass the edge check.
+> The thumb links use their URDF inertias because their closed components
+> overlap. Sample 45 passed 500 frames, and sample 52 passed the four-finger
+> grasp and release checks in two independent 500-frame runs.
+
+> **Python geometry inputs and ABD batches (2026-11-28)**. Mesh factories
+> honor vertex and topology strides. Batched ABD pose and velocity conversion
+> preserves the scalar API's matrix orientation and translation column.
+
+> **Python read-only bindings (2026-11-28)**. Vector and matrix attribute views
+> now reject NumPy assignment, and UID lookup fields reject reassignment.
+> Use `uipc.view(slot)` to write a numeric attribute with copy-on-write.
+
+> **Opt-in preconditioner reuse (2026-11-18)**: `linear_system/keep_preconditioner`
+> (default 0) lets every odd Newton iteration from the third on keep the
+> previous iteration's preconditioner on the standard IPC pipeline. It is off
+> by default: PCG measures its relative tolerance in the norm of its
+> preconditioner, so a one-step-old preconditioner changes the stopping
+> threshold and can end PCG and Newton early, losing momentum (doc 05,
+> doc 08). With the key at 0 every iteration assembles its preconditioners,
+> as before. Tests: `preconditioner_reuse.cu` (which iterations keep, the
+> default and the opt-in, a kept preconditioner preserving the PCG tolerance)
+> and the scene-config schema tests.
 
 > **Linux wheel repository bootstrap (2026-11-11)**: `CIBW_BEFORE_ALL` clears
 > metadata and refreshes OS repositories before installing build tools, with
@@ -1967,3 +2020,21 @@ regression).
   repository contracts 48/48, portable Python tests 80 passed / 1 skipped, the
   real Python 3.14 CUDA doctor probe, and the complete documentation build all
   passed.
+# BVH scene-bounds contribution preparation (2026-10-18)
+
+The focused scene-bounds fix was prepared against `ac89e100`. Bounds initialization is ordered before the reduction, inactive
+lanes participate with neutral values, and signed zero uses IEEE sign-bit
+ordering. The three BVH variants have a shared CPU bounds oracle. This is a
+correctness prerequisite for matched optimization comparisons; validation is
+recorded separately from historical performance results.
+
+# CUDA test-oracle correction (2026-10-18)
+
+The LBVH point-query CPU oracle returned an Eigen cast expression referring
+to a destroyed temporary. A host-only AddressSanitizer reproduction reports
+stack-use-after-scope. Returning a concrete `Vector3` fixes the lifetime;
+the existing bunny section then matches 101,802 CPU/GPU point candidates.
+No BVH implementation or overlap predicate changed. This is a test-only
+correction: no production tolerance, algorithm, graph mode or parallel
+accumulation order was changed.
+

@@ -121,9 +121,9 @@ not as a requirement for physical coupling.
 ## Deeper examples and implementation evidence
 
 - ABD/FEM stack:
-  [`90_abd_fem_cube_stack`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/90_abd_fem_cube_stack/main.py)
+  [`48_abd_fem_cube_stack`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/48_abd_fem_cube_stack/main.py)
 - rigid wall with cloth/FEM:
-  [`93_cube_wall_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/93_cube_wall_cloth/main.py)
+  [`51_cube_wall_cloth`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/51_cube_wall_cloth/main.py)
 - material-dependent rigid contact:
   [`10_ramp_sliding`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/10_ramp_sliding/main.py)
 - C++ mixed-contact regressions:

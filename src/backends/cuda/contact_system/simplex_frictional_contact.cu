@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: side-stream assembly and energy launches,
+ * invalidation of the lagged friction cache and the prelaunched trial energy.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <contact_system/simplex_frictional_contact.h>
 #include <cuda_tool/cuda_tool.h>
 
@@ -45,9 +70,20 @@ void SimplexFrictionalContact::do_report_energy_extent(GlobalContactManager::Ene
                       + m_impl.PP_count);
 }
 
+bool SimplexFrictionalContact::do_report_prelaunch_energy_extent(GlobalContactManager::PrelaunchEnergyExtentInfo& info)
+{
+    // The friction pairs are the frame start's: a trial's energy count is
+    // known before its active set is, and its launch is the usual one.
+    GlobalContactManager::EnergyExtentInfo extent;
+    do_report_energy_extent(extent);
+    info.energy_count(m_impl.PT_count + m_impl.EE_count + m_impl.PE_count
+                      + m_impl.PP_count);
+    return true;
+}
+
 void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{&m_impl, &info};
 
     auto energies = info.energies();
 
@@ -74,7 +110,8 @@ void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInf
                 energies.size(),
                 offset);
 
-    do_compute_energy(this_info);
+    if(!info.prelaunched())  // else the prelaunch computed them
+        do_compute_energy(this_info);
 }
 
 void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
@@ -106,6 +143,7 @@ void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessian
 {
     ContactInfo this_info{&m_impl};
     this_info.m_gradient_only = info.gradient_only();
+    this_info.m_stream        = info.stream();
     // gradient
     {
         IndexT offset = 0;
@@ -276,6 +314,16 @@ cuda_tool::CBufferView<Vector3i> SimplexFrictionalContact::BaseInfo::friction_PE
 cuda_tool::CBufferView<Vector2i> SimplexFrictionalContact::BaseInfo::friction_PPs() const
 {
     return m_impl->simplex_trajectory_filter->friction_PPs();
+}
+
+SizeT SimplexFrictionalContact::BaseInfo::friction_candidates_version() const
+{
+    return m_impl->simplex_trajectory_filter->friction_candidates_version();
+}
+
+SizeT SimplexFrictionalContact::BaseInfo::contact_tabular_version() const
+{
+    return m_impl->global_contact_manager->contact_tabular_version();
 }
 
 cuda_tool::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::positions() const

@@ -144,9 +144,9 @@ in-tree C++ simulation cases provide regression coverage:
 | Topic | Samples | C++ regression cases |
 | --- | --- | --- |
 | ABD | `1_hello_libuipc`, `6_wrecking_balls` | `0_abd_gravity`, `6_abd_cube_pile` |
-| FEM | `3_periodically_pressed_tetrahedron`, `89_mas_bunny` | `13_fem_3d_gravity`, `14_fem_3d_ground_contact`, `15_fem_3d_fixed_point` |
-| Cloth | `11_bunny_cloth`, `34_cloth_stack`, `91_pinned_cloth` | `19_shell_fixed_point`, `33_discrete_shell_bending`, `60_fem_mas_cloth` |
-| Rigid-soft | `90_abd_fem_cube_stack`, `93_cube_wall_cloth` | `18_abd_fem_contact`, `41_abd_fem_mesh_d_hat` |
+| FEM | `3_periodically_pressed_tetrahedron`, `47_mas_bunny` | `13_fem_3d_gravity`, `14_fem_3d_ground_contact`, `15_fem_3d_fixed_point` |
+| Cloth | `11_bunny_cloth`, `34_cloth_stack`, `49_pinned_cloth` | `19_shell_fixed_point`, `33_discrete_shell_bending`, `60_fem_mas_cloth` |
+| Rigid-soft | `48_abd_fem_cube_stack`, `51_cube_wall_cloth` | `18_abd_fem_contact`, `41_abd_fem_mesh_d_hat` |
 | Contact materials | `10_ramp_sliding` | `8_abd_multi_contact_model`, `31_contact_mask` |
 
 The examples in the following pages were checked against those sources, the

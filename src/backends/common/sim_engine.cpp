@@ -188,60 +188,40 @@ bool SimEngine::do_dump()
     auto            current_frame = frame();
     auto            backend_name  = tool.backend_name();
 
-    // 1. Dump SimEngine
+    const auto manifest = fmt::format("{}{}.{}.json", path, dump_file_name, current_frame);
+    const auto pending = fmt::format("{}pending.{}.tmp", path, current_frame);
+    try
     {
-        Json j       = Json::object();
-        j["frame"]   = current_frame;
-        j["backend"] = backend_name;
-
-        // 1.1 Write to dump file
-        bool success = true;
-        try
-        {
-            std::ofstream file(fmt::format("{}{}.{}.json", path, dump_file_name, current_frame));
-            file << j.dump(4);
-        }
-        catch(std::exception e)
-        {
-            logger::error("Failed to write to dump file. Reason: {}", e.what());
-            success = false;
-        }
-
-        if(!success)
+        // The manifest marks a complete frame. An interrupted overwrite must
+        // not advertise a mixture of old and newly written subsystem files.
+        std::filesystem::remove(manifest);
+        DumpInfo dump_info{current_frame, workspace(), Json::object()};
+        if(!do_dump(dump_info))
             return false;
 
-        // 1.2 Let the subclass to dump
-        try
+        ISimSystem::DumpInfo info{current_frame, workspace(), Json::object()};
+        for(auto system : systems())
         {
-            DumpInfo dump_info{frame(), workspace(), Json::object()};
-            success = do_dump(dump_info);
-        }
-        catch(std::exception e)
-        {
-            logger::error("Failed to dump engine. Reason: {}", e.what());
-            success = false;
+            if(!system->do_dump(info))
+            {
+                logger::error("Failed to dump system [{}]", system->name());
+                return false;
+            }
         }
 
-        if(!success)
-            return false;
+        std::ofstream file;
+        file.exceptions(std::ios::failbit | std::ios::badbit);
+        file.open(pending);
+        file << Json{{"frame", current_frame}, {"backend", backend_name}}.dump(4);
+        file.close();
+        std::filesystem::rename(pending, manifest);
+        return true;
     }
-
-
-    // 2. Dump subsystems
-    bool all_success = true;
-    for(auto system : systems())
+    catch(const std::exception& e)
     {
-        ISimSystem::DumpInfo info{frame(), workspace(), Json::object()};
-        all_success &= system->do_dump(info);
-
-        if(!all_success)
-        {
-            logger::error("Failed to dump system [{}]", system->name());
-            break;
-        }
+        logger::error("Failed to dump frame {}: {}", current_frame, e.what());
+        return false;
     }
-
-    return all_success;
 }
 
 void SimEngine::do_init(core::internal::World& w)
@@ -289,34 +269,18 @@ bool SimEngine::do_recover(SizeT dst_frame)
             return false;
         }
 
-        Json j;
-        {
-            std::ifstream ifs(dump_file_path);
-            if(!ifs)
-            {
-                logger::info("No dump file {} found, so skip recovery.", dump_file_path);
-                return false;
-            }
-            ifs >> j;
-        }
-
-        bool        has_error   = false;
-        SizeT       check_frame = ~0ull;
+        SizeT       check_frame;
         std::string check_backend_name;
         try
         {
-            check_frame        = j["frame"].get<SizeT>();
-            check_backend_name = j["backend"].get<std::string>();
+            Json j;
+            ifs >> j;
+            check_frame        = j.at("frame").get<SizeT>();
+            check_backend_name = j.at("backend").get<std::string>();
         }
-        catch(std::exception e)
+        catch(const std::exception& e)
         {
-            has_error = true;
-            logger::info("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
-                         e.what());
-        }
-        if(has_error)
-        {
-            logger::info("Failed to recover from dump file {}, so skip recovery.", dump_file_path);
+            logger::info("Invalid checkpoint manifest {}: {}", dump_file_path, e.what());
             return false;
         }
         if(check_frame != try_recover_frame)

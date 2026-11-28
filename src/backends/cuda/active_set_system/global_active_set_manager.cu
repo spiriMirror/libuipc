@@ -661,6 +661,94 @@ void GlobalActiveSetManager::do_build()
         });
 }
 
+// Persist the active indices, multipliers and retention counters consumed by
+// the next frame, plus the positions used to linearize its lagged friction.
+// The expanded tuples, slack, gradients and friction arrays are regenerated.
+template <typename Operation>
+bool GlobalActiveSetManager::visit_history(History& history, Operation&& transfer)
+{
+    auto contacts =
+        [&](const char* name, ContactHistory& h, auto& pairs, auto& multipliers, auto& counts)
+    {
+        return transfer(fmt::format("{}_idx", name), h.pairs, pairs)
+               && transfer(fmt::format("{}_lambda", name), h.multipliers, multipliers)
+               && transfer(fmt::format("{}_cnt", name), h.counts, counts);
+    };
+    return contacts("PH", history.ph, m_impl.PH_idx, m_impl.PH_lambda, m_impl.PH_cnt)
+           && contacts("PT", history.pt, m_impl.PT_idx, m_impl.PT_lambda, m_impl.PT_cnt)
+           && contacts("EE", history.ee, m_impl.EE_idx, m_impl.EE_lambda, m_impl.EE_cnt)
+           && transfer("positions", history.positions, m_impl.non_penetrate_positions);
+}
+
+bool GlobalActiveSetManager::ContactHistory::valid(SizeT first_limit, SizeT second_limit)
+{
+    auto ids = pairs.view<Vector2i>();
+    return ids.size() == multipliers.view<Float>().size()
+           && ids.size() == counts.view<int>().size()
+           && std::ranges::all_of(ids,
+                                  [&](const Vector2i& pair)
+                                  {
+                                      return static_cast<SizeT>(pair[0]) < first_limit
+                                             && static_cast<SizeT>(pair[1]) < second_limit;
+                                  });
+}
+
+bool GlobalActiveSetManager::do_dump(DumpInfo& info)
+{
+    const auto path = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    History    history;
+    return visit_history(
+        history,
+        [&](const auto& name, BufferDump& dump, const auto& buffer)
+        {
+            return dump.dump(fmt::format("{}{}.{}", path, name, info.frame()), buffer);
+        });
+}
+
+bool GlobalActiveSetManager::do_try_recover(RecoverInfo& info)
+{
+    const auto path   = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    bool       loaded = visit_history(
+        m_recovery,
+        [&](const auto& name, BufferDump& dump, const auto& buffer)
+        {
+            using T = typename std::decay_t<decltype(buffer)>::value_type;
+            return dump.load<T>(fmt::format("{}{}.{}", path, name, info.frame()));
+        });
+    if(!loaded)
+    {
+        logger::warn("AL-IPC recovery requires a checkpoint containing the active contact history.");
+        return false;
+    }
+    const auto& surf     = *m_impl.global_simplicial_surface_manager.view();
+    auto        vertices = m_impl.global_vertex_manager->positions().size();
+    auto        position_count = m_recovery.positions.view<Vector3>().size();
+    return (position_count == vertices || (info.frame() == 0 && position_count == 0))
+           && m_recovery.ph.valid(
+               vertices, m_impl.half_plane ? m_impl.half_plane->positions().size() : 0)
+           && m_recovery.pt.valid(surf.surf_vertices().size(),
+                                  surf.surf_triangles().size())
+           && m_recovery.ee.valid(surf.surf_edges().size(), surf.surf_edges().size());
+}
+
+void GlobalActiveSetManager::do_apply_recover(RecoverInfo& info)
+{
+    visit_history(m_recovery,
+                  [](const auto&, BufferDump& dump, auto& buffer)
+                  {
+                      dump.apply_to(buffer);
+                      return true;
+                  });
+    m_impl.should_discard_friction_candidates = false;
+    m_impl.clear_friction_candidates();
+    do_clear_recover(info);
+}
+
+void GlobalActiveSetManager::do_clear_recover(RecoverInfo&)
+{
+    m_recovery = {};
+}
+
 void GlobalActiveSetManager::Impl::init_mu()
 {
     loose_resize(mu_vertices, global_vertex_manager->positions().size());

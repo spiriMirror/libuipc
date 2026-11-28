@@ -14,20 +14,28 @@ namespace
         cuda_tool::CBufferView<IndexT>   is_dynamic,
         cuda_tool::CBufferView<Vector12> qs,
         cuda_tool::BufferView<Vector12>  q_ns,
-        cuda_tool::CBufferView<Vector12> q_n_1s,
+        cuda_tool::BufferView<Vector12>  q_n_1s,
         cuda_tool::CBufferView<Vector12> q_v_ns,
-        cuda_tool::CBufferView<Vector12> q_v_n_1s,
+        cuda_tool::BufferView<Vector12>  q_v_n_1s,
         cuda_tool::BufferView<Vector12>  q_tildes,
         cuda_tool::CBufferView<Vector12> gravity,
         Float                            dt,
+        bool                             bootstrap,
         int                              n)
     {
         int i = blockIdx.x * blockDim.x + threadIdx.x;
         if(i >= n)
             return;
         // q_n is tracked in q_prevs for current step.
-        q_ns(i)          = qs(i);
-        auto&    q_n     = q_ns(i);
+        q_ns(i)   = qs(i);
+        auto& q_n = q_ns(i);
+        if(bootstrap)
+        {
+            q_n_1s(i) = q_n;
+            if(!is_fixed(i) && is_dynamic(i))
+                q_n_1s(i) -= dt * q_v_ns(i);
+            q_v_n_1s(i) = q_v_ns(i);
+        }
         Vector12 q_n_1   = q_n_1s(i);
         Vector12 q_v_n   = q_v_ns(i);
         Vector12 q_v_n_1 = q_v_n_1s(i);
@@ -100,13 +108,9 @@ class ABDBDF2Integrator final : public ABDTimeIntegrator
 
     void do_predict_dof(PredictDofInfo& info) override
     {
-        if(state->q_n_1s().size() != info.qs().size())
-        {
+        const bool bootstrap = state->q_n_1s().size() != info.qs().size();
+        if(bootstrap)
             state->resize(info.qs().size());
-            // Bootstrap history from current q_n and v_n.
-            state->q_n_1s().copy_from(info.q_prevs());
-            state->q_v_n_1s().copy_from(info.q_vs());
-        }
 
         int n = (int)info.qs().size();
         if(n > 0)
@@ -117,12 +121,13 @@ class ABDBDF2Integrator final : public ABDTimeIntegrator
                 info.is_dynamic().cview(),
                 info.qs().cview(),
                 info.q_prevs(),
-                state->q_n_1s().cview(),
+                state->q_n_1s(),
                 info.q_vs(),
-                state->q_v_n_1s().cview(),
+                state->q_v_n_1s(),
                 info.q_tildes(),
                 info.gravities().cview(),
                 info.dt(),
+                bootstrap,
                 n);
         }
     }

@@ -86,8 +86,8 @@ interface. Call `scene.validate_config()` for an earlier explicit check;
 
 In Python, `Scene.default_config()` returns a dictionary, but `scene.config()`
 returns a **ConfigAttributes facade**, not a dictionary. Use `find("dt")` and
-`uipc.view(slot)` for attribute access; retain the owning `scene` while using the
-facade. Post-initialization attribute writes are not automatically revalidated by
+`uipc.view(slot)` for attribute access. The facade retains the owning `scene`.
+Post-initialization attribute writes are not automatically revalidated by
 every `world.advance()` call and are not a general backend reconfiguration API.
 
 === "C++"
@@ -135,23 +135,18 @@ appropriate geometry instead.
 | `integrator/type` | string | `"bdf1"` | `"bdf1"`, `"bdf2"` | Backward differentiation formula used for time integration. Start with BDF1; BDF2 changes numerical damping and transient response. |
 | `cfl/enable` | flag | `0` | `0`, `1` | Enables the contact-system CFL step filter. This is an advanced/experimental high-speed-contact control; leave it off unless a scene has been diagnosed to need it. |
 
-!!! warning "BDF2 startup and variable-step limitation"
-
-    The 2026-09-11 audit of `4757859c` found that BDF2 history initialization does
-    not preserve a prescribed nonzero constant velocity at startup. A contact-free
-    particle with velocity 1 m/s and dt=0.01 s advanced 0.0066667 m on its first
-    BDF2 step rather than 0.01 m. The implemented BDF2 coefficients also assume a
-    constant step size; live dt reads do not establish variable-step BDF2 support.
-    Use default BDF1 when relying on these cases until the integration contract is
-    corrected and tested. This is an identified algorithm/history limitation,
-    not a requirement for bitwise repeatability or a change to the solver here.
+BDF2 uses a constant time step. At startup the FEM and ABD integrators
+extrapolate the previous dynamic position from the initial velocity
+(`x[-1] = x[0] - dt * v[0]`, or the equivalent affine coordinates).
+This preserves uniform free motion from the first frame. Checkpoint recovery
+uses the saved position and velocity history.
 
 ## Newton solve
 
 | Key | Type | Default | Valid domain / choices | Meaning |
 | --- | --- | --- | --- | --- |
-| `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Reaching it warns, or throws in strict mode. |
-| `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Hard floor before ordinary Newton convergence may terminate. `0` disables the floor. |
+| `newton/max_iter` | integer | `1024` | `>= 1` | Maximum nonlinear iterations in one frame. Exhausting the budget without convergence warns, or records an engine error in strict mode. |
+| `newton/min_iter` | integer | `0` | `0 <= value <= max_iter` | Minimum number of completed Newton iterations before convergence can end a frame. `0` disables the floor. |
 | `newton/use_adaptive_tol` | reserved integer | `0` | exactly `0` | Reserved for compatibility. Because no adaptive-tolerance consumer exists, setting it to `1` is rejected rather than silently doing nothing. |
 | `newton/velocity_tol` | float, m/s | `0.05` | `> 0` | Absolute velocity tolerance. The displacement test is `max_axis_displacement <= velocity_tol * dt`. |
 | `newton/velocity_tol_relative` | float | `0.0` | `> 0` enables; `<= 0` disables | Scene-relative override. Effective velocity tolerance becomes `value * rest_scene_bbox_diagonal`. |
@@ -171,8 +166,9 @@ termination logic and tuning guidance.
 | `linear_system/tol_rate` | float | `1e-3` | `(0, 1)` | Relative PCG residual tolerance. Smaller is more accurate and usually more expensive. |
 | `linear_system/solver` | string | `"fused_pcg"` | `"fused_pcg"`, `"linear_pcg"` | Global iterative solver. `fused_pcg` is the optimized default; `linear_pcg` supports detailed PCG vector dumps. |
 | `linear_system/fem_preconditioner` | string | `"diag"` | `"diag"`, `"mas"` | FEM local preconditioner. MAS auto-partitions every non-empty FEM geometry into fixed-size clusters and is intended for stiff/ill-conditioned FEM scenes. |
-| `linear_system/use_cuda_graph` | integer mode | `1` | `0`, `1`, `2` | Fused-PCG launch mode: `0` plain launches; `1` host-checked block replay; `2` full-GPU while-loop graph. Mode 2 requires CUDA 12.4+ and falls back when unsupported. Non-IPC pipelines currently force graphs off. |
+| `linear_system/use_cuda_graph` | integer mode | `2` | `0`, `1`, `2` | Fused PCG supports plain launches (`0`), host-checked block replay (`1`), and a device-side while-loop graph (`2`). Mode 2 requires CUDA 12.4+ toolkit and driver support and falls back to mode 1 when conditional nodes are unavailable. Non-IPC pipelines use plain launches. |
 | `linear_system/check_interval` | integer | `5` | `>= 1` | Number of fused-PCG iterations between host convergence checks in modes 0/1. Larger values reduce checks but make exit granularity coarser. |
+| `linear_system/keep_preconditioner` | flag | `0` | `0`, `1` | Opt-in, off by default. `1`: every odd Newton iteration from the third on reuses the preconditioner of the previous iteration instead of assembling a new one (standard `ipc` pipeline only; `al-ipc` always assembles). This saves preconditioner assembly time but is not accuracy-neutral: it changes PCG's stopping threshold and can stop PCG and Newton early, so the scene can lose momentum (falling or stacked bodies). Keep `0` unless the scene has been checked with both values. |
 
 ## Line search
 
@@ -180,6 +176,7 @@ termination logic and tuning guidance.
 | --- | --- | --- | --- | --- |
 | `line_search/max_iter` | integer | `8` | `>= 1` | Maximum backtracking iterations per Newton step. |
 | `line_search/report_energy` | flag | `0` | `0`, `1` | Logs the energy contribution of every line-search reporter. Useful for diagnosis, noisy for normal runs. |
+| `line_search/cubic_refinement` | flag | `0` | `0`, `1` | Opt-in. `1`: after a backtrack, one more trial at the minimizer of a cubic fit of the energy along the Newton step; the lower-energy accepted step is kept (see [Newton and Linear Solvers](scene_configs/newton.md)). Standard `ipc` pipeline only: with `contact/constitution = "al-ipc"` the key has no effect and a warning is logged. `0` is the plain halving line search. |
 
 ## Contact and friction
 
@@ -225,12 +222,13 @@ that frame.
 
 | Key | Type | Default | Valid domain | Meaning |
 | --- | --- | --- | --- | --- |
-| `contact/adaptive/min_kappa` | float, Pa | `1e8` (100 MPa) | `> 0` | Lower fallback bound and the effective default resistance when the user never calls `default_model(...)`. |
+| `contact/adaptive/min_kappa` | float, Pa | `1e8` (100 MPa) | `> 0` | Lower fallback bound and the effective default resistance when the user has not explicitly set the default pair. |
 | `contact/adaptive/init_kappa` | float, Pa | `1e9` (1 GPa) | `> 0` | Initial resistance used by the adaptive-kappa strategy. |
 | `contact/adaptive/max_kappa` | float, Pa | `1e11` (100 GPa) | `> 0` | Upper fallback bound. Keep `min <= init <= max`. |
 | `contact/adaptive/kappa_eval_scale` | float | `1e-16` | `> 0` | Evaluation scale for the scene-adaptive kappa corridor. This is an expert parameter; keep the default unless reproducing a calibrated method. |
 
-If a user explicitly sets a non-negative default contact resistance, the
+Both `default_model(...)` and `insert(default_element, default_element, ...)`
+set the default pair explicitly. For a non-negative default resistance, the
 backend clamps it into `[min_kappa, max_kappa]` and reports the range. A
 negative resistance is the explicit opt-in marker for adaptive kappa and is
 not clamped. When a scene-derived corridor is computable, it takes precedence
@@ -248,7 +246,7 @@ over the configured fallback bounds.
 | `extras/debug/dump_linear_system` | flag | `0` | `0`, `1` | Dumps assembled global linear systems for diagnosis. |
 | `extras/debug/dump_linear_pcg` | flag | `0` | `0`, `1` | Dumps PCG vectors for `linear_pcg`. `fused_pcg` warns and ignores this option. |
 | `extras/debug/dump_mas_matrices` | flag | `0` | `0`, `1` | Dumps MAS matrices when the MAS FEM preconditioner is active. |
-| `extras/strict_mode/enable` | flag | `0` | `0`, `1` | Converts nonlinear/line-search limit warnings into engine errors. Recommended for automated validation, not exploratory tuning. |
+| `extras/strict_mode/enable` | flag | `0` | `0`, `1` | Converts nonlinear/line-search limit warnings into errors in `engine.status()`. The world then reports `is_valid() == false`. Recommended for automated validation, not exploratory tuning. |
 
 The three alternate collision selectors are compiled only when
 `UIPC_WITH_CUDA_LEGACY_COLLISION=ON` (CMake, the default) or

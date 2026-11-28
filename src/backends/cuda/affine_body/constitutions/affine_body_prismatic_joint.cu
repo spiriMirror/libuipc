@@ -1,3 +1,28 @@
+/*
+ * NVIDIA contributions: warp-cooperative joint and joint-limit Hessian
+ * assembly, side-stream launches and one-warp launch shapes.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <affine_body/inter_affine_body_constraint.h>
 #include <affine_body/inter_affine_body_constitution.h>
 #include <affine_body/constitutions/affine_body_prismatic_joint_function.h>
@@ -7,6 +32,8 @@
 #include <uipc/builtin/attribute_name.h>
 #include <utils/offset_count_collection.h>
 #include <utils/make_spd.h>
+#include <utils/warp_spd.h>
+#include <utils/warp_joint_hessian.h>
 #include <utils/matrix_assembler.h>
 #include <uipc/common/enumerate.h>
 #include <affine_body/utils.h>
@@ -186,21 +213,34 @@ namespace
         DVA.segment<2>(2 * I).write(indices, G);
     }
 
-    __global__ void affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel(
-        cuda_tool::CBufferView<Vector2i>            body_ids,
-        cuda_tool::CBufferView<Vector6>             rest_cs,
-        cuda_tool::CBufferView<Vector6>             rest_ts,
-        cuda_tool::CBufferView<Vector6>             rest_ns,
-        cuda_tool::CBufferView<Vector6>             rest_bs,
-        cuda_tool::CBufferView<Float>               strength_ratio,
-        cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
-        cuda_tool::CBufferView<Vector12>            qs,
-        cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
-        int                                         n)
+    // One warp per joint (launched with JointWarpSize threads per block): the
+    // 9x9 frame Hessian is projected by all lanes together
+    // (utils/warp_spd.h) and the lanes share the 24x24 J01^T H01 J01 and the
+    // q-independent orientation Hessian; the generated F01 code runs
+    // redundantly on every lane, which costs no more than on one.
+    __global__ void __launch_bounds__(JointWarpSize)
+        affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel(
+            cuda_tool::CBufferView<Vector2i>            body_ids,
+            cuda_tool::CBufferView<Vector6>             rest_cs,
+            cuda_tool::CBufferView<Vector6>             rest_ts,
+            cuda_tool::CBufferView<Vector6>             rest_ns,
+            cuda_tool::CBufferView<Vector6>             rest_bs,
+            cuda_tool::CBufferView<Float>               strength_ratio,
+            cuda_tool::CBufferView<ABDJacobiDyadicMass> body_masses,
+            cuda_tool::CBufferView<Vector12>            qs,
+            cuda_tool::TripletMatrixView<Float, 12>     H12x12s,
+            int                                         n)
     {
-        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        const int I    = blockIdx.x;
+        const int lane = threadIdx.x;
         if(I >= n)
             return;
+
+        __shared__ Float H[24 * 24];
+        __shared__ Float A[81], A2[81], V[81], V2[81], P[81];
+        __shared__ Float rot[warp_spd_rot_size<9>];
+        __shared__ int   part[9];
+
         Vector2i bids = body_ids(I);
 
         Float kappa = strength_ratio(I)
@@ -209,53 +249,50 @@ namespace
         Vector12 qi = qs(bids(0));
         Vector12 qj = qs(bids(1));
 
-        auto& rest_c = rest_cs(I);
-        auto& rest_t = rest_ts(I);
-        auto& rest_n = rest_ns(I);
-        auto& rest_b = rest_bs(I);
+        const Vector6& rest_c = rest_cs(I);
+        const Vector6& rest_t = rest_ts(I);
+        const Vector6& rest_n = rest_ns(I);
+        const Vector6& rest_b = rest_bs(I);
 
-        // Create Frame F01
-        Vector9 F01;
-        PJ::F01<Float>(F01,
-                       rest_c.segment<3>(0),  // ci_bar
-                       rest_t.segment<3>(0),  // ti_bar
-                       qi,                    // qi
-                       rest_c.segment<3>(3),  // cj_bar
-                       rest_t.segment<3>(3),  // tj_bar
-                       qj                     // qj
-        );
+        {
+            // Create Frame F01
+            Vector9 F01;
+            PJ::F01<Float>(F01,
+                           rest_c.segment<3>(0),  // ci_bar
+                           rest_t.segment<3>(0),  // ti_bar
+                           qi,                    // qi
+                           rest_c.segment<3>(3),  // cj_bar
+                           rest_t.segment<3>(3),  // tj_bar
+                           qj                     // qj
+            );
 
-        // Get Hessian based on Frame F01
-        Matrix9x9 H01;
-        PJ::ddE01ddF01(H01, kappa, F01);
+            // Get Hessian based on Frame F01
+            Matrix9x9 H01;
+            PJ::ddE01ddF01(H01, kappa, F01);
+#pragma unroll
+            for(int e = 0; e < 81; ++e)
+                if((e & 31) == lane)
+                    A[e] = H01(e % 9, e / 9);
+        }
+        __syncwarp();
 
         // Ensure H01 is SPD
-        make_spd(H01);
+        warp_make_spd<9>(A, A2, V, V2, rot, part, P, lane);
 
-        Matrix24x24 J01T_H01_J01;
-        PJ::J01T_H01_J01<Float>(J01T_H01_J01,
-                                H01,
-                                rest_c.segment<3>(0),   // ci_bar
-                                rest_t.segment<3>(0),   // ti_bar
-                                rest_c.segment<3>(3),   // cj_bar
-                                rest_t.segment<3>(3));  // tj_bar
+        // H = J01^T H01 J01 + ddE23/ddQ (the latter does not depend on q)
+        const Vector3 ci = rest_c.segment<3>(0), cj = rest_c.segment<3>(3);
+        const Vector3 ti = rest_t.segment<3>(0), tj = rest_t.segment<3>(3);
+        const Vector3 ni = rest_n.segment<3>(0), nj = rest_n.segment<3>(3);
+        const Vector3 bi = rest_b.segment<3>(0), bj = rest_b.segment<3>(3);
+        for(int e = lane; e < 576; e += 32)
+        {
+            const int a = e % 24, b = e / 24;
+            H[e] = prismatic_jt_h_j_entry<1>(P, ci, ti, cj, tj, a, b)
+                   + prismatic_e23_hessian_entry(kappa, ni, bi, nj, bj, a, b);
+        }
+        __syncwarp();
 
-        // Get Hessian based on [qi,qj] directly
-        Matrix24x24 ddE23ddQ;
-        PJ::ddE23ddQ<Float>(ddE23ddQ,
-                            kappa,
-                            rest_n.segment<3>(0),  // ni_bar
-                            rest_b.segment<3>(0),  // bi_bar
-                            qi,                    // qi
-                            rest_n.segment<3>(3),  // nj_bar
-                            rest_b.segment<3>(3),  // bj_bar
-                            qj                     // qj
-        );
-        Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
-
-        TripletMatrixAssembler TMA{H12x12s};
-        Vector2i               indices = {bids(0), bids(1)};
-        TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
+        warp_write_half_block2(H12x12s, HalfHessianSize * I, bids, bids, H, lane);
     }
 
     __global__ void affine_body_driving_prismatic_joint_compute_energy_kernel(
@@ -576,21 +613,32 @@ namespace
         DVA.segment<2>(2 * I).write(bid, G);
     }
 
-    __global__ void affine_body_prismatic_joint_limit_compute_gradient_hessian_k2_kernel(
-        cuda_tool::CBufferView<Vector2i>        body_ids,
-        cuda_tool::CBufferView<Vector6>         rest_cs,
-        cuda_tool::CBufferView<Vector6>         rest_ts,
-        cuda_tool::CBufferView<Float>           init_distances,
-        cuda_tool::CBufferView<Float>           lowers,
-        cuda_tool::CBufferView<Float>           uppers,
-        cuda_tool::CBufferView<Float>           strengths,
-        cuda_tool::CBufferView<Vector12>        qs,
-        cuda_tool::TripletMatrixView<Float, 12> H12x12s,
-        int                                     n)
+    // One warp per joint (launched with JointWarpSize threads per block), as
+    // affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel.
+    __global__ void __launch_bounds__(JointWarpSize)
+        affine_body_prismatic_joint_limit_compute_gradient_hessian_k2_kernel(
+            cuda_tool::CBufferView<Vector2i>        body_ids,
+            cuda_tool::CBufferView<Vector6>         rest_cs,
+            cuda_tool::CBufferView<Vector6>         rest_ts,
+            cuda_tool::CBufferView<Float>           init_distances,
+            cuda_tool::CBufferView<Float>           lowers,
+            cuda_tool::CBufferView<Float>           uppers,
+            cuda_tool::CBufferView<Float>           strengths,
+            cuda_tool::CBufferView<Vector12>        qs,
+            cuda_tool::TripletMatrixView<Float, 12> H12x12s,
+            int                                     n)
     {
-        int I = blockIdx.x * blockDim.x + threadIdx.x;
+        const int I    = blockIdx.x;
+        const int lane = threadIdx.x;
         if(I >= n)
             return;
+
+        __shared__ Float H[24 * 24];
+        __shared__ Float dx_dq_s[24];
+        __shared__ Float A[81], A2[81], V[81], V2[81], P[81];
+        __shared__ Float rot[warp_spd_rot_size<9>];
+        __shared__ int   part[9];
+
         Vector2i bid = body_ids(I);
 
         const Vector6& C_bar = rest_cs(I);
@@ -610,18 +658,48 @@ namespace
         Float d2E_dx2 = 0.0f;
         joint_limit::eval_penalty_derivatives<Float>(x, lower, upper, strength, dE_dx, d2E_dx2);
 
-        Vector24 dx_dq;
-        compute_absolute_distance_derivative(dx_dq, C_bar, t_bar, qk, ql);
-
-        Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
-
-        if(dE_dx != 0.0f)
         {
-            compute_absolute_distance_hessian(H, dE_dx, C_bar, t_bar, qk, ql);
+            Vector24 dx_dq;
+            compute_absolute_distance_derivative(dx_dq, C_bar, t_bar, qk, ql);
+#pragma unroll
+            for(int k = 0; k < 24; ++k)
+                if(k == lane)
+                    dx_dq_s[k] = dx_dq(k);
         }
+        __syncwarp();
 
-        TripletMatrixAssembler TMA{H12x12s};
-        TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
+        for(int e = lane; e < 576; e += 32)
+            H[e] = d2E_dx2 * (dx_dq_s[e % 24] * dx_dq_s[e / 24]);
+
+        if(dE_dx != 0.0f)  // uniform over the warp
+        {
+            {
+                Vector9 F01_q;
+                DPJ::F01_q<Float>(F01_q,
+                                  C_bar.segment<3>(0),
+                                  t_bar.segment<3>(0),
+                                  qk,
+                                  C_bar.segment<3>(3),
+                                  t_bar.segment<3>(3),
+                                  ql);
+                Matrix9x9 ddx_ddF;
+                DPJ::ddxdF01(ddx_ddF, F01_q);
+#pragma unroll
+                for(int e = 0; e < 81; ++e)
+                    if((e & 31) == lane)
+                        A[e] = dE_dx * ddx_ddF(e % 9, e / 9);
+            }
+            __syncwarp();
+            warp_make_spd<9>(A, A2, V, V2, rot, part, P, lane);
+
+            const Vector3 ci = C_bar.segment<3>(0), cj = C_bar.segment<3>(3);
+            const Vector3 ti = t_bar.segment<3>(0), tj = t_bar.segment<3>(3);
+            for(int e = lane; e < 576; e += 32)
+                H[e] += prismatic_jt_h_j_entry<-1>(P, ci, ti, cj, tj, e % 24, e / 24);
+        }
+        __syncwarp();
+
+        warp_write_half_block2(H12x12s, HalfHessianSize * I, bid, bid, H, lane);
     }
 }  // namespace
 
@@ -914,7 +992,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         auto k       = affine_body_prismatic_joint_compute_energy_kernel;
         int  n       = (int)body_ids.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),
@@ -943,7 +1021,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_prismatic_joint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 body_ids.cview(),
                 rest_cs.cview(),
                 rest_ts.cview(),
@@ -962,17 +1040,16 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_prismatic_joint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
-                body_ids.cview(),
-                rest_cs.cview(),
-                rest_ts.cview(),
-                rest_ns.cview(),
-                rest_bs.cview(),
-                strength_ratios.cview(),
-                info.body_masses(),
-                info.qs(),
-                info.hessians(),
-                n);
+            k<<<n, JointWarpSize, 0, info.stream()>>>(body_ids.cview(),
+                                                      rest_cs.cview(),
+                                                      rest_ts.cview(),
+                                                      rest_ns.cview(),
+                                                      rest_bs.cview(),
+                                                      strength_ratios.cview(),
+                                                      info.body_masses(),
+                                                      info.qs(),
+                                                      info.hessians(),
+                                                      n);
         }
     };
 
@@ -990,7 +1067,8 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return curr_distances_dump.load(fmt::format("{}pj_current_distances.{}", path, frame));
+        return curr_distances_dump.load<Float>(
+            fmt::format("{}pj_current_distances.{}", path, frame));
     }
 
     void do_apply_recover(RecoverInfo& info) override
@@ -1260,7 +1338,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
         auto k = affine_body_driving_prismatic_joint_compute_energy_kernel;
         int  n = (int)is_constrained.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 is_constrained.cview(),
                 is_passive.cview(),
@@ -1282,7 +1360,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 is_constrained.cview(),
                 is_passive.cview(),
@@ -1304,7 +1382,7 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
         if(n > 0)
         {
             auto k = affine_body_driving_prismatic_joint_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 is_constrained.cview(),
                 is_passive.cview(),
@@ -1640,7 +1718,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         auto k = affine_body_prismatic_joint_limit_compute_energy_kernel;
         int  n = (int)ref_qs.size();
         if(n > 0)
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 prismatic_joint->rest_cs.cview(),
                 prismatic_joint->rest_ts.cview(),
@@ -1668,7 +1746,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_k1_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<cuda_tool::spread_grid_dim(n), cuda_tool::spread_block_dim, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 prismatic_joint->rest_cs.cview(),
                 prismatic_joint->rest_ts.cview(),
@@ -1687,7 +1765,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         if(n > 0)
         {
             auto k = affine_body_prismatic_joint_limit_compute_gradient_hessian_k2_kernel;
-            k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+            k<<<n, JointWarpSize, 0, info.stream()>>>(
                 prismatic_joint->body_ids.cview(),
                 prismatic_joint->rest_cs.cview(),
                 prismatic_joint->rest_ts.cview(),

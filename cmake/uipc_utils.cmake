@@ -305,10 +305,17 @@ endfunction()
 function(uipc_require_python_module python_dir module_name)
     file(TO_CMAKE_PATH "${python_dir}" python_dir)
     uipc_info("Check python module [${module_name}] with [${python_dir}]")
+    set(import_check "import ${module_name}")
+    set(requirement "${module_name}")
+    if(ARGC GREATER 2)
+        string(REPLACE "." ", " minimum_version "${ARGV2}")
+        string(APPEND import_check "; import sys; sys.exit(${module_name}.version_info < (${minimum_version},))")
+        set(requirement "${module_name}>=${ARGV2}")
+    endif()
 
     # check if the module is installed
     execute_process(COMMAND "${python_dir}"
-        "-c" "import ${module_name}"
+        "-c" "${import_check}"
         RESULT_VARIABLE CMD_RESULT
         OUTPUT_QUIET
     )
@@ -320,7 +327,7 @@ function(uipc_require_python_module python_dir module_name)
 
     if(DEFINED SKBUILD)
         message(FATAL_ERROR
-            "[libuipc] Python module [${module_name}] is unavailable in [${python_dir}]. "
+            "[libuipc] Python requirement [${requirement}] is unavailable in [${python_dir}]. "
             "CMake does not install Python packages in a scikit-build-managed build. "
             "Use the root pip build with its declared build requirements, or install "
             "those requirements first when using --no-build-isolation. "
@@ -329,12 +336,12 @@ function(uipc_require_python_module python_dir module_name)
 
     uipc_require_pip_ensure("${python_dir}")
     uipc_info("${module_name} not found, installing it with [${python_dir}]...")
-    execute_process(COMMAND "${python_dir}" "-m" "pip" "install" "${module_name}"
+    execute_process(COMMAND "${python_dir}" "-m" "pip" "install" "${requirement}"
         RESULT_VARIABLE INSTALL_RESULT)
     if(NOT "${INSTALL_RESULT}" STREQUAL "0")
         uipc_error("Python [${python_dir}] failed to install [${module_name}].")
     endif()
-    execute_process(COMMAND "${python_dir}" "-c" "import ${module_name}"
+    execute_process(COMMAND "${python_dir}" "-c" "${import_check}"
         RESULT_VARIABLE IMPORT_RESULT
         OUTPUT_QUIET)
     if(NOT "${IMPORT_RESULT}" STREQUAL "0")

@@ -106,16 +106,18 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
                                     span<const string>         _include_names,
                                     span<const string>         _exclude_names)
 {
-    vector<string> include_names;
+    vector<string> include_names =
+        _include_names.empty() ?
+            other.names() :
+            vector<string>(_include_names.begin(), _include_names.end());
     vector<string> exclude_names(_exclude_names.begin(), _exclude_names.end());
     vector<string> filtered_names;
-
-    if(_include_names.empty())
-        include_names = other.names();
 
     filtered_names.reserve(include_names.size());
 
     std::ranges::sort(include_names);
+    include_names.erase(std::unique(include_names.begin(), include_names.end()),
+                        include_names.end());
     if(!exclude_names.empty())
     {
         std::ranges::sort(exclude_names);
@@ -193,9 +195,10 @@ void AttributeCollection::clear()
 {
     for(auto& [name, slot] : m_attributes)
     {
-        slot->make_owned();
+        slot->rw_access();
         slot->attribute().clear();
     }
+    m_size = 0;
 }
 
 void AttributeCollection::reserve(SizeT N)

@@ -8,10 +8,12 @@ using namespace uipc::backend;
 PyAnimatorVisitor::PyAnimatorVisitor(py::module& m)
 {
     py::class_<AnimatorVisitor>(m, "AnimatorVisitor", R"(AnimatorVisitor class for accessing animator data from backend.)")
-        .def(py::init<uipc::core::Animator&>(), py::arg("animator"), R"(Create an AnimatorVisitor for an animator.)")
+        .def(py::init<uipc::core::Animator&>(),
+             py::arg("animator"),
+             py::keep_alive<1, 2>(),
+             R"(Create an AnimatorVisitor for an animator.)")
         .def("init", &AnimatorVisitor::init, R"(Initialize the animator visitor.)")
         .def("update", &AnimatorVisitor::update, R"(Update the animator visitor.)")
         .def("substep", &AnimatorVisitor::substep, R"(Get the current substep.)");
 }
 }  // namespace pyuipc::backend
-

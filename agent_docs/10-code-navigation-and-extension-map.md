@@ -51,7 +51,7 @@ The geometry factory functions are declared in
 | Animator | `include/uipc/core/animator.h` | `src/core/core/animator.cpp` | `src/backends/cuda/animator/` invokes callbacks per substep | `src/pybind/pyuipc/core/animator.cpp` | sample `3_periodically_pressed_tetrahedron` |
 | Full/incremental scene IO | `include/uipc/io/scene_io.h`, `include/uipc/core/scene_snapshot.h` | `src/io/scene_io.cpp`, `src/core/core/scene_snapshot.cpp`, serializers in `src/core/` | No physics system owns the wire format | `src/pybind/pyuipc/core/{scene_io,scene_snapshot}.cpp` | `apps/tests/core/scene_io.cpp`; samples `14_load_scene`, `15_scene_commit` |
 | Sanity checks | `include/uipc/core/sanity_checker.h` | `src/sanity_check/` is a dynamically loaded checker module | CUDA checkers may replace CPU checkers by ID | `src/pybind/pyuipc/core/sanity_checker.cpp` | `apps/tests/sanity_check/`, sample `35_mesh_check` |
-| Backend features | `include/uipc/core/feature.h` and focused core/DiffSim feature headers | Feature handles live in the core collection | Implementations/overriders live beside the relevant CUDA subsystem | `src/pybind/pyuipc/backend/` | samples `20_contact_system_feature`, `31_state_accessor_feature`, `40_distance_diagnoser` |
+| Backend features | `include/uipc/core/feature.h` and focused core/DiffSim feature headers | Feature handles live in the core collection | Implementations/overriders live beside the relevant CUDA subsystem | `src/pybind/pyuipc/backend/` | samples `20_contact_system_feature`, `31_state_accessor_feature`, `41_distance_diagnoser` |
 | Python package helpers | `python/src/uipc/` | pure Python | Native backend remains lazily loaded | n/a | `python/tests/`, `libuipc-samples/` |
 
 ## Runtime Trace of One Frame

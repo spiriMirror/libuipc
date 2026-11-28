@@ -14,6 +14,7 @@ PySceneVisitor::PySceneVisitor(py::module& m)
 
     class_SceneVisitor.def(py::init<Scene&>(),
                            py::arg("scene"),
+                           py::keep_alive<1, 2>(),
                            R"(Create a SceneVisitor for a scene.
 Args:
     scene: Scene to visit.)");
@@ -28,12 +29,14 @@ Args:
     class_SceneVisitor.def(
         "geometries",
         [](SceneVisitor& self) { return self.geometries(); },
+        py::keep_alive<0, 1>(),
         R"(Get all geometries.
 Returns:
     GeometrySlotSpan: Span of geometry slots.)");
     class_SceneVisitor.def(
         "pending_geometries",
         [](SceneVisitor& self) { return self.pending_geometries(); },
+        py::keep_alive<0, 1>(),
         R"(Get pending geometries.
 Returns:
     GeometrySlotSpan: Span of pending geometry slots.)");
@@ -41,6 +44,7 @@ Returns:
     class_SceneVisitor.def(
         "rest_geometries",
         [](SceneVisitor& self) { return self.rest_geometries(); },
+        py::keep_alive<0, 1>(),
         R"(Get rest geometries.
 Returns:
     GeometrySlotSpan: Span of rest geometry slots.)");
@@ -48,6 +52,7 @@ Returns:
     class_SceneVisitor.def(
         "pending_rest_geometries",
         [](SceneVisitor& self) { return self.pending_rest_geometries(); },
+        py::keep_alive<0, 1>(),
         R"(Get pending rest geometries.
 Returns:
     GeometrySlotSpan: Span of pending rest geometry slots.)");
@@ -78,6 +83,7 @@ Returns:
     class_SceneVisitor.def(
         "diff_sim",
         [](SceneVisitor& self) -> DiffSimVisitor& { return self.diff_sim(); },
+        py::return_value_policy::reference_internal,
         R"(Get the differential simulator visitor.
 Returns:
     DiffSimVisitor: Reference to diff sim visitor.)");

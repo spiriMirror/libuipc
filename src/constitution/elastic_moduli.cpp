@@ -2,6 +2,7 @@
 #include <uipc/constitution/conversion.h>
 #include <uipc/common/exception.h>
 #include <uipc/common/log.h>
+#include <cmath>
 
 namespace uipc::constitution
 {
@@ -20,11 +21,12 @@ ElasticModuli ElasticModuli::youngs_shear(Float E, Float G) noexcept
 
 ElasticModuli ElasticModuli::youngs_poisson(Float E, Float nu)
 {
+    UIPC_ASSERT_THROW(std::isfinite(E) && E >= 0,
+                      "Young's modulus must be finite and nonnegative, got {}.",
+                      E);
+    UIPC_ASSERT_THROW(nu > -1 && nu < 0.5, "3D Poisson's ratio must lie in (-1, 0.5), got {}.", nu);
     Float lambda, mu;
     EP_to_lame(E, nu, lambda, mu);
-    UIPC_ASSERT_THROW(abs(nu) != 0.5 && abs(nu) != 1.0,
-                "Poission Rate ({}) can't be 0.5 or -1.0 in ElasticModuli",
-                nu);
     return ElasticModuli{lambda, mu};
 }
 
@@ -49,9 +51,12 @@ ElasticModuli2D ElasticModuli2D::youngs_shear(Float E, Float G) noexcept
 
 ElasticModuli2D ElasticModuli2D::youngs_poisson(Float E, Float nu)
 {
+    UIPC_ASSERT_THROW(std::isfinite(E) && E >= 0,
+                      "Young's modulus must be finite and nonnegative, got {}.",
+                      E);
+    UIPC_ASSERT_THROW(nu > -1 && nu < 1, "2D Poisson's ratio must lie in (-1, 1), got {}.", nu);
     Float lambda, mu;
     EP_to_lame_2D(E, nu, lambda, mu);
-    UIPC_ASSERT_THROW(abs(nu) != 1.0, "Poission Rate ({}) can't be 1.0 or -1.0 in ElasticModuli 2D", nu);
     return ElasticModuli2D{lambda, mu};
 }
 

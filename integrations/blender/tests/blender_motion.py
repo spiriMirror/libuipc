@@ -36,12 +36,19 @@ def main():
     body = demo.box(scene, "Servo body", (0, 0, 0.2), (0.1, 0.1, 0.1), "RIGID")
     target = bpy.data.objects.new("Controller", None)
     scene.collection.objects.link(target)
+    if bpy.app.version >= (4, 4, 0):
+        action = bpy.data.actions.new("Multi-slot controller action")
+        action.slots.new(id_type="OBJECT", name="Other")
+        animation = target.animation_data_create()
+        animation.action = action
+        animation.action_slot = action.slots.new(id_type="OBJECT", name=target.name)
     body.uipc_body.driven = True
     body.uipc_body.drive_target = target
     for frame, z in ((1, 0), (50, 0), (80, 0.20), (81, 0.20)):
         target.location.z = z
         target.keyframe_insert(data_path="location", index=2, frame=frame)
-    for curve in target.animation_data.action.fcurves:
+    motion = importlib.import_module(args.module + ".motion")
+    for curve in motion.action_fcurves(target):
         for key in curve.keyframe_points:
             key.interpolation = "LINEAR"
     scene.frame_set(1)
@@ -142,7 +149,7 @@ def main():
         assert abs(center[2] - 0.4) < 2e-5, center
     finally:
         evaluated.to_mesh_clear()
-    target.animation_data.action.fcurves[0].keyframe_points[2].co.y += 0.01
+    next(motion.action_fcurves(target)).keyframe_points[2].co.y += 0.01
     try:
         addon.bridge.check_cache(scene)
     except ValueError:

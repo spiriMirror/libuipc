@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: stream and start-position plumbing of the TOI filter.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <collision_detection/filters/al_vertex_half_plane_trajectory_filter.h>
 #include <cuda_tool/cub.h>
 #include <cuda_tool/cuda_tool.h>
@@ -125,16 +149,16 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
     using namespace cuda_tool;
 
-    info.toi().fill(1.1f);
+    info.toi().fill(1.1f, info.stream());
     tois.resize_discard(info.surf_vertices().size() * info.plane_positions().size());
-    tois.fill(1.1f);
+    tois.fill(1.1f, info.stream());
     PHs.resize_discard(info.surf_vertices().size() * info.plane_positions().size());
 
     int n = static_cast<int>(info.surf_vertices().size());
     if(n > 0)
     {
         auto k = ALVertexHalfPlaneTrajectoryFilter_filter_toi_kernel;
-        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, nullptr>>>(
+        k<<<cuda_tool::best_grid_dim(n, k), cuda_tool::best_block_dim(k), 0, info.stream()>>>(
             info.surf_vertices(),
             info.half_plane_vertex_offset(),
             info.positions(),
@@ -153,6 +177,6 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     }
 
     if(tois.size() > 0)
-        DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
+        DeviceReduce(info.stream()).Min(tois.data(), info.toi().data(), tois.size());
 }
 }  // namespace uipc::backend::cuda

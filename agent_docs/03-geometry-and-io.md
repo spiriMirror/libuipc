@@ -22,7 +22,10 @@ Common base classes of the attribute system: `IAttribute` / `IAttributeSlot` (`i
   is under `src/geometry/tetrahedralization/`, with a strict original-boundary
   contract and conservative construction before quality work. See
   [ADR 0008](adr/0008-native-tetrahedralization.md).
-- `merge(span<SimplicialComplex*>)` merges multiple meshes.
+- `merge` combines single-instance meshes. `apply_region` splits a mesh by its
+  region labels and copies its instance table to each part. Existing triangle
+  `parent_id` values refer to tetrahedra in the output mesh after either operation.
+  In a partially labeled volume merge, triangles without a known parent use `-1`.
 - Implicit geometry: `ground(height)` (HalfPlane), etc.; see `docs/specification/implicit_geometry_uid.md`.
 
 ## Topology and Geometry Algorithms (`src/geometry/`, depends on libigl + TBB + octree)
@@ -32,6 +35,8 @@ Common functions (most declarations are under `include/uipc/geometry/utils/`):
 - `extract_surface(sc)` — extracts the surface trimesh
 - `label_triangle_orient(sc)` — for a tetrahedral (dimension-3) complex, marks each surface triangle's parent/orientation (`builtin::parent_id`, `builtin::orient`) so exported/contact normals are consistent. It is not a universal preprocessing call for standalone triangle/line geometry.
 - `label_open_edge` / `flip_inward_triangles`
+- `is_trimesh_closed` checks that every undirected triangle edge occurs exactly
+  twice before a surface is used for solid volume integration.
 - `compute_vertex_volume` / `compute_vertex_mass`
 - `affine_body/compute_affine_body_*` — ABD mass properties (dyadic mass triples, etc.)
 - BVH: `include/uipc/geometry/utils/bvh.h` (CPU-side bounding volume hierarchy)
@@ -62,6 +67,11 @@ The tinygltf code under `apps/tests/core/gltf_io.cpp` is experimental test code,
 not a supported public glTF IO class.
 
 STL parsing is in `src/io/stl_reader.h`.
+
+URDF mesh coordinates include their own collision or visual origin and scale.
+Link and revolute-joint instance transforms are in the UIPC world basis.
+A meshless parent or child has geometry ID `-1` in the joint's `link_ids`.
+Missing or primitive visuals leave the supported collision mesh visible.
 
 ## Common Pitfalls
 

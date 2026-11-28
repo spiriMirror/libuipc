@@ -13,6 +13,9 @@ includes("common")
 includes("core")
 includes("geometry")
 includes("sanity_check")
+if has_config("usd") then
+    includes("usd")
+end
 if has_config("backend_cuda") then
     includes("backends")
     includes("sim_case")

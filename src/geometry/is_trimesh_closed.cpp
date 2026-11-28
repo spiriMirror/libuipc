@@ -32,14 +32,14 @@ UIPC_GEOMETRY_API bool is_trimesh_closed(const SimplicialComplex& R)
                       [](Vector2i a, Vector2i b)
                       { return a[0] < b[0] || a[0] == b[0] && a[1] < b[1]; });
 
-    auto half_size = tri_edges.size() / 2;
-
-    for(auto i = 0; i < half_size; i += 2)
+    const auto edge_count = tri_edges.size();
+    for(SizeT i = 0; i < edge_count; i += 2)
     {
-        if(tri_edges[i] != tri_edges[i + 1])
-        {
+        const auto& edge = tri_edges[i];
+        if(edge != tri_edges[i + 1])
             return false;
-        }
+        if(i + 2 < edge_count && edge == tri_edges[i + 2])
+            return false;
     }
 
     return true;

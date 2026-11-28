@@ -1,10 +1,37 @@
+/*
+ * NVIDIA contributions: cached buffer dtypes for numpy array views
+ * (make_array, buffer_dtype).
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #pragma once
 #include <pyuipc/exception.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/gil_safe_call_once.h>
 #include <pybind11/numpy.h>
 #include <uipc/common/span.h>
 #include <uipc/common/log.h>
 #include <Eigen/Core>
+#include <cstdint>
 
 namespace pyuipc
 {
@@ -17,6 +44,39 @@ inline void set_read_write_flags(py::array& arr, bool readonly)
         py::detail::array_proxy(arr.ptr())->flags &= ~py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
     else
         py::detail::array_proxy(arr.ptr())->flags |= py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
+}
+
+// The dtype that py::dtype(buffer_info) derives from the buffer format of T
+// (numpy._dtype_from_pep3118; e.g. 'q' for int64, where dtype::of gives 'l'),
+// created once per T. Parsing the format in Python on every call costs several
+// times as much as creating the array.
+template <typename T>
+const py::dtype& buffer_dtype()
+{
+    PYBIND11_CONSTINIT static py::gil_safe_call_once_and_store<py::dtype> storage;
+    return storage
+        .call_once_and_store_result(
+            []
+            {
+                py::buffer_info info;
+                info.format   = py::format_descriptor<T>::format();
+                info.itemsize = sizeof(T);
+                return py::dtype(info);
+            })
+        .get_stored();
+}
+
+// The array py::array_t<T, c_style>(info, base) creates, built with the dtype
+// of buffer_dtype() instead of parsing info.format again.
+template <typename T>
+py::array_t<T, py::array::c_style> make_array(py::buffer_info&& info, py::handle base = {})
+{
+    py::array arr(buffer_dtype<std::remove_const_t<T>>(),
+                  std::move(info.shape),
+                  std::move(info.strides),
+                  info.ptr,
+                  base);
+    return py::reinterpret_steal<py::array_t<T, py::array::c_style>>(arr.release());
 }
 
 template <typename T>
@@ -42,7 +102,7 @@ auto buffer_info(const span<T>& s)
 template <typename T>
 auto as_numpy(const span<T>& s, py::handle obj)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(s), obj);
+    auto arr = make_array<T>(buffer_info(s), obj);
 
     // NOTE:
     // In some impl, the py-array may own the data when the span is empty.
@@ -57,10 +117,23 @@ auto as_numpy(const span<T>& s, py::handle obj)
 }
 
 template <typename T>
-span<T> as_span(py::array_t<T> arr)
+void check_packed_span(const py::array& arr)
+{
+    PYUIPC_ASSERT((arr.flags() & py::array::c_style) != 0,
+                  "array must be C-contiguous (use numpy.ascontiguousarray)");
+    PYUIPC_ASSERT(arr.size() == 0
+                      || reinterpret_cast<std::uintptr_t>(arr.data()) % alignof(T) == 0,
+                  "array data must be aligned to {} bytes",
+                  alignof(T));
+}
+
+template <typename T, typename Scalar, int Flags>
+span<T> as_span(py::array_t<Scalar, Flags> arr)
     requires std::is_arithmetic_v<T>
 {
+    static_assert(std::is_same_v<std::remove_const_t<T>, std::remove_const_t<Scalar>>);
     PYUIPC_ASSERT(arr.ndim() == 1, "array must be 1D, yours={}", arr.ndim());
+    check_packed_span<T>(arr);
 
     if constexpr(std::is_const_v<T>)
         return span<T>(arr.data(), arr.size());
@@ -124,7 +197,7 @@ template <typename T, int M, int N, int Options>
 auto as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
+    auto arr = make_array<T>(buffer_info(v), obj);
     PYUIPC_ASSERT(!arr.owndata() || v.size() == 0,
                   "the array must share the data with the input span");
 
@@ -138,14 +211,15 @@ template <typename T, int M, int N, int Options>
 auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
+    auto arr = make_array<T>(buffer_info(v), obj);
     PYUIPC_ASSERT(!arr.owndata() || v.size() == 0,
                   "the array must share the data with the input span");
+    set_read_write_flags(arr, true);
     return arr;
 }
 
-template <typename MatrixT>
-span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
+template <typename MatrixT, typename Scalar, int Flags>
+span<MatrixT> as_span_of(py::array_t<Scalar, Flags> arr)
     requires requires(MatrixT) {
         MatrixT::RowsAtCompileTime > 0;
         MatrixT::ColsAtCompileTime > 0;
@@ -158,6 +232,9 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
     // column-major matrix with several rows and columns would be read transposed.
     static_assert(Rows == 1 || Cols == 1 || bool(MatrixT::Flags & Eigen::RowMajorBit),
                   "as_span_of needs a vector or a row-major matrix type");
+    static_assert(std::is_same_v<typename MatrixT::Scalar, std::remove_const_t<Scalar>>);
+    static_assert(sizeof(MatrixT) == Rows * Cols * sizeof(Scalar),
+                  "as_span_of needs packed matrix elements");
 
     constexpr bool IsConst = std::is_const_v<MatrixT>;
 
@@ -191,15 +268,12 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         throw PyException(PYUIPC_MSG("array must be 2D or 3D, yours={}", arr.ndim()));
     }
 
-    // Any other memory order (Fortran order, a slice, a transposed view) would
-    // be read as other values without an error.
-    PYUIPC_ASSERT((arr.flags() & py::array::c_style) != 0,
-                  "array must be C-contiguous, yours is not (use numpy.ascontiguousarray)");
+    check_packed_span<MatrixT>(arr);
 
     if constexpr(IsConst)
-        return span<MatrixT>((MatrixT*)arr.data(), arr.shape(0));
+        return span<MatrixT>(reinterpret_cast<MatrixT*>(arr.data()), arr.shape(0));
     else
-        return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
+        return span<MatrixT>(reinterpret_cast<MatrixT*>(arr.mutable_data()), arr.shape(0));
 }
 
 template <typename MatrixT>
@@ -280,7 +354,7 @@ template <typename T, int M, int N, int Options>
 auto as_numpy(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
+    auto arr = make_array<T>(buffer_info(m));
     PYUIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }
@@ -289,7 +363,7 @@ template <typename T, int M, int N, int Options>
 auto as_numpy(Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
+    auto arr = make_array<T>(buffer_info(m));
     PYUIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }

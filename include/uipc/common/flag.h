@@ -2,6 +2,9 @@
 #include <concepts>
 #include <type_traits>
 #include <magic_enum/magic_enum.hpp>
+#if __has_include(<magic_enum/magic_enum_bitwise.hpp>)
+#include <magic_enum/magic_enum_bitwise.hpp>
+#endif
 #include <magic_enum/magic_enum_flags.hpp>
 
 namespace uipc

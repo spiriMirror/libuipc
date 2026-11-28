@@ -15,11 +15,13 @@ def test_scene_config_schema_matches_public_defaults() -> None:
 
     assert schema["schemaVersion"] == 1
     assert schema["strictUnknownKeys"] is True
-    assert len(entries) == 48
+    assert len(entries) == 50
     assert entries["dt"]["default"] == pytest.approx(0.01)
     assert entries["dt"]["exclusiveMinimum"] == 0.0
     assert entries["gravity"]["componentCount"] == 3
     assert entries["newton/use_adaptive_tol"]["status"] == "reserved"
+    assert entries["line_search/cubic_refinement"]["default"] == 0
+    assert entries["linear_system/keep_preconditioner"]["default"] == 0
     assert entries["sanity_check/mode"]["enum"] == ["normal", "quiet"]
     assert entries["contact/al-ipc/mu_scale_mode"]["default"] == "per_vertex"
     assert entries["contact/al-ipc/mu_scale_mode"]["enum"] == [

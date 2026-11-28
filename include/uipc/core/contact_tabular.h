@@ -54,7 +54,8 @@ class UIPC_CORE_API ContactTabular final
     ContactModel   default_model() const noexcept;
 
     /**
-     * @brief Whether default_model(...) was ever called by the user.
+     * @brief Whether the user explicitly set the default model, through
+     * default_model(...) or insert(default_element(), default_element(), ...).
      *
      * Used by the backend to resolve the default contact stiffness:
      * unset -> use contact/adaptive/min_kappa; set -> clamp the user's value

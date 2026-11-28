@@ -83,7 +83,7 @@ then mark selected vertices:
 Fixed vertices remain part of the deformable mesh and still participate in
 surface contact. To prescribe time-dependent motion rather than a permanent
 pin, use a soft position constraint and update its animation state; see the
-animation tutorial and the `92_twisting_bar` sample.
+animation tutorial and the `50_twisting_bar` sample.
 
 ## Adding ground contact
 
@@ -147,7 +147,7 @@ activation distances and material stiffness.
 - animated FEM boundary conditions:
   [`3_periodically_pressed_tetrahedron`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/3_periodically_pressed_tetrahedron/main.py)
 - larger FEM and MAS setup:
-  [`89_mas_bunny`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/89_mas_bunny/main.py)
+  [`47_mas_bunny`](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/47_mas_bunny/main.py)
 - C++ gravity, contact, and pin regressions:
   [`13_fem_3d_gravity.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/13_fem_3d_gravity.cpp),
   [`14_fem_3d_ground_contact.cpp`](https://github.com/spiriMirror/libuipc/blob/main/apps/tests/sim_case/14_fem_3d_ground_contact.cpp),

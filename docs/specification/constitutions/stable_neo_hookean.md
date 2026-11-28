@@ -35,7 +35,9 @@ they must be distinguished from the physical Lamé parameters below.
 
 ### Material inputs and SNK1 calibration
 
-`ElasticModuli.youngs_poisson(E, nu)` first computes the physical 3D parameters
+`ElasticModuli.youngs_poisson(E, nu)` accepts finite $E\geq 0$ and
+$-1<\nu<0.5$, including auxetic materials such as $\nu=-0.5$. It computes
+the physical 3D parameters
 
 $$
 \mu_L=\frac{E}{2(1+\nu)},\qquad
@@ -81,12 +83,9 @@ Serialized tetrahedral `mu`/`lambda` attributes remain raw energy coefficients;
 reapply the constitution from physical moduli to update them. Reapplying replaces
 the coefficients on every tetrahedron, including previously created attributes.
 
-The usual positive-definite isotropic linear-elastic input domain is finite
-$E>0$ and $-1<\nu<0.5$. Native validation is incomplete: it admits nonpositive
-or nonfinite $E$ and invalid $\nu$, and incorrectly rejects $\nu=-0.5$.
-Blender restricts solid inputs to finite positive $E$ and $0\le\nu<0.5$.
-These validation findings remain open and are separate from calibration; see the
-[material audit](../../../agent_docs/14-project-audit.md).
+For a positive-definite isotropic solid, choose $E>0$ in the native domain
+above. Setting $E=0$ produces zero Lamé parameters. The Blender solid-body
+material controls use finite positive $E$ and $0\le\nu<0.5$.
 
 ## Attributes
 

@@ -1,13 +1,52 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
-pyuipc array layout (2026-11-24): the batched `affine_body.q_to_transform` and
-`q_v_to_transform_v` returned every matrix transposed, and the batched
-`transform_to_q` and `transform_v_to_q_v` read C-ordered `(N, 4, 4)` input as
-transposed matrices, because `as_span_of` viewed the arrays as column-major
-`Matrix4x4`. They now read and write through the arrays' strides. `as_span_of`
-also read non-C-contiguous arrays as other values without an error (for example
-`pointcloud(V[:, :3])`); it now refuses them, and refuses column-major matrix
-types at compile time. See `06-python-api-and-packaging.md` and `handoff.md`.
+PR #519 follow-up: raw span bindings enforce their packed layout requirements,
+and batched `Transform.apply_to` respects the input view's strides during writes.
+
+Frontend follow-up after v0.0.30: Python facades retain owners. Blender checks
+the active Action slot for motion edits, handles disjoint rigid-shell mass,
+and reads the final status of completed bake/render workers. MeshDoctor
+validates basic FEM meshes and reports unsupported constitutions explicitly.
+
+Solver follow-up after v0.0.30: AL checkpoints now include lagged contact
+history and reject missing history. BDF2 initial history uses prescribed
+velocity. Standard IPC counts completed iterations for its Newton floor,
+and strict IPC/AL errors reach the world status. Checkpoint payloads and
+publication of complete frames are checked. Explicit default-pair inserts
+honor the stiffness setting. Graph replay reports CUDA launch and sync errors.
+
+File I/O follow-up after v0.0.30: the URDF link/joint transforms and absent
+visuals, OBJ polyline truncation, MSH element types, mesh writer keywords and
+USD stage-open failure are covered by regression tests.
+
+Geometry/material follow-up after v0.0.30: face relabeling respects stored
+winding, attribute clear and named copy preserve their row/selection contracts,
+motors compose increments in material space, and shell-to-solid ABD reapplication
+resets the codimension flag. Young/Poisson conversion now checks the dimensional
+stability interval. Case 86 retains a sheet-level recovery comparison and has
+an independent isolated-hinge unloading oracle for the calibrated bending law.
+
+Build/publication follow-up after v0.0.30: the staging alias and manual
+publication findings A03 and A05 are resolved in source. Header-only changes
+trigger the docs workflow. Tag pushes and release events have separate wheel
+job groups, and builds check the minimum pybind11 header version.
+
+Resolved in source after v0.0.30: valid, widely separated small shells could
+fail the tetrahedralizer's volume check before the conservative mesh was saved.
+
+Resolved in source after v0.0.30: parent tetrahedron IDs could become stale
+after splitting or merging labeled meshes, and multi-instance splits could fail.
+
+Resolved in source after v0.0.30: the closure check could accept an open box or
+an edge shared by four triangles, allowing invalid input into solid ABD volume integration.
+
+Resolved in source after v0.0.30: NumPy slices passed to the mesh factories
+could select the wrong vertices or indices, and batch ABD conversion could
+transpose matrices and lose their translation.
+
+Resolved in source after v0.0.30: the Python bindings preserve read-only
+access for Eigen attribute views and registered UID metadata. The release-wheel
+audit reproduced unintended writes through both interfaces.
 
 Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
 repository metadata returned HTTP 404 before project compilation. The workflow
@@ -52,7 +91,7 @@ No threshold relaxation or material change was included in the MAS optimization.
 Directional Baraff-Witkin stretch added (2026-10-20): the new three-modulus
 overload independently controls Ka/Kb while retaining old APIs, defaults and
 serialized shared-stretch fallback. Energy, gradient and projected Hessian
-use both coefficients. Sample 95 compares equal biaxial loading with GUI and
+use both coefficients. Sample 53 compares equal biaxial loading with GUI and
 headless checks. Arbitrary UV/fiber directions, normal-strain Poisson coupling,
 and independent a/b cubic rates are not implemented. The E/nu pairs retain
 the legacy coefficient convention rather than physical orthotropic calibration.
@@ -66,7 +105,7 @@ Regression tests cover physical stiffness, Poisson coupling, default and auxetic
 inputs, near-incompressibility, all ElasticModuli factories, and reapplication.
 Existing serialized coefficients are not automatically rewritten; reapply from
 physical inputs or rebake scenes to use the correction. ElasticModuli validation
-issue A04 remains open and is independent of this fix. See the material
+issue A04 was addressed separately in the post-v0.0.30 audit follow-up. See the material
 specification and handoff for derivation, migration and validation.
 
 Discrete Shells calibration corrected (2026-10-19): the formula-based bending
@@ -80,6 +119,10 @@ averaging, fixed reference geometry, unique interior-edge summation, dt^2 scalin
 and the raw spatial gradient/Hessian. Nondegenerate flat/curved hinge tests pass
 for both fold signs and rigid transforms. No additional coefficient or derivative
 mismatch was found in that domain; the direct angle subtraction has no +/-pi wrap.
+
+Test follow-up (2026-10-18): the lifetime of a temporary in the LBVH CPU
+point-query oracle was corrected in the test only; see `handoff.md`. This does
+not settle unrelated audit findings or establish a speedup.
 
 Issue #498 (2026-10-18): both Python `SoftVertexStitch.create_geometry` overloads
 now retain contiguous `IndexT` arrays at the binding boundary. This fixes freed
@@ -124,18 +167,14 @@ The added custom backend and XMake editable route are deferred, not advertised
 as delivered features. Existing scikit-build-core CMake editable support remains.
 The contributor's fork is not modified; main integration must preserve commit ancestry.
 
-Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
-`4757859c`. This inspection updated documentation only. Open priorities include
-Python facade ownership, BDF2 history startup, build/source-directory aliasing
-during staging cleanup, material validation, manual publishing, MeshDoctor, modified curve
-conversion and CUDA graph error propagation. The report distinguishes focused
-reproductions from source-confirmed paths and unverified risks. Passing current
-tests is not evidence that these uncovered contracts are correct.
+Historical triage: the [2026-09-11 project audit](14-project-audit.md) records
+findings as of `4757859c`. See the post-v0.0.30 entries above for subsequent
+implementation changes. Curve-modifier handling is documented separately.
 
 Owner clarification, 2026-09-16: the existing early uninstall of old `pyuipc` is
 intentional and required, not an open defect. The audit's earlier recommendation
 to retain the old package until replacement was ready is withdrawn. The independent
-source-directory cleanup risk remains a separate finding; no implementation changed.
+source-directory cleanup issue was subsequently fixed in the post-v0.0.30 build changes.
 
 Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
 bending (no twist), edge/curve input, pinning/contact and native surface playback.
@@ -192,7 +231,7 @@ Version 0.2 now adds native geometry/tetrahedralization, volume FEM, surface and
 internal pins, and whole-object Fixed. See ADR 0008 for the strict boundary and
 conservative construction contract. This does not change the simulation solver.
 
-Version 0.3 adds URDF mesh-link import and keyframed ABD target drives. Sample 87's
+Version 0.3 adds URDF mesh-link import and keyframed ABD target drives. Sample 45's
 hand now completes the dining-scene apple pick/place through Blender with coupled
 contact. Torque-driven articulations, rods, animated cloth/FEM pins and controller
 NLA/drivers/constraints remain outside this interface; see the robot section of
@@ -215,7 +254,7 @@ See `integrations/blender/examples/README.md` for the full validation boundary.
 AL-IPC now has the fork-derived earliest-TOI active-set filter, decay-derived
 pair lifetime, conditioning-aware penalty initialization, and a full-step inner
 solve boundary. Its multi-state `K_min > 1` cumulative termination rule is now
-implemented and validated on sample 88. Remaining paper-parity work includes
+implemented and validated on sample 46. Remaining paper-parity work includes
 penalty-free moving boundaries and the specialized conflict-free analytic PSD
 Hessian assembly. Do not claim complete parity with the reference simulator
 until those paths and its large stress scenes are independently ported and
@@ -271,7 +310,7 @@ Measured on aligned scenes (same machine, clean runs; see handoff for the
 full evidence chain):
 
 - 6_wrecking_balls: libuipc 73.0 ms/frame vs Stiff 42.8-50.4 → **~1.5-1.7×**
-- case2 (samples 88_stiff_gipc_benchmark): 301 ms/frame vs 142.8 → **~2.1×**
+- case2 (samples 46_stiff_gipc_benchmark): 301 ms/frame vs 142.8 → **~2.1×**
 
 Root cause is NOT numerical parameters anymore (kappa, d_hat, eps_velocity,
 semi-implicit exit are all aligned; Newton iteration counts match). The gap
@@ -287,7 +326,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
 - Contact assembly ≈ 26 ms; SNH G/H 2.12 ms/call ×7 (Stiff's equivalent:
   0.77 ms — 2.75×; `make_spd` 9×9 EVD is a suspect but removing it hurts
   convergence — see doc 08)
-- Newton iterations per frame (found 2026-08-23 evening, case 89 parity
+- Newton iterations per frame (found 2026-08-23 evening, case 47 parity
   run): Stiff averages **2.55 Newton/frame** while libuipc ran **7.04** —
   the old `newton/min_iter` doubled as a hard floor (≥6 with the benchmark
   configs), cancelling the semi-implicit early exit. Since then
@@ -312,19 +351,48 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    trajectory pass keeps the conservative `ccd_broadphase` (CCD superset
    requirement). Kills the 450k-candidate materialization + the
    overflow-retry double traversal on the DCD path; Detect DCD Candidates
-   dropped 39 → 29 ms/frame on case 88. The trajectory/CCD pass
+   dropped 39 → 29 ms/frame on case 46. The trajectory/CCD pass
    (`Detect Trajectory Candidates`, ~38 ms/frame on 88) still uses the
    conservative swept test — tightening it needs a provably conservative
    exact swept-distance predicate, more delicate.
+   **2026-10-27**: the PT and EE DCD predicates first reject pairs whose
+   conservative FP32 distance bound (`utils/distance/float_lower_bound.h`)
+   clearly exceeds `d_hat + thickness`; see doc 05. The PT and EE trajectory
+   predicates first reject pairs that stay apart for the whole step and that
+   ACCD would not hit (`utils/distance/swept_lower_bound.h`); the ACCD guard
+   constant `kAccd` assumes `large_enough_toi == 1.1` and `eta <= 0.1`, which
+   no compile-time check ties together yet. The EE and PT queries start only
+   from a vertex cover of the contact tabular (doc 05); the cover is recomputed
+   when the tabular buffer pointer, its size or a primitive count changes, not
+   when its contents are edited in place, which the backend does not do (the
+   mask tabular and the contact ids are fixed at `World::init`, doc 05). A frame skips the pre-Newton DCD pass
+   while the vertex positions equal those of the previous frame's last
+   line-search trial (doc 05); a future path that edits thickness, `d_hat`,
+   contact ids or tabulars at runtime without moving vertices must call
+   `GlobalTrajectoryFilter::require_discard_friction()` (or otherwise drop the
+   recorded active set). Between BVH refreshes the trajectory filter judges
+   stored pairs (doc 05); it trusts the topology-rebuild signal of every
+   frame's first detect for changed contact ids, masks or topology (the Newton
+   loop itself only refits, so that signal now comes once per frame). The
+   cover split, however, is made once per cover set and kept across those
+   signals, so a feature that changes contact ids at runtime must also clear
+   `cover_split_ready` (doc 05). Newton
+   iterations `k > 0` keep the trajectory candidates while every vertex stays
+   inside the detection skin of their swept segments (doc 05); that argument
+   needs the skin at most `d_hat / 2` and the per-primitive box expansion to
+   keep its pair `d_hat` of slack over the leaf tests, so a change to either
+   must revisit `GlobalTrajectoryFilter::reuse_candidates`. The filter's Other
+   queries run the warp-cooperative traversal (doc 05); the EE self-join used
+   when the cover is not usable still runs the per-lane Self kernel.
 3. ~~SNH/FEM assembly kernel throughput~~ **DONE (2026-08-24)**: the SNH
    constitution was replaced wholesale by Stiff-GIPC's SNK1 (their energy
    `0.5μ(Ic-3) + 0.5λ(J-1-μ/λ)²`, their gradient, and their analytic
    twist/flip + 3x3-direct SPD projection — the generic 9x9 `make_spd`
    EVD is gone from this kernel; `make_spd` itself remains for the other
-   constitutions). Case 88 median 297 -> 266 ms/frame; case 89 PCG
+   constitutions). Case 46 median 297 -> 266 ms/frame; case 47 PCG
    213 -> 77 per solve (the analytic projection is also a much
    better-conditioned system). NOTE: the FEM energy changed numerically —
-   trajectories shift slightly vs older baselines (89 resting centroid
+   trajectories shift slightly vs older baselines (47 resting centroid
    -0.775 -> -0.786) but stay physically equivalent. Same round:
    `cuda_tool::eigen::svd/pd` re-implemented on our own
    `algorithm/qr_svd.hpp` (GEIGEN port) — no more Eigen JacobiSVD on the
@@ -333,7 +401,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    spmv_dot_kernel` and `fused_dot_kernel` now do two-level (warp → block)
    reduction with one atomicAdd per block — ~9k/~4k same-address atomic
    doubles per call serialized ~20-30 us before. SpMV 114 → 93 us/call;
-   case 88 median 312 → 297 ms/frame. NEXT within-PCG target: the
+   case 46 median 312 → 297 ms/frame. NEXT within-PCG target: the
    symmetric-storage transpose scatter (~243k atomic vec3 per SpMV);
    a full-storage row-based SpMV would eliminate atomics entirely but
    doubles matrix traffic and needs a converter variant — deferred.
@@ -341,7 +409,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    hierarchy is cached after `init_matrix()` instead of being rebuilt for
    every Newton iteration; Hessian scatter now walks BCOO directly instead of
    filling an identity-index buffer; and the 48x48 Gauss-Jordan kernel drops
-   the barrier between independent row updates. On RTX 5090, case 88 over the
+   the barrier between independent row updates. On RTX 5090, case 46 over the
    same 60 frames / 333 Newton iterations reduced `Assemble Preconditioner`
    1149.9 -> 834.4 ms (-27.4%, 3.45 -> 2.51 ms/Newton). The single-run wall
    mean moved 213.3 -> 208.1 ms/frame; contact-stage variance is larger than
@@ -351,7 +419,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    persistent per-stream workspace. Identity generation and required state
    resets are fused into one kernel; redundant/dead fills are gone. Moving
    scene-AABB, leaf-LCA, and depth initialization before the multi-block
-   consumers also removes cross-block reset races. Case 88, same 60-frame
+   consumers also removes cross-block reset races. Case 46, same 60-frame
    phase on RTX 5090: trajectory detection 7.98 -> 4.98-5.00 ms/Newton and
    aggregate DCD 7.35 -> 4.59-4.60 ms/detect (both about -37.5%); two wall
    runs measured 175.6-177.1 ms/frame versus 208.1 ms before.
@@ -360,10 +428,10 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    doublets/triplets directly to that receiver. The final global matrix
    converter performs the required sort/reduce already. Multiple receivers,
    off-diagonal ranges, and ABD/FEM coupling retain the classified path. On
-   case 88, `Compute DyTopo Effect` fell from 6.11 to 4.76 ms/Newton (-22.0%);
+   case 46, `Compute DyTopo Effect` fell from 6.11 to 4.76 ms/Newton (-22.0%);
    final `Convert To BCOO` stayed flat (1.85 -> 1.86 ms/Newton), and the clean
    wall mean/median improved 175.6/196.4 -> 165.5/184.2 ms/frame.
-8. Historical case-88 frame budget at that revision/window (60 frames,
+8. Historical case-46 frame budget at that revision/window (60 frames,
    165.5 ms mean representative):
    Build Linear System 43.4 ms + DyTopo 26.3 ms + trajectory detect 26.9 ms
    + aggregate DCD 24.5 ms + FusedPCG 24.8 ms + misc. The next evidence-led
@@ -374,7 +442,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
    policies. Fully regenerated collision, line-search, matrix-conversion,
    active-set, and triplet outputs no longer copy or value-initialize dead
    ranges when their logical size fluctuates. Existing `resize()` semantics
-   are unchanged for state and sentinel buffers. On case 88, `Scan and
+   are unchanged for state and sentinel buffers. On case 46, `Scan and
    Allocate` fell from 80.8 ms total over 60 frames to 38.0-65.5 ms, while
    the initial/trial `Compute Energy` scopes together fell from 667.1 ms to
    390.2-415.8 ms. End-to-end wall variance remains larger than this isolated
@@ -385,14 +453,14 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     and batches the four PP/PE/PT/EE CUB selection counters into another. Queue
     overflow handling remains exact and reruns only affected queries. A fully
     active detect/filter cycle therefore uses two count synchronizations rather
-    than eight. On case 88, trajectory detection changed from 5.07 to 5.01
+    than eight. On case 46, trajectory detection changed from 5.07 to 5.01
     ms/Newton and aggregate DCD from 4.67 to 4.61 ms/detect; the structural
     synchronization reduction is larger than the noisy wall-time movement.
     The next host/device target is line-search energy aggregation.
 11. Line-search energy aggregation (DONE 2026-08-30): ABD, FEM, and DyTopo
     reporters now publish totals to contiguous device slots. One final CUB
     reduction writes to a separate slot, followed by one contiguous D2H copy
-    for reporter diagnostics and the aggregate. On case 88, initial/trial
+    for reporter diagnostics and the aggregate. On case 46, initial/trial
     energy evaluations improved by 15.2%/17.3%, aggregate line search improved
     by 5.0% per Newton iteration, and wall mean/median moved from 162.7/182.3
     to 158.1/178.4 ms/frame. The next evidence-led target remains raw
@@ -401,7 +469,7 @@ is structural host/device overhead (nsys evidence, case2 stacking phase):
     material Hessian directly into ten `3x3` vertex blocks instead of forming
     dense `9x12` and `12x12` intermediates. Stack use fell 6440 -> 1320
     bytes/thread, the SNH kernel fell 1.795 -> 1.047 ms/call (-41.7%), and
-    case-88 `Assemble Subsystems` fell 3.60 -> 2.97 ms/Newton (-17.6%). IPC
+    case-46 `Assemble Subsystems` fell 3.60 -> 2.97 ms/Newton (-17.6%). IPC
     contact keeps a single heterogeneous launch but compile-time specializes
     gradient-only versus Hessian work. A per-stencil split was measured and
     rejected: serial PT/EE kernels raised DyTopo assembly 4.52 -> 7.67
@@ -557,41 +625,39 @@ assertions).
 ## Samples submodule state (spiriMirror/libuipc-samples)
 
 The root repository tracks this repository as the `libuipc-samples/` submodule.
-It currently has 54 example directories; numbering is non-contiguous and two
-directories use the `40_` prefix, so paths/names—not integer IDs—are the stable
-reference.
+It currently has 54 example directories numbered 0 through 53.
 
-- `87_robot_hand` — URDF robot hand (ABD links + soft transform
+- `45_robot_hand` — URDF robot hand (ABD links + soft transform
   constraints) + ABD cube on the ground, manual GUI posing (sliders +
   pose save/load). Ported from `references/Robotics-Libuipc` and rewritten
   in a different structure; assets renamed `leap_hand → robot_hand`
   (urdf `filename=` refs rewritten; link/joint names unchanged because the
   pose jsons key on them). The scripted auto-grasp was removed at the
   user's request (manual posing instead).
-- `94_robot_hand_grasp_apple` — focused scripted counterpart to 87. The same
+- `52_robot_hand_grasp_apple` — focused scripted counterpart to 45. The same
   17-link hand uses smooth per-substep soft-transform targets to grasp, lift,
   move and release a free procedural ABD apple with all four fingers. Its
   500-output-frame headless mode validates each carrying fingertip, lift,
   transport, table support and final velocity. It does not reintroduce automatic
-  motion into the deliberately manual sample 87.
-- `88_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
+  motion into the deliberately manual sample 45.
+- `46_stiff_gipc_benchmark` — the Stiff-GIPC set_case2 benchmark with a GUI
   (default) and the original headless loop (`--headless [N]`); both modes
   write `traj.csv` + timing summary.
-- `89_mas_bunny` — Stiff set_case7 parity (single MAS bunny, E=1e7);
+- `47_mas_bunny` — Stiff set_case7 parity (single MAS bunny, E=1e7);
   `NO_MAS=1` / `NO_GRAPH=1` env A/B switches.
-- `90_abd_fem_cube_stack` / `91_pinned_cloth` / `92_twisting_bar` /
-  `93_cube_wall_cloth` — the remaining Stiff-GIPC set_cases 1/4/5/6
-  (2026-08-24). 92 uses animated SoftPositionConstraint ends (twist);
-  93 has MAS on (case6 P_type=1) plus a 1920-body ABD wall. Assets added:
+- `48_abd_fem_cube_stack` / `49_pinned_cloth` / `50_twisting_bar` /
+  `51_cube_wall_cloth` — the remaining Stiff-GIPC set_cases 1/4/5/6
+  (2026-08-24). 50 uses animated SoftPositionConstraint ends (twist);
+  51 has MAS on (case6 P_type=1) plus a 1920-body ABD wall. Assets added:
   `stiff_cube.msh` (Stiff's own 0.4-size cube — the samples' cube.msh is
   dimensionally different and overlaps at case1/6 spacings) and
   `high_mat.msh`. Both Stiff meshes were missing `\$MeshFormat` /
   `\$EndNodes` / `\$EndElements` tags and were completed for igl::readMSH.
 
-## MAS preconditioner parity check (2026-08-23, case 89)
+## MAS preconditioner parity check (2026-08-23, case 47)
 
 Cross-project comparison on the same scene (SNK bunny2, E=1e7, 100 frames;
-libuipc samples `89_mas_bunny` vs Stiff-GIPC `set_case7`, both with MAS):
+libuipc samples `47_mas_bunny` vs Stiff-GIPC `set_case7`, both with MAS):
 
 | run | total PCG | avg per solve | Newton/frame |
 |---|---|---|---|
@@ -623,13 +689,13 @@ Verdicts:
   signature). Free-fall no-contact: graph on/off bit-identical. One red
   herring cost a debug round: a "frozen" E=1e4 trajectory turned out to be
   a stale site-packages dll, not a solver bug (see doc 08 stale-dll trap).
-  Measured benefit (89_mas_bunny, E=1e7, 100 frames, 704 solves/~198k PCG
+  Measured benefit (47_mas_bunny, E=1e7, 100 frames, 704 solves/~198k PCG
   iters, identical iteration counts and f100 centroid on both paths):
   graph on 29.8s vs graph off 36.0s wall = ~17% end-to-end (~32 us/PCG
   iteration of launch-gap savings). For reference the same scene with the
   diagonal preconditioner (graph on) takes ~74s — MAS itself is the bigger
   win (~2.5x), the graph plumbing adds its share on top.
-- COVERAGE RULE (measured on 88_stiff_gipc_benchmark, E=1e7, two 19k-vert
+- COVERAGE RULE (measured on 46_stiff_gipc_benchmark, E=1e7, two 19k-vert
   bunnies + 4.2k-vert cloth, 60 frames, 2026-08-23): MAS only pays off when
   it covers nearly all of the stiff DoFs. Partial coverage is net NEGATIVE:  | config | total PCG | avg/solve | wall |
   |---|---|---|---|
@@ -657,7 +723,7 @@ Verdicts:
   z=r instead of leaving z stale. Migrated: sim_case 53-61/81 + the
   stitch regression (config switch instead of mesh_partition calls;
   58_hybrid_mix now verifies custom + auto partitions coexist), samples
-  88/89 (NO_MAS=1 env flips the switch to "diag").
+  46/47 (NO_MAS=1 env flips the switch to "diag").
 - SCENE-ADAPTIVE KAPPA CORRIDOR (2026-08-24): Stiff-GIPC's
   `suggestKappa`/`upperBoundKappa` (`GIPC.cu:9850-9888`) is ported into
   `GlobalContactManager::init` with the dt^2 conversion (their barrier
@@ -668,7 +734,7 @@ Verdicts:
   the corridor is not computable. The evaluation scale is user-configurable
   via `contact/adaptive/kappa_eval_scale` (default 1e-16 — Stiff's value;
   the /dt^2 conversion keeps it valid for any dt). Measured corridors:
-  case 89 → [4.4e7, 4.4e9], case 88 → [4.7e6, 4.7e8]; the established
+  case 47 → [4.4e7, 4.4e9], case 46 → [4.7e6, 4.7e8]; the established
   κ=1e8 sits inside both, so aligned scenes are behaviorally unchanged.
 - Structural reason libuipc's port is stronger: FEMMASPreconditioner
   rebuilds the cluster inverses from the current full diagonal Hessian

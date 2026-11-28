@@ -1,15 +1,13 @@
 #include <uipc/usd/stage.h>
 #include <private/stage.h>
+#include <uipc/common/log.h>
 
 namespace uipc::usd
 {
 S<Stage::Impl> Stage::Impl::open(std::string_view path)
 {
     auto usdStage = pxr::UsdStage::Open(std::string(path));
-    if(!usdStage)
-    {
-        return nullptr;
-    }
+    UIPC_ASSERT_THROW(usdStage, "Could not open USD stage '{}'.", path);
     return uipc::make_shared<Stage::Impl>(std::move(usdStage));
 }
 

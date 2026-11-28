@@ -12,9 +12,9 @@ static void check_merge_input(span<const SimplicialComplex*> complexes)
     {
         UIPC_ASSERT_THROW(complex != nullptr, "complex[{}] is nullptr", I);
         UIPC_ASSERT_THROW(complex->instances().size() == 1,
-                    "complex[{}] has multiple instances ({}), call `apply_transform()` before merging multiple-instance-geometry",
-                    I,
-                    complex->instances().size());
+                          "complex[{}] has multiple instances ({}), call `apply_transform()` before merging multiple-instance-geometry",
+                          I,
+                          complex->instances().size());
     }
 }
 
@@ -108,9 +108,10 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         }
     }
 
+    vector<SizeT> triangle_offsets(complexes.size() + 1, 0);
+
     {  // 3) merge triangles
 
-        vector<SizeT> triangle_offsets(complexes.size() + 1, 0);
         vector<SizeT> triangle_counts(complexes.size() + 1, 0);
 
         std::ranges::transform(complexes,
@@ -181,6 +182,32 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
 
         SizeT num_tetrahedra = tetrahedron_offsets.back();
 
+        if(auto parents = R.triangles().find<IndexT>(builtin::parent_id);
+           parents && num_tetrahedra > 0)
+        {
+            auto ids = view(*parents);
+            for(auto [I, complex] : enumerate(complexes))
+            {
+                auto part =
+                    ids.subspan(triangle_offsets[I], complex->triangles().size());
+                if(tetrahedron_counts[I] == 0
+                   || !complex->triangles().find<IndexT>(builtin::parent_id))
+                {
+                    std::ranges::fill(part, -1);
+                    continue;
+                }
+                for(auto& parent : part)
+                {
+                    if(parent < 0)
+                        continue;
+                    UIPC_ASSERT_THROW(static_cast<SizeT>(parent) < tetrahedron_counts[I],
+                                      "Triangle parent tetrahedron {} is outside input {}.",
+                                      parent,
+                                      I);
+                    parent = static_cast<IndexT>(tetrahedron_offsets[I] + parent);
+                }
+            }
+        }
         R.tetrahedra().resize(num_tetrahedra);
         auto topo = R.tetrahedra().create<Vector4i>(builtin::topo, Vector4i::Zero(), false);
         auto Ts = view(*topo);

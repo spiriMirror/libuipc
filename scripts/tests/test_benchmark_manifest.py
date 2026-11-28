@@ -57,7 +57,7 @@ class BenchmarkManifestTests(unittest.TestCase):
             entry, resolve_python(sys.executable), entry["quickFrames"]
         )
         self.assertEqual(command[-2:], ["--headless", "3"])
-        self.assertEqual(working_directory.name, "88_stiff_gipc_benchmark")
+        self.assertEqual(working_directory.name, "46_stiff_gipc_benchmark")
 
         for benchmark in registry.values():
             self.assertIn(

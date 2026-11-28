@@ -10,8 +10,9 @@ import numpy as np
 import pytest
 
 from uipc import Exception as UIPCException
-from uipc import view
-from uipc.geometry import affine_body, pointcloud
+from uipc import Scene, view
+from uipc.constitution import AffineBodySphericalJoint
+from uipc.geometry import affine_body, optimal_transform, pointcloud
 
 
 LAYOUTS = ["c_order", "fortran", "row_slice", "column_slice", "reverse_rows", "transpose", "readonly"]
@@ -87,11 +88,52 @@ def test_transform_to_q_reads_uipc_matrix_views():
 
 
 @pytest.mark.basic
-def test_as_span_of_refuses_non_contiguous_arrays():
+def test_pointcloud_reads_non_contiguous_rows():
     wide = np.arange(24, dtype=np.float64).reshape(4, 6)
     positions = wide[:, :3]  # four rows of three, six values apart
     assert not positions.flags.c_contiguous
+    sc = pointcloud(positions)
+    np.testing.assert_array_equal(sc.positions().view().reshape(-1, 3), positions)
+
+
+@pytest.mark.basic
+def test_optimal_transform_accepts_readonly_and_checks_packed_vector_layout():
+    points = np.vstack((np.zeros(3), np.eye(3)))
+    points.flags.writeable = False
+    np.testing.assert_allclose(optimal_transform(points, points), np.eye(4), atol=1e-12)
+
     with pytest.raises(UIPCException, match="C-contiguous"):
-        pointcloud(positions)
-    sc = pointcloud(np.ascontiguousarray(positions))
-    np.testing.assert_array_equal(view(sc.positions()).reshape(-1, 3), positions)
+        optimal_transform(arranged(points, "row_slice"), points)
+    unaligned = np.ndarray(points.shape, dtype=points.dtype,
+                           buffer=bytearray(points.nbytes + 1), offset=1)
+    unaligned[:] = points
+    assert unaligned.flags.c_contiguous and not unaligned.flags.aligned
+    with pytest.raises(UIPCException, match="align"):
+        optimal_transform(points, unaligned)
+
+
+@pytest.mark.basic
+def test_spherical_joint_packed_inputs():
+    scene = Scene()
+    obj = scene.objects().create("two bodies")
+    mesh = pointcloud(np.zeros((1, 3)))
+    mesh.instances().resize(2)
+    left, _ = obj.geometries().create(mesh)
+    right, _ = obj.geometries().create(mesh)
+    anchors = np.arange(6.0).reshape(2, 3)
+    ids = np.array([0, 1], dtype=np.int32)
+    strengths = np.array([1.0, 3.0])
+    anchors.flags.writeable = False
+    joint = AffineBodySphericalJoint()
+    geometry = joint.create_geometry(anchors, [left, left], ids, [right, right], ids, strengths)
+    np.testing.assert_array_equal(geometry.positions().view().reshape(-1, 3), anchors)
+    np.testing.assert_array_equal(geometry.vertices().find("l_inst_id").view(), ids)
+    np.testing.assert_array_equal(geometry.vertices().find("strength_ratio").view(), strengths)
+
+    with pytest.raises(UIPCException, match="C-contiguous"):
+        joint.create_geometry(anchors, [left, left], np.repeat(ids, 2)[::2],
+                              [right, right], ids, strengths)
+    unaligned = np.ndarray(ids.shape, dtype=ids.dtype, buffer=bytearray(ids.nbytes + 1), offset=1)
+    unaligned[:] = ids
+    with pytest.raises(UIPCException, match="align"):
+        joint.create_geometry(anchors, [left, left], unaligned, [right, right], ids, strengths)

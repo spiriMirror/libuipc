@@ -138,8 +138,7 @@ void RotatingMotor::animate(geometry::SimplicialComplex& sc, Float dt)
         Eigen::AngleAxis<Float> angle_axis(theta, axis);
         Transform               trans{transform_view[I]};
 
-        // rotate in material space, not in world
-        trans.prerotate(angle_axis);
+        trans.rotate(angle_axis);
         aim_transform_view[I] = trans.matrix();
     }
 }
@@ -228,8 +227,7 @@ void LinearMotor::animate(geometry::SimplicialComplex& sc, Float dt)
 
         Transform trans{transform_view[I]};
 
-        // move in material space, not in world
-        trans.pretranslate(axis * d);
+        trans.translate(axis * d);
 
         aim_transform_view[I] = trans.matrix();
     }

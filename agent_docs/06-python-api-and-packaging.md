@@ -10,6 +10,19 @@
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
+Numeric attribute slots expose a read-only NumPy array through `slot.view()`.
+Use `uipc.view(slot)` for writes so shared current/rest attributes detach before
+modification. Fields on `UIDRegister.find(uid)` results are read-only.
+Collection facades and string spans retain their originating Python owners.
+The mesh doctor checks primary FEM material compatibility on a mesh copy;
+the mesh-doctor CLI opens its viewer only with `--gui`.
+
+The four Python mesh factories accept strided vertex and connectivity arrays.
+For matching native dtypes, slices are read directly into mesh storage.
+Batched ABD pose and velocity conversions use NumPy's logical matrix indices,
+including on Fortran-order arrays and reversed slices. Their results follow
+the same row and column conventions as the single-body conversions.
+
 ## Directional cloth parameters
 
 `StrainLimitingBaraffWitkinShell.apply_to` retains both old signatures and
@@ -38,23 +51,42 @@ indices. The native geometry copies the pairs into `instances.topo`.
 Issue #498 previously declared these indices as `Float`, so `as_span_of` could
 return a view into a freed temporary integer conversion. The shared helper
 borrows memory and does not normalize strides: binding authors must keep a
-matching-dtype owner alive and supply a C-contiguous array (see below).
+matching-dtype owner alive and supply the layout expected by the native span.
 CPU regression coverage is in `python/tests/test_soft_vertex_stitch.py`.
 
-## Array layout in `as_span_of`
+## Packed spans and in-place transforms
 
-`as_span_of<T>` views a NumPy buffer in place as packed `T` values. It refuses
-an array that is not C-contiguous (`array must be C-contiguous`): a sliced,
-reversed, transposed or Fortran-order input raises instead of being read as
-other values. `T` must be a vector or a row-major matrix (`static_assert`): a
-column-major `Matrix4x4` would view a C-ordered `(N, 4, 4)` array transposed.
-Bindings that accept any layout convert at the binding boundary
-(`py::array::c_style | py::array::forcecast`, as the stitch arrays above) or
-read through `py::array::unchecked`. The batched `affine_body.q_to_transform`,
-`transform_to_q`, `q_v_to_transform_v` and `transform_v_to_q_v` read and write
-element by element, so they agree with the single-item forms for every layout,
-uipc's own column-major matrix views included. CPU regression coverage is in
-`python/tests/test_affine_body_transform.py`.
+`as_span` and `as_span_of` borrow packed native storage. They check
+C contiguity and alignment before exposing a span. Matrix spans require
+row-major storage for types with more than one row and column. For a sliced
+or transposed input to a packed-only API, first use
+`numpy.require(array, requirements=["C", "A"])` with the required dtype.
+
+Mesh factories and batched ABD conversions read logical NumPy indices directly.
+`Transform.apply_to` updates the selected rows of a writable native float64 batch
+in place, including stepped slices. Single-vector calls return a new vector.
+
+## Attribute views (`uipc.view`, `as_numpy.h`)
+
+`uipc.view` has three overloads: one for all 20 numeric `AttributeSlot<T>`
+classes, then `AttributeSlotString`, then `ParameterCollection`. pybind11
+tries overloads one by one (about 0.3 us per failed try), so the former one
+overload per slot class made a view of the k-th class cost k failed tries
+(2.8-8.3 us). The numeric overload (`geometry/attribute_slot.cpp`, registered
+with `py::prepend()`) takes a `NumericSlot` whose caster finds the argument's
+Python class in a table filled by `def_attribute_slot<T>`; it loads exactly the
+objects the per-class overloads accepted, so string slots still reach their
+overload. The signature names the union of the 20 classes (stubs keep the same
+accepted argument types). A new numeric slot class must be added to both the
+`DEF_ATTRIBUTE_SLOT` list and `NumericSlotTypes` (import asserts the counts).
+
+`as_numpy` builds arrays through `make_array`, which reuses the dtype
+`py::dtype(buffer_info)` derives from the PEP 3118 format, created once per
+scalar type (`buffer_dtype`), instead of calling numpy's format parser on every
+call. Keep that dtype: `dtype::of<int64_t>()` is `'l'`, while the buffer
+format gives `'q'` (`numpy.longlong`), which views of I64/U64 slots have
+always returned. A view now costs about 0.2 us; `python/tests/test_attribute.py`
+covers every creatable slot class.
 
 ## Python package layout (`python/src/uipc/`)
 
@@ -126,6 +158,8 @@ torch/warp adapters still require their own optional frameworks.
   reported as a defect or confused with the independent source/build-directory
   aliasing risk in audit A03.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
+- The staging path must resolve under the build directory and be disjoint from
+  the Python source tree. The binding's dtype cache uses headers from pybind11 2.12+.
 - CMake post-build and `xmake pack` both call `scripts/pyuipc_stubgen.py`.
   It regenerates the complete `uipc` stub tree at the staged package root,
   rather than generating only extension-level stubs inside `_native`.

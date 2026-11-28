@@ -1,4 +1,7 @@
-uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "pybind11")
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "Building pyuipc requires an out-of-source build directory (cmake -S . -B build).")
+endif()
+uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "pybind11" 2.12)
 
 execute_process(COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH}
     "-c" 
@@ -18,5 +21,8 @@ set(PYBIND11_FINDPYTHON ON)
 set(Python3_EXECUTABLE ${UIPC_PYTHON_EXECUTABLE_PATH})
 # find the package
 find_package(pybind11 CONFIG REQUIRED QUIET)
+if(pybind11_VERSION VERSION_LESS 2.12)
+    message(FATAL_ERROR "pyuipc requires pybind11 2.12 or newer (found ${pybind11_VERSION}).")
+endif()
 
 add_subdirectory(pyuipc)

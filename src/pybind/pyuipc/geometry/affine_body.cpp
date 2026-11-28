@@ -3,6 +3,7 @@
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
 #include <uipc/geometry/utils/affine_body/affine_body_from_rigid_body.h>
+#include <cstring>
 
 namespace pyuipc::geometry
 {
@@ -11,44 +12,51 @@ using namespace uipc::geometry::affine_body;
 
 namespace
 {
-    // Batches are read and written element by element through the arrays'
-    // strides, so every memory layout (C or Fortran order, slices, uipc's own
-    // column-major matrix views) is taken as indexed. An in-place Matrix4x4
-    // span of a C-ordered (N, 4, 4) array would hold the transposes.
-    template <typename F>
-    py::array_t<Float> vectors_to_matrices(const py::array_t<Float>& q, F&& f)
+    template <auto Convert>
+    py::array_t<Float> batch_to_transforms(const py::array_t<Float>& input)
     {
-        auto               in = q.unchecked<2>();
-        py::array_t<Float> result(std::vector<py::ssize_t>{q.shape(0), 4, 4});
-        auto               out = result.mutable_unchecked<3>();
-        for(py::ssize_t n = 0; n < q.shape(0); ++n)
+        const auto         count = input.shape(0);
+        py::array_t<Float> result({count, py::ssize_t{4}, py::ssize_t{4}});
+        auto               dst  = result.mutable_unchecked<3>();
+        const auto*        data = reinterpret_cast<const char*>(input.data());
+        const auto         batch_stride     = input.strides(0);
+        const auto         component_stride = input.strides(1);
+        for(py::ssize_t i = 0; i < count; ++i)
         {
-            Vector12 v;
+            const auto* src = data + i * batch_stride;
+            Vector12    q;
             for(int j = 0; j < 12; ++j)
-                v(j) = in(n, j);
-            const Matrix4x4 m = f(v);
-            for(int i = 0; i < 4; ++i)
-                for(int j = 0; j < 4; ++j)
-                    out(n, i, j) = m(i, j);
+                std::memcpy(&q[j], src + j * component_stride, sizeof(Float));
+            const Matrix4x4 transform = Convert(q);
+            for(int row = 0; row < 4; ++row)
+                for(int col = 0; col < 4; ++col)
+                    dst(i, row, col) = transform(row, col);
         }
         return result;
     }
 
-    template <typename F>
-    py::array_t<Float> matrices_to_vectors(const py::array_t<Float>& m, F&& f)
+    template <auto Convert>
+    py::array_t<Float> batch_to_vectors(const py::array_t<Float>& input)
     {
-        auto               in = m.unchecked<3>();
-        py::array_t<Float> result(std::vector<py::ssize_t>{m.shape(0), 12, 1});
-        auto               out = result.mutable_unchecked<3>();
-        for(py::ssize_t n = 0; n < m.shape(0); ++n)
+        const auto         count = input.shape(0);
+        py::array_t<Float> result({count, py::ssize_t{12}, py::ssize_t{1}});
+        auto               dst  = result.mutable_unchecked<3>();
+        const auto*        data = reinterpret_cast<const char*>(input.data());
+        const auto         batch_stride = input.strides(0);
+        const auto         row_stride   = input.strides(1);
+        const auto         col_stride   = input.strides(2);
+        for(py::ssize_t i = 0; i < count; ++i)
         {
-            Matrix4x4 a;
-            for(int i = 0; i < 4; ++i)
-                for(int j = 0; j < 4; ++j)
-                    a(i, j) = in(n, i, j);
-            const Vector12 v = f(a);
+            const auto* src = data + i * batch_stride;
+            Matrix4x4   transform;
+            for(int row = 0; row < 4; ++row)
+                for(int col = 0; col < 4; ++col)
+                    std::memcpy(&transform(row, col),
+                                src + row * row_stride + col * col_stride,
+                                sizeof(Float));
+            const Vector12 q = Convert(transform);
             for(int j = 0; j < 12; ++j)
-                out(n, j, 0) = v(j);
+                dst(i, j, 0) = q[j];
         }
         return result;
     }
@@ -70,7 +78,7 @@ PyAffineBody::PyAffineBody(py::module& m)
                                                  q.shape(0),
                                                  q.shape(1)));
                 }
-                return vectors_to_matrices(q, q_to_transform);
+                return batch_to_transforms<q_to_transform>(q);
             }
             // Single item (1D array with shape (12,))
             if(q.ndim() == 1)
@@ -109,7 +117,7 @@ Returns:
                                                  trans.shape(1),
                                                  trans.shape(2)));
                 }
-                return matrices_to_vectors(trans, transform_to_q);
+                return batch_to_vectors<transform_to_q>(trans);
             }
             // Single item (2D array with shape (4, 4))
             if(trans.ndim() == 2)
@@ -148,7 +156,7 @@ Returns:
                                                  q.shape(0),
                                                  q.shape(1)));
                 }
-                return vectors_to_matrices(q, q_v_to_transform_v);
+                return batch_to_transforms<q_v_to_transform_v>(q);
             }
             // Single item (1D array with shape (12,))
             if(q.ndim() == 1)
@@ -188,7 +196,7 @@ Returns:
                                                  transform_v.shape(1),
                                                  transform_v.shape(2)));
                 }
-                return matrices_to_vectors(transform_v, transform_v_to_q_v);
+                return batch_to_vectors<transform_v_to_q_v>(transform_v);
             }
             // Single item (2D array with shape (4, 4))
             if(transform_v.ndim() == 2)

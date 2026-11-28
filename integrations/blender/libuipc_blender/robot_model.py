@@ -122,7 +122,7 @@ def export_robot(source, directory):
         points, triangles, removed, duplicates, source_ids = clean_collision_assembly(
             points, triangles
         )
-        # Some sample 87 collision files repeat an identical facet. Keep its
+        # Some sample 45 collision files repeat an identical facet. Keep its
         # original surface once; retain disconnected closed assembly components.
         # Blender completes any remaining boundary loops before assigning ABD.
         # Check finite values, indices, winding and manifold edges here already.

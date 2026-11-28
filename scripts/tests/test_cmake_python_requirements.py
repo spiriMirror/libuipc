@@ -1,6 +1,7 @@
 """Preserve direct-CMake auto-install without mutating frontend-managed builds."""
 
 import ast
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -42,14 +43,14 @@ class CMakePythonRequirementTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def check_module(self, module, *, managed=False):
+    def check_module(self, module, *, managed=False, minimum=""):
         script = self.root / "check.cmake"
         managed_config = "set(SKBUILD 2)\n" if managed else ""
         script.write_text(
             "cmake_minimum_required(VERSION 3.26)\n"
             f"include([[{(ROOT / 'cmake/uipc_utils.cmake').as_posix()}]])\n"
             f"{managed_config}"
-            f"uipc_require_python_module([[{self.python.as_posix()}]] [[{module}]])\n",
+            f"uipc_require_python_module([[{self.python.as_posix()}]] [[{module}]] {minimum})\n",
             encoding="utf-8",
         )
         return subprocess.run(
@@ -61,6 +62,15 @@ class CMakePythonRequirementTests(unittest.TestCase):
         result = self.check_module("json")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assert_pip_absent()
+
+    def test_managed_build_checks_version_of_importable_module(self):
+        marker = self.fake_pip()
+        dep = marker.parent / "uipc_versioned.py"
+        for minor in (11, 12, 13):
+            dep.write_text(f"version_info = (2, {minor}, 0)\n", encoding="utf-8")
+            result = self.check_module("uipc_versioned", managed=True, minimum="2.12")
+            self.assertEqual(result.returncode == 0, minor >= 12, result.stderr)
+        self.assertFalse(marker.exists())
 
     def test_missing_managed_module_fails_without_bootstrapping_pip(self):
         result = self.check_module("uipc_missing_build_dependency", managed=True)
@@ -146,6 +156,17 @@ class CMakePythonRequirementTests(unittest.TestCase):
 
 
 class PythonBuildMetadataTests(unittest.TestCase):
+    def test_staging_directory_cannot_overlap_python_sources(self):
+        spec = importlib.util.spec_from_file_location("staging", ROOT / "scripts/after_build_pyuipc.py")
+        staging = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(staging)
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp).resolve()
+            self.assertEqual(staging.python_staging_dir(repo / "build", repo), repo / "build/python")
+            for build in (repo, repo / "python/build"):
+                with self.assertRaises(ValueError):
+                    staging.python_staging_dir(build, repo)
+
     def test_existing_uninstall_first_policy_is_preserved(self):
         tree = ast.parse((ROOT / "scripts/after_build_pyuipc.py").read_text(encoding="utf-8"))
         entry = next(

@@ -1,3 +1,27 @@
+/*
+ * NVIDIA contributions: side-stream launches of the animator constraints.
+ *
+ * The NVIDIA notice applies to the contributions described above, not to the
+ * pre-existing libuipc or other contributors' code.
+ */
+
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <finite_element/finite_element_animator.h>
 #include <finite_element/finite_element_constraint.h>
 #include <finite_element/fem_line_search_subreporter.h>
@@ -32,7 +56,8 @@ void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& i
                                              info.dt(),
                                              info.gradients(),
                                              info.hessians(),
-                                             info.gradient_only()};
+                                             info.gradient_only(),
+                                             info.stream()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -160,7 +185,8 @@ void FiniteElementAnimator::compute_energy(FEMLineSearchSubreporter::ComputeEner
     using namespace cuda_tool;
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{
+            &m_impl, constraint->m_index, info.dt(), info.energies(), info.side_streams()};
         constraint->compute_energy(this_info);
     }
 }
@@ -270,6 +296,12 @@ class FiniteElementAnimatorLinearSubsystemReporter final : public FEMLinearSubsy
     virtual void do_assemble(AssembleInfo& info) override
     {
         animator->assemble(info);
+    }
+
+    // The animator's constraints are per-vertex terms in small blocks.
+    virtual bool do_launches_beside_contact() const noexcept override
+    {
+        return true;
     }
 };
 

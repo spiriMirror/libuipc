@@ -1,25 +1,15 @@
-#include <app/test_common.h>
-#include <app/asset_dir.h>
-#include <uipc/uipc.h>
+#include <app/app.h>
 #include <uipc/usd/stage.h>
-#include <pxr/usd/usd/stage.h>
-#include <pxr/usd/usdGeom/xform.h>
+#include <uipc/common/exception.h>
+#include <fstream>
 using namespace uipc;
-
-auto build_stage()
-{
-    using namespace pxr;
-    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
-    auto usd_path    = fmt::format("{}/HelloStage.usda", output_path);
-    auto usd_stage   = UsdStage::CreateNew(usd_path);
-    auto cube        = UsdGeomXform::Define(usd_stage, SdfPath("/Cube"));
-    usd_stage->Save();
-    return usd_path;
-}
 
 TEST_CASE("stage_prim", "[usd]")
 {
-    auto usd_path = build_stage();
-    auto stage    = usd::Stage::open(usd_path);
+    auto output = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto path   = fmt::format("{}/HelloStage.usda", output);
+    std::ofstream(path) << "#usda 1.0\ndef Xform \"Cube\" {}\n";
+    auto stage = usd::Stage::open(path);
+    REQUIRE_NOTHROW(stage.get_prim_at_path("/Cube"));
+    REQUIRE_THROWS_AS(usd::Stage::open(path + ".missing"), Exception);
 }
-
