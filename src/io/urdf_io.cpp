@@ -86,7 +86,6 @@ class UrdfController::Impl
   public:
     urdf::ModelInterfaceSharedPtr model;
     Matrix4x4 root_link_transform = Matrix4x4::Identity();  // root link transform
-    std::map<std::string, IndexT> link_geo_id_map;
     std::map<std::string, S<geometry::SimplicialComplexSlot>> link_vis_geo_slots;
     std::map<std::string, S<geometry::SimplicialComplexSlot>> link_geo_slots;
     std::map<std::string, JointInfo>                          joint_infos;
@@ -127,8 +126,8 @@ class UrdfController::Impl
     {
         auto it = revolute_joint_infos.find(std::string{joint_name});
         UIPC_ASSERT_THROW(it != revolute_joint_infos.end(),
-                    "Joint {} not found in `Revolute Joints`, can't rotate",
-                    joint_name);
+                          "Joint {} not found in `Revolute Joints`, can't rotate",
+                          joint_name);
 
         if(!it->second.mimic_joint_name.empty())
             return;
@@ -162,8 +161,8 @@ class UrdfController::Impl
 
             auto it = revolute_joint_infos.find(r_joint.mimic_joint_name);
             UIPC_ASSERT_THROW(it != revolute_joint_infos.end(),
-                        "Mimic joint {} not found, can't process mimic, why can it happen?",
-                        r_joint.mimic_joint_name);
+                              "Mimic joint {} not found, can't process mimic, why can it happen?",
+                              r_joint.mimic_joint_name);
 
             auto& mimic_joint_info = it->second;
             r_joint.angle = mimic_joint_info.angle * r_joint.mimic_multiplier_offset[0]
@@ -204,6 +203,13 @@ class UrdfController::Impl
             auto  trans_view = view(*trans);
             trans_view[0]    = URDF2UIPC * joint_info.global_trans;
         }
+        if(revolute_joints && attr == builtin::transform)
+        {
+            auto transforms =
+                view(*revolute_joints->geometry().instances().find<Matrix4x4>(attr));
+            for(auto&& [i, entry] : enumerate(revolute_joint_infos))
+                transforms[i] = URDF2UIPC * joint_infos.at(entry.first).global_trans;
+        }
     }
 
     void sync_visual_mesh() const
@@ -212,13 +218,15 @@ class UrdfController::Impl
         if(link_vis_geo_slots.empty())
             return;
 
-        for(auto&& [name, slot] : link_geo_slots)
+        for(auto&& [name, vis_slot] : link_vis_geo_slots)
         {
-            auto& vis_slot = link_vis_geo_slots.at(name);
+            auto& slot     = link_geo_slots.at(name);
             auto& vis_geo  = vis_slot->geometry();
             auto& geo      = slot->geometry();
-            auto  dst_view = view(vis_geo.transforms());
-            auto  src_view = view(geo.transforms());
+            auto  src_view = geo.transforms().view();
+            if(vis_geo.instances().size() != src_view.size())
+                vis_geo.instances().resize(src_view.size());
+            auto dst_view = view(vis_geo.transforms());
             std::copy(src_view.begin(), src_view.end(), dst_view.begin());
         }
     }
@@ -316,8 +324,6 @@ class UrdfIO::Impl
         // 1) Load link meshes
         auto& link_geo_slots     = ctrl->link_geo_slots;
         auto& link_vis_geo_slots = ctrl->link_vis_geo_slots;
-        auto& link_geo_id_map    = ctrl->link_geo_id_map;
-        auto& root_name          = model->root_link_->name;
         for(const auto& [name, link] : links)
         {
             // Process each link
@@ -325,23 +331,26 @@ class UrdfIO::Impl
             if(!check_link(link))
                 continue;
 
-            auto sc = load_link_mesh(
-                link, *std::dynamic_pointer_cast<urdf::Mesh>(link->collision->geometry));
+            const auto visual_mesh =
+                load_visual_mesh && link->visual ?
+                    std::dynamic_pointer_cast<urdf::Mesh>(link->visual->geometry) :
+                    nullptr;
+            auto sc = load_link_mesh(link,
+                                     *std::dynamic_pointer_cast<urdf::Mesh>(
+                                         link->collision->geometry),
+                                     link->collision->origin);
 
             {
                 auto is_visible = sc.meta().create<IndexT>("is_visible", 0);
-                geometry::view(*is_visible)[0] = load_visual_mesh ? 0 : 1;
+                geometry::view(*is_visible)[0] = visual_mesh ? 0 : 1;
             }
 
             auto&& [geo_slot, rest_geo_slot] = object.geometries().create(sc);
             link_geo_slots[name]             = geo_slot;
-            auto id                          = geo_slot->id();
-            link_geo_id_map[name]            = id;
 
-            if(load_visual_mesh)
+            if(visual_mesh)
             {
-                auto vis_sc = load_link_mesh(
-                    link, *std::dynamic_pointer_cast<urdf::Mesh>(link->visual->geometry));
+                auto vis_sc = load_link_mesh(link, *visual_mesh, link->visual->origin);
 
                 auto is_visible = vis_sc.meta().create<IndexT>("is_visible", 0);
                 geometry::view(*is_visible)[0] = 1;
@@ -354,17 +363,17 @@ class UrdfIO::Impl
 
         // 2) build joints
         build_joint_infos();
+        ctrl->apply_to(builtin::transform);
+        ctrl->sync_visual_mesh();
 
         // 3) Create revolute joint geometry
-        auto&                      revolute_joints = ctrl->revolute_joints;
-        geometry::ImplicitGeometry revolute_joint_geometry =
-            create_revolute_geometry(link_geo_id_map);
+        auto& revolute_joints = ctrl->revolute_joints;
+        geometry::ImplicitGeometry revolute_joint_geometry = create_revolute_geometry();
         auto&& [r_geo_slot, r_rest_geo_slot] =
             object.geometries().create(revolute_joint_geometry);
 
         revolute_joints = r_geo_slot;
 
-        ctrl->apply_to(builtin::transform);  // apply the transform to the geometry
         return UrdfController{std::move(ctrl)};
     }
 
@@ -408,7 +417,8 @@ class UrdfIO::Impl
     }
 
     geometry::SimplicialComplex load_link_mesh(const urdf::LinkSharedPtr& link,
-                                               const urdf::Mesh&          mesh)
+                                               const urdf::Mesh&          mesh,
+                                               const urdf::Pose& origin)
     {
         auto& urdf_folder = ctrl->urdf_folder;
         // find first "://"
@@ -426,7 +436,7 @@ class UrdfIO::Impl
         auto& scale = mesh.scale;
 
         Transform t = Transform::Identity();
-        t           = to_affine(link->collision->origin);
+        t           = to_affine(origin);
         t.scale(Vector3{scale.x, scale.y, scale.z});
 
         Matrix4x4 F = t.matrix();
@@ -443,17 +453,12 @@ class UrdfIO::Impl
         auto urdf_name = sc.meta().create<std::string>("urdf/name", "none");
         view(*urdf_name)[0] = link->name;
 
-        auto name = sc.meta().create<std::string>("name", "none");
+        auto name      = sc.meta().create<std::string>("name", "none");
         view(*name)[0] = link->name;
 
         auto urdf_filename = sc.meta().create<std::string>("urdf/filename", "");
         view(*urdf_filename)[0] = f;
 
-        auto& model = ctrl->model;
-        if(link->name == model->root_link_->name)
-        {
-            ctrl->root_link_transform = t.matrix();
-        }
         return sc;
     }
 
@@ -499,17 +504,17 @@ class UrdfIO::Impl
             else
             {
                 UIPC_ASSERT_THROW(false,
-                            "Unsupported Joint {} <{}>",
-                            joint->name,
-                            magic_enum::enum_name(joint->type));
+                                  "Unsupported Joint {} <{}>",
+                                  joint->name,
+                                  magic_enum::enum_name(joint->type));
             }
 
             UIPC_ASSERT_THROW(joint_infos.find(joint->name) == joint_infos.end(),
-                        "Joint name {} already exists, invalid urdf",
-                        joint->name);
+                              "Joint name {} already exists, invalid urdf",
+                              joint->name);
 
             Matrix4x4 t = to_affine(joint->parent_to_joint_origin_transform);
-            auto& base_joint_info = joint_infos[joint->name];
+            auto&     base_joint_info = joint_infos[joint->name];
 
             base_joint_info.local_trans = t;  // local transform of the joint
             base_joint_info.current_local_trans = t;  // current local transform of the joint
@@ -522,9 +527,8 @@ class UrdfIO::Impl
     }
 
 
-    geometry::ImplicitGeometry create_revolute_geometry(std::map<std::string, IndexT>& link_geo_id_map)
+    geometry::ImplicitGeometry create_revolute_geometry()
     {
-        auto& model                = ctrl->model;
         auto& revolute_joint_infos = ctrl->revolute_joint_infos;
         auto& joint_infos          = ctrl->joint_infos;
 
@@ -551,13 +555,18 @@ class UrdfIO::Impl
         auto name = revolute_joint_geometry.instances().create<std::string>("name", "");
         auto name_view = view(*name);
 
+        const auto link_id = [&](const std::string& name)
+        {
+            auto it = ctrl->link_geo_slots.find(name);
+            return it == ctrl->link_geo_slots.end() ? IndexT{-1} : it->second->id();
+        };
         SizeT I = 0;
         for(auto&& [name, r_info] : revolute_joint_infos)
         {
-            auto& info       = joint_infos[name];
-            tran_view[I]     = info.global_trans;
-            link_ids_view[I] = Vector2i{link_geo_id_map[info.parent_link_name],
-                                        link_geo_id_map[info.child_link_name]};
+            auto& info         = joint_infos[name];
+            tran_view[I]       = basis_urdf_to_uipc() * info.global_trans;
+            link_ids_view[I]   = Vector2i{link_id(info.parent_link_name),
+                                        link_id(info.child_link_name)};
             local_axis_view[I] = r_info.local_axis;
             limits_view[I]     = r_info.limits;
             name_view[I]       = info.name;

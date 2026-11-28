@@ -1,0 +1,5 @@
+target("usd_support")
+    set_group("tests")
+    add_rules("uipc_test")
+    add_deps("uipc_usd")
+    add_files("stage_prim_test.cpp")

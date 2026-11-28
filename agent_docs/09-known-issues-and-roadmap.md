@@ -1,5 +1,9 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+File I/O follow-up after v0.0.30: the URDF link/joint transforms and absent
+visuals, OBJ polyline truncation, MSH element types, mesh writer keywords and
+USD stage-open failure are covered by regression tests.
+
 Geometry/material follow-up after v0.0.30: face relabeling respects stored
 winding, attribute clear and named copy preserve their row/selection contracts,
 motors compose increments in material space, and shell-to-solid ABD reapplication

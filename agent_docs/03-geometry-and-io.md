@@ -68,6 +68,11 @@ not a supported public glTF IO class.
 
 STL parsing is in `src/io/stl_reader.h`.
 
+URDF mesh coordinates include their own collision or visual origin and scale.
+Link and revolute-joint instance transforms are in the UIPC world basis.
+A meshless parent or child has geometry ID `-1` in the joint's `link_ids`.
+Missing or primitive visuals leave the supported collision mesh visible.
+
 ## Common Pitfalls
 
 - You **must** call `label_surface` before contact simulation. For tetrahedral meshes, call `label_triangle_orient` after labeling the surface when outward triangle orientation is needed. Standalone triangle/line meshes do not satisfy that utility's dimension-3 precondition.

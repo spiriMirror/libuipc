@@ -43,8 +43,8 @@ Returns:
 
     class_SimplicialComplexIO.def("write",
                                   &SimplicialComplexIO::write,
-                                  py::arg("sc"),
                                   py::arg("filename"),
+                                  py::arg("sc"),
                                   R"(Write a simplicial complex to a file.
 Args:
     sc: SimplicialComplex to write.

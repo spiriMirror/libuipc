@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **File I/O audit follow-up (2026-11-28)**. URDF geometry offsets are applied
+> once in their own link frames. Optional visuals fall back to collision display,
+> and meshless endpoints use ID `-1`. OBJ line records preserve consecutive
+> segments. MSH exports use Gmsh simplex types, and Python mesh writing accepts
+> `filename=` and `sc=`. OpenUSD stage opening reports a missing file immediately.
+
 > **Geometry and material audit follow-up (2026-11-28)**. Outward face labels
 > survive relabeling, motor targets use local axes, and a shell reassigned
 > to solid ABD uses the solid body-force integral. For plastic bending,
