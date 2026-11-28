@@ -42,12 +42,12 @@ U64 AffineBodyConstitution::get_uid() const noexcept
 }
 
 void AffineBodyConstitution::create_attributes(geometry::SimplicialComplex& sc,
-                                                   Float kappa,
-                                                   Float mass_density,
-                                                   Float volume,
-                                                   Float m,
-                                                   const Vector3& m_x_bar,
-                                                   const Matrix3x3& m_x_bar_x_bar) const
+                                               Float          kappa,
+                                               Float          mass_density,
+                                               Float          volume,
+                                               Float          m,
+                                               const Vector3& m_x_bar,
+                                               const Matrix3x3& m_x_bar_x_bar) const
 {
     // Always overwrite: constitution identity
     {
@@ -98,8 +98,8 @@ void AffineBodyConstitution::create_attributes(geometry::SimplicialComplex& sc,
     }
 
     UIPC_ASSERT_THROW(volume > 0,
-                "Volume of the mesh is non-positive ({}), which is not allowed.",
-                volume);
+                      "Volume of the mesh is non-positive ({}), which is not allowed.",
+                      volume);
 
     create_or_update(builtin::volume, volume);
     create_or_update(builtin::mass_density, mass_density);
@@ -110,18 +110,20 @@ void AffineBodyConstitution::create_attributes(geometry::SimplicialComplex& sc,
     Float     total_mass;
     Vector3   center_of_mass;
     Matrix3x3 inertia_cm;
-    geometry::affine_body::to_rigid_body(m, m_x_bar, m_x_bar_x_bar,
-                                         total_mass, center_of_mass, inertia_cm);
+    geometry::affine_body::to_rigid_body(
+        m, m_x_bar, m_x_bar_x_bar, total_mass, center_of_mass, inertia_cm);
     create_or_update("mass", total_mass);
     create_or_update("mass_center", center_of_mass);
     create_or_update("inertia", inertia_cm);
+    if(auto codim = sc.meta().find<IndexT>(builtin::is_codim))
+        geometry::view(*codim).front() = 0;
 }
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
-    auto volume = geometry::compute_mesh_volume(sc);
-    Float m;
-    Vector3 m_x_bar;
+    auto      volume = geometry::compute_mesh_volume(sc);
+    Float     m;
+    Vector3   m_x_bar;
     Matrix3x3 m_x_bar_x_bar;
     geometry::affine_body::compute_dyadic_mass(sc, mass_density, m, m_x_bar, m_x_bar_x_bar);
     create_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
@@ -139,19 +141,17 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
     create_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 }
 
-geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              kappa,
-                                                                 Float              mass,
-                                                                 const Vector3&     mass_center,
-                                                                 const Matrix3x3&   inertia,
-                                                                 Float              volume) const
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(
+    Float kappa, Float mass, const Vector3& mass_center, const Matrix3x3& inertia, Float volume) const
 {
-    auto abd_mass_matrix = geometry::affine_body::from_rigid_body(mass, mass_center, inertia);
+    auto abd_mass_matrix =
+        geometry::affine_body::from_rigid_body(mass, mass_center, inertia);
     return create_proxy(kappa, abd_mass_matrix, volume);
 }
 
-geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              kappa,
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float kappa,
                                                                  const Matrix12x12& abd_mass,
-                                                                 Float              volume) const
+                                                                 Float volume) const
 {
     vector<Vector3> Vs = {Vector3::Zero()};
     auto            sc = geometry::pointcloud(Vs);

@@ -1,5 +1,11 @@
 # Handoff — Current State of the Repo
 
+> **Geometry and material audit follow-up (2026-11-28)**. Outward face labels
+> survive relabeling, motor targets use local axes, and a shell reassigned
+> to solid ABD uses the solid body-force integral. For plastic bending,
+> the isolated hinge checks the residual against the achieved peak angle
+> minus the yield angle, including the below-yield elastic control.
+
 > **Build and release audit follow-up (2026-11-28)**. Source builds require
 > pybind11 2.12 or newer. The post-build helper validates its staging path
 > before cleanup. Wheel matrix jobs distinguish tag and release events.

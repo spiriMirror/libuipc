@@ -58,9 +58,9 @@ S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
         // so, `It` is the first element that is not in SF, which means R is the opposite vertex of the triangle
         Vector3 V = pos_view[*It];
 
-        Vector3 A = pos_view[SF[0]];
-        Vector3 B = pos_view[SF[1]];
-        Vector3 C = pos_view[SF[2]];
+        Vector3 A = pos_view[F[0]];
+        Vector3 B = pos_view[F[1]];
+        Vector3 C = pos_view[F[2]];
 
         // check the orientation of the triangle
 

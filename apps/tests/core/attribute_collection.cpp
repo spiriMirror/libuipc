@@ -94,6 +94,29 @@ TEST_CASE("attribute_collection", "[geometry]")
         REQUIRE(pos->last_modified() > vel->last_modified());
     }
 
+    SECTION("selected_copy_and_clear")
+    {
+        AttributeCollection source, destination;
+        source.resize(2);
+        source.create<IndexT>("a", 6);
+        source.create<IndexT>("b", 7);
+        source.create<IndexT>("c", 8);
+        destination.resize(2);
+        const std::array<string, 3> include{"b", "a", "b"};
+        const std::array<string, 1> exclude{"b"};
+        destination.copy_from(source, {}, include, exclude);
+        auto a = destination.find<IndexT>("a");
+        REQUIRE(a);
+        REQUIRE(a->view()[0] == 6);
+        REQUIRE(destination.attribute_count() == 1);
+        destination.clear();
+        REQUIRE(destination.size() == 0);
+        REQUIRE(a->size() == 0);
+        REQUIRE(source.find<IndexT>("a")->size() == 2);
+        destination.resize(1);
+        REQUIRE(a->view()[0] == 6);
+    }
+
     SECTION("commit_preserves_target_size")
     {
         AttributeCollection current;

@@ -44,6 +44,9 @@ Here we use $\bar{\mathbf{B}}$ to denote the reference metric tensor.
 
 ### Deformation Energy Density
 
+`ElasticModuli2D.youngs_poisson(E, nu)` accepts finite $E\geq 0$ and
+$-1<\nu<1$ for the plane-stress conversion.
+
 The Neo-Hookean shell deformation energy density is given by:
 
 $$

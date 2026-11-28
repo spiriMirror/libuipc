@@ -92,6 +92,13 @@ $$
 \tau_Y \leftarrow \tau_Y + H \delta \gamma
 $$
 
+For an isolated hinge with zero hardening, a monotone fold from flat to a
+positive peak angle followed by quasistatic unloading leaves the rest angle
+$\max(\theta_{\rm peak}-\theta_Y,0)$. The zero-moment equilibrium directly
+tests the constitutive return mapping. In a sheet whose neighboring vertices
+remain pinned, membrane and neighboring hinge forces also contribute to the
+observed residual angle.
+
 ## Attributes
 
 On `edges`:

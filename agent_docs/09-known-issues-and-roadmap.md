@@ -1,5 +1,12 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Geometry/material follow-up after v0.0.30: face relabeling respects stored
+winding, attribute clear and named copy preserve their row/selection contracts,
+motors compose increments in material space, and shell-to-solid ABD reapplication
+resets the codimension flag. Young/Poisson conversion now checks the dimensional
+stability interval. Case 86 retains a sheet-level recovery comparison and has
+an independent isolated-hinge unloading oracle for the calibrated bending law.
+
 Build/publication follow-up after v0.0.30: the staging alias and manual
 publication findings A03 and A05 are resolved in source. Header-only changes
 trigger the docs workflow. Tag pushes and release events have separate wheel
@@ -79,7 +86,7 @@ Regression tests cover physical stiffness, Poisson coupling, default and auxetic
 inputs, near-incompressibility, all ElasticModuli factories, and reapplication.
 Existing serialized coefficients are not automatically rewritten; reapply from
 physical inputs or rebake scenes to use the correction. ElasticModuli validation
-issue A04 remains open and is independent of this fix. See the material
+issue A04 was addressed separately in the post-v0.0.30 audit follow-up. See the material
 specification and handoff for derivation, migration and validation.
 
 Discrete Shells calibration corrected (2026-10-19): the formula-based bending
