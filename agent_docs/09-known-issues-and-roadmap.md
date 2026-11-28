@@ -1,5 +1,8 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Resolved in source after v0.0.30: parent tetrahedron IDs could become stale
+after splitting or merging labeled meshes, and multi-instance splits could fail.
+
 Resolved in source after v0.0.30: the closure check could accept an open box or
 an edge shared by four triangles, allowing invalid input into solid ABD volume integration.
 

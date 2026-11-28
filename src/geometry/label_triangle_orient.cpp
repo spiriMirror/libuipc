@@ -17,19 +17,26 @@ S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
     UIPC_ASSERT_THROW(f_parent_id, "Cannot find attribute `parent_id` on triangles. You may need to call `label_surface()` first");
     UIPC_ASSERT_THROW(v_position, "Cannot find attribute `position` on vertices. Abstract simplicial complex is not allowed!");
 
+    auto Ts             = R.tetrahedra().topo().view();
+    auto parent_id_view = f_parent_id->view();
+    auto invalid        = std::ranges::find_if(
+        parent_id_view,
+        [&](IndexT id) { return id < 0 || static_cast<SizeT>(id) >= Ts.size(); });
+    UIPC_ASSERT_THROW(invalid == parent_id_view.end(),
+                      "Triangle {} has no valid parent tetrahedron (parent_id={}).",
+                      invalid - parent_id_view.begin(),
+                      *invalid);
+
     auto f_orient = R.triangles().find<IndexT>(builtin::orient);
     if(!f_orient)
     {
         f_orient = R.triangles().create<IndexT>(builtin::orient, 0);
     }
 
-    auto Fs = R.triangles().topo().view();
-    auto Ts = R.tetrahedra().topo().view();
-
-    auto parent_id_view = f_parent_id->view();
-    auto is_surf_view   = f_is_surf->view();
-    auto orient_view    = view(*f_orient);
-    auto pos_view       = v_position->view();
+    auto Fs           = R.triangles().topo().view();
+    auto is_surf_view = f_is_surf->view();
+    auto orient_view  = view(*f_orient);
+    auto pos_view     = v_position->view();
 
     for(auto&& [i, F] : enumerate(Fs))
     {

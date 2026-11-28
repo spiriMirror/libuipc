@@ -22,7 +22,10 @@ Common base classes of the attribute system: `IAttribute` / `IAttributeSlot` (`i
   is under `src/geometry/tetrahedralization/`, with a strict original-boundary
   contract and conservative construction before quality work. See
   [ADR 0008](adr/0008-native-tetrahedralization.md).
-- `merge(span<SimplicialComplex*>)` merges multiple meshes.
+- `merge` combines single-instance meshes. `apply_region` splits a mesh by its
+  region labels and copies its instance table to each part. Existing triangle
+  `parent_id` values refer to tetrahedra in the output mesh after either operation.
+  In a partially labeled volume merge, triangles without a known parent use `-1`.
 - Implicit geometry: `ground(height)` (HalfPlane), etc.; see `docs/specification/implicit_geometry_uid.md`.
 
 ## Topology and Geometry Algorithms (`src/geometry/`, depends on libigl + TBB + octree)

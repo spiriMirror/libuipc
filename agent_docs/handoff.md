@@ -1,5 +1,9 @@
 # Handoff — Current State of the Repo
 
+> **Tetrahedral geometry (2026-11-28)**. Region splitting preserves instance
+> attributes and remaps triangle parent IDs. Merging offsets existing parent
+> IDs into the combined cell table.
+
 > **Triangle surface closure**. The solid ABD volume path now checks every
 > undirected triangle edge for exactly two occurrences. Samples `20045cb`
 > removes a double-sided sheet from `thumb_distal.obj` and closes a gap in
