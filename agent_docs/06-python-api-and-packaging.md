@@ -10,6 +10,19 @@
 - Top-level aliases: `Engine`, `World`, `Scene`, `SceneIO`, `Animation` are promoted to the `pyuipc` top level; also registers `init`, `default_config`, `config`, `build_info`, `uipc::Exception`, `__version__`. `build_info()` reports the compiled Python ABI, build type, CUDA-backend flag, CUDA architectures, and toolkit version for runtime diagnosis.
 - Build: `pybind11_add_module(pyuipc)` links `uipc::uipc` and depends on every backend. Backend target files are also `LINK_DEPENDS`, so changing only a backend still relinks pyuipc and runs POST_BUILD `scripts/after_build_pyuipc.py` (copies the package/runtime libraries, regenerates `.pyi`, and refreshes the development install).
 
+Numeric attribute slots expose a read-only NumPy array through `slot.view()`.
+Use `uipc.view(slot)` for writes so shared current/rest attributes detach before
+modification. Fields on `UIDRegister.find(uid)` results are read-only.
+Collection facades and string spans retain their originating Python owners.
+The mesh doctor checks primary FEM material compatibility on a mesh copy;
+the mesh-doctor CLI opens its viewer only with `--gui`.
+
+The four Python mesh factories accept strided vertex and connectivity arrays.
+For matching native dtypes, slices are read directly into mesh storage.
+Batched ABD pose and velocity conversions use NumPy's logical matrix indices,
+including on Fortran-order arrays and reversed slices. Their results follow
+the same row and column conventions as the single-body conversions.
+
 ## Directional cloth parameters
 
 `StrainLimitingBaraffWitkinShell.apply_to` retains both old signatures and
@@ -133,6 +146,8 @@ torch/warp adapters still require their own optional frameworks.
   reported as a defect or confused with the independent source/build-directory
   aliasing risk in audit A03.
 - During the CMake build, `after_build_pyuipc.py` copies `python/src/` + pyproject to `<build>/python/`, copies the extension and shared libraries into `src/uipc/_native/`, generates stubs, and in non-wheel mode runs `pip install` directly.
+- The staging path must resolve under the build directory and be disjoint from
+  the Python source tree. The binding's dtype cache uses headers from pybind11 2.12+.
 - CMake post-build and `xmake pack` both call `scripts/pyuipc_stubgen.py`.
   It regenerates the complete `uipc` stub tree at the staged package root,
   rather than generating only extension-level stubs inside `_native`.

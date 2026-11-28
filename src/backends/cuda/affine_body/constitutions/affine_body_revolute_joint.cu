@@ -1101,7 +1101,7 @@ Edge             = ({}, {}))",
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return curr_angles_dump.load(fmt::format("{}rj_current_angle.{}", path, frame));
+        return curr_angles_dump.load<Float>(fmt::format("{}rj_current_angle.{}", path, frame));
     }
 
     void do_apply_recover(RecoverInfo& info) override

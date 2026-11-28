@@ -3,11 +3,64 @@
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
 #include <uipc/geometry/utils/affine_body/affine_body_from_rigid_body.h>
+#include <cstring>
 
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 using namespace uipc::geometry::affine_body;
+
+namespace
+{
+    template <auto Convert>
+    py::array_t<Float> batch_to_transforms(const py::array_t<Float>& input)
+    {
+        const auto         count = input.shape(0);
+        py::array_t<Float> result({count, py::ssize_t{4}, py::ssize_t{4}});
+        auto               dst  = result.mutable_unchecked<3>();
+        const auto*        data = reinterpret_cast<const char*>(input.data());
+        const auto         batch_stride     = input.strides(0);
+        const auto         component_stride = input.strides(1);
+        for(py::ssize_t i = 0; i < count; ++i)
+        {
+            const auto* src = data + i * batch_stride;
+            Vector12    q;
+            for(int j = 0; j < 12; ++j)
+                std::memcpy(&q[j], src + j * component_stride, sizeof(Float));
+            const Matrix4x4 transform = Convert(q);
+            for(int row = 0; row < 4; ++row)
+                for(int col = 0; col < 4; ++col)
+                    dst(i, row, col) = transform(row, col);
+        }
+        return result;
+    }
+
+    template <auto Convert>
+    py::array_t<Float> batch_to_vectors(const py::array_t<Float>& input)
+    {
+        const auto         count = input.shape(0);
+        py::array_t<Float> result({count, py::ssize_t{12}, py::ssize_t{1}});
+        auto               dst  = result.mutable_unchecked<3>();
+        const auto*        data = reinterpret_cast<const char*>(input.data());
+        const auto         batch_stride = input.strides(0);
+        const auto         row_stride   = input.strides(1);
+        const auto         col_stride   = input.strides(2);
+        for(py::ssize_t i = 0; i < count; ++i)
+        {
+            const auto* src = data + i * batch_stride;
+            Matrix4x4   transform;
+            for(int row = 0; row < 4; ++row)
+                for(int col = 0; col < 4; ++col)
+                    std::memcpy(&transform(row, col),
+                                src + row * row_stride + col * col_stride,
+                                sizeof(Float));
+            const Vector12 q = Convert(transform);
+            for(int j = 0; j < 12; ++j)
+                dst(i, j, 0) = q[j];
+        }
+        return result;
+    }
+}  // namespace
 
 PyAffineBody::PyAffineBody(py::module& m)
 {
@@ -25,12 +78,7 @@ PyAffineBody::PyAffineBody(py::module& m)
                                                  q.shape(0),
                                                  q.shape(1)));
                 }
-                auto                     q_span = as_span_of<const Vector12>(q);
-                std::vector<py::ssize_t> shape  = {q.shape(0), 4, 4};
-                py::array_t<Float>       result(shape);
-                auto result_span = as_span_of<Matrix4x4>(result);
-                std::ranges::transform(q_span, result_span.begin(), q_to_transform);
-                return result;
+                return batch_to_transforms<q_to_transform>(q);
             }
             // Single item (1D array with shape (12,))
             if(q.ndim() == 1)
@@ -69,23 +117,7 @@ Returns:
                                                  trans.shape(1),
                                                  trans.shape(2)));
                 }
-                auto trans_span = as_span_of<const Matrix4x4>(trans);
-                std::vector<py::ssize_t> shape = {trans.shape(0), 12, 1};
-                py::array_t<Float>       result(shape);
-                auto result_3d = result.mutable_unchecked<3>();
-                auto indices = std::ranges::views::iota(size_t{0}, trans_span.size());
-                std::ranges::for_each(
-                    indices,
-                    [&](size_t i)
-                    {
-                        Vector12 q = transform_to_q(trans_span[i]);
-                        auto     j_indices =
-                            std::ranges::views::iota(py::ssize_t{0}, py::ssize_t{12});
-                        std::ranges::for_each(j_indices,
-                                              [&](py::ssize_t j)
-                                              { result_3d(i, j, 0) = q(j); });
-                    });
-                return result;
+                return batch_to_vectors<transform_to_q>(trans);
             }
             // Single item (2D array with shape (4, 4))
             if(trans.ndim() == 2)
@@ -124,12 +156,7 @@ Returns:
                                                  q.shape(0),
                                                  q.shape(1)));
                 }
-                auto                     q_span = as_span_of<const Vector12>(q);
-                std::vector<py::ssize_t> shape  = {q.shape(0), 4, 4};
-                py::array_t<Float>       result(shape);
-                auto result_span = as_span_of<Matrix4x4>(result);
-                std::ranges::transform(q_span, result_span.begin(), q_v_to_transform_v);
-                return result;
+                return batch_to_transforms<q_v_to_transform_v>(q);
             }
             // Single item (1D array with shape (12,))
             if(q.ndim() == 1)
@@ -169,24 +196,7 @@ Returns:
                                                  transform_v.shape(1),
                                                  transform_v.shape(2)));
                 }
-                auto transform_v_span = as_span_of<const Matrix4x4>(transform_v);
-                std::vector<py::ssize_t> shape = {transform_v.shape(0), 12, 1};
-                py::array_t<Float>       result(shape);
-                auto result_3d = result.mutable_unchecked<3>();
-                auto indices =
-                    std::ranges::views::iota(size_t{0}, transform_v_span.size());
-                std::ranges::for_each(
-                    indices,
-                    [&](size_t i)
-                    {
-                        Vector12 q = transform_v_to_q_v(transform_v_span[i]);
-                        auto     j_indices =
-                            std::ranges::views::iota(py::ssize_t{0}, py::ssize_t{12});
-                        std::ranges::for_each(j_indices,
-                                              [&](py::ssize_t j)
-                                              { result_3d(i, j, 0) = q(j); });
-                    });
-                return result;
+                return batch_to_vectors<transform_v_to_q_v>(transform_v);
             }
             // Single item (2D array with shape (4, 4))
             if(transform_v.ndim() == 2)
@@ -256,11 +266,12 @@ Returns:
 
     m.def(
         "from_rigid_body",
-        [](Float mass, py::array_t<Float> center_of_mass, py::array_t<Float> inertia_cm)
-            -> py::array_t<Float>
+        [](Float              mass,
+           py::array_t<Float> center_of_mass,
+           py::array_t<Float> inertia_cm) -> py::array_t<Float>
         {
-            auto c   = to_matrix<Vector3>(center_of_mass);
-            auto I   = to_matrix<Matrix3x3>(inertia_cm);
+            auto c = to_matrix<Vector3>(center_of_mass);
+            auto I = to_matrix<Matrix3x3>(inertia_cm);
             return as_numpy(from_rigid_body(mass, c, I));
         },
         py::arg("mass"),
@@ -276,8 +287,7 @@ Returns:
 
     m.def(
         "build_abd_mass_matrix",
-        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar)
-            -> py::array_t<Float>
+        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar) -> py::array_t<Float>
         {
             auto mx  = to_matrix<Vector3>(m_x_bar);
             auto mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);
@@ -296,11 +306,10 @@ Returns:
 
     m.def(
         "to_rigid_body",
-        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar)
-            -> py::tuple
+        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar) -> py::tuple
         {
-            auto mx  = to_matrix<Vector3>(m_x_bar);
-            auto mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);
+            auto      mx  = to_matrix<Vector3>(m_x_bar);
+            auto      mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);
             Float     total_mass;
             Vector3   center_of_mass;
             Matrix3x3 inertia_cm;
@@ -325,7 +334,7 @@ Returns:
         "to_rigid_body",
         [](py::array_t<Float> mass_matrix) -> py::tuple
         {
-            auto M = to_matrix<Matrix12x12>(mass_matrix);
+            auto      M = to_matrix<Matrix12x12>(mass_matrix);
             Float     total_mass;
             Vector3   center_of_mass;
             Matrix3x3 inertia_cm;

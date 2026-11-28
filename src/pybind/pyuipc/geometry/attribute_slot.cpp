@@ -133,7 +133,7 @@ void def_attribute_slot(py::module& m, std::string name)
         "view",
         [](AttributeSlot<T>& self)
         { return as_numpy(self.view(), py::cast(self)); },
-        R"(Get a numpy array view of the attribute data.
+        R"(Get a read-only NumPy view. To modify this attribute, use uipc.view(slot).
 Returns:
     numpy.ndarray: Array view of attribute data.)");
 
@@ -211,6 +211,7 @@ void def_attribute_slot_string(py::module& m)
     class_AttributeSlotString.def(
         "view",
         [](AttributeSlot<std::string>& self) { return self.view(); },
+        py::keep_alive<0, 1>(),
         R"(Get a view of the string attribute data.
 Returns:
     StringSpan: View of string attribute data.)");
@@ -220,6 +221,7 @@ Returns:
     top_module().def(
         "view",
         [](AttributeSlot<std::string>& self) { return view(self); },
+        py::keep_alive<0, 1>(),
         py::arg("slot"),
         R"(Get a view of a string attribute slot.
 Args:
@@ -310,7 +312,7 @@ Returns:
         "view",
         [](NumericSlot slot) { return slot.view(slot.self); },
         py::arg("slot"),
-        R"(Get a numpy array view of an attribute slot.
+        R"(Get a writable NumPy view, detaching shared attribute storage if needed.
 Args:
     slot: AttributeSlot to view.
 Returns:

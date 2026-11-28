@@ -153,34 +153,55 @@ bool obj_read_linemesh_(const std::string&                str,
         if(type == "v")
         {
             typename DerivedV::Scalar x, y, z;
-            ss >> x >> y >> z;
+            if(!(ss >> x >> y >> z))
+                return false;
             verts.emplace_back(x);
             verts.emplace_back(y);
             verts.emplace_back(z);
         }
         else if(type == "l")
         {
-            std::vector<typename DerivedE::Scalar> idxs;
-            typename DerivedE::Scalar              idx;
-            while(ss >> idx)
+            IndexT previous = -1;
+            IndexT idx;
+            while(ss >> std::ws && ss.peek() != std::char_traits<char>::eof()
+                  && ss.peek() != '#')
             {
-                idxs.push_back(idx);
-            }
-            if(idxs.size() >= 2)
-            {
-                lines.push_back(idxs[0] - 1);
-                lines.push_back(idxs[1] - 1);
+                if(!(ss >> idx))
+                    return false;
+                if(ss.peek() == '/')  // optional OBJ texture coordinate
+                {
+                    ss.get();
+                    IndexT texture;
+                    if(!(ss >> texture))
+                        return false;
+                }
+                if(idx == 0)
+                    return false;
+                idx = idx > 0 ? idx - 1 : static_cast<IndexT>(verts.size() / 3) + idx;
+                if(idx < 0)
+                    return false;
+                if(previous >= 0)
+                {
+                    lines.push_back(previous);
+                    lines.push_back(idx);
+                }
+                previous = idx;
             }
         }
         else if(type == "f")
         {
             UIPC_ASSERT_THROW(false,
-                        "Found face in line mesh .obj file at line {}. "
-                        "This is not a pure line mesh.",
-                        line_number);
+                              "Found face in line mesh .obj file at line {}. "
+                              "This is not a pure line mesh.",
+                              line_number);
         }
     }
 
+    if(std::ranges::any_of(lines,
+                           [&](auto id) {
+                               return static_cast<size_t>(id) >= verts.size() / 3;
+                           }))
+        return false;
     V.resize(verts.size() / 3, 3);
     for(int i = 0; i < V.rows(); ++i)
     {
@@ -514,8 +535,8 @@ $EndMeshFormat
 
     fmt::println(fp, "$Elements");
 
-    SizeT type     = Dim + 1;
-    SizeT num_tags = 0;  // no tags
+    const int type = Dim == 3 ? 4 : Dim;  // Gmsh 2.2: line 1, triangle 2, tetrahedron 4
+    SizeT num_tags = 0;                   // no tags
 
     if(Dim == 3)
     {
@@ -590,6 +611,12 @@ $EndMeshFormat
                          e[0] + 1,
                          e[1] + 1);
         }
+    }
+    else
+    {
+        fmt::println(fp, "{}", Vs.size());
+        for(SizeT i = 0; i < Vs.size(); ++i)
+            fmt::println(fp, "{} 15 0 {}", i + 1, i + 1);
     }
     fmt::println(fp, "$EndElements");
 

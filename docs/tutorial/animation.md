@@ -214,7 +214,10 @@ Voila! The cube is walking on the ground!
   <figcaption>Successive poses produced by the rotating-motor animation callback.</figcaption>
 </figure>
 
-`Libuipc` also provide `LinearMotor` for you to control the translation of an affine body by specifying the translation axis and speed.
+`LinearMotor` controls translation along the specified material-space axis.
+For both motors, an instance with current transform $T$ receives a target
+$T\,\Delta T$, where $\Delta T$ is the local translation or rotation for the step.
+A rotation about the local origin preserves the translation column of $T$.
 
 When you ask the name of them:
 

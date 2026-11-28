@@ -480,8 +480,9 @@ class StrainPlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegra
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return dump_theta_bars.load(fmt::format("{}theta_bar.{}", path, frame))
-               && dump_yield_thresholds.load(fmt::format("{}yield_threshold.{}", path, frame));
+        return dump_theta_bars.load<Float>(fmt::format("{}theta_bar.{}", path, frame))
+               && dump_yield_thresholds.load<Float>(
+                   fmt::format("{}yield_threshold.{}", path, frame));
     }
 
     void do_apply_recover(RecoverInfo& info) override

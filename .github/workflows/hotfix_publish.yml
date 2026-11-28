@@ -3,27 +3,27 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'The Run ID of the failed upload build'
+        description: 'Run ID of the failed Build Python Wheels release'
         required: true
 
 jobs:
-  upload:
+  retry-release:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
-      contents: read
+      actions: write
     steps:
-      - name: Download Artifacts from previous run
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          run-id: ${{ github.event.inputs.run_id }} # Uses artifacts from the old run
-          pattern: pyuipc-*
-          merge-multiple: true
-          path: wheelhouse
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
-        with:
-          packages-dir: wheelhouse
-          skip-existing: true
-          attestations: true
+      - name: Retry failed jobs in the original release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '
+            select(.path == ".github/workflows/python-wheels.yml" and
+                   .event == "release" and .status == "completed") | .conclusion')
+          case "$conclusion" in
+            failure)   gh run rerun "$RUN_ID" --failed --repo "$GITHUB_REPOSITORY" ;;
+            cancelled) gh run rerun "$RUN_ID" --repo "$GITHUB_REPOSITORY" ;;
+            *) echo "Expected a failed or cancelled wheel release run." >&2; exit 1 ;;
+          esac

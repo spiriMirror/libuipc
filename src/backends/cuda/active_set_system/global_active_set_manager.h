@@ -2,6 +2,7 @@
 
 #include <string>
 #include <sim_system.h>
+#include <utils/dump_utils.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
@@ -189,7 +190,11 @@ class GlobalActiveSetManager final : public SimSystem
     Float              mu_scale_diag_norm() const noexcept;
 
   protected:
-    virtual void do_build() override;
+    void do_build() override;
+    bool do_dump(DumpInfo&) override;
+    bool do_try_recover(RecoverInfo&) override;
+    void do_apply_recover(RecoverInfo&) override;
+    void do_clear_recover(RecoverInfo&) override;
 
   private:
     friend class SimEngine;
@@ -221,6 +226,20 @@ class GlobalActiveSetManager final : public SimSystem
     friend class ALStiffnessEstimator;
     void add_stiffness_estimator(ALStiffnessEstimator* estimator);
 
-    Impl m_impl;
+    struct ContactHistory
+    {
+        BufferDump pairs, multipliers, counts;
+        bool       valid(SizeT first_limit, SizeT second_limit);
+    };
+    struct History
+    {
+        ContactHistory ph, pt, ee;
+        BufferDump     positions;
+    };
+    template <typename Operation>
+    bool visit_history(History& history, Operation&& operation);
+
+    History m_recovery;
+    Impl    m_impl;
 };
 }  // namespace uipc::backend::cuda

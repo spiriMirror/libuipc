@@ -239,8 +239,8 @@ TestPyPI matrix + exact-version install gate -> official PyPI publication
 official PyPI matrix + exact-version install verification
 ```
 
-The manual `hotfix_publish.yml` path downloads wheel artifacts from a chosen run
-and publishes them to PyPI, so it depends on those artifacts still being retained.
+Manual hotfix dispatch takes a failed wheel release run ID and reruns its
+failed jobs through the same release workflow and PyPI verification gates.
 `scripts/smoke_test_wheel.py` is deliberately safe on hosted runners without a GPU:
 it validates the imported version, packaged native directory, and
 `Engine("none", workspace)`. This catches broken installation/layout and basic

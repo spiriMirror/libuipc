@@ -1,5 +1,50 @@
 # 09 — Known Issues, Tech Debt, and Roadmap
 
+Frontend follow-up after v0.0.30: Python facades retain owners. Blender checks
+the active Action slot for motion edits, handles disjoint rigid-shell mass,
+and reads the final status of completed bake/render workers. MeshDoctor
+validates basic FEM meshes and reports unsupported constitutions explicitly.
+
+Solver follow-up after v0.0.30: AL checkpoints now include lagged contact
+history and reject missing history. BDF2 initial history uses prescribed
+velocity. Standard IPC counts completed iterations for its Newton floor,
+and strict IPC/AL errors reach the world status. Checkpoint payloads and
+publication of complete frames are checked. Explicit default-pair inserts
+honor the stiffness setting. Graph replay reports CUDA launch and sync errors.
+
+File I/O follow-up after v0.0.30: the URDF link/joint transforms and absent
+visuals, OBJ polyline truncation, MSH element types, mesh writer keywords and
+USD stage-open failure are covered by regression tests.
+
+Geometry/material follow-up after v0.0.30: face relabeling respects stored
+winding, attribute clear and named copy preserve their row/selection contracts,
+motors compose increments in material space, and shell-to-solid ABD reapplication
+resets the codimension flag. Young/Poisson conversion now checks the dimensional
+stability interval. Case 86 retains a sheet-level recovery comparison and has
+an independent isolated-hinge unloading oracle for the calibrated bending law.
+
+Build/publication follow-up after v0.0.30: the staging alias and manual
+publication findings A03 and A05 are resolved in source. Header-only changes
+trigger the docs workflow. Tag pushes and release events have separate wheel
+job groups, and builds check the minimum pybind11 header version.
+
+Resolved in source after v0.0.30: valid, widely separated small shells could
+fail the tetrahedralizer's volume check before the conservative mesh was saved.
+
+Resolved in source after v0.0.30: parent tetrahedron IDs could become stale
+after splitting or merging labeled meshes, and multi-instance splits could fail.
+
+Resolved in source after v0.0.30: the closure check could accept an open box or
+an edge shared by four triangles, allowing invalid input into solid ABD volume integration.
+
+Resolved in source after v0.0.30: NumPy slices passed to the mesh factories
+could select the wrong vertices or indices, and batch ABD conversion could
+transpose matrices and lose their translation.
+
+Resolved in source after v0.0.30: the Python bindings preserve read-only
+access for Eigen attribute views and registered UID metadata. The release-wheel
+audit reproduced unintended writes through both interfaces.
+
 Linux wheel bootstrap (2026-11-11): CUDA RHEL9 and AlmaLinux AppStream
 repository metadata returned HTTP 404 before project compilation. The workflow
 now clears metadata, refreshes required OS repositories, temporarily excludes
@@ -57,7 +102,7 @@ Regression tests cover physical stiffness, Poisson coupling, default and auxetic
 inputs, near-incompressibility, all ElasticModuli factories, and reapplication.
 Existing serialized coefficients are not automatically rewritten; reapply from
 physical inputs or rebake scenes to use the correction. ElasticModuli validation
-issue A04 remains open and is independent of this fix. See the material
+issue A04 was addressed separately in the post-v0.0.30 audit follow-up. See the material
 specification and handoff for derivation, migration and validation.
 
 Discrete Shells calibration corrected (2026-10-19): the formula-based bending
@@ -119,18 +164,14 @@ The added custom backend and XMake editable route are deferred, not advertised
 as delivered features. Existing scikit-build-core CMake editable support remains.
 The contributor's fork is not modified; main integration must preserve commit ancestry.
 
-Latest cross-cutting triage: [2026-09-11 project audit](14-project-audit.md), against
-`4757859c`. This inspection updated documentation only. Open priorities include
-Python facade ownership, BDF2 history startup, build/source-directory aliasing
-during staging cleanup, material validation, manual publishing, MeshDoctor, modified curve
-conversion and CUDA graph error propagation. The report distinguishes focused
-reproductions from source-confirmed paths and unverified risks. Passing current
-tests is not evidence that these uncovered contracts are correct.
+Historical triage: the [2026-09-11 project audit](14-project-audit.md) records
+findings as of `4757859c`. See the post-v0.0.30 entries above for subsequent
+implementation changes. Curve-modifier handling is documented separately.
 
 Owner clarification, 2026-09-16: the existing early uninstall of old `pyuipc` is
 intentional and required, not an open defect. The audit's earlier recommendation
 to retain the old package until replacement was ready is withdrawn. The independent
-source-directory cleanup risk remains a separate finding; no implementation changed.
+source-directory cleanup issue was subsequently fixed in the post-v0.0.30 build changes.
 
 Blender rod exposure is implemented in 0.7/schema 7: existing native stretch and
 bending (no twist), edge/curve input, pinning/contact and native surface playback.

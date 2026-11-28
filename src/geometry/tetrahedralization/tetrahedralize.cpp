@@ -25,7 +25,37 @@ struct Construction
     std::string       method;
 };
 
-static void validate_surface(const Points& p, std::vector<Face>& boundary)
+static double signed_surface_volume(const Points& p, const std::vector<Face>& boundary)
+{
+    // Use a vertex on each connected shell as its integration origin.
+    std::vector<IndexT> parent(p.size());
+    std::iota(parent.begin(), parent.end(), 0);
+    auto root = [&](IndexT id)
+    {
+        while(parent[id] != id)
+        {
+            parent[id] = parent[parent[id]];
+            id         = parent[id];
+        }
+        return id;
+    };
+    for(const auto& f : boundary)
+    {
+        const auto first   = root(f[0]);
+        parent[root(f[1])] = first;
+        parent[root(f[2])] = first;
+    }
+    std::vector<double> shell_volumes(p.size(), 0.0);
+    for(const auto& f : boundary)
+    {
+        const auto origin = root(f[0]);
+        shell_volumes[origin] += six_volume(p, {origin, f[0], f[1], f[2]}) / 6;
+    }
+    // Inward-oriented cavity shells contribute negative volume.
+    return std::accumulate(shell_volumes.begin(), shell_volumes.end(), 0.0);
+}
+
+static double validate_surface(const Points& p, std::vector<Face>& boundary)
 {
     UIPC_ASSERT_THROW(p.size() >= 4 && boundary.size() >= 4,
                       "Tetrahedralization needs a closed triangle surface.");
@@ -96,15 +126,13 @@ static void validate_surface(const Points& p, std::vector<Face>& boundary)
                                   i,
                                   j);
         }
-    double  volume = 0;
-    Vector3 origin = p.front();
-    for(auto face : boundary)
-        volume += (p[face[0]] - origin).dot((p[face[1]] - origin).cross(p[face[2]] - origin));
+    const double volume = signed_surface_volume(p, boundary);
     UIPC_ASSERT_THROW(std::isfinite(volume) && volume != 0,
                       "Input encloses no finite nonzero volume.");
     if(volume < 0)
         for(auto& face : boundary)
             face = reversed(face);
+    return std::abs(volume);
 }
 
 static bool kernel(const Points& p, const std::vector<Face>& boundary, Vector3& candidate)
@@ -693,7 +721,7 @@ static size_t improve(Construction& mesh, double target, size_t passes, size_t r
     return accepted;
 }
 
-static double audit(const Construction& mesh)
+static double audit(const Construction& mesh, double surface_volume)
 {
     std::map<Face, std::pair<Face, int>> boundary;
     double                               volume = 0;
@@ -722,8 +750,6 @@ static double audit(const Construction& mesh)
     for(auto&& [f, record] : boundary)
         if(record.second == 1)
             actual.insert(f);
-    double  surface_volume = 0;
-    Vector3 origin         = mesh.points.front();
     for(auto f : mesh.boundary)
     {
         expected.insert(key(f));
@@ -731,10 +757,6 @@ static double audit(const Construction& mesh)
         UIPC_ASSERT_THROW(found != boundary.end() && found->second.second == 1
                               && same_orientation(f, found->second.first),
                           "Internal tetrahedralization error: oriented boundary mismatch.");
-        surface_volume +=
-            (mesh.points[f[0]] - origin)
-                .dot((mesh.points[f[1]] - origin).cross(mesh.points[f[2]] - origin))
-            / 6;
     }
     UIPC_ASSERT_THROW(actual == expected, "Internal tetrahedralization error: boundary mismatch.");
     UIPC_ASSERT_THROW(std::abs(volume - surface_volume)
@@ -793,7 +815,7 @@ std::pair<SimplicialComplex, Json> tetrahedralize(const SimplicialComplex& surfa
             face = reversed(face);
         mesh.boundary.push_back(face);
     }
-    validate_surface(mesh.points, mesh.boundary);
+    double surface_volume     = validate_surface(mesh.points, mesh.boundary);
     mesh.boundary_vertices    = mesh.points.size();
     const auto original_faces = mesh.boundary;
     if(target == 0)
@@ -807,11 +829,15 @@ std::pair<SimplicialComplex, Json> tetrahedralize(const SimplicialComplex& surfa
         target = lengths[lengths.size() / 2];
     }
     if(!preserve)
+    {
         refine_boundary(mesh, target);
+        if(mesh.boundary.size() != original_faces.size())
+            surface_volume = signed_surface_volume(mesh.points, mesh.boundary);
+    }
     conservative(mesh);
     double before = minimum_quality(mesh.points, mesh.cells);
     // Establish and certify the conservative mesh before any quality operation.
-    audit(mesh);
+    audit(mesh, surface_volume);
     auto   baseline              = mesh;
     size_t accepted              = 0;
     bool   optimization_reverted = false;
@@ -820,7 +846,7 @@ std::pair<SimplicialComplex, Json> tetrahedralize(const SimplicialComplex& surfa
     {
         accepted =
             improve(mesh, target, static_cast<size_t>(passes), static_cast<size_t>(refinement));
-        volume = audit(mesh);
+        volume = audit(mesh, surface_volume);
     }
     catch(const std::exception& error)
     {
@@ -829,7 +855,7 @@ std::pair<SimplicialComplex, Json> tetrahedralize(const SimplicialComplex& surfa
         mesh                  = std::move(baseline);
         accepted              = 0;
         optimization_reverted = true;
-        volume                = audit(mesh);
+        volume                = audit(mesh, surface_volume);
     }
     for(size_t i = 0; i < original.size(); ++i)
         UIPC_ASSERT_THROW((mesh.points[i].array() == original[i].array()).all(),

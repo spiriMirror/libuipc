@@ -41,7 +41,8 @@ class BufferDump
     {
         std::size_t size_bytes = buffer.size() * sizeof(T);
         byte_buffer.resize(size_bytes);
-        std::memcpy(byte_buffer.data(), buffer.data(), size_bytes);
+        if(size_bytes)
+            std::memcpy(byte_buffer.data(), buffer.data(), size_bytes);
         return dump_(path);
     };
 
@@ -80,7 +81,11 @@ class BufferDump
      * 
      * @return true for success, false for failure
      */
-    bool load(std::string_view path) { return load_(path); }
+    template <typename T>
+    bool load(std::string_view path)
+    {
+        return load_(path, sizeof(T));
+    }
 
     /**
      * @brief Apply the cached data to device buffer
@@ -103,7 +108,8 @@ class BufferDump
     void apply_to(vector<T>& buffer)
     {
         buffer.resize(byte_buffer.size() / sizeof(T));
-        std::memcpy(buffer.data(), byte_buffer.data(), byte_buffer.size());
+        if(!byte_buffer.empty())
+            std::memcpy(buffer.data(), byte_buffer.data(), byte_buffer.size());
     }
 
   private:
@@ -128,37 +134,34 @@ class BufferDump
         ofs.write((char*)byte_buffer.data(), size_bytes);
 
         ofs.close();
-        return true;
+        return !ofs.fail();
     }
 
-    bool load_(std::string_view path)
+    bool load_(std::string_view path, size_t element_size)
     {
-        std::ifstream ifs(std::string{path}, std::ios::binary);
-        if(!ifs.is_open())
+        std::ifstream ifs(std::string{path}, std::ios::binary | std::ios::ate);
+        if(!ifs)
         {
             logger::warn("Failed to open file {} when loading buffer", path);
             return false;
         }
-
-        // 0: Read magic number
-        std::size_t magic;
-        ifs.read((char*)&magic, sizeof(magic));
-        if(magic != magic_number)
+        const std::streamoff file_size = ifs.tellg();
+        ifs.seekg(0);
+        std::size_t magic = 0, size_bytes = 0;
+        constexpr std::streamoff header_size = sizeof(magic) + sizeof(size_bytes);
+        if(!ifs.read(reinterpret_cast<char*>(&magic), sizeof(magic))
+           || !ifs.read(reinterpret_cast<char*>(&size_bytes), sizeof(size_bytes))
+           || magic != magic_number || file_size < header_size
+           || static_cast<std::uintmax_t>(file_size - header_size) != size_bytes
+           || size_bytes % element_size != 0)
         {
-            logger::warn("Magic number mismatch when loading buffer, invalid dump.");
+            logger::warn("Invalid header or payload size in checkpoint buffer {}", path);
             return false;
         }
-
-        // 8: Read size of buffer
-        std::size_t size_bytes;
-        ifs.read((char*)&size_bytes, sizeof(size_bytes));
-
-        // 16: Read buffer
         byte_buffer.resize(size_bytes);
-        ifs.read((char*)byte_buffer.data(), size_bytes);
-
-        ifs.close();
-        return true;
+        return size_bytes == 0
+               || static_cast<bool>(
+                   ifs.read(reinterpret_cast<char*>(byte_buffer.data()), size_bytes));
     }
 };
 }  // namespace uipc::backend::cuda

@@ -7,6 +7,8 @@ import importlib
 from pathlib import Path
 import sys
 import time
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import bpy
 
@@ -24,6 +26,22 @@ queue = importlib.import_module("libuipc_blender.render_queue")
 demo = importlib.import_module("libuipc_blender.demo")
 scene = demo.create_demo()
 bpy.context.window.scene = scene
+
+# The worker can atomically publish its final status just as poll observes exit.
+for module, filename in ((addon.runtime, "status.json"), (queue, "render_status.json")):
+    status_file = args.output / filename
+    addon.protocol.atomic_json(status_file, {"state": "running", "done": 0, "frame": 0, "total": 1})
+
+    def finish():
+        addon.protocol.atomic_json(status_file, {"state": "complete", "rendered": 1, "skipped": 0})
+        return 0
+
+    job = dict(scene=scene, directory=args.output, cancelled_at=None, request={},
+               log=Mock(), process=SimpleNamespace(poll=finish, returncode=0))
+    with patch.object(module, "_job", job), patch.object(addon.runtime, "attach_cache",
+              return_value={"frames": 1, "build_info": {"version": "test"}}):
+        assert module.poll()
+
 fixed = demo.box(scene, "Compact fixed ABD", (1.5,1.5,.25), (.2,.2,.2), "RIGID")
 fixed.uipc_body.fixed = True
 scene.frame_end = 3

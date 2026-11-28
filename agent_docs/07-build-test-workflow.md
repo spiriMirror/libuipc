@@ -169,6 +169,9 @@ for the worktree command and interpretation limits.
 
 ## CI / Release
 
+`uipc/common/flag.h` supports both the vcpkg magic_enum 0.9.7 layout and the
+standalone `magic_enum_bitwise.hpp` introduced in 0.10.0, used by XMake.
+
 - `.github/workflows/`: `cmake.yml` (push/PR/manual builds on Win/Ubuntu + CUDA 12.8, followed by the CTest `fast` suite), `xmake.yml` (the same triggers and direct execution of `common`, `core`, and `geometry`), `clang-format.yml` (format check for C++ files changed in a PR, clang-format 18), `repository-contracts.yml` (zero-byte source, constitution C++/Python parity, binding-registration, immutable-action checks, and the complete `scripts/tests/test_*.py` unittest suite), `python-wheels.yml` (cibuildwheel cross-platform PyPI wheels, Win/Linux, Python 3.10–3.14, built with CUDA 12.8, plus a native-binary audit that forbids dynamic CUDA Toolkit libraries), `docs.yml`, `hotfix_publish.yml`. Repository Contracts shallow-initializes only the pinned `libuipc-samples` submodule and runs `run_benchmark.py validate` against its actual inputs without requiring a GPU.
 - `.github/PULL_REQUEST_TEMPLATE.md`: PR review checklist (fast-fail, C++ style, GPU, constitution, build/binding, tests), originating from the review-pr skill.
 - docker: `artifacts/` provides compose services such as dev-cmake-cu128/cu130 and dev-xmake.
@@ -200,8 +203,9 @@ excluded from `python-wheels.yml`. The native CMake and xmake workflows also
 ignore `agent_docs/`-only changes. Push, release, and manual publication behavior
 is unchanged: release events still build and validate the full wheel matrix.
 
-`hotfix_publish.yml` is a manual artifact-reuse path and depends on the selected
-workflow artifacts still being retained.
+`hotfix_publish.yml` retries the failed jobs of the specified release run.
+GitHub retains the original event, commit, publication environment and wheel
+verification steps. Successful build jobs' artifacts must still be available.
 
 Docs have three entry points: `python scripts/build_docs.py -o site` and
 `mkdocs serve -f mkdocs-with-api.yaml` include generated API pages, while

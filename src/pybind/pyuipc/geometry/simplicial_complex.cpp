@@ -166,6 +166,7 @@ Returns:
         "vertices",
         [](SimplicialComplex& self) { return self.vertices(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the vertex attributes.
 Returns:
     VertexAttributes: Vertex attributes collection.)");
@@ -183,6 +184,7 @@ Returns:
         "edges",
         [](SimplicialComplex& self) { return self.edges(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the edge attributes.
 Returns:
     EdgeAttributes: Edge attributes collection.)");
@@ -191,6 +193,7 @@ Returns:
         "triangles",
         [](SimplicialComplex& self) { return self.triangles(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the triangle attributes.
 Returns:
     TriangleAttributes: Triangle attributes collection.)");
@@ -199,6 +202,7 @@ Returns:
         "tetrahedra",
         [](SimplicialComplex& self) { return self.tetrahedra(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the tetrahedron attributes.
 Returns:
     TetrahedronAttributes: Tetrahedron attributes collection.)");

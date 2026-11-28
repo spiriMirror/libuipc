@@ -413,8 +413,8 @@ bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
 {
     auto path = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
-    return dump_positions.load(fmt::format("{}positions.{}", path, info.frame()))  //
-           && dump_prev_positions.load(
+    return dump_positions.load<Vector3>(fmt::format("{}positions.{}", path, info.frame()))  //
+           && dump_prev_positions.load<Vector3>(
                fmt::format("{}prev_positions.{}", path, info.frame()));
 }
 

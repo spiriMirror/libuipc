@@ -40,6 +40,7 @@ Returns:
         "geometries",
         [](Object& self) { return self.geometries(); },
         py::return_value_policy::move,
+        py::keep_alive<0, 1>(),
         R"(Get the geometries collection.
 Returns:
     Geometries: Collection of geometries.)");

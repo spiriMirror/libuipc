@@ -1,5 +1,6 @@
 #include <uipc/geometry/utils/apply_region.h>
 #include <uipc/geometry/utils/label_region.h>
+#include <uipc/builtin/attribute_name.h>
 #include <uipc/common/map.h>
 namespace uipc::geometry
 {
@@ -35,8 +36,8 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
     auto region_count = sc.meta().find<IndexT>("region_count");
 
     UIPC_ASSERT_THROW(region_count,
-                "The `region_count` attribute is not found in the complex. "
-                "You need to call label_region() to label the region of the geometry");
+                      "The `region_count` attribute is not found in the complex. "
+                      "You need to call label_region() to label the region of the geometry");
 
     auto   region_count_view = region_count->view();
     IndexT N_region          = region_count_view[0];
@@ -46,8 +47,8 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
     {
         auto edge_region = sc.edges().find<IndexT>("region");
         UIPC_ASSERT_THROW(edge_region,
-                    "The `region` attribute is not found in the edges. "
-                    "You need to call label_region() to label the region of the geometry");
+                          "The `region` attribute is not found in the edges. "
+                          "You need to call label_region() to label the region of the geometry");
     }
 
     vector<SimplicialComplex> Rs(N_region);
@@ -84,6 +85,7 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
     {
         for(auto&& [region_I, R] : enumerate(Rs))
         {
+            R.instances().resize(sc.instances().size());
             R.instances().copy_from(sc.instances());
         }
     }
@@ -245,6 +247,22 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
                                      {},  // default all attributes
                                      excluding_attributes  // exclude
             );
+
+            if(auto parents = R.triangles().find<IndexT>(builtin::parent_id))
+            {
+                for(auto& parent : view(*parents))
+                {
+                    if(parent < 0)
+                        continue;
+                    UIPC_ASSERT_THROW(static_cast<SizeT>(parent)
+                                              < tet_region_view.size()
+                                          && tet_region_view[parent] == region_I,
+                                      "Triangle parent tetrahedron {} is outside region {}.",
+                                      parent,
+                                      region_I);
+                    parent = static_cast<IndexT>(global_tet_to_local_tet[parent]);
+                }
+            }
         }
     }
 

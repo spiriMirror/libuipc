@@ -19,7 +19,8 @@ record it here in the same commit.**
 3. **Minimal diffs**: make the smallest change that achieves the goal;
    reuse the project's existing algorithm/utility code instead of
    introducing parallel implementations; no opportunistic refactors,
-   renames, or cleanups outside the task's scope.
+   renames, or cleanups outside the task's scope. Discard broad changes whose
+   demonstrated benefit does not justify their scope.
 4. **Keep agent_docs current in the same change.** Any update that changes
    structure, workflow, conventions, build, or behavior must update the
    matching doc (and `handoff.md` / `09-known-issues-and-roadmap.md` when

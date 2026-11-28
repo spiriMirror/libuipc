@@ -1067,7 +1067,8 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return curr_distances_dump.load(fmt::format("{}pj_current_distances.{}", path, frame));
+        return curr_distances_dump.load<Float>(
+            fmt::format("{}pj_current_distances.{}", path, frame));
     }
 
     void do_apply_recover(RecoverInfo& info) override

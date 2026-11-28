@@ -14,6 +14,10 @@ TEST_CASE("contact_model", "[contact_model]")
     auto wood_contact    = contact_tabular.create();
     auto rubber_contact  = contact_tabular.create();
 
+    REQUIRE_FALSE(contact_tabular.default_model_is_user_set());
+    contact_tabular.insert(default_element, default_element, 0.5, -1.0);
+    REQUIRE(contact_tabular.default_model_is_user_set());
+    REQUIRE(contact_tabular.default_model().resistance() == -1.0);
     contact_tabular.default_model(0.5, 1e8);
     contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);
     contact_tabular.insert(rubber_contact, rubber_contact, 0.6, 1e8);
@@ -45,4 +49,3 @@ TEST_CASE("contact_model", "[contact_model]")
     REQUIRE(default_element.name() == "default");
     REQUIRE(mesh2.meta().find<IndexT>(builtin::contact_element_id)->view().front() == 0);
 }
-

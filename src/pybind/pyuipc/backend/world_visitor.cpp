@@ -12,16 +12,19 @@ PyWorldVisitor::PyWorldVisitor(py::module& m)
         m, "WorldVisitor", R"(WorldVisitor class for accessing world data from backend.)");
     class_WorldVisitor.def(py::init<uipc::core::World&>(),
                            py::arg("world"),
+                           py::keep_alive<1, 2>(),
                            R"(Create a WorldVisitor for a world.
 Args:
     world: World to visit.)");
     class_WorldVisitor.def("scene",
                            &WorldVisitor::scene,
+                           py::keep_alive<0, 1>(),
                            R"(Get the scene visitor.
 Returns:
     SceneVisitor: Scene visitor.)");
     class_WorldVisitor.def("animator",
                            &WorldVisitor::animator,
+                           py::keep_alive<0, 1>(),
                            R"(Get the animator visitor.
 Returns:
     AnimatorVisitor: Animator visitor.)");

@@ -4,7 +4,7 @@
 namespace uipc::geometry
 {
 /**
- * @brief Check if a trimesh is closed. 
+ * @brief Check whether every undirected edge occurs exactly twice in the triangle list.
  * 
  * Only 2D SimplicialComplex is supported.
  * 

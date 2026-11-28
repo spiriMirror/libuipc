@@ -1,7 +1,8 @@
 #include <uipc/geometry/utils/factory.h>
+#include <uipc/geometry/details/factory.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/closure.h>
-#include <igl/polygons_to_triangles.h>
+#include <algorithm>
 
 namespace uipc::geometry
 {
@@ -9,9 +10,7 @@ namespace detail
 {
     static void build_vertices(SimplicialComplex& sc, span<const Vector3> Vs)
     {
-        sc.vertices().resize(Vs.size());
-        auto pos      = sc.vertices().find<Vector3>(builtin::position);
-        auto pos_view = view(*pos);
+        auto pos_view = resize_positions(sc, Vs.size());
         std::ranges::copy(Vs, pos_view.begin());
     }
 }  // namespace detail
@@ -21,9 +20,7 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
     SimplicialComplex sc;
 
     // Create tetrahedra
-    sc.tetrahedra().resize(Ts.size());
-    auto topo = sc.tetrahedra().create<Vector4i>(builtin::topo, Vector4i::Zero(), false);
-    auto topo_view = view(*topo);
+    auto topo_view = detail::resize_topology(sc.tetrahedra(), Ts.size());
     std::ranges::copy(Ts, topo_view.begin());
 
     detail::build_vertices(sc, Vs);
@@ -36,9 +33,7 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
     SimplicialComplex sc;
 
     // Create triangles
-    sc.triangles().resize(Fs.size());
-    auto topo = sc.triangles().create<Vector3i>(builtin::topo, Vector3i::Zero(), false);
-    auto topo_view = view(*topo);
+    auto topo_view = detail::resize_topology(sc.triangles(), Fs.size());
     std::ranges::copy(Fs, topo_view.begin());
 
 
@@ -49,15 +44,10 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 
 SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector4i> Fs)
 {
-    vector<Vector3i> Ts;
-    Ts.reserve(Fs.size() * 2);
-    for(const auto& f : Fs)
-    {
-        // Split each quad into two triangles
-        Ts.emplace_back(f[0], f[1], f[2]);
-        Ts.emplace_back(f[0], f[2], f[3]);
-    }
-    return trimesh(Vs, Ts);
+    SimplicialComplex sc;
+    detail::triangulate_quads(sc, Fs);
+    detail::build_vertices(sc, Vs);
+    return facet_closure(sc);
 }
 
 SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
@@ -65,9 +55,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
     SimplicialComplex sc;
 
     // Create edges
-    sc.edges().resize(Es.size());
-    auto topo = sc.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
-    auto topo_view = view(*topo);
+    auto topo_view = detail::resize_topology(sc.edges(), Es.size());
     std::ranges::copy(Es, topo_view.begin());
 
     detail::build_vertices(sc, Vs);

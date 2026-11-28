@@ -44,6 +44,10 @@ Instance transforms are not applied; pass the desired rest positions explicitly.
    orientation, oppositely oriented paired interior faces, exact oriented outer
    boundary, original coordinates, and matching enclosed volume.
 
+For the volume check, each connected boundary component uses a local reference
+point. This keeps the result accurate for small solids far apart. Oriented
+cavity boundaries subtract their enclosed volume from the total.
+
 The general search can be expensive on complex inputs. It has no promised
 interactive completion time; callers requiring cancellation should run it in an
 owned subprocess, as the Blender extension does. It never substitutes a convex

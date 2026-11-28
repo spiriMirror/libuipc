@@ -26,7 +26,7 @@ TEST_CASE("stable_neo_hookean_material_conversion", "[constitution][stable_neo_h
     // Reapply through each public parameterization; every cell must be updated.
     for(Float E : {1.0e3, 1.0e5, 1.0e8})
     {
-        for(Float nu : {-0.2, 0.0, 0.3, 0.49, 0.499})
+        for(Float nu : {-0.5, -0.2, 0.0, 0.3, 0.49, 0.499})
         {
             CAPTURE(E, nu);
             const Float mu     = E / (2 * (1 + nu));
@@ -44,4 +44,9 @@ TEST_CASE("stable_neo_hookean_material_conversion", "[constitution][stable_neo_h
             }
         }
     }
+
+    for(Float nu : {-1.0, 0.5, 0.6, std::numeric_limits<Float>::quiet_NaN()})
+        CHECK_THROWS_AS(ElasticModuli::youngs_poisson(1.0, nu), Exception);
+    CHECK_THROWS_AS(ElasticModuli2D::youngs_poisson(1.0, 1.1), Exception);
+    CHECK(ElasticModuli2D::youngs_poisson(1.0, 0.6).mu() > 0);
 }

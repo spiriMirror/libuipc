@@ -4,7 +4,7 @@ requires = [
     "setuptools-scm>=8.0.0",
     # pip/scikit-build provisions these before configuring the Python binding.
     # Direct CMake builds retain automatic setup in their selected interpreter.
-    "pybind11>=2.11",
+    "pybind11>=2.12",
     "pybind11-stubgen>=2.5",
     "numpy>=1.23",
     "typing_extensions>=4.6",

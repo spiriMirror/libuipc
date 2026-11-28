@@ -221,7 +221,7 @@ native reconstruction; it does not use lossy location/rotation/scale keys.
 | `identity.py` / `watch.py` | Persistent IDs, request-order binding and relevant/raw-input validation gates |
 | `render_protocol.py` / `render_queue.py` / `render_worker.py` / `render_ui.py` | Immutable PNG render snapshots, verified receipts, owned renderer and queue controls |
 | `robot_control_state.py` / `robot_controls.py` | Validated robot-local poses, joint proxies, keying and angular trajectory review |
-| `motion.py` | Authored controller signatures, rigid substep target sampling, robot start-pose alignment |
+| `motion.py` | Authored controller signatures and joint curves from each object's assigned Action slot, rigid substep target sampling, robot start-pose alignment |
 | `robot_model.py` / `robot_ui.py` | Native URDF export, collision assembly cleanup, Blender joint hierarchy and driven links |
 | `scripts/build_blender_addon.py` | Deterministic ZIP without native binaries or Python wheels |
 

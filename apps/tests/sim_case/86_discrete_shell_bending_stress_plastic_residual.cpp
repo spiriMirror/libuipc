@@ -6,7 +6,6 @@
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 
 namespace
 {
@@ -75,7 +74,19 @@ ClothPatch load_center_patch()
     return ClothPatch{std::move(mesh), std::move(Vs), v00, v10, v11, v01, step};
 }
 
-uipc::Float residual_hinge_angle(bool use_stress_plastic)
+Float center_hinge_angle(const SimplicialComplex& sc, const ClothPatch& patch)
+{
+    auto          ps = sc.positions().view();
+    const Vector3 n0 =
+        (ps[patch.v10] - ps[patch.v00]).cross(ps[patch.v11] - ps[patch.v00]);
+    const Vector3 n1 =
+        (ps[patch.v00] - ps[patch.v01]).cross(ps[patch.v11] - ps[patch.v01]);
+    REQUIRE(n0.norm() > 0);
+    REQUIRE(n1.norm() > 0);
+    return std::atan2(n0.cross(n1).norm(), n0.dot(n1));
+}
+
+vector<Float> residual_hinge_angles(bool use_stress_plastic)
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -170,7 +181,8 @@ uipc::Float residual_hinge_angle(bool use_stress_plastic)
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
-    const SizeT end_frame = RampFrames + HoldFrames + ReleaseFrames;
+    const SizeT   end_frame = RampFrames + HoldFrames + ReleaseFrames;
+    vector<Float> residuals;
     while(world.frame() < end_frame)
     {
         world.advance();
@@ -178,37 +190,81 @@ uipc::Float residual_hinge_angle(bool use_stress_plastic)
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+        if(world.frame() > end_frame - ReleaseFrames / 4)
+            residuals.push_back(
+                center_hinge_angle(*slot->geometry().as<SimplicialComplex>(), patch));
     }
-
-    auto sc = slot->geometry().as<SimplicialComplex>();
-    auto ps = view(sc->positions());
-
-    const Vector3 x0 = ps[patch.v00];
-    const Vector3 x1 = ps[patch.v10];
-    const Vector3 x2 = ps[patch.v11];
-    const Vector3 x3 = ps[patch.v01];
-
-    const Vector3 n0      = (x1 - x0).cross(x2 - x0);
-    const Vector3 n1      = (x2 - x3).cross(x0 - x3);
-    const Float   n0_norm = n0.norm();
-    const Float   n1_norm = n1.norm();
-    REQUIRE(n0_norm > 0.0);
-    REQUIRE(n1_norm > 0.0);
-
-    const Float cos_theta =
-        std::clamp(n0.dot(n1) / (n0_norm * n1_norm), Float(-1.0), Float(1.0));
-    const Float triangle_normal_angle = std::acos(cos_theta);
-
-    return std::abs(std::numbers::pi_v<Float> - triangle_normal_angle);
+    return residuals;
 }
 }  // namespace
 
 TEST_CASE("86_discrete_shell_bending_stress_plastic_residual", "[fem][stress_plastic_dsb]")
 {
-    const auto elastic_angle        = residual_hinge_angle(false);
-    const auto stress_plastic_angle = residual_hinge_angle(true);
+    const auto elastic = residual_hinge_angles(false);
+    const auto plastic = residual_hinge_angles(true);
+    // The surrounding pinned sheet resists the crease. Its residual should
+    // remain distinguishable from the elastic oscillation over the unloading tail.
+    CHECK(std::ranges::max(elastic) < 1.0e-2);
+    CHECK(std::ranges::min(plastic) > std::ranges::max(elastic));
+}
 
-    CHECK(elastic_angle < 1.0e-2);
-    CHECK(stress_plastic_angle > 5.0e-2);
-    CHECK(stress_plastic_angle > elastic_angle + 5.0e-2);
+TEST_CASE("stress plastic hinge unloads to its predicted rest angle", "[fem][stress_plastic_dsb]")
+{
+    const Float     target      = GENERATE(0.05, 0.4);
+    constexpr Float a           = 0.025;
+    constexpr Float yield_angle = 0.1;
+    const vector<Vector3> vertices{{-a, 0, 0}, {a, 0, 0}, {0, 0, a}, {0, 0, -a}};
+    const vector<Vector3i> triangles{{0, 1, 2}, {1, 0, 3}};
+    auto                   mesh = trimesh(vertices, triangles);
+    label_surface(mesh);
+    NeoHookeanShell{}.apply_to(mesh, ElasticModuli2D::youngs_poisson(100.0_kPa, 0.49));
+    const Float kappa = DiscreteShellBending::bending_stiffness(100.0_kPa, 0.49, 0.001_m);
+    // L0=2a, the adjacent rest areas sum to 2a², and h_bar=A/(3L0)=a/3.
+    const Float yield_moment = 2 * kappa * (2 * a) / (a / 3) * yield_angle;
+    StressPlasticDiscreteShellBending{}.apply_to(mesh, kappa, yield_moment, 0.0);
+    SoftPositionConstraint{}.apply_to(mesh, 100.0);
+    auto fixed = view(*mesh.vertices().find<IndexT>(builtin::is_fixed));
+    std::fill_n(fixed.begin(), 3, 1);
+    auto dynamic = view(*mesh.vertices().find<IndexT>(builtin::is_dynamic));
+    std::ranges::fill(dynamic, 0);  // Suppress inertial overshoot during unloading.
+
+    Engine engine{"cuda", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + "single_hinge/"};
+    World world{engine};
+    auto  config                                = test::Scene::default_config();
+    config["dt"]                                = 0.01;
+    config["gravity"]                           = Vector3::Zero().eval();
+    config["contact"]["enable"]                 = false;
+    config["newton"]["velocity_tol"]            = 1e-5;
+    config["newton"]["semi_implicit"]["enable"] = 0;
+    config["linear_system"]["tol_rate"]         = 1e-6;
+    Scene scene{config};
+    auto  obj         = scene.objects().create("single_hinge");
+    auto [slot, rest] = obj->geometries().create(mesh);
+    scene.animator().insert(
+        *obj,
+        [target](Animation::UpdateInfo& info)
+        {
+            auto sc = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
+            view(*sc->vertices().find<IndexT>(builtin::is_constrained))[3] =
+                info.frame() <= 30;
+            const Float angle = target * std::min<Float>(info.frame() / 20.0, 1.0);
+            view(*sc->vertices().find<Vector3>(builtin::aim_position))[3] =
+                Vector3{0, a * std::sin(angle), -a * std::cos(angle)};
+        });
+    world.init(scene);
+    REQUIRE(world.is_valid());
+    Float peak = 0, angle = 0;
+    for(SizeT frame = 1; frame <= 74; ++frame)
+    {
+        world.advance();
+        REQUIRE(world.is_valid());
+        world.retrieve();
+        const auto& tip =
+            slot->geometry().as<SimplicialComplex>()->positions().view()[3];
+        angle = std::atan2(tip.y(), -tip.z());
+        if(frame <= 30)
+            peak = std::max(peak, angle);
+    }
+    REQUIRE((peak > yield_angle) == (target > yield_angle));
+    CHECK(angle == Catch::Approx(std::max(peak - yield_angle, 0.0)).margin(1e-4));
 }

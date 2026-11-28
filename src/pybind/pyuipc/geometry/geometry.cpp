@@ -262,6 +262,7 @@ Returns:
     class_Geometry.def(
         "meta",
         [](Geometry& self) { return self.meta(); },
+        py::keep_alive<0, 1>(),
         R"(Get the meta attributes.
 Returns:
     MetaAttributes: Meta attributes of the geometry.)");
@@ -269,6 +270,7 @@ Returns:
     class_Geometry.def(
         "instances",
         [](Geometry& self) { return self.instances(); },
+        py::keep_alive<0, 1>(),
         R"(Get the instance attributes.
 Returns:
     InstanceAttributes: Instance attributes of the geometry.)");

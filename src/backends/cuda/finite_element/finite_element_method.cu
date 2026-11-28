@@ -1121,9 +1121,9 @@ bool FiniteElementMethod::Impl::try_recover(RecoverInfo& info)
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
-    return dump_xs.load(fmt::format("{}q.{}", path, frame))                //
-           && dump_vs.load(fmt::format("{}q_v.{}", path, frame))           //
-           && dump_x_prevs.load(fmt::format("{}q_prev.{}", path, frame));  //
+    return dump_xs.load<Vector3>(fmt::format("{}q.{}", path, frame))       //
+           && dump_vs.load<Vector3>(fmt::format("{}q_v.{}", path, frame))  //
+           && dump_x_prevs.load<Vector3>(fmt::format("{}q_prev.{}", path, frame));  //
 }
 
 void FiniteElementMethod::Impl::apply_recover(RecoverInfo& info)

@@ -632,6 +632,13 @@ otherwise disabling the last force would leave stale contributions on the GPU.
 `python/tests/test_external_force.py` covers default activation, soft-constraint
 independence, legacy fallback, and disable/re-enable through both IPC and AL-IPC.
 
+AL-IPC checkpoints save active PH/PT/EE index pairs, multipliers and retention
+counters, plus the non-penetrating positions used by lagged friction.
+`World.recover()` validates the contact history before applying a frame.
+Older AL checkpoints predating this history cannot reproduce continued
+contact and are rejected. The backend publishes a frame manifest after all
+subsystem payloads have been written successfully.
+
 AL-IPC follows a nested solve boundary that must not be collapsed into the IPC
 line search. The unconstrained/penalty iterate may penetrate, so its energy line
 search starts at one without the IPC CFL clamp. A backtracked step continues the

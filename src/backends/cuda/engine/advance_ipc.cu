@@ -397,7 +397,7 @@ void SimEngine::advance()
         else
         {
             logger::info("Newton Iteration Converged with Iteration Count: {}, Max: {}",
-                         newton_iter_after_loop,
+                         m_frame_newton_iterations,
                          newton_max);
         }
     };
@@ -406,10 +406,7 @@ void SimEngine::advance()
     *                                  Core Pipeline
     ***************************************************************************************/
 
-    // Abort on exception if the runtime check is enabled for debugging
-    constexpr bool AbortOnException = uipc::RUNTIME_CHECK;
-
-    auto pipeline = [&]() noexcept(AbortOnException)
+    auto pipeline = [&]()
     {
         Timer timer{"Pipeline"};
 
@@ -669,7 +666,7 @@ void SimEngine::advance()
 
                     // Line Search Iteration
                     bool converged = convergence_check(newton_iter);
-                    bool terminated = converged && (newton_iter >= newton_min_iter);
+                    bool terminated = converged && (newton_iter + 1 >= newton_min_iter);
                     SizeT line_search_iter = 0;
                     Float last_E = 0.0;  // E_0 unless a trial is evaluated
                     bool  last_E_evaluated = false;
@@ -801,14 +798,10 @@ void SimEngine::advance()
     {
         pipeline();
     }
-    catch(const SimEngineException& e)
+    catch(const std::exception& e)
     {
         logger::error("Engine Advance Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
-    }
-    catch(const std::exception& e)
-    {
-        UIPC_ASSERT(false, "Unexpected Exception: {}", e.what());
     }
 }
 }  // namespace uipc::backend::cuda

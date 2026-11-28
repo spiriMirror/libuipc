@@ -11,6 +11,7 @@ PySceneIO::PySceneIO(py::module& m)
         m, "SceneIO", R"(SceneIO class for loading and saving scenes to/from files and JSON.)");
     class_SceneIO.def(py::init<Scene&>(),
                       py::arg("scene"),
+                      py::keep_alive<1, 2>(),
                       R"(Create a SceneIO instance for a scene.
 Args:
     scene: Scene to perform I/O operations on.)");

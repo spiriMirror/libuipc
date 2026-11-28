@@ -76,10 +76,11 @@ namespace details
     // run the solver with the preconditioner frozen at its capture-time
     // output (this produced false PCG convergence on MAS scenes). A replay
     // on a blocking launch stream is ordered with the legacy stream.
-    inline void create_blocking_stream(cudaStream_t& stream)
+    inline cudaError_t create_blocking_stream(cudaStream_t& stream)
     {
         if(!stream)
-            cudaStreamCreateWithFlags(&stream, cudaStreamDefault);
+            return cudaStreamCreateWithFlags(&stream, cudaStreamDefault);
+        return cudaSuccess;
     }
 
     inline void destroy_stream(cudaStream_t& stream)
@@ -162,10 +163,9 @@ class GraphCapture
 
         reset_graph();
 
-        details::create_blocking_stream(m_capture_stream);
-
-        cudaError_t err =
-            cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
+        cudaError_t err = details::create_blocking_stream(m_capture_stream);
+        if(err == cudaSuccess)
+            err = cudaStreamBeginCapture(m_capture_stream, cudaStreamCaptureModeThreadLocal);
         if(err != cudaSuccess)
         {
             cudaGetLastError();
@@ -267,15 +267,15 @@ class GraphCapture
         return Result::Ok;
     }
 
-    // Replay the captured graph on an internal blocking stream and wait for
-    // completion. (A blocking stream does NOT wait for legacy-default-stream
-    // work — make sure any async H2D feeding the graph has completed, e.g. by
-    // using a synchronous cudaMemcpy.)
-    void launch_sync()
+    // The internal blocking stream participates in legacy-default-stream ordering.
+    // Order inputs from independent streams (e.g. non-blocking streams or a
+    // per-thread default stream) explicitly before replay.
+    cudaError_t launch_sync()
     {
-        details::create_blocking_stream(m_launch_stream);
-        cudaGraphLaunch(m_exec, m_launch_stream);
-        cudaStreamSynchronize(m_launch_stream);
+        cudaError_t err = details::create_blocking_stream(m_launch_stream);
+        if(err == cudaSuccess)
+            err = launch(m_launch_stream);
+        return err == cudaSuccess ? cudaStreamSynchronize(m_launch_stream) : err;
     }
 
     // Enqueue the captured graph on `stream` without waiting for it: it runs
@@ -398,9 +398,9 @@ class GraphWhile
         if(!runtime_supported())
             return fail(Result::Unsupported);
 
-        details::create_blocking_stream(m_capture_stream);
-
-        cudaError_t err;
+        cudaError_t err = details::create_blocking_stream(m_capture_stream);
+        if(err != cudaSuccess)
+            return fail(Result::CaptureFailed, "cudaStreamCreateWithFlags", err);
         // 1) main graph + conditional handle first: both bodies bake the
         //    handle as a kernel argument, so it must exist before capture
         err = cudaGraphCreate(&m_graph, 0);
@@ -510,8 +510,8 @@ class GraphWhile
     // the host does not.
     cudaError_t launch()
     {
-        details::create_blocking_stream(m_launch_stream);
-        return cudaGraphLaunch(m_exec, m_launch_stream);
+        cudaError_t err = details::create_blocking_stream(m_launch_stream);
+        return err == cudaSuccess ? cudaGraphLaunch(m_exec, m_launch_stream) : err;
     }
 
     // Stream of launch() (null before the first launch).

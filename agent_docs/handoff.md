@@ -1,5 +1,61 @@
 # Handoff — Current State of the Repo
 
+> **XMake dependency compatibility (2026-11-28)**. The shared flag helper
+> includes magic_enum's separate bitwise header when available.
+
+> **Python and Blender audit follow-up (2026-11-28)**. Borrowed collection
+> facades retain their native owners. The addon fingerprints the assigned
+> Action slot, handles winding per outer solid and preserves cavities, and
+> reads final worker status after observing process exit. MeshDoctor checks
+> FEM inputs and supports headless CLI operation.
+
+> **Solver and recovery audit follow-up (2026-11-28)**. The restart control
+> compares the next step after a fresh-engine restore against continuous
+> simulation. Point/plane, point/triangle and edge/edge AL contacts matched at
+> frames 4 and 8. Old AL dumps without the required history report failure.
+> BDF2 free flight and strict-limit error reporting are covered for both
+> body families and both contact pipelines, respectively.
+
+> **File I/O audit follow-up (2026-11-28)**. URDF geometry offsets are applied
+> once in their own link frames. Optional visuals fall back to collision display,
+> and meshless endpoints use ID `-1`. OBJ line records preserve consecutive
+> segments. MSH exports use Gmsh simplex types, and Python mesh writing accepts
+> `filename=` and `sc=`. OpenUSD stage opening reports a missing file immediately.
+
+> **Geometry and material audit follow-up (2026-11-28)**. Outward face labels
+> survive relabeling, motor targets use local axes, and a shell reassigned
+> to solid ABD uses the solid body-force integral. For plastic bending,
+> the isolated hinge checks the residual against the achieved peak angle
+> minus the yield angle, including the below-yield elastic control.
+
+> **Build and release audit follow-up (2026-11-28)**. Source builds require
+> pybind11 2.12 or newer. The post-build helper validates its staging path
+> before cleanup. Wheel matrix jobs distinguish tag and release events.
+> Manual hotfix dispatch retries a selected release in its original workflow.
+> Documentation builds include public-header changes and fork PR validation.
+> Sample 20 advances once per running GUI callback (samples `2c5d0f6`).
+
+> **Tetrahedral geometry (2026-11-28)**. Region splitting preserves instance
+> attributes and remaps triangle parent IDs. Merging offsets existing parent
+> IDs into the combined cell table. Tetrahedralization uses shell-local
+> origins for its signed boundary-volume check, including cavity boundaries.
+
+> **Triangle surface closure**. The solid ABD volume path now checks every
+> undirected triangle edge for exactly two occurrences. Samples `20045cb`
+> removes a double-sided sheet from `thumb_distal.obj` and closes a gap in
+> `thumb_tip.obj`. All 17 imported collision meshes pass the edge check.
+> The thumb links use their URDF inertias because their closed components
+> overlap. Sample 45 passed 500 frames, and sample 52 passed the four-finger
+> grasp and release checks in two independent 500-frame runs.
+
+> **Python geometry inputs and ABD batches (2026-11-28)**. Mesh factories
+> honor vertex and topology strides. Batched ABD pose and velocity conversion
+> preserves the scalar API's matrix orientation and translation column.
+
+> **Python read-only bindings (2026-11-28)**. Vector and matrix attribute views
+> now reject NumPy assignment, and UID lookup fields reject reassignment.
+> Use `uipc.view(slot)` to write a numeric attribute with copy-on-write.
+
 > **Opt-in preconditioner reuse (2026-11-18)**: `linear_system/keep_preconditioner`
 > (default 0) lets every odd Newton iteration from the third on keep the
 > previous iteration's preconditioner on the standard IPC pipeline. It is off

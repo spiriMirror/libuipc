@@ -24,5 +24,6 @@ TEST_CASE("flip_inward_triangles", "[surface]")
     auto flipped_orient = flipped.triangles().find<IndexT>(builtin::orient);
     REQUIRE(std::ranges::all_of(flipped_orient->view(),
                                 [](auto o) { return o > 0; }));
+    auto relabelled = label_triangle_orient(flipped);
+    REQUIRE(std::ranges::all_of(relabelled->view(), [](auto o) { return o > 0; }));
 }
-
