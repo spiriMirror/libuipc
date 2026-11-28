@@ -1,5 +1,8 @@
 # Handoff — Current State of the Repo
 
+> **XMake dependency compatibility (2026-11-28)**. The shared flag helper
+> includes magic_enum's separate bitwise header when available.
+
 > **Python and Blender audit follow-up (2026-11-28)**. Borrowed collection
 > facades retain their native owners. The addon fingerprints the assigned
 > Action slot, handles winding per outer solid and preserves cavities, and
