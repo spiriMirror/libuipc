@@ -1,7 +1,10 @@
 # Handoff — Current State of the Repo
 
 > **Triangle surface closure**. The solid ABD volume path now checks every
-> undirected triangle edge for exactly two occurrences.
+> undirected triangle edge for exactly two occurrences. Samples 45 and 52 use
+> URDF inertias for the two thumb links with unsuitable collision surfaces.
+> Sample 45 passed 500 frames. Sample 52 passed its four-fingertip grasp and
+> release checks in two independent 500-frame runs (samples commit `1ffd1df`).
 
 > **Python geometry inputs and ABD batches (2026-11-28)**. Mesh factories
 > honor vertex and topology strides. Batched ABD pose and velocity conversion
